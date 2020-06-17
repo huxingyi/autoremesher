@@ -22,9 +22,9 @@ install:
   - mkdir build
   - cd build
   - if "%PLATFORM%" == "x64"
-    cmake -G "Visual Studio 15 2017" -A %PLATFORM% ../
+    cmake -G "Visual Studio 15 2017" -A %PLATFORM% -D "BUILD_APPS=OFF" ../
   - if "%PLATFORM%" == "x86"
-    cmake -G "Visual Studio 15 2017" ../
+    cmake -G "Visual Studio 15 2017" -D "BUILD_APPS=OFF" ../
   - cmake --build . --config Release
   - cd %APPVEYOR_BUILD_FOLDER%
 
