@@ -4,12 +4,10 @@ environment:
   matrix:
     - platform: x64
       target: x86_64-pc-windows-msvc
-      qtdir: C:\Qt\5.13.2\msvc2017_64
       sysdirname: SysWOW64
 
     - platform: x86
       target: i686-pc-windows-msvc
-      qtdir: C:\Qt\5.13.2\msvc2017
       sysdirname: system32
 
 install:
@@ -51,7 +49,7 @@ after_test:
     set RELEASE_FILENAME=autoremesher-%TAG%.zip
   - if "%PLATFORM%" == "x86"
     set RELEASE_FILENAME=autoremesher-%TAG%-x86.zip
-  - 7z a %RELEASE_FILENAME% %APPVEYOR_BUILD_FOLDER%\release\autoremesher.exe
+  - 7z a %RELEASE_FILENAME% %APPVEYOR_BUILD_FOLDER%\build\Release\autoremesher.exe
   - 7z a %RELEASE_FILENAME% "%VCREDIST_CRT_DIR%\msvcp140.dll"
   - 7z a %RELEASE_FILENAME% "%VCREDIST_CRT_DIR%\vcruntime140.dll"
 
