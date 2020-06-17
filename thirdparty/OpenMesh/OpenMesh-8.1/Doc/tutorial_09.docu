@@ -1,0 +1,84 @@
+/** \page tutorial_09 Using custom properties (old style)
+
+This small code example shows how to attach and access additional properties on a mesh.
+
+<em>Note that this is an old style of using properties. Nowadays you should use the OpenMesh::PropertyManager instead.</em>
+
+When you want to add an additional properties you have to attach it to a primitive of the
+mesh. You can attach to verticies, halfedges, edges, faces or to the mesh itself. Use the
+add_property function:
+
+\code
+
+  // for each vertex an extra double value
+  OpenMesh::VPropHandleT< double > vprop_double;
+  mesh.add_property( vprop_double ,"Vertex property name");
+
+  // for each halfedge an extra int value
+  OpenMesh::HEPropHandleT< int > heprop_int;
+  mesh.add_property( heprop_int ,"Halfedge property name");
+
+  // for each edge an extra float value
+  OpenMesh::EPropHandleT< float > eprop_float;
+  mesh.add_property( eprop_float ,"Edge property name");
+
+  // for each face an extra double value
+  OpenMesh::FPropHandleT< double > fprop_double;
+  mesh.add_property( fprop_double ,"Face property name");
+
+  // for the mesh an extra string
+  OpenMesh::MPropHandleT< string > mprop_string;
+  mesh.add_property( mprop_string , "Mesh property name ");
+
+\endcode
+
+Accessing to the property is available via the property function.
+This function gets the property handle (created above) and a
+handle (e.g. to a vertex or a face):
+
+\code
+  // Write something to a face property:
+  mesh->property( <FaceProperty> , <FaceHandle> ) = <new value>;
+
+  // E.g.
+  for (f_it=mesh->faces_begin(); f_it!=mesh->faces_end()  ; ++f_it) {
+    mesh->property( fprop_double , *f_it ) = 0.0;
+  }
+\endcode
+
+As you can attach properties to the mesh, you might want to add a property in one 
+function and access it in another, where the handle is not yet available. You can 
+retrieve the required handle in the following way (Note that the handles are accessed by their name and type):
+
+\code
+    // Specify handle type (Double face handle in this case):
+    OpenMesh::FPropHandleT< double > fprop_double;
+
+    // Try to get handle with the given name.
+    if ( !mesh_.get_property_handle(fprop_double,"Face property name") )  {
+      std::cerr << "Unable to retrieve property! " << std::endl;
+      return
+    }
+
+    // If we reach this point, we have a valid handle.
+\endcode
+
+The properties can be removed by calling remove_property:
+
+\code
+  // Remove the property
+  mesh->remove_property(fprop_double);
+\endcode
+
+
+
+A useful function to see all properties on the mesh is:
+
+\code
+  // Print all available properties
+  mesh->property_stats();
+\endcode
+
+A useful class for handling properties and their lifetime is the OpenMesh::PropertyManager.
+
+*/

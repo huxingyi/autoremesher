@@ -1,0 +1,8 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" href="$a02033.html" title="Base class for reader modules. " alt="" coords="5,107,192,133"/>
+<area shape="rect" id="node2" href="$a02037.html" title="Implementation of the OBJ format reader. " alt="" coords="240,5,437,32"/>
+<area shape="rect" id="node3" href="$a02041.html" title="Implementation of the OFF format reader. " alt="" coords="240,56,437,83"/>
+<area shape="rect" id="node4" href="$a02045.html" title="Implementation of the OM format reader. " alt="" coords="243,107,435,133"/>
+<area shape="rect" id="node5" href="$a02061.html" title="Implementation of the PLY format reader. " alt="" coords="241,157,437,184"/>
+<area shape="rect" id="node6" href="$a02073.html" title="Implementation of the STL format reader. " alt="" coords="241,208,436,235"/>
+</map>

@@ -1,0 +1,26 @@
+var a02229 =
+[
+    [ "HalfedgeHandle", "a02229.html#a98f8b781cd83ebe6180b6e6eed93378c", null ],
+    [ "mesh_ptr", "a02229.html#ac49f79db166b46f4ea18eed4ab035628", null ],
+    [ "mesh_ref", "a02229.html#ae8f0207123f6660684932404d814c906", null ],
+    [ "pointer", "a02229.html#a7c04b362233dfc31d1af64420ee0e754", null ],
+    [ "reference", "a02229.html#a00202b68515ba09201fc7d19fc06ea69", null ],
+    [ "value_handle", "a02229.html#a35a383fd16e44093bd6b1e658e7eee62", null ],
+    [ "value_type", "a02229.html#a819f9bdb634127781cb774759547fd23", null ],
+    [ "CirculatorT", "a02229.html#a6e504d009f33eb5d72214f7c2238a403", null ],
+    [ "CirculatorT", "a02229.html#aed8e0fc6180005ea265c3f74f5acb0d4", null ],
+    [ "CirculatorT", "a02229.html#a210b47778652a286b868ee1b4c9b767e", null ],
+    [ "CirculatorT", "a02229.html#a4fa7c3cfa746a13985008bcf42dfe159", null ],
+    [ "current_halfedge_handle", "a02229.html#ad1e0ba7771bb02f9e3a08ea9d03fe93f", null ],
+    [ "handle", "a02229.html#ad8ea573e77ea06b176b6c970700c530f", null ],
+    [ "operator bool", "a02229.html#a47264e01fb4188d8a8a6b1c46e79883d", null ],
+    [ "operator TargetHandle", "a02229.html#a44483c6f48021181edef2f945540830c", null ],
+    [ "operator!=", "a02229.html#af45bd8fe80b0537ec6c275bcda298106", null ],
+    [ "operator*", "a02229.html#a3708509c960445cd65983cd2c8dc56d2", null ],
+    [ "operator++", "a02229.html#a1567af981ba9a493daf22bc24706a0f1", null ],
+    [ "operator--", "a02229.html#a0870afa036c92e58fcb10a9253036edf", null ],
+    [ "operator->", "a02229.html#adace3f419d1f078ebd7370f0aa3fa58f", null ],
+    [ "operator=", "a02229.html#a30d6e188703ab2c74ba516a6db8c4814", null ],
+    [ "operator==", "a02229.html#a269ebd81cf1fa3c27e01a2109fc1130a", null ],
+    [ "ConstCircT< Mesh >", "a02229.html#a9f88a1f9ebc97ec55c3ebca5d40720f2", null ]
+];

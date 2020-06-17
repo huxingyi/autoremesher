@@ -1,0 +1,18 @@
+//-----------------------------------------------------------------------------
+
+/** \page vdpm_docu View Dependent Progressive Meshes
+
+ The VDPM software is based on <a
+ href="http://www.postech.ac.kr/~leesy/ftp/gi01.pdf">"Truly Selective
+ Refinement of Progressive Meshes", J. Kim and S. Lee, In
+ Proc. Graphics Interface 2001</a>.
+
+ The library is located in \c %OpenMesh/Tools/VDPM/ and in 
+ \c %OpenMesh/Apps/VDProgMesh/ are demo applications:
+ -# \c mkbalancedpm creates balanced progressive meshes
+ -# \c vdpmanalyzer takes a progressive mesh and generates a view dependent
+    progressive mesh.
+ -# \c vdpmsynthezier is viewer for vdpm meshes.
+
+ \todo Complete VDPM documentation.
+*/

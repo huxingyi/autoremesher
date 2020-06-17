@@ -1,0 +1,11 @@
+prefix=@DEST_DIR@
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: libOpenMesh
+Description: OpenMesh library
+Version: @OPENMESH_VERSION_MAJOR@.@OPENMESH_VERSION_MINOR@
+
+Libs: -L${libdir} @PRIVATE_LIBS@
+Cflags: -I${includedir}

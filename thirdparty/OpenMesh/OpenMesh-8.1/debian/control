@@ -1,0 +1,67 @@
+Source: openmesh
+Section: libs
+Priority: optional
+Maintainer: Jean Pierre Charalambos <nakednous@gmail.com>
+Build-Depends: cdbs, debhelper (>= 7), cmake, libqt4-dev, libqt4-opengl-dev, freeglut3-dev, libfreetype6-dev, libgomp1, doxygen
+Standards-Version: 3.9.1
+Homepage: http://www.openmesh.org
+
+Package: libopenmesh
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: OpenMesh is a generic and efficient data structure for representing
+ and manipulating polygonal meshes. OpenMesh provides the following features:
+ .
+  * Representation of arbitrary polygonal and pure triangle meshes.
+  * Explicit representation of vertices, halfedges, edges and faces.
+  * Fast neighborhood access, especially the one-ring neighborhood.
+  * Highly customizable.
+ .
+ This package contains the shared library needed to run programs using
+ OpenMesh.
+
+Package: libopenmesh-dev
+Section: libdevel
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libopenmesh (= ${binary:Version}), libqt4-dev, libqt4-opengl-dev, freeglut3-dev, libfreetype6-dev
+Suggests: qt4-designer(>= 4.5), qt4-dev-tools (>= 4.5), libopenmesh-doc, libopenmesh-apps
+Description: OpenMesh is a generic and efficient data structure for representing
+ and manipulating polygonal meshes. OpenMesh provides the following features:
+ .
+  * Representation of arbitrary polygonal and pure triangle meshes.
+  * Explicit representation of vertices, halfedges, edges and faces.
+  * Fast neighborhood access, especially the one-ring neighborhood.
+  * Highly customizable.
+ .
+ This package contains all supplementary files (static library and headers) 
+ you need to develop your own programs using the OpenMesh library.
+
+Package: libopenmesh-apps
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libopenmesh (= ${binary:Version})
+Description: OpenMesh is a generic and efficient data structure for representing
+ and manipulating polygonal meshes. OpenMesh provides the following features:
+ .
+  * Representation of arbitrary polygonal and pure triangle meshes.
+  * Explicit representation of vertices, halfedges, edges and faces.
+  * Fast neighborhood access, especially the one-ring neighborhood.
+  * Highly customizable.
+ .
+ This package contains some binary applications that show some features of the
+ OpenMesh library.
+
+Package: libopenmesh-doc
+Architecture: all
+Depends: ${misc:Depends}
+Section: doc
+Suggests: libopenmesh-dev (= ${binary:Version}), libopenmesh-apps (= ${binary:Version})
+Description:  OpenMesh is a generic and efficient data structure for representing
+ and manipulating polygonal meshes. OpenMesh provides the following features:
+ .
+  * Representation of arbitrary polygonal and pure triangle meshes.
+  * Explicit representation of vertices, halfedges, edges and faces.
+  * Fast neighborhood access, especially the one-ring neighborhood.
+  * Highly customizable.
+ .
+ This package constains the API documentation of the OpenMesh library in HTML
+ format.

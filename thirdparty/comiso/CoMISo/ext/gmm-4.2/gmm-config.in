@@ -1,0 +1,119 @@
+#!/bin/sh
+# @configure_input@
+prefix="@prefix@"
+exec_prefix="@exec_prefix@"
+includedir="@includedir@"
+libdir="@libdir@"
+bindir="@bindir@"
+datadir="@datadir@"
+mandir="@mandir@"
+sysconfdir="@sysconfdir@"
+sharedstatedir="@sharedstatedir@"
+srcdir="@abs_top_srcdir@"
+builddir="@abs_top_builddir@"
+build_CXXFLAGS="@CXXFLAGS@"
+build_LDFLAGS="@LDFLAGS@"
+CXX="@CXX@"
+
+LDFLAGS="@LIBS@"
+STATICLDFLAGS="@LIBS@"
+LALDFLAGS="@LIBS@"
+SRC_LDFLAGS="@LIBS@"
+SRC_LALDFLAGS="@LIBS@"
+SRC_STATICLDFLAGS="@LIBS@"
+
+CFLAGS="@CPPFLAGS@ -I$includedir"
+SRC_CFLAGS="-I$srcdir/src -I$builddir/src @CPPFLAGS@"
+
+build="@BUILDER@-@BUILDDATE@"
+configure_args="@CONFIGURE_ARGS@"
+from_source=0
+usage()
+{
+	cat <<EOF
+Usage: gmm-config [OPTIONS]
+Options:
+        [--src]
+	[--prefix]
+	[--exec-prefix]
+	[--version]
+	[--libs-la]
+	[--libs]
+	[--cflags]
+	[--cxx]
+	[--build-flags]
+	[--build-libs]
+	[--configure-args]
+EOF
+	exit $1
+}
+
+while test $# -gt 0; do
+  case "$1" in
+  -*=*) optarg=`echo "$1" | sed 's/[-_a-zA-Z0-9]*=//'` ;;
+  *) optarg= ;;
+  esac
+
+  case $1 in
+    --src)
+      from_source=1
+      ;;
+    --prefix)
+      echo $prefix
+      ;;
+    --exec-prefix)
+      echo $exec_prefix
+      ;;
+    --version)
+      echo @VERSION@
+      ;;
+    --cflags)
+      if test $from_source -eq 0; then
+        echo $CFLAGS
+      else
+        echo $SRC_CFLAGS
+      fi;
+      ;;
+    --libs-la)
+      if test $from_source -eq 0; then
+        echo $LALDFLAGS
+      else
+        echo $SRC_LALDFLAGS
+      fi;
+      ;;
+    --libs)
+      if test $from_source -eq 0; then
+        echo $LDFLAGS
+      else
+        echo $SRC_LDFLAGS
+      fi;
+      ;;
+    --static-libs)
+      if test $from_source -eq 0; then
+        echo $STATICLDFLAGS
+      else
+        echo $SRC_STATICLDFLAGS
+      fi;
+      ;;
+    --build)
+      echo $build
+      ;;
+    --build-flags)
+      echo $build_CXXFLAGS
+      ;;
+    --build-libs)
+      echo $build_LDFLAGS
+      ;;
+    --cxx)
+      echo $CXX
+      ;;
+    --configure-args)
+      echo $configure_args
+      ;;
+    *)
+      usage 1 1>&2
+      ;;
+  esac
+  shift
+done
+

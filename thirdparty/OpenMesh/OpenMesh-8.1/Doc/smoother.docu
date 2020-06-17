@@ -1,0 +1,54 @@
+//-----------------------------------------------------------------------------
+
+/** \page smoother_docu Smoother Tools
+
+\section OM_Smoother_Overview Overview
+
+The %OpenMesh library provides tools for smoothing Triangle- and Polymeshes
+
+-# Smoother:
+  -# OpenMesh::Smoother::SmootherT
+  -# OpenMesh::Smoother::LaplaceSmootherT
+  -# OpenMesh::Smoother::JacobiLaplaceSmootherT
+
+\section OM_Smoother_Usage Usage
+The smoothers directly work on an OpenMesh. The following example shows how to use them:
+
+\code
+  #include <OpenMesh/Tools/Smoother/JacobiLaplaceSmootherT.hh>
+
+  // Initialize smoother with input mesh
+  OpenMesh::Smoother::JacobiLaplaceSmootherT<MyMesh> smoother(mesh);
+
+  smoother.initialize( Tangential_and_Normal,   //Smooth direction
+                       C0)                      //Continuity
+    
+  // Execute 3 smooth steps
+  smoother.smooth(3);
+\endcode
+
+\section Options
+
+\subsection Continuity
+\li C0: shape is continuous, but not the tangent
+\li C1: shape and tangent are continuous
+\li C2: preserves curvature
+
+\subsection Component
+\li Tangential:            Smooth in tangential direction
+\li Normal:                Smooth in normal direction
+\li Tangential_and_Normal: Smooth in tangential and normal direction
+
+\subsection localError Local Error
+By default, this option is disabled.
+You can set local max. local errors (absolute or relative) via following functions:
+\code
+  void OpenMesh::Smoother::SmootherT<Mesh>::set_relative_local_error(Scalar _err);
+  void OpenMesh::Smoother::SmootherT<Mesh>::set_absolute_local_error(Scalar _err);
+  void OpenMesh::Smoother::SmootherT<Mesh>::disable_local_error_check();
+\endcode
+
+
+*/
+
+//-----------------------------------------------------------------------------

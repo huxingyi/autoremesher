@@ -1,0 +1,64 @@
+/** \page tutorial_01 First Steps - Building a cube
+
+This small example shows:
+\li How to declare your type \c MyMesh,
+\li How to add vertices and faces to a mesh,
+\li How to write a mesh using the IO functions.
+
+For each program the first step is to define your type \c
+MyMesh. %OpenMesh supports general polygonal meshes (faces are polygons
+with varying number of vertices) as well as specialized triangle
+meshes (all faces are triangles). In this example we want to build a
+cube from six quadrangles, therefore we choose the polygonal mesh.
+
+%OpenMesh also supports different mesh kernels, specifying how all the
+vertices, edges, and faces are stored internally (see also \ref
+mesh_kernels_group). However, the storage must provide an array like interface.
+For the tutorial we use the supplied ArrayKernel. The predefined
+combinations of TriMesh/PolyMesh and the kernel are
+contained in \c %OpenMesh/src/OpenMesh/Core/Mesh, we use the
+<tt>PolyMesh_ArrayKernelT</tt>. 
+
+\dontinclude build_cube.cc
+\skipline PolyMesh_ArrayKernel
+\skipline MyMesh
+
+Now since we have declared our type \c MyMesh, we only have to add 8
+vertices and 6 quadrangles to build a cube. Adding a vertex is done
+using the <tt>add_vertex</tt> method. It gets a coordinate and returns
+a handle to the inserted vertex. We store all handles in an array,
+since we need them for specifying the faces.
+
+\skipline vhandle[0]
+\until vhandle[3]
+
+<br>In order to add a face to the mesh, we have to build a vector holding
+the handles to the face's vertices. This vector is passed to the
+\c add_face method. The following block will create a face from the first
+four vertices:
+
+\skipline face_vhandles
+\until add_face
+
+<br>The orientation of the face is defined by the order in which the
+vertices are given: If you look at the frontfacing side of the
+polygon, then the vertices are in counter-clockwise order.
+
+After creating all of the six faces, we want to write the resulting
+mesh to standard output. %OpenMesh provides some basic input/output 
+methods in the namespace OpenMesh::IO:
+
+\skipline write_
+
+<br>To use the IO facility of %OpenMesh make sure that the include MeshIO.hh is
+included first.
+
+\dontinclude build_cube.cc
+\skipline MeshIO
+\until PolyMesh_ArrayKernel
+
+<br>The complete source looks like this:
+
+\include build_cube.cc
+
+**/

@@ -1,0 +1,10 @@
+<map id="ProgViewerWidget" name="ProgViewerWidget">
+<area shape="rect" id="node2" href="$a01925.html" title="MeshViewerWidgetProgBase" alt="" coords="788,101,980,128"/>
+<area shape="rect" id="node3" href="$a01929.html" title="QGLViewerWidget" alt="" coords="482,5,613,32"/>
+<area shape="rect" id="node5" href="$a02565.html" title="OpenMesh::FPropHandleT\l\&lt; typename Mesh::Point \&gt;" alt="" coords="459,57,636,98"/>
+<area shape="rect" id="node6" href="$a02549.html" title="OpenMesh::BasePropHandle\lT\&lt; typename Mesh::Point \&gt;" alt="" coords="219,57,409,98"/>
+<area shape="rect" id="node7" href="$a02237.html" title="Base class for all handle types. " alt="" coords="5,64,169,91"/>
+<area shape="rect" id="node8" href="$a02385.html" title="Polygonal mesh based on the ArrayKernel. " alt="" coords="466,122,629,163"/>
+<area shape="rect" id="node9" href="$a02389.html" title="Base type for a polygonal mesh. " alt="" coords="237,123,391,179"/>
+<area shape="rect" id="node11" href="$a02029.html" title="Set options for reader/writer modules. " alt="" coords="467,188,627,215"/>
+</map>

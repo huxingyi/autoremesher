@@ -1,0 +1,125 @@
+/** 
+
+
+\if OPENMESH_INTERNAL_DOC
+\mainpage OpenMesh Documentation
+\else
+\page OpenMeshDoc OpenMesh Documentation
+\endif
+
+\image html OpenMesh_text_128.png
+
+Welcome to the %OpenMesh documentation. %OpenMesh is a generic and efficient library
+that offers data structures for representing and manipulating polygonal meshes.
+It is a powerful tool for handling polygonal
+meshes. Due to its inherent generative structure it allows the user to
+create mesh types which are custom tailored to the specific needs of
+the application. The user can either supply his own data structures
+for representing vertices, edges and faces or he can conveniently use
+the predefined structures of %OpenMesh.
+Additionally %OpenMesh offers dynamic properties allowing the user to attach
+and detach data to the mesh during runtime.
+    
+Here you can find information on how to build projects using the %OpenMesh library
+as well as further information on mesh handling in %OpenMesh.
+The tutorials explain how to use %OpenMesh by demonstrating real code examples.
+
+\section openmesh-python OpenMesh Python Bindings
+We also provide python bindings for %OpenMesh. You can find them here:<br/>
+<tt>https://www.graphics.rwth-aachen.de:9000/OpenMesh/openmesh-python</tt>
+
+\section iov Building OpenMesh
+In this section all necessary information on how to build projects using %OpenMesh
+is given.
+
+\li \subpage compiling
+
+<br /><br />
+
+\subpage mesh_docu
+
+We provide a short overview over the functionality of the %OpenMesh
+library and some additional concepts in \ref tutorial. Additionally, we explain the 
+most important topics of %OpenMesh in the following sections:
+
+\li \ref mesh_features
+\li \ref mesh_hds
+\li \ref mesh_iterators
+\li \ref mesh_navigation
+\li \ref mesh_io
+\li \ref mesh_operations
+\li \ref mesh_hierarchy
+
+The %OpenMeshTools library that contains some useful tools
+for i.e. mesh processing:
+    
+\li \subpage tools_docu
+    
+<br /><br />
+\subpage tutorial
+
+This section is supposed to introduce the basic concepts of
+%OpenMesh. <!--For detailed information, consult the online documentation
+(\subpage mesh_docu ).-->
+
+<!--In this tutorial we will introduce the %OpenMesh library by means of
+simple examples. The first one just builds a polygonal mesh
+representing a cube and writes the result to standard output. The
+following examples develop a simple mesh smoother: Recall that the
+immediate neighbors of a vertex are called the 1-ring of this
+vertex. It is well known that a polygonal mesh can be smoothed by
+repeatedly replacing each vertex' position by the center of gravity
+(cog) of its 1-ring. The basic smoother will
+
+\li read a polygonal mesh from standard input,
+\li compute the cog of the 1-ring of each vertex,
+\li replace each vertex' position by its cog and finally,
+\li write the mesh to standard output.-->
+
+\li \ref mesh_type
+\li \ref tutorial_01
+\li \ref tutorial_build
+\li \ref tutorial_02
+\li \ref tutorial_03
+\li \ref tutorial_04
+\li \ref tutorial_11
+\li \ref tutorial_05
+\li \ref tutorial_06
+\li \ref tutorial_07
+\li \ref tutorial_07b
+\li \ref tutorial_08
+\li \ref tutorial_09
+\li \ref tutorial_10
+
+<br /><br />
+
+\subpage additional_information
+
+\li \ref mesh_first_to_read
+\li \ref mesh_cpp
+\li \ref mesh_members
+\li \ref naming_conventions
+\li \ref mesh_speedup
+\li \ref om_changelog
+
+\page mesh_docu Using and understanding OpenMesh
+\li \subpage mesh_features
+\li \subpage mesh_hds
+\li \subpage mesh_iterators
+\li \subpage mesh_navigation
+\li \subpage mesh_io
+\li \subpage mesh_operations
+\li \subpage mesh_hierarchy
+\li \subpage mesh_type
+\li \subpage mesh_eigen
+
+
+\page additional_information Additional Information on OpenMesh
+\li \subpage mesh_first_to_read
+\li \subpage mesh_cpp
+\li \subpage mesh_members
+\li \subpage naming_conventions
+\li \subpage mesh_speedup
+\li \subpage om_changelog
+
+**/

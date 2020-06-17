@@ -1,0 +1,25 @@
+//-----------------------------------------------------------------------------
+
+
+/** \page mesh_speedup Some Notes on how to speedup OpenMesh
+
+On this page we collect some hints which can be used to speedup OpenMesh. This list is not complete, so if you 
+have additional hints, just tell us.
+
+<ul>
+  <li> <b>Visual Studio</b>
+      <ul>
+        <li>The prebuild binaries we ship are not compiled with full optimization enabled. You can build it yourself with full
+            optimization. ("Full Optimization"  (Project setting: C/C++ ->> Optimization) ).  Please remember that you than have 
+            to build everything with this flag to avoid incompatibilities.</li>
+      </ul>
+  </li>
+</ul>
+
+*/
+
+
+
+
+//-----------------------------------------------------------------------------
+

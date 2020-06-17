@@ -1,0 +1,46 @@
+libQEx uses the cmake build system.
+
+libQEx depends on OpenMesh. If you don't have a copy of OpenMesh yet, get it at
+http://openmesh.org/. libQEx depends on version 3 of OpenMesh. As of this
+writing you have to build OpenMesh from the svn trunk as version 3 is not yet
+available in a pre-packaged form.
+
+If you want to build the unit tests, you also need the googletest framework.
+You can get it at http://code.google.com/p/googletest/.
+
+Building libQEx involves the following steps:
+
+# Clone libQEx
+git clone https://github.com/hcebke/libQEx.git libQEx
+cd libQEx
+
+# Create a build directory
+mkdir build
+cd build
+
+# Initialize the build directory
+cmake -D OPENMESH_INCLUDE_DIR=/path/to/OpenMesh/src \
+    -D OPENMESH_LIBRARY_DIR=/path/to/OpenMesh/binaries ..
+
+# Alternatively, initialize the build directory, including the unit tests
+cmake -D OPENMESH_INCLUDE_DIR=/path/to/OpenMesh/src \
+    -D OPENMESH_LIBRARY_DIR=/path/to/OpenMesh/binaries \
+    -D BUILD_UNIT_TESTS=true -D GTEST_DIR=/path/to/googletest ..
+
+# Build
+make
+
+# Build the documentation
+make qex_doc
+
+# If you have built the unit tests, execute them
+./tests/QEx_tests
+
+# Try the demo program
+./demo/cmdline_tool/cmdline_tool --help
+
+# To get started with the API, have a look at the API Doc ...
+firefox ./doc/html/index.html
+
+# ... and, even better, at the sources of the command line tool.
+vim ../demo/cmdline_tool/main.cpp

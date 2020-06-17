@@ -1,0 +1,79 @@
+\documentclass{minimal}
+
+% Tikz
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage{color}
+
+\definecolor{ACG}{RGB}{55,91,64}
+
+\begin{document}
+
+\begin{center}
+
+%\colorbox{ACG}{
+
+\begin{tikzpicture}
+ [
+ 	vertex/.style={draw=none,circle,fill=white,minimum size=2pt},
+	edge/.style={draw,white,thick},
+	redge/.style={line width=3pt,color=red!50!white}
+ ]
+
+\begin{scope}[xshift=-5cm]
+
+\coordinate (V1) at (-3,3);
+\coordinate (V2) at (0,0);
+\coordinate (V3) at (0,6);
+\coordinate (V4) at (3,3);
+
+\draw[edge] (V1) to (V2) {};
+
+\draw[edge] (V1) -- (V3) {};
+
+\draw[redge] (V1) -- (V4) {};
+
+\draw[edge] (V2) -- (V4) {};
+
+\draw[edge] (V3) -- (V4) {};
+
+\node[vertex] at (V1) {};
+\node[vertex] at (V2) {};
+\node[vertex] at (V3) {};
+\node[vertex] at (V4) {};
+
+\end{scope}
+
+\draw[->,>=latex,thick,white] (-1.5, 4) arc (105:75:6);
+\node[above] at (0, 4.2) {\textcolor{white}{\textbf{Flip edge}}};
+
+\begin{scope}[xshift=5cm]
+
+\coordinate (V1) at (-3,3);
+\coordinate (V2) at (0,0);
+\coordinate (V3) at (0,6);
+\coordinate (V4) at (3,3);
+
+\draw[edge] (V1) to (V2) {};
+
+\draw[edge] (V1) -- (V3) {};
+
+\draw[redge] (V2) -- (V3) {};
+
+\draw[edge] (V2) -- (V4) {};
+
+\draw[edge] (V3) -- (V4) {};
+
+\node[vertex] at (V1) {};
+\node[vertex] at (V2) {};
+\node[vertex] at (V3) {};
+\node[vertex] at (V4) {};
+
+\end{scope}
+\end{tikzpicture}
+
+%}
+
+\end{center}
+
+\end{document}

@@ -1,0 +1,12 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node2" href="$a01953.html" title="AnalyzerTraits::Halfedge\lT\&lt; Base, Refs \&gt;" alt="" coords="125,5,291,47"/>
+<area shape="rect" id="node3" href="$a01949.html" title="AnalyzerTraits::VertexT\l\&lt; Base, Refs \&gt;" alt="" coords="128,71,288,112"/>
+<area shape="rect" id="node4" href="$a01885.html" title="MyTraits::VertexT\&lt;\l Base, Refs \&gt;" alt="" coords="141,136,275,177"/>
+<area shape="rect" id="node5" href="$a02881.html" title="OpenMesh::Subdivider\l::Adaptive::CompositeTraits\l::EdgeT\&lt; Base, Refs \&gt;" alt="" coords="115,202,301,258"/>
+<area shape="rect" id="node6" href="$a02877.html" title="OpenMesh::Subdivider\l::Adaptive::CompositeTraits\l::FaceT\&lt; Base, Refs \&gt;" alt="" coords="115,282,301,338"/>
+<area shape="rect" id="node7" href="$a02885.html" title="OpenMesh::Subdivider\l::Adaptive::CompositeTraits\l::VertexT\&lt; Base, Refs \&gt;" alt="" coords="115,362,301,418"/>
+<area shape="rect" id="node8" href="$a02989.html" title="OpenMesh::Subdivider\l::Uniform::CompositeTraits\l::EdgeT\&lt; Base, Refs \&gt;" alt="" coords="118,442,298,498"/>
+<area shape="rect" id="node9" href="$a02985.html" title="OpenMesh::Subdivider\l::Uniform::CompositeTraits\l::FaceT\&lt; Base, Refs \&gt;" alt="" coords="118,522,298,578"/>
+<area shape="rect" id="node10" href="$a02993.html" title="OpenMesh::Subdivider\l::Uniform::CompositeTraits\l::VertexT\&lt; Base, Refs \&gt;" alt="" coords="118,602,298,658"/>
+<area shape="rect" id="node11" href="$a03101.html" title="OpenMesh::VDPM::MeshTraits\l::VertexT\&lt; Base, Refs \&gt;" alt="" coords="105,683,311,724"/>
+</map>

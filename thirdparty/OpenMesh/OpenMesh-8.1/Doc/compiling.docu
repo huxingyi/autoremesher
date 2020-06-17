@@ -1,0 +1,162 @@
+//-----------------------------------------------------------------------------
+
+/** \page compiling Compiling OpenMesh
+
+\section compilers Tested compilers
+
+%OpenMesh has been successfully tested for the following operating
+systems / compilers. This is only a list of tested compilers. 
+More might be supported but are not tested. Make sure that your compiler
+supports at least C++11
+
+<table>
+
+<tr><td> Linux </td><td>
+gcc   >= 6.3<br>
+clang >= 3.3<br>
+</td></tr>
+
+<tr><td> Windows </td><td> 
+Microsoft Visual Studio 2015<br>
+Microsoft Visual Studio 2017<br>
+</td></tr>
+
+<tr><td> Tested MacOS X Compilers</td>
+<td> 
+XCode  <br>
+</td></tr>
+
+</table>
+
+\section req_libs Required libraries (Only if you want to build the included Apps)
+
+Install the following external libraries / frameworks if you want to use the included Applications:<br><br>
+<table>
+<tr><td>Qt5</td><td><a href="http://qt-project.org/downloads" target="_blank">https://www.qt.io/download</a></td></tr>
+</table><br>
+
+\section build_systems Chosing build system
+
+%OpenMesh can be built using the <b>cmake</b> build system.
+<br>
+<br>
+
+\section sec_compiling_unix Unix
+
+\subsection linux_using_cmake Compiling OpenMesh using CMake
+
+In order to compile %OpenMesh, create a directory named e.g. "build" in
+OpenMesh's root directory. <b>Change to the newly created directory</b> and type
+<br/><br/>
+<tt>
+cmake&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;## Generates the appropriate Makefiles<br>
+make&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;## Builds the project<br>
+</tt><br>
+
+\warning If your compiler does not support c++11 natively, you might have to enable it by changing the cmake call to: <br>
+         <tt>cmake .. -DCMAKE_CXX_FLAGS=-std=c++98</tt>
+
+You can choose the build type by using cmake with the flag<br>
+<b>-DCMAKE_BUILD_TYPE=(Debug|Release)</b>    The default is: Release <br>
+
+Other flags are:<br/>
+<b>-DBUILD_APPS=OFF</b> to disable build of applications and<br/>
+<b>-DCMAKE_INSTALL_PREFIX=&lt;path&gt;</b> to specify the install path.<br/>
+
+When calling <b>make install</b> cmake will install %OpenMesh into this
+directory using the subdirectories lib/include/bin.
+
+CMake builds both shared and static under Linux.
+
+Everything will then be build in the <b>Build</b> subdirectory containing the libraries in <b>lib</b> and the binaries in <b>bin</b>.
+
+
+There are some additional targets:<br>
+<b>doc</b>: Builds the Documentation<br>
+<b>doc-install</b>: Builds the Documentation and installs it<br>
+<br>
+\note When you link against the static libraries of OpenMesh and get the error "can not be used when making a
+shared object; recompile with -fPIC" you need to add "-fPIC" to the CMAKE_CXX_FLAGS. (This is usually added automatically)
+
+
+
+
+
+
+
+
+\section sec_compiling_windows Windows
+
+\subsection windows_using_cmake Compiling OpenMesh using CMake
+
+Building OpenMesh on Windows requires cmake to generate the project files for Visual Studio.
+
+
+
+<ul>
+<li> Get Visual Studio ( 2015-2017 ) </li>
+<li> Extract %OpenMesh source code. </li>
+<li> Get all required libraries and install them ( including headers! ).</li>
+<li> Download and install cmake:  <a href="https://cmake.org/download/">www.cmake.org</a>.<br> </li>
+<li> Start the cmake gui and open the %OpenMesh toplevel directory as source directory </li>
+<li> Choose a build directory (e.g. create a directory called "build" in OpenMesh's root folder) </li>
+<li> Click on configure .... If any libraries are left unconfigured, you can adjust the path manually. Rerun configure until everything is configured correctly. <br>
+     Attention: Some build variables are only visible in advanced view mode. Select Visual Studio 9 (2008), Visual Studio 10(2010), Visual Studio 11 (2012), Visual Studio 12 (2013)  (Depending on your version) as
+     generator. </li>
+<li> Click generate to create the visual studio project files </li>
+<li> You can now find a Visual Studio solution file (OpenMesh.sln) in the <b>build</b> directory you chose in cmake </li>
+<li> Now you can build %OpenMesh from within Visual Studio using the newly created project file. </li>
+</ul>
+
+<br>
+<br>
+
+\section sec_compiling_macosx MacOS X
+
+Download and install required libraries as stated above.
+You can download %OpenMesh's sources from <tt>www.openmesh.org</tt> or check out the latest repository via GIT:<br/>
+<tt>https://www.graphics.rwth-aachen.de:9000/OpenMesh/OpenMesh</tt>.<br/><br/>
+
+\subsection mac_using_cmake Compiling OpenMesh using CMake
+
+We recommend you to use CMake >= 3.7 as build system. This can also easily be installed
+via MacPorts as well as the Qt >= 5.6 library which is used for some example applications
+in %OpenMesh.<br/>
+Once installed, change to %OpenMesh's root directory and create a directory
+named e.g. "buildDebug" (assuming you want to build with debug symbols).<br/>
+Then type in the following command to initially set up the build environment:
+<br/><br/>
+<tt>
+cmake&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;## Generates the appropriate Makefiles<br>
+</tt>
+<br/>
+Note: If the build directory is not a subdirectory of %OpenMesh's root folder, replace ".." with %OpenMesh's
+absolute (or relative) path.
+In order to manually set specific build variables, just type:
+<br/><br/>
+<tt>
+ccmake&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;## Configure build environment<br>
+</tt>
+<br/>
+This opens the CMake configure tool. Change the CMAKE_BUILD_TYPE variable to "Release" in order to prepare build
+for release configuration. Now, when everything is set up, just type:
+<br/><br/>
+<tt>
+make&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;## Build %OpenMesh<br>
+</tt>
+<br/>
+And optionally:
+<br/><br/>
+<tt>
+make&nbsp;doc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;## Build %OpenMesh's documentation<br>
+</tt>
+<br>
+The mac application bundle will be found under "Build" in the recently created build folder. 
+It automatically contains all needed shared objects (libs, fonts, textures, etc.).
+
+CMake builds both shared and static under MacOS X.
+
+**/
+
+
+//-----------------------------------------------------------------------------

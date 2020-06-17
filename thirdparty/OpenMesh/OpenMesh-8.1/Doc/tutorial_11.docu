@@ -1,0 +1,85 @@
+/** \page tutorial_11 Using Smart Handles
+
+This examples shows:
+- How to use Smart Handles and ranges to navigate on the mesh
+- How to use Smart Ranges
+
+So far we have used methods such as halfedge_handle(), next_halfedge_handle(), prev_halfedge_handle(), oppopsite_halfedge_handle(), face_handle(), to_vertex_handle(), and some others, to navigate on that mesh. These functions are defined on a mesh and require as input a handle to an element of the mesh, such as VertexHandle or HalfedgeHandle. In the following example we iterate over all vertices of a triangle mesh and for each vertex we create a list of the vertices that lie opposite of the edges in the ring around the vertex:
+
+\code
+// iterate over vertices of the mesh
+for (auto vh : mesh.vertices())
+{
+  std::vector<OpenMesh::VertexHandle> opposite_vertices;
+  // iterate over all outgoing halfedges
+  for (auto heh : mesh.voh_range(vh))
+  {
+    // navigate to the opposite vertex and store it in the vector
+    opposite_vertices.push_back(mesh.to_vertex_handle(mesh.next_halfedge_handle(mesh.opposite_halfedge_handle(mesh.next_halfedge_handle(heh)))));
+  }
+}
+\endcode
+
+For a more concise way of navigating OpenMesh provides smart handles, OpenMesh::SmartVertexHandle, OpenMesh::SmartHalfedgeHandle, OpenMesh::SmartEdgeHandle, and OpenMesh::SmartFaceHandle. Smart handles are smart, because they know to which mesh they belong. This allows them to provide functions for navigating the mesh allowing us to write the above code much simpler:
+
+\code
+// iterate over vertices of the mesh
+for (auto vh : mesh.vertices())
+{
+  // iterate over all outgoing halfedges
+  std::vector<OpenMesh::VertexHandle> opposite_vertices;
+  for (auto heh : vh.outgoing_halfedges())
+  {
+    // navigate to the opposite vertex and store it in the vector
+    opposite_vertices.push_back(heh.next().opp().next().to());
+  }
+}
+\endcode
+
+The ranges of OpenMesh that are returned by functions like voh_range() or outgoing_halfedges() all provide a few methods than can simplify some calculations (see OpenMesh::SmartRangeT). One example is the to_vector() method which convertes the range of elements into a vector containing the elements. All of these methods take a functor as argument (sometimes optional) which is called for each element of the range. With this, the above code can also be implemented like this:
+
+\code
+// iterate over vertices of the mesh
+for (auto vh : mesh.vertices())
+{
+  // create lambda that returns opposite vertex
+  auto opposite_vertex = [](OpenMesh::SmartHalfedgeHandle heh) { return heh.next().opp().next().to(); };
+  // create vector containing all opposite vertices
+  auto opposite_vertices = vh.outgoing_halfedges().to_vector(opposite_vertex);
+}
+\endcode
+
+---
+
+## Code Example
+
+In this example, we will use bi-laplacian smoothing on a mesh. We store the \c laplace vector which is the vector pointing from a vertex to the center of gravity of its neighboring vertices in a vertex property.
+
+\dontinclude 11-smart_handles/smooth.cc
+\skipline laplace
+\skipline laplace
+
+To compute the center of gravity, i.e. the average position, we use the avg() method of the range of 1-ring vertices and pass in a PropertyManager acting as functor returning the corresponding point of a vertex.
+
+\skipline points
+\until avg(points)
+
+Similarily we compute the update vector as the laplace of the freshly computed laplace vectors by simply exchanging the points property manager with the laplace property manager.
+
+\skipline Iterate
+\until bi_laplace
+
+Finally, we apply the update after damping it by a factor of -0.5.
+
+\skipline udpate points
+\until bi_laplace
+
+Below is the complete source code:
+
+\include 11-smart_handles/smooth.cc
+
+---
+
+
+
+*/

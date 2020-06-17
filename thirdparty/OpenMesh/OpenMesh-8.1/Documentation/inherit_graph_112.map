@@ -1,0 +1,9 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node2" href="$a02389.html" title="Base type for a polygonal mesh. " alt="" coords="112,86,271,127"/>
+<area shape="rect" id="node3" href="$a02385.html" title="Polygonal mesh based on the ArrayKernel. " alt="" coords="335,21,498,62"/>
+<area shape="rect" id="node4" href="$a02489.html" title="Base type for a triangle mesh. " alt="" coords="343,86,491,127"/>
+<area shape="rect" id="node8" href="$a02385.html" title="OpenMesh::PolyMesh\l_ArrayKernelT\&lt; CustomTraits\lVec2i \&gt;" alt="" coords="319,152,515,208"/>
+<area shape="rect" id="node5" href="$a02741.html" title="Triangle mesh based on the Kernel_OSG::ArrayKernelT. " alt="" coords="575,5,765,61"/>
+<area shape="rect" id="node6" href="$a02377.html" title="Triangle mesh based on the ArrayKernel. " alt="" coords="563,86,777,127"/>
+<area shape="rect" id="node7" href="$a02377.html" title="OpenMesh::TriMesh_ArrayKernel\lT\&lt; CustomTraitsVec2i \&gt;" alt="" coords="563,151,777,193"/>
+</map>

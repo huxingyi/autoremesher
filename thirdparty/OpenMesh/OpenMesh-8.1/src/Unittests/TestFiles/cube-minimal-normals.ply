@@ -1,0 +1,26 @@
+ply
+format ascii 1.0
+element vertex 8
+property float32 x
+property float32 y
+property float32 z
+property float32 nx
+property float32 ny
+property float32 nz
+element face 6
+property list uint8 int32 vertex_indices
+end_header
+-1 -1 -1 0.0  0.0  1.0
+1 -1 -1 0.0  1.0  0.0
+1 1 -1 0.0  1.0  1.0
+-1 1 -1 1.0 0.0  0.0
+-1 -1 1 1.0  0.0  1.0
+1 -1 1 1.0  1.0  0.0
+1 1 1 1.0  1.0  1.0
+-1 1 1 1.0  1.0  2.0
+4 0 1 2 3 
+4 5 4 7 6 
+4 6 2 1 5 
+4 3 7 4 0 
+4 7 3 2 6 
+4 5 1 0 4 

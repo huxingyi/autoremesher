@@ -1,0 +1,6 @@
+<map id="OpenMesh::SmartBaseHandle" name="OpenMesh::SmartBaseHandle">
+<area shape="rect" id="node2" href="$a02413.html" title="OpenMesh::SmartEdgeHandle" alt="" coords="263,5,462,32"/>
+<area shape="rect" id="node3" href="$a02417.html" title="OpenMesh::SmartFaceHandle" alt="" coords="263,56,462,83"/>
+<area shape="rect" id="node4" href="$a02409.html" title="OpenMesh::SmartHalfedgeHandle" alt="" coords="252,107,473,133"/>
+<area shape="rect" id="node5" href="$a02405.html" title="Smart version of VertexHandle contains a pointer to the corresponding mesh and allows easier access t..." alt="" coords="259,157,466,184"/>
+</map>

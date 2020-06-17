@@ -1,0 +1,134 @@
+/** \page mesh_operations Some basic operations: Flipping and collapsing edges
+
+In this section you will learn about some basic operations on a mesh that %OpenMesh
+already provides. Comprising the flipping of edges in a triangle mesh as well as
+collapsing edges by joining the two adjacent vertices.
+
+\li \ref op_flip
+\li \ref op_collapse
+
+\section op_flip Flipping edges in triangle meshes
+
+Considering two adjacent faces of a triangle mesh, there exist exactly two
+different configurations of the inner edge. Calling the function
+OpenMesh::TriConnectivity::flip(EdgeHandle _eh) will flip the specified edge to
+its opposite orientation as shown in the illustration below.
+
+\image html mesh.flip.png "Flipping edges in a triangle mesh"
+
+So, the following snippet of code shows how to use this in your applications:
+
+\code
+TriMesh mesh;
+
+// Add some vertices
+TriMesh::VertexHandle vhandle[4];
+
+vhandle[0] = mesh.add_vertex(MyMesh::Point(0, 0, 0));
+vhandle[1] = mesh.add_vertex(MyMesh::Point(0, 1, 0));
+vhandle[2] = mesh.add_vertex(MyMesh::Point(1, 1, 0));
+vhandle[3] = mesh.add_vertex(MyMesh::Point(1, 0, 0));
+
+// Add two faces
+std::vector<TriMesh::VertexHandle> face_vhandles;
+
+face_vhandles.push_back(vhandle[2]);
+face_vhandles.push_back(vhandle[1]);
+face_vhandles.push_back(vhandle[0]);
+mesh.add_face(face_vhandles);
+
+face_vhandles.clear();
+
+face_vhandles.push_back(vhandle[2]);
+face_vhandles.push_back(vhandle[0]);
+face_vhandles.push_back(vhandle[3]);
+mesh.add_face(face_vhandles);
+
+// Now the edge adjacent to the two faces connects
+// vertex vhandle[0] and vhandle[2].
+
+// Find this edge and then flip it
+for(TriMesh::EdgeIter it = mesh.edges_begin(); it != mesh.edges_end(); ++it) {
+
+	if(!mesh.is_boundary(*it)) {
+		// Flip edge
+		mesh.flip(*it);
+	}
+}
+
+// The edge now connects vertex vhandle[1] and vhandle[3].
+\endcode
+
+
+\section op_collapse Collapsing edges
+
+In this section you will learn how to collapse edges such that the
+two adjacent vertices join. %OpenMesh provides the function OpenMesh::PolyConnectivity::collapse(HalfedgeHandle _heh) to
+perform this operation. This will collapse the from-vertex (remeber that halfedges are directed)
+to the to-vertex of the halfedge as illustrated below. Note that collapsing edges
+might cause topological inconsistencies to your mesh. You should verify consistency after
+collapsing edges by calling OpenMesh::PolyConnectivity::is_collapse_ok(). 
+
+\note You have to request status attributes in order to use the collapse and delete functions!
+
+\image html mesh.collapse.png "Collapsing will always be performed in the direction the halfedge points to."
+
+A simple code example related to the illustration might look like this:
+
+\code
+  PolyMesh mesh;
+
+  // Request required status flags
+  mesh.request_vertex_status();
+  mesh.request_edge_status();
+  mesh.request_face_status();
+
+  // Add some vertices as in the illustration above
+  PolyMesh::VertexHandle vhandle[7];
+  vhandle[0] = mesh.add_vertex(MyMesh::Point(-1, 1, 0));
+  vhandle[1] = mesh.add_vertex(MyMesh::Point(-1, 3, 0));
+  vhandle[2] = mesh.add_vertex(MyMesh::Point(0, 0, 0));
+  vhandle[3] = mesh.add_vertex(MyMesh::Point(0, 2, 0));
+  vhandle[4] = mesh.add_vertex(MyMesh::Point(0, 4, 0));
+  vhandle[5] = mesh.add_vertex(MyMesh::Point(1, 1, 0));
+  vhandle[6] = mesh.add_vertex(MyMesh::Point(1, 3, 0));
+
+  // Add three quad faces
+  std::vector<PolyMesh::VertexHandle> face_vhandles;
+  face_vhandles.push_back(vhandle[1]);
+  face_vhandles.push_back(vhandle[0]);
+  face_vhandles.push_back(vhandle[2]);
+  face_vhandles.push_back(vhandle[3]);
+  mesh.add_face(face_vhandles);
+
+  face_vhandles.clear();
+  face_vhandles.push_back(vhandle[1]);
+  face_vhandles.push_back(vhandle[3]);
+  face_vhandles.push_back(vhandle[5]);
+  face_vhandles.push_back(vhandle[4]);
+  mesh.add_face(face_vhandles);
+
+  face_vhandles.clear();
+  face_vhandles.push_back(vhandle[3]);
+  face_vhandles.push_back(vhandle[2]);
+  face_vhandles.push_back(vhandle[6]);
+  face_vhandles.push_back(vhandle[5]);
+  mesh.add_face(face_vhandles);
+
+  // Now find the edge between vertex vhandle[2]
+  // and vhandle[3]
+  for(PolyMesh::HalfedgeIter it = mesh.halfedges_begin(); it != mesh.halfedges_end(); ++it) {
+    if( mesh.to_vertex_handle(*it) == vhandle[3] &&
+        mesh.from_vertex_handle(*it) == vhandle[2])
+    {
+      // Collapse edge
+      mesh.collapse(*it);
+      break;
+    }
+  }
+
+  // Our mesh now looks like in the illustration above after the collapsing.
+
+\endcode
+
+*/

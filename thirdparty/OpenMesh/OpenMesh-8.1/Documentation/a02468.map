@@ -1,0 +1,14 @@
+<map id="OpenMesh::DefaultTraits" name="OpenMesh::DefaultTraits">
+<area shape="rect" id="node2" href="$a01945.html" title="AnalyzerTraits" alt="" coords="273,5,379,32"/>
+<area shape="rect" id="node3" href="$a03145.html" title="CustomTraits" alt="" coords="275,56,377,83"/>
+<area shape="rect" id="node4" href="$a03253.html" title="CustomTraitsVec2i" alt="" coords="259,107,393,133"/>
+<area shape="rect" id="node5" href="$a01917.html" title="MeshViewerWidgetTraits" alt="" coords="242,157,410,184"/>
+<area shape="rect" id="node6" href="$a01881.html" title="MyTraits" alt="" coords="289,208,363,235"/>
+<area shape="rect" id="node7" href="$a02473.html" title="Version of Default Traits that uses double precision for points and normals as well as floating point..." alt="" coords="221,259,431,285"/>
+<area shape="rect" id="node8" href="$a02733.html" title="Base class for all mesh traits using the OSGArrayKernelT. " alt="" coords="243,310,409,351"/>
+<area shape="rect" id="node9" href="$a02869.html" title="Adaptive Composite Subdivision framework. " alt="" coords="233,375,419,417"/>
+<area shape="rect" id="node10" href="$a02965.html" title="OpenMesh::Subdivider\l::Adaptive::Traits" alt="" coords="249,441,403,482"/>
+<area shape="rect" id="node11" href="$a02981.html" title="Uniform Composite Subdivision framework. " alt="" coords="236,506,416,547"/>
+<area shape="rect" id="node12" href="$a03097.html" title="Mesh traits for View Dependent Progressive Meshes. " alt="" coords="223,572,429,599"/>
+<area shape="rect" id="node13" href="$a01905.html" title="ProgTraits" alt="" coords="285,623,367,649"/>
+</map>

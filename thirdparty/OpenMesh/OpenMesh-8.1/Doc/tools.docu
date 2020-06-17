@@ -1,0 +1,15 @@
+//-----------------------------------------------------------------------------
+
+/** \page tools_docu OpenMesh Tools Documentation
+
+\li \subpage decimater_docu
+\li \subpage subdivider_docu
+\li \subpage vdpm_docu
+\li \subpage smoother_docu
+\li \subpage smarttagger_docu
+\li Miscellaneous
+    OpenMesh::StripifierT
+
+*/
+
+// ----------------------------------------------------------------------------

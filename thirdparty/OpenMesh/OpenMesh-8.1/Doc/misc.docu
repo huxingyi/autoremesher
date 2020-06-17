@@ -1,0 +1,31 @@
+//-----------------------------------------------------------------------------
+
+
+/** \page naming_conventions Naming Conventions
+
+The following naming conventions are used for the %OpenMesh code:
+
+<b>Files:</b>
+  \li \c MyClass.cc for C++-Implementation of class \c MyClass
+  \li \c MyClassT_impl.hh for Header only C++-Implementation of template class \c MyClass
+  \li \c MyClass.hh for C++-Header of class \c MyClass
+
+<b>Classes:</b>
+  \li Class names start with a capital letter: \c MyClass
+  \li Class templates end with \c T: \c MyClassTemplateT
+
+<b>Variables:</b>
+  \li One leading underscore for parameters in function-calls: \c _var
+  \li One trailing underscore for member-variables: \c var_
+  \li Two trailing underscores for static member-variables: \c var__
+
+<b>Functions:</b>
+  \li Words are separated by underscores: \c my_function()
+		 
+<b>Accessing members:</b>
+  \li To get the member \c xxx_ use <tt> const& xxx() const </tt>
+  \li To set the member \c xxx_ use <tt> void set_xxx(arg)  </tt>
+  
+**/
+
+//-----------------------------------------------------------------------------

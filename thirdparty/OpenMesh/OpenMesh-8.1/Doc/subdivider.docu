@@ -1,0 +1,40 @@
+//-----------------------------------------------------------------------------
+
+/** \page subdivider_docu Sudivision Tools
+
+\section OM_Subdivider_Overview Overview
+
+The %OpenMesh library provides a few tools for uniform and adaptive
+subdivision:
+
+-# Uniform subdivision
+  -# OpenMesh::Subdivider::Uniform::LoopT
+  -# OpenMesh::Subdivider::Uniform::Sqrt3T
+  -# OpenMesh::Subdivider::Uniform::ModifiedButterflyT
+  -# OpenMesh::Subdivider::Uniform::InterpolatingSqrt3LGT
+  -# OpenMesh::Subdivider::Uniform::CompositeT
+  -# OpenMesh::Subdivider::Uniform::CatmullClarkT
+  -# OpenMesh::Subdivider::Uniform::MidpointT
+-# Adaptive subdivision
+  -# OpenMesh::Subdivider::Adaptive::CompositeT
+-# Simple subdivision
+  -# OpenMesh::Subdivider::Uniform::LongestEdgeT
+
+\section OM_Subdivider_Usage Usage
+The subdividers directly work on an OpenMesh. The following example shows how to use them:
+
+\code
+  #include <OpenMesh/Tools/Subdivider/Uniform/CatmullClarkT.hh>
+
+  // Initialize subdivider
+  OpenMesh::Subdivider::Uniform::CatmullClarkT<PolyMesh> catmull;
+
+  // Execute 3 subdivision steps
+  catmull.attach(mesh_);
+  catmull( 3 );
+  catmull.detach();
+\endcode
+
+*/
+
+//-----------------------------------------------------------------------------

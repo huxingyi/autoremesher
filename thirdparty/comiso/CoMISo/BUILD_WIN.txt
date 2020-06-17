@@ -1,0 +1,89 @@
+This document describes how to build CoMISo  on Windows:
+
+
+
+
+1) checkout CoMISo from svn (e.g. with freeware TortoiseSVN):
+--------------------------------------------------------------------
+http://www.openflipper.org/svnrepo/CoMISo/trunk/CoMISo
+
+
+
+
+2) Install cmake: 
+------------------------------------------------------------------
+http://www.cmake.org/cmake/resources/software.html 
+(I used Version 2.8.11.1)
+
+-start cmake-gui
+-specify build system, e.g. Microsoft Visual Studio 12
+-specify source location, e.g. C:/projects/CoMISo
+-specify a build location (outside the source directories!),
+ e.g. C:/projects/CoMISo_build
+-press configure button
+
+
+
+
+3) Install GMM++:
+------------------------------------------------------------------
+just download and extract...
+http://download.gna.org/getfem/stable/gmm-4.2.tar.gz
+and adjust paths in cmake-gui
+
+
+
+
+4) Install Eigen3:
+------------------------------------------------------------------
+just download and extract...
+http://bitbucket.org/eigen/eigen/get/3.1.3.zip
+and adjust paths in cmake-gui
+
+
+
+
+5) Install Blas:
+------------------------------------------------------------------
+you can use any blas implementation available
+here I describe the preparation of OpenBlas
+
+download OpenBlas:
+http://github.com/xianyi/OpenBLAS/zipball/v0.2.6
+
+follow the install instructions of OpenBlas(see below):
+
+Quick guide to build library for Windows 64bit.
+
+1. What you need
+
+ a. Windows Server 2003 or later
+ b. Cygwin environment(make, gcc, g77, perl, sed, wget)
+ c. MinGW64 compiler
+ d. Microsoft Visual Studio (lib.exe and mspdb80.dll are required to create dll)
+
+2. Do ./quickbuild.win64
+
+3. make PREFIX=/path/to/your/installation install
+
+4. adjust BLAS_LIBRARIES path in cmake-gui to previously generated lib
+
+
+
+
+6) In cmake-gui press configure and generate
+------------------------------------------------------------------
+this creates the file "CoMISo.sln" inside the build folder,
+which can be opened with Microsoft Visual Studio
+
+- many dependencies are optional and only required if some of the
+advanced classes are used. Which packages were found in your
+configuration and are available during runtime is stated in
+CoMISo\Config\config.hh
+
+
+
+7) Test compiled example programs
+-----------------------------------
+run e.g. .\Build\factored_solver.exe  (from console to see output)
+

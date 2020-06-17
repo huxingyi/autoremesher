@@ -1,0 +1,5 @@
+<map id="DecOptions" name="DecOptions">
+<area shape="rect" id="node2" href="$a01889.html" title="CmdOption\&lt; bool \&gt;" alt="" coords="5,5,141,32"/>
+<area shape="rect" id="node3" href="$a01889.html" title="CmdOption\&lt; float \&gt;" alt="" coords="166,5,303,32"/>
+<area shape="rect" id="node4" href="$a01889.html" title="CmdOption\&lt; std::string \&gt;" alt="" coords="328,5,499,32"/>
+</map>

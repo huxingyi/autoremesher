@@ -1,0 +1,9 @@
+<map id="OpenMesh::ArrayKernel" name="OpenMesh::ArrayKernel">
+<area shape="rect" id="node2" href="$a02133.html" title="This class provides low&#45;level property management like adding/removing properties and access to prope..." alt="" coords="468,5,628,32"/>
+<area shape="rect" id="node4" href="$a02561.html" title="OpenMesh::EPropHandleT\l\&lt; StatusInfo \&gt;" alt="" coords="459,107,637,149"/>
+<area shape="rect" id="node5" href="$a02549.html" title="OpenMesh::BasePropHandle\lT\&lt; StatusInfo \&gt;" alt="" coords="219,214,409,255"/>
+<area shape="rect" id="node7" href="$a02553.html" title="OpenMesh::VPropHandleT\l\&lt; StatusInfo \&gt;" alt="" coords="459,173,637,214"/>
+<area shape="rect" id="node8" href="$a02565.html" title="OpenMesh::FPropHandleT\l\&lt; StatusInfo \&gt;" alt="" coords="459,238,637,279"/>
+<area shape="rect" id="node9" href="$a02557.html" title="OpenMesh::HPropHandleT\l\&lt; StatusInfo \&gt;" alt="" coords="459,303,637,345"/>
+<area shape="rect" id="node6" href="$a02237.html" title="Base class for all handle types. " alt="" coords="5,221,169,248"/>
+</map>

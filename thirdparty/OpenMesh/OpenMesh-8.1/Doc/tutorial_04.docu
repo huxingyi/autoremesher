@@ -1,0 +1,50 @@
+/** \page tutorial_04 Using STL algorithms
+
+Since the %OpenMesh iterators are (almost) conformant to STL iterators,
+one can apply the STL algorithms on meshes. The following example
+shows how to use the STL \c for_each construct, since it is
+easier to read and may be more efficient than hand-written loops.
+
+We will define a class which provides the smoothing algorithm, hence
+define a reusable component. The class must be template class because there
+is no such thing as a class %OpenMesh, but many different types of %OpenMesh:
+
+\dontinclude 04-stl_algorithms/smooth_algo.hh 
+\skipline template
+
+The class SmootherT has two functors, one that computes the barycenter
+for a given vertex, and a second that sets the vertex position to the
+corresponding barycenter. A functor is simply a class with a function
+<tt>operator()(...)</tt>. The first functor \c ComputeCOG
+computes the barycenter and stores it in a custom vertex property \c
+cog_:
+
+\skipline operator
+\until }
+\until }
+
+Note, that \c ComputeCOG needs to have access to the mesh object and
+the property handle. Here, both are references to member variables of
+the smoother object.
+
+The second functor \c class \c SetCOG, which sets the vertex position,
+is constructed analogical.
+
+Using these functors and <tt>std::for_each</tt> from the STL
+the smoothing algorithm can be realized in a member function of 
+\c SmootherT:
+
+\dontinclude 04-stl_algorithms/smooth_algo.hh 
+\skipline void smooth
+\until }
+\until }
+
+<br>The complete example looks like this:
+
+\include 04-stl_algorithms/smooth_algo.hh
+
+<br>and 
+
+\include 04-stl_algorithms/smooth.cc
+
+*/

@@ -1,0 +1,8 @@
+<map id="OpenMesh::PolyMeshT&lt; Kernel &gt;" name="OpenMesh::PolyMeshT&lt; Kernel &gt;">
+<area shape="rect" id="node3" href="$a02385.html" title="Polygonal mesh based on the ArrayKernel. " alt="" coords="319,21,516,62"/>
+<area shape="rect" id="node4" href="$a02489.html" title="Base type for a triangle mesh. " alt="" coords="343,86,491,127"/>
+<area shape="rect" id="node8" href="$a02385.html" title="PolyMesh_ArrayKernelT\l\&lt; CustomTraitsVec2i \&gt;" alt="" coords="336,151,499,193"/>
+<area shape="rect" id="node5" href="$a02741.html" title="Triangle mesh based on the Kernel_OSG::ArrayKernelT. " alt="" coords="577,5,766,61"/>
+<area shape="rect" id="node6" href="$a02377.html" title="Triangle mesh based on the ArrayKernel. " alt="" coords="564,86,779,127"/>
+<area shape="rect" id="node7" href="$a02377.html" title="TriMesh_ArrayKernelT\l\&lt; CustomTraitsVec2i \&gt;" alt="" coords="592,151,751,193"/>
+</map>

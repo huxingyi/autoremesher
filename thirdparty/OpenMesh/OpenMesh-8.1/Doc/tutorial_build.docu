@@ -1,0 +1,29 @@
+/** \page tutorial_build How to create your own project using OpenMesh
+
+In this tutorial we will explain, how to create a new project using
+%OpenMesh and build it with the CMake build system. We assume, that you have already
+downloaded the %OpenMesh source files as well as installed the CMake build tools.
+
+There are quite few steps to follow to successfully add your own application to the build tree:
+
+\li Go to OpenMeshRoot/src/OpenMesh/Apps and create a new directory, say "MyOwnProject"
+\li Now create a new file called "CMakeLists.txt" containing the following lines:
+
+\include CMakeLists.txt
+
+(Remember to replace "MyProjectName" with whatever you have chosen as your project's name.
+Note: If you don't want to use *.hh and *.cc as your C++ source file suffices, you'll
+have to change this, too, because CMake won't build your sources otherwise.
+
+\li Create your source files as for example explained in the previous tutorial (\ref tutorial_01)
+and save them in the same directory.
+
+\li Add \code add_subdirectory (MyOwnProject) \endcode to OpenMeshRoot/src/OpenMesh/Apps/CMakeLists.txt (note: You can either
+add this line right after the other projects or at the end of the file).
+
+\li Create a directory called "build" in OpenMesh's root directory. Change to the newly created directory and call
+\code cmake .. \endcode and \code make \endcode
+
+That's all. Your project will now be built.
+
+**/

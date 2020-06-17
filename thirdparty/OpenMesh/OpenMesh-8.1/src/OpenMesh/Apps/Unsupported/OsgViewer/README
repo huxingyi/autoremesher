@@ -1,0 +1,11 @@
+Usage:
+
+	1. osgviewer <model>
+        
+        Load a model via I/O routines of OpenMesh and save as a OpenSG 
+        binary file in file opensg.bin.
+        
+        2. osgviewer
+        
+        Load model previously stored in opensg.bin via OpenSG BINLoader.
+        

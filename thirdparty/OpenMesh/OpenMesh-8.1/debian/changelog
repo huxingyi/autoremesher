@@ -1,0 +1,46 @@
+openmesh (2.0-0~ppa1~maverick1) maverick; urgency=low
+
+  * First maverick version of the official openmesh v2 release.
+  * Adding libxi-dev, libxmu-dev dependencies to build the apps.
+
+ -- Jean Pierre Charalambos <nakednous@gmail.com>  Sun, 02 Jan 2011 10:29:02 -0500
+
+openmesh (2.0~svn216-0~ppa3~karmic1) karmic; urgency=low
+
+  * Fix UPSTREAM SVN REPOSITORY in rules. Thanks to Jan Möbius.
+
+ -- Jean Pierre Charalambos <nakednous@gmail.com>  Wed, 11 Nov 2009 17:14:27 -0500
+
+openmesh (2.0~svn216-0~ppa2~karmic1) karmic; urgency=low
+
+  * Same as first karmic version but this one includes the changelog from Jaunty versions
+  * Karmic versions fix PACKAGE name in rules from libopenmesh to openmesh
+  * Karmic versions remove debian directory from svn export
+  * It remains to fix a SONAMES warning. Maybe it has to see with the upper case letters usage?
+
+ -- Jean Pierre Charalambos <nakednous@gmail.com>  Thu, 05 Nov 2009 14:53:02 -0500
+
+openmesh (2.0~svn216-0~ppa1~karmic1) karmic; urgency=low
+
+  * Fisrt karmic version
+  * New upstream SVN snapshot taken from revision 216
+
+ -- Jean Pierre Charalambos <nakednous@gmail.com>  Tue, 03 Nov 2009 21:32:38 -0500
+
+openmesh (2.0~svn177-0~ppa2~jaunty1) jaunty; urgency=low
+
+  * Adding the documentation package.
+
+ -- Jean Pierre Charalambos <nakednous@gmail.com>  Thu, 25 Jun 2009 20:07:43 -0500
+
+openmesh (2.0~svn177-0~ppa1~jaunty1) jaunty; urgency=low
+
+  * New upstream SVN snapshot.
+  * Splitting the library into libopenmesh and libopenmesh-dev, after
+    fixes to SONAMES added at this upstream revision.
+  * No documentation added yet.
+  * Removing r167 packages from the ppa because they do not conform with
+    packaging sources directly imported from SVN. According to debian
+    policies, in this case get-orig-source must be used.
+
+ -- Jean Pierre Charalambos <nakednous@gmail.com>  Wed, 24 Jun 2009 22:26:31 -0500

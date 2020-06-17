@@ -1,0 +1,116 @@
+/** \page mesh_navigation How to navigate on a mesh
+
+\section nav_overview Overview
+
+\li \ref nav_intro
+\li \ref nav_he
+\li \ref nav_bound
+\li \ref nav_io
+\li \ref nav_opposite
+\li \ref nav_to_from
+
+\section nav_intro Introduction
+
+In this tutorial you will learn how to navigate on a mesh using
+the %OpenMesh library. In the previous chapter (see \ref mesh_iterators) you have learned
+how to iterate over vertices, edges, halfedges and faces as well as
+circulate over certain structures such as 1-rings and many more.
+So in this tutorial we will focus on efficiently using the
+halfedge data structure and some very useful attributes such as
+the boundary flag. We assume that you already made yourself familiar with the halfedge
+structure which is used in %OpenMesh. Further information on this topic
+can be found in \ref mesh_hds.
+
+\section nav_he Navigating over halfedges
+
+So let's start with navigating over halfedges of a mesh.
+Assume we have the following mesh topology:
+
+\image html mesh.normal.png
+
+We can now select an arbitrary halfedge of this mesh which then offers
+either one of two possible navigations:
+
+\li If the chosen halfedge lies at a boundary or in other
+words is not adjacent to a face, we can now navigate
+along the boundary (or hole) of our mesh by using \c next_halfedge_handle()
+or \c prev_halfedge_handle():
+
+\image html mesh.outer.png
+
+\li If the chosen halfedge is adjacent to a face, we can then navigate
+along all halfedges that are adjacent to this face. In other words we circulate
+around the inner halfedges of one face:
+
+\image html mesh.inner.png
+
+In both cases the code would look something like the following example.
+Depending on whether the initial halfedge is adjacent to a face or not,
+we will either navigate on the boundary halfedges of our mesh or along
+the inner halfedges of a face:
+\include nav_code1.cc
+
+References:<br />
+OpenMesh::Concepts::KernelT< FinalMeshItems >::next_halfedge_handle()<br />
+OpenMesh::Concepts::KernelT< FinalMeshItems >::prev_halfedge_handle()
+
+\section nav_bound Mesh boundaries
+
+As you have seen in the previous section, navigating along boundaries
+is very simple. In general %OpenMesh also offers a boundary attribute
+for edges, vertices and faces. So testing i.e. whether a face is a boundary
+face is quite simple using OpenMesh::PolyConnectivity::is_boundary().<br />
+
+\note You can iterate along boundaries by using the next_halfedge_handle(). If you are on a boundary, the next halfedge is guaranteed to be also a boundary halfedge.
+
+So for each type we can make use of one of the following functions:
+
+\include nav_code2.cc
+
+\section nav_io Using incoming and outgoing halfedges
+
+%OpenMesh offers quite a lot of iterators and circulators to easily iterate
+over the structures of a mesh. A very helpful iterator is the
+OpenMesh::PolyConnectivity::VertexIHalfedgeIter or the OpenMesh::PolyConnectivity::VertexOHalfedgeIter which are used to iterate
+over all incoming/outgoing halfedges of a vertex.
+So, sticking to the illustration below, a OpenMesh::PolyConnectivity:V:ertexIHalfedgeIter for the
+lower most vertex would iterate over all incoming halfedges (blue),
+whereas the OpenMesh::PolyConnectivity::OpenMesh::PolyConnectivity::VertexOHalfedgeIter would iterate over all outgoing halfedges (red):
+
+\image html mesh.inout.png
+
+A schematic code example of how to use the halfedge iterators as described above:
+\include nav_code3.cc
+
+\section nav_opposite Using opposite halfedges
+
+The halfedge structure splits every edge into two directional parts by creating two
+directed edges out of one undirected edge. So for every halfedge there exists its
+counterpart pointing in the opposite direction. %OpenMesh allows to easily navigate
+through opposing halfedges via the function OpenMesh::Concepts::KernelT< FinalMeshItems >::opposite_halfedge_handle().
+So in the illustration below \c opposite_halfedge_handle() for the blue halfedge would
+return the red halfedge:
+
+\image html mesh.opp.png
+
+Use this function as described in the example below:
+
+\include nav_code4a.cc
+
+There are also a few more functions that offer easy access to opposing structures:
+
+\include nav_code4.cc
+
+
+\section nav_to_from Getting the to and from vertices
+
+\image  html mesh.to.from.png
+
+If you have an halfedge, you can get the to and the from handles of the adjacent vertices.
+\note The halfedges have a direction. Therefore the to vertex is the from vertex of the opposite halfedge and vice versa.
+
+\include nav_code_to_from.cc
+
+
+
+*/

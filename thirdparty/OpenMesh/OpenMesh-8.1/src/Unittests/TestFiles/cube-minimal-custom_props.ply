@@ -1,0 +1,31 @@
+ply
+format ascii 1.0
+element vertex 8
+property float32 x
+property float32 y
+property float32 z
+property float32 nx
+property float32 ny
+property float32 nz
+property float32 quality
+property uint index
+property list uint8 int32 test_values
+element face 6
+property list uint8 int32 vertex_indices
+property list uint8 float32 texcoords
+property uint faceIndex
+end_header
+-1 -1 -1 0.0  0.0  1.0 1.0 0 2 1 2
+1 -1 -1 0.0  1.0  0.0 0.5 1 2 3 4
+1 1 -1 0.0  1.0  1.0 0.7 2 2 5 6
+-1 1 -1 1.0 0.0  0.0 1.0 3 2 7 8
+-1 -1 1 1.0  0.0  1.0 0.1 4 2 9 10
+1 -1 1 1.0  1.0  0.0 0.0 5 2 11 12
+1 1 1 1.0  1.0  1.0 2.0 6 2 13 14
+-1 1 1 1.0  1.0  2.0 5.0 7 2 15 16
+4 0 1 2 3 8 1.0 1.0 -1.0 -1.0 0.0 0.0 -0.5 -0.5 0
+4 5 4 7 6 8 1.0 1.0 -1.0 -1.0 0.0 0.0 -0.5 -0.5 1
+4 6 2 1 5 8 1.0 1.0 -1.0 -1.0 0.0 0.0 -0.5 -0.5 2
+4 3 7 4 0 8 1.0 1.0 -1.0 -1.0 0.0 0.0 -0.5 -0.5 3
+4 7 3 2 6 8 1.0 1.0 -1.0 -1.0 0.0 0.0 -0.5 -0.5 4
+4 5 1 0 4 8 1.0 1.0 -1.0 -1.0 0.0 0.0 -0.5 -0.5 5

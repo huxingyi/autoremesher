@@ -1,0 +1,20 @@
+<map id="OpenMesh/Tools/Smoother/JacobiLaplaceSmootherT_impl.hh" name="OpenMesh/Tools/Smoother/JacobiLaplaceSmootherT_impl.hh">
+<area shape="rect" id="node2" href="$a00647.html" title="OpenMesh/Tools/Smoother\l/JacobiLaplaceSmootherT.hh" alt="" coords="91,109,281,151"/>
+<area shape="rect" id="node3" href="$a00653.html" title="OpenMesh/Tools/Smoother\l/LaplaceSmootherT.hh" alt="" coords="95,199,277,240"/>
+<area shape="rect" id="node4" href="$a00662.html" title="OpenMesh/Tools/Smoother\l/SmootherT.hh" alt="" coords="95,288,277,329"/>
+<area shape="rect" id="node5" href="$a00428_source.html" title="OpenMesh/Core/System\l/config.hh" alt="" coords="103,467,269,508"/>
+<area shape="rect" id="node7" href="$a00476_source.html" title="OpenMesh/Core/Utils\l/Property.hh" alt="" coords="1528,377,1676,419"/>
+<area shape="rect" id="node33" href="$a00473_source.html" title="OpenMesh/Core/Utils\l/Noncopyable.hh" alt="" coords="5,556,153,597"/>
+<area shape="rect" id="node8" href="$a00368_source.html" title="OpenMesh/Core/Mesh\l/Handles.hh" alt="" coords="1356,913,1509,955"/>
+<area shape="rect" id="node10" href="$a00455_source.html" title="OpenMesh/Core/Utils\l/BaseProperty.hh" alt="" coords="1640,467,1788,508"/>
+<area shape="rect" id="node12" href="$a00269_source.html" title="OpenMesh/Core/IO/StoreRestore.hh" alt="" coords="498,563,733,590"/>
+<area shape="rect" id="node28" href="$a00437.html" title="This file provides the streams omlog, omout, and omerr. " alt="" coords="1533,824,1700,865"/>
+<area shape="rect" id="node14" href="$a00254_source.html" title="OpenMesh/Core/IO/SR\l_binary.hh" alt="" coords="536,735,695,776"/>
+<area shape="rect" id="node18" href="$a00257_source.html" title="OpenMesh/Core/IO/SR\l_binary_spec.hh" alt="" coords="820,645,979,687"/>
+<area shape="rect" id="node22" href="$a00167_source.html" title="OpenMesh/Core/Geometry\l/VectorT.hh" alt="" coords="1285,735,1463,776"/>
+<area shape="rect" id="node23" href="$a00401_source.html" title="OpenMesh/Core/Mesh\l/Status.hh" alt="" coords="745,913,899,955"/>
+<area shape="rect" id="node24" href="$a00266_source.html" title="OpenMesh/Core/IO/SR\l_types.hh" alt="" coords="887,824,1045,865"/>
+<area shape="rect" id="node25" href="$a00260_source.html" title="OpenMesh/Core/IO/SR\l_rbo.hh" alt="" coords="937,735,1096,776"/>
+<area shape="rect" id="node32" href="$a00467_source.html" title="OpenMesh/Core/Utils\l/GenProg.hh" alt="" coords="975,913,1123,955"/>
+<area shape="rect" id="node29" href="$a00431_source.html" title="OpenMesh/Core/System\l/mostream.hh" alt="" coords="1533,913,1700,955"/>
+</map>

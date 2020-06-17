@@ -1,0 +1,32 @@
+<map id="OpenMesh/Tools/Kernel_OSG/bindT.hh" name="OpenMesh/Tools/Kernel_OSG/bindT.hh">
+<area shape="rect" id="node4" href="$a00419_source.html" title="OpenMesh/Core/Mesh\l/TriMeshT.hh" alt="" coords="997,95,1150,136"/>
+<area shape="rect" id="node45" href="$a04485_source.html" title="OpenMesh/Core/Utils\l/color_cast.hh" alt="" coords="146,556,294,597"/>
+<area shape="rect" id="node48" href="$a00725_source.html" title="OpenMesh/Tools/Utils\l/GLConstAsString.hh" alt="" coords="2485,184,2637,225"/>
+<area shape="rect" id="node50" href="$a04488_source.html" title="color_cast.hh" alt="" coords="370,474,470,501"/>
+<area shape="rect" id="node6" href="$a00386_source.html" title="OpenMesh/Core/Mesh\l/PolyMeshT.hh" alt="" coords="1162,184,1315,225"/>
+<area shape="rect" id="node44" href="$a00404_source.html" title="OpenMesh/Core/Mesh\l/Tags.hh" alt="" coords="997,273,1150,315"/>
+<area shape="rect" id="node7" href="$a00149_source.html" title="OpenMesh/Core/Geometry\l/MathDefs.hh" alt="" coords="1276,273,1455,315"/>
+<area shape="rect" id="node10" href="$a00377_source.html" title="OpenMesh/Core/Mesh\l/PolyConnectivity.hh" alt="" coords="1673,273,1826,315"/>
+<area shape="rect" id="node41" href="$a00353_source.html" title="OpenMesh/Core/Mesh\l/FinalMeshItemsT.hh" alt="" coords="490,645,643,687"/>
+<area shape="rect" id="node11" href="$a00320_source.html" title="OpenMesh/Core/Mesh\l/ArrayKernel.hh" alt="" coords="1438,370,1591,411"/>
+<area shape="rect" id="node29" href="$a00398_source.html" title="OpenMesh/Core/Mesh\l/SmartRange.hh" alt="" coords="1615,370,1769,411"/>
+<area shape="rect" id="node33" href="$a00380_source.html" title="OpenMesh/Core/Mesh\l/PolyConnectivity_inline\l_impl.hh" alt="" coords="1844,363,2007,419"/>
+<area shape="rect" id="node13" href="$a00467_source.html" title="OpenMesh/Core/Utils\l/GenProg.hh" alt="" coords="495,824,643,865"/>
+<area shape="rect" id="node14" href="$a00314_source.html" title="OpenMesh/Core/Mesh\l/ArrayItems.hh" alt="" coords="1419,645,1573,687"/>
+<area shape="rect" id="node17" href="$a00335_source.html" title="OpenMesh/Core/Mesh\l/BaseKernel.hh" alt="" coords="966,467,1119,508"/>
+<area shape="rect" id="node28" href="$a00401_source.html" title="OpenMesh/Core/Mesh\l/Status.hh" alt="" coords="2206,556,2359,597"/>
+<area shape="rect" id="node15" href="$a00368_source.html" title="OpenMesh/Core/Mesh\l/Handles.hh" alt="" coords="1373,735,1526,776"/>
+<area shape="rect" id="node20" href="$a00479_source.html" title="OpenMesh/Core/Utils\l/PropertyContainer.hh" alt="" coords="856,556,1005,597"/>
+<area shape="rect" id="node21" href="$a00476_source.html" title="OpenMesh/Core/Utils\l/Property.hh" alt="" coords="942,645,1090,687"/>
+<area shape="rect" id="node26" href="$a00497_source.html" title="OpenMesh/Core/Utils\l/typename.hh" alt="" coords="770,645,918,687"/>
+<area shape="rect" id="node22" href="$a00455_source.html" title="OpenMesh/Core/Utils\l/BaseProperty.hh" alt="" coords="965,735,1113,776"/>
+<area shape="rect" id="node23" href="$a00269_source.html" title="OpenMesh/Core/IO/StoreRestore.hh" alt="" coords="797,831,1032,858"/>
+<area shape="rect" id="node25" href="$a00437.html" title="This file provides the streams omlog, omout, and omerr. " alt="" coords="1055,824,1222,865"/>
+<area shape="rect" id="node34" href="$a00371_source.html" title="OpenMesh/Core/Mesh\l/IteratorsT.hh" alt="" coords="2073,467,2226,508"/>
+<area shape="rect" id="node35" href="$a00395_source.html" title="OpenMesh/Core/Mesh\l/SmartHandles.hh" alt="" coords="1659,556,1813,597"/>
+<area shape="rect" id="node40" href="$a00344_source.html" title="OpenMesh/Core/Mesh\l/CirculatorsT.hh" alt="" coords="1895,467,2049,508"/>
+<area shape="rect" id="node36" href="$a00440_source.html" title="OpenMesh/Core/System\l/OpenMeshDLLMacros.hh" alt="" coords="1699,645,1874,687"/>
+<area shape="rect" id="node42" href="$a00503_source.html" title="OpenMesh/Core/Utils\l/vector_traits.hh" alt="" coords="245,735,393,776"/>
+<area shape="rect" id="node46" href="$a00500_source.html" title="OpenMesh/Core/Utils\l/vector_cast.hh" alt="" coords="146,645,294,687"/>
+<area shape="rect" id="node47" href="$a00167_source.html" title="OpenMesh/Core/Geometry\l/VectorT.hh" alt="" coords="41,735,220,776"/>
+</map>

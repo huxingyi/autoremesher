@@ -1,0 +1,1051 @@
+//-----------------------------------------------------------------------------
+
+
+/** \page mesh_first_to_read Notes on template programming
+
+Please note, that %OpenMesh makes heavily use of C++ templates,
+generic programming and all that stuff (see \ref mesh_cpp).  Therefore
+read this section carefully (else you get lost in the reference
+manual):
+
+<h3>There is no such thing like the %OpenMesh class</h3>
+
+The library provides a set of classes ( 99% templates ;-) ), where the
+inheritance relationship is given by template parameterization. You
+might ask: "What the heck is that?" It means, a parent class is passed
+as a template argument to another class:
+
+\code
+class P1 { }
+class P2 { }
+template <typename Parent> class B : public Parent {}
+
+typedef B<P1> fooB1;
+typedef B<P2> fooB2;
+\endcode
+
+Voila, we have created two different types of B. Depending on the
+interface, the public member elements, provided by \c P1 or \c P2, \c
+fooB1 and \c fooB2 might have different behaviours or even different
+interfaces! But if \c P1 and \c P2 have the some interface or at least
+a common interface, then from programming point of view there is no
+difference using \c fooB1 or \c fooB2. And this is all
+about. %OpenMesh defines an interface concept for the kernel which is
+documented in \ref OpenMesh::Concepts::KernelT. As long as the kernel
+provides this the class handling polygonal meshes \c
+OpenMesh::PolyMeshT can use any kernel.
+
+<h3>Therefore documentation resides in two spaces</h3>
+
+-# Associated with the class/struct (as usual)
+-# In a concept class in cases like the example code above. Hence, if you want
+   to know what a mesh type has to offer refer to OpenMesh::Concepts::KernelT,
+   OpenMesh::PolyMeshT, OpenMesh::TriMeshT.
+
+ */
+
+//-----------------------------------------------------------------------------
+
+
+/** \page mesh_features Features and Goals of OpenMesh
+
+The main features of the underlying data structure are:
+
+\li  No restriction to triangles meshes, handle general polygonal meshes.
+\li  Explicit representation of vertices, halfedges, edges, and faces.
+\li  Efficient access to the one-ring neighborhood of a vertex.
+\li  Ability to handle non-manifold vertices (like two faces meeting in only
+     one vertex).
+
+
+The goals/features of the C++ implementation are:
+
+<ul>
+<li> Flexibility:
+    <ul>
+    <li>  Choose suitable types for scalars and coordinates (e.g. float,
+	  double, exact arithmetic and two-, three-, or n-dimensional
+	  points).</li>
+    <li>  Enhance each item type by your own attributes/properties, like
+          e.g. adding a normal vector or a \c FaceHandle to class \c
+          Vertex.</li>
+    </ul>
+</li>
+<li> Efficiency:
+    <ul>
+    <li>  Avoid the overhead of virtual inheritance and virtual function calls.</li>
+    <li>  Resolve as many type/attribute dependencies as possible at
+          compile-time instead of testing for attributes at run-time
+          (e.g. normal vectors for faces).</li>
+    </ul>
+</li>
+<li> Type-safety for handles, <b>no type-casting (*)</b>: Vertices,
+     (Half-)Edges, Faces know each other and their corresponding
+     handles.
+
+     <b>(*)</b> Since version 0.10.0 the Microsoft VisualC++ compiler is
+     supported. Due to the compilers inaptitude to process forwards on template
+     functions correctly, the type-safety had to be given up to some extend.
+     Though under the hood void pointers are used, the casting is done
+     within the mesh, and the user transparently uses his handles as before.<br>
+     As soon as the compiler adheres to the C++ standard the type-safe version
+     will be restored.</li>
+</ul>
+*/
+
+
+//-----------------------------------------------------------------------------
+
+
+/** \page mesh_cpp Some words on the C++ implementation
+
+If one takes a look at the goals and features section it soon becomes
+obvious that these goals cannot be achieved using trivial C++ features
+only. We make heavy use of templates, (partial) template specialization,
+generative and generic programming, and the STL. This may be a challenge
+for you as well as for your compiler, as these are quite late features
+of the C++ language.
+
+While knowledge of generative programming is only necessary if you
+want to create your own mesh kernels or extend iterators or similar
+types, you will \b NOT need it for simply using these things.
+Nevertheless working knowledge of C++ and basic knowlege of templates
+is required. To get into this stuff we recommend the following
+books:
+
+\li Bjarne Stroustrup, <em> The C++ Programming Language </em>,
+
+\li Matthew H. Austern, <em> Generic Programming and the STL: Using
+    and Extending the C++ Standard Template Library </em>,
+
+\li Andrei Alexandrescu, <em> Modern C++ Design: Generic Programming
+    and Design Patterns Applied </em>,
+
+\li Krzysztof Czarnecki, Ulrich Eisenecker, <em> Generative Programming:
+    Methods, Tools, and Applications </em>.
+
+*/
+
+
+//-----------------------------------------------------------------------------
+
+
+/** \page mesh_hds The Halfedge Data Structure
+
+This section describes the underlying data structure that is used to
+store the mesh entities (items) vertices, edges, faces, and their
+connectivity information.  There are many popular data structures used
+to represent polygonal meshes. For a detailed comparison of them refer
+to the papers at the end of this section.
+
+The data structure used in this project is the so called <em> halfedge
+data structure </em>. While <em> face-based </em> structures store
+their connectivity in faces referencing their vertices and neighbors,
+<em> edge-based </em> structures put the connectivity information into
+the edges. Each edge references its two vertices, the faces it belongs
+to and the two next edges in these faces. If one now splits the edges
+(i.e. an edge connecting vertex \c A and vertex \c B becomes two <em>
+directed halfeges </em> from \c A to \c B and vice versa) one gets a
+<em> halfedge-based </em> data structure. The following figure
+illustrates the way connectivity is stored in this structure:
+
+<table>
+<tr valign=top>
+  <td> \image html halfedge_structure3.png
+  <td>
+<ul>
+<li> Each \b vertex references one outgoing halfedge, i.e. a halfedge that
+  starts at this vertex (1).
+<li> Each \b face references one of the halfedges bounding it (2).
+<li> Each \b halfedge provides a handle to
+  <ul>
+  <li> the vertex it points to (3),
+  <li> the face it belongs to (4)
+  <li> the next halfedge inside the face (ordered counter-clockwise) (5),
+  <li> the opposite halfedge (6),
+  <li> (optionally: the previous halfedge in the face (7)).
+  </ul>
+</ul>
+  </td>
+</tr>
+</table>
+
+Having these links between the items, it is now possible to circulate
+around a face in order to enumerate all its vertices, halgedges, or
+neighboring faces. When starting at a vertex' halfedge and iterating
+to the opposite of its previous one, one can easily circulate around
+this vertex and get all its one-ring neighbors, the incoming/outgoing
+halfedges, or the adjacent faces. All this functionality is
+encapsulated into the so-called <em> circulators </em>, described in
+\ref mesh_iterators.
+
+\attention In order to efficiently classify a boundary
+vertex, the outgoing halfedge of these vertices <b> must be a boundary
+halfedge </b> (see OpenMesh::PolyMeshT::is_boundary()).
+\attention Whenever you modify the
+topology using low-level topology changing functions, be sure to
+guarantee this behaviour (see
+OpenMesh::PolyMeshT::adjust_outgoing_halfedge())
+
+While one does not need to store the previous halfedge (7) explicitly,
+because it can be derived from the links to the next halfedges, one
+may do so for the sake of performance. In fact, the previous halfedge
+is stored by default (OpenMesh::DefaultTraits). Using traits and
+attributes the previous halfedge can removed, to gain memory. This
+kind of mesh customization is explained in \ref mesh_type.
+
+While the halfedge-based structures usually consume more memory than
+their face-based counter-parts they have the following important
+advantages:
+
+\li It is easy to mix faces of arbitrary vertex count in one mesh.
+
+\li We now have an explicit representation of vertices, faces, \em and
+    edges/halfedges. This becomes extremely useful if one has to store data
+    per edge/halfedge since this can easily be modelled by member
+    variables of these types (see \ref mesh_type).
+
+\li Circulating around a vertex in order to get its one-ring neighbors is an
+    important operation for many kinds of algorithms on polygonal meshes.
+    For face-based structures this leads to many <tt>if-then</tt> branchings,
+    the halfedge structure provides this funcionality without
+    conditional branching in constant time.
+
+
+<b>References</b>
+
+S. Campagna, L. Kobbelt, H.-P. Seidel, <em> Directed Edges - A
+Scalable Representation For Triangle Meshes </em>, ACM Journal of
+Graphics Tools 3 (4), 1998.
+
+Lutz Kettner, <em> Using Generic Programming for Designing a Data
+Structure for Polyhedral Surfaces</em>, in Proc. 14th Annual ACM
+Symp. on Computational Geometry, 1998.
+
+*/
+
+
+
+//-----------------------------------------------------------------------------
+
+
+/** \page mesh_hierarchy Conceptual Class Hierarchy
+
+Since there is no such thing as a %OpenMesh class and the library
+makes heavy use of C++ template, we show the inheritance graph of
+OpenMesh::TriMesh_ArrayKernelT as proxy for all possible mesh types.
+
+Please note! Most of the inheritence relationships are realized by
+template parameterization! Therefore some of the inheritance links are
+not documented in a inheritance graph in the reference. This picture
+shows the overall concept.
+
+\image html class-hierarchy2.png
+
+\section ch_kernel Building the kernel
+
+-# The BaseKernel defines the basic operations on properties like
+add/remove/access.
+-# Next the AttribKernelT adds the standard properties all associated
+methods.
+-# Finally the ArrayKernelT provides the methods to add/remove/access
+the mesh items vertices, (half-)edges, and faces. The base class is passed
+as a template parameter, since depending on the underlying storage type the
+AttribKernel might change.
+
+\section ch_complete Building the mesh
+
+-# The PolyMeshT inherits from the kernel and provide all necessary methods
+to work with polygonal meshes.
+-# Finally we derive TriMeshT from PolyMeshT to have an specialization for
+triangle meshes.
+
+Looks simple, but it isn't - it's a bit more complicated:
+
+\include build-trimesh.cc
+
+To generate the actual mesh type the helper template class \c
+TriMesh_ArrayKernel_GeneratorT is used. It takes the traits in a
+template argument and passes it to \c FinalMeshItemsT to get the final
+type of the mesh items (MeshItems).  The \c MeshItems defines the
+types for Point, Normal, Color, TexCoord, Vertex, and for all mesh
+items.  With the help of \c MeshItems create the type of the \c
+AttribKernel, which defines the apropriate standard properties for the
+items.  Finally use \c AttribKernel and \c MeshItems to create the
+mesh kernel type \c MeshKernel. It's quite a way to get a kernel . As
+long as the created kernel follows the kernel concept (\ref
+mesh_kernels_group), we can easily create now the mesh. Here we
+use now \c TriMeshT to create the final mesh type \c Mesh.
+
+ */
+
+//-----------------------------------------------------------------------------
+
+
+/** \page mesh_type Specifying your MyMesh
+
+This section will show how to build your own custom tailored type \c
+MyMesh. As we have seen in the section on goals and features there are
+some parameters to be specified for a mesh. This is done in the
+following four steps:
+
+<ol>
+
+<li> Choose between triangle mesh and general polygonal mesh.
+
+<li> Select the mesh kernel
+
+<li> Parameterize the mesh by a so-called \em Traits class. You can
+add arbitrary classes to the mesh items, specify the types \c Scalar,
+\c Point, \c Normal and \c Color, and use predefined attributes like
+\c Attributes::Normal and \c Attributes::Color.
+
+<li> Dynamically bind data to the mesh or the mesh entities (vertex,
+(half-)edge, face) using \em custom \em properties.
+
+</ol>
+
+We will explain these four parameterization steps and give a code
+example at the end of this page.
+
+<br><br>
+
+\section sec_select_face_type Polygonal or Triangle Mesh?
+
+This decision is quite simple: Whenever possible choose the triangle
+mesh. The restriction to triangular faces usually leads to more
+efficient algorithms (e.g. rendering triangles is much faster than
+rendering arbitrary polygons). Additionally some algorithms are only
+implemented for triangle meshes while triangle meshes inherit the full
+functionality of polygonal meshes. For a list of them refer to the
+following links.
+
+\see OpenMesh::PolyMeshT
+\see OpenMesh::TriMeshT
+
+
+
+<br><br>
+
+\section sec_select_kernel Choosing the right kernel
+
+The mesh kernel specifies how the mesh entities (vertices,
+(half-)edges, faces) are internally stored. In fact the entities are kept in
+so-called properties. A property itself provides an array like interface.
+The kernel defines the corresponding handle types,
+i.e. the way items reference each other. Since the properties have an
+array like interface the handles are represented internally as indices.
+
+The default kernel is \c ArrayKernelT. Which is good for most
+situations. But depending on the application a different kernel would
+be better. E.g. the OpenSG integration has been realized be replacing
+the kernel by a custom kernel, since OpenSG provides already array like
+properties, which could be reused for the intergration. In case of a an OpenSG
+environment one might be better off using \c OSG_Kernel::ArrayKernelT.
+
+\see \ref mesh_kernels_group
+
+<br><br>
+
+\section sec_select_traits Mesh Traits
+
+While the last two sections only have chosen from a list of predefined
+meshes or kernels, respectively, we now come to the user-defined
+customization.
+
+The resulting mesh \c MyMesh will provide the following types:
+
+<ul>
+<li> The <i>point</i> and <i>scalar</i> type: \c MyMesh::Point and \c
+     MyMesh::Scalar.
+<li> The <i>mesh items</i>: \c MyMesh::Vertex, \c MyMesh::Halfedge, \c
+     MyMesh::Edge, \c MyMesh::Face.
+<li> The <i>handle</i> types: \c MyMesh::VertexHandle, \c
+     MyMesh::HalfedgeHandle, \c MyMesh::EdgeHandle, \c
+     MyMesh::FaceHandle.
+</ul>
+
+While the handle types are fixed, the other types can be customized.
+Each mesh type (see \ref mesh_types_group) can be parameterized
+by a so-called \em traits class. Using this mechanism one can
+
+<ol>
+<li> change the coordinate type \c MyMesh::Point and the resulting
+     scalar type \c MyMesh::Scalar == \c MyMesh::Point::value_type,
+<li> change the normal type \c MyMesh::Normal
+<li> change the color type \c MyMesh::Color
+<li> use predefined attributes like normal vector, color, texture
+     coordinates, ... for the
+     mesh items.
+<li> add arbitrary classes to the mesh items.
+</ol>
+
+All these customizations are encapsulated in one class \c MyTraits,
+that is used as template argument to the mesh, e.g.
+\code
+struct MyTraits {
+  // your customization
+};
+typedef PolyMesh_ArrayKernelT<MyTraits>  MyMesh;
+\endcode
+
+The rest of this section explains the construction of this traits
+class, its application to the mesh will be the topic of the next section.
+
+For each mesh entity one can control the predefined attributes to be
+attached by a traits class using some convenience macros, e.g.  \c
+OpenMesh::VertexAttributes and \c OpenMesh::VertexTraits for
+vertices. The default traits class looks like this:
+
+\include traits0.cc
+
+Please note that for example \c VertexTraits is a define concealing a
+template declaration. The actual template class name is \c VertexT,
+which is further simplified to a specific type \c Vertex at a later
+stage during the construction of the mesh kernel.
+
+Because the traits classes always have to provide the template classes
+\c VertexT, \c HalfedgeT, \c EdgeT, \c FaceT, and the types \c Point,
+\c Normal, \c Color, and \c TexCoord one should derive this class from
+the default implementation \c DefaultTraits. In this case you will
+only have to define the classes or types you want to override or substitute.
+
+
+<br>
+\subsection sec_change_point Changing the Point type
+
+Changing the type that is used to store the point coordinates as well
+as the normal vectors can simply be done by defining this type in the
+traits class. The following code changes the coordinate type in order
+to use \c double instead of \c float.
+
+\include traits1.cc
+
+Using the OpenMesh::VectorT class you can easily plug in any scalar
+type for the use in point coordinates, e.g. some exact arithmetic. You
+can also exchange the whole class representing points as long as it
+provides the same interface as the OpenMesh::VectorT class.
+
+
+<br>
+\subsection sec_add_attributes Adding Predefined Attributes
+
+There are some pre-defined attributes that can be appended to the mesh
+items. These global attributes are defined in the namespace
+OpenMesh::Attributes. The advantage of these attributes is that
+they are registered at the items they are added to. Therefore
+algorithms can check for these attributes at run-time as well as at
+compile-time. This is important if you want to implement algorithms
+acting on different meshes, that may or may not have e.g. normal
+vectors per vertex/face.
+
+Adding these predefined attributes is quite simple. You provide an
+<tt>unsigned int</tt> in the traits class, whose bits control whether
+or not a certain attribute should be attached or not.
+
+If you want to add a normal vector to your vertices and faces, and also
+want to have color information for vertices, the code would look like this:
+
+\include traits5.cc
+
+Internally each mesh item contains an \c enum defining the integer \c
+Attributes (containing the bits of used attributes OR'ed
+together). From its set/unset bits you can see whether a certain
+attribute is used. OpenMesh provides the macro OM_Check_Attrib for
+doing this:
+
+\code
+if (OM_Check_Attrib(MyMesh::Vertex, Normal)
+  do_something_with_normals();
+\endcode
+
+These run-time checks may not be sufficient in some cases. You can also check
+for attributes at compile-time and instantiate the correct functions
+by using function overloading. The class \c GenProg::Bool2Type maps
+true/false information to two different types, \c Bool2Type<true> and
+\c Bool2Type<false>. An example that draws OpenGL normals if they are
+available would look like this:
+
+\include draw_normals.cc
+
+Especially the compile-time checking for attributes is extremely
+useful because it does not generate any unnecessary code and does not
+perform expensive tests at run-time.
+
+\see OpenMesh::DefaultTraits
+\see OpenMesh::Attributes
+\see OpenMesh::GenProg
+
+<br>
+\subsection sec_add_traits Adding User-Defined Elements
+
+You can also add arbitrary types/elements/methods to the mesh items by
+providing a corresponding traits class for these items. Adding some
+index to the \c Vertex class is easily done by
+
+\include traits2.cc
+
+The macro \c VertexTraits hides some ugly template stuff. In fact, it
+is defined as
+
+\code
+#define VertexTraits template <class Base, class Refs> struct VertexT : public Base
+\endcode
+
+hence the traits class actually looks like this:
+
+\include traits3.cc
+
+You have to keep this in mind when you want to define constructors for
+your vertex type or when you want to derive the vertex type from other
+classes.
+
+The template argument \c Base provides access to the mesh handles and
+to the \c Point and \c Scalar type by its member class \c Refs. Adding
+a \c MyMesh::FaceHandle to the vertex class can therefore be
+implemented like this:
+
+\include traits4.cc
+
+Adding elements to other mesh items works in the same manner.
+
+
+<br>
+\subsection sec_algo_traits Using traits defined by algorithms
+
+From version 0.10.3 on algorithms can define traits/attributes they
+require and the user can merge these traits into his own traits. A more elegant
+way is to use dynamic properites, which can be added/removed during runtime
+by the algorithm. This is the preferred way to attach custom data to the mesh.
+
+An example for an algorithm as well as the application using traits
+is given in \ref tutorial_06.
+
+<br><br>
+
+\section sec_properties Dynamic Properties
+
+From version 1.0 on %OpenMesh provides dynamic properties. Instead of
+using traits to bind data at compile time algorithms or the
+application can use dynamic properties. Similar to entities the properties
+are accessed and manipulated via handles.
+
+An example for an algorithm as well as the application using
+properties is given in \ref tutorial_03 and \ref tutorial_04.
+
+<br><br>
+
+\section sec_traits_example Final Implementation Example
+
+Consider an application where we just want to render triangle meshes.
+This means we will select the triangle mesh and the \c
+ArrayKernelT. Faces that are not triangles will automatically be
+tesselated into triangles. Because we only display meshes and do not
+dynamically add or remove items, we can just use the \c ArrayKernelT.
+
+All mesh-kernel combinations are predefined in the directory
+<tt>%OpenMesh/Mesh/Types</tt>. Refer to \ref mesh_types_group for a
+complete list of them. For our example we use the \c
+TriMesh_ArrayKernelT and parameterize it by our \c MyTraits class.
+
+We will need face and vertex normals and e.g. for color coding vertex
+curvature, i.e. vertex color.
+
+\include mymesh.cc
+
+That's it.
+
+//-----------------------------------------------------------------------------
+
+/** \page mesh_eigen Specifying an OpenMesh using Eigen3 vectors
+
+This section will show how to build your own custom mesh type using
+Eigen3 vectors for points, normals or other entities.
+
+First of all you need to include the Eigen header shipped with OpenMesh:
+\code
+#include <OpenMesh/Core/Geometry/EigenVectorT.hh>
+\endcode
+
+This header contains the external functions and vector traits used by
+OpenMesh. 
+
+Afterwards you can specify your mesh:
+
+\code
+struct EigenTraits : OpenMesh::DefaultTraits {
+    using Point = Eigen::Vector3d;
+    using Normal = Eigen::Vector3d;
+
+    using TexCoord2D = Eigen::Vector2d;
+};
+
+using EigenTriMesh = OpenMesh::TriMesh_ArrayKernelT<EigenTraits>;
+
+EigenTriMesh mesh;
+
+\endcode
+
+Now you can use mesh as any other OpenMesh while using Eigen vectors
+as the underlying data type.
+
+\note OpenMesh uses stl vectors for storing its data. This might lead to errors
+      regarding memory alignment with sse instructions:
+      http://eigen.tuxfamily.org/dox/group__TopicStlContainers.html
+      You might need to define -DEIGEN_DONT_VECTORIZE  
+
+*/
+
+
+//-----------------------------------------------------------------------------
+
+
+/** \page mesh_members Where do I find a list of all member functions ?
+
+The following picture shows the (simplified) conceptual inheritance
+diagram for the %OpenMesh classes.
+
+\image html inheritance-simple.scaled.png
+
+The basis for all meshes is the corresponding \c MeshKernel, taking
+care of the internal storage of the mesh items (vertices,
+(half-)edges, faces). This kernel is inherited by the \c PolyMeshT,
+i.e. the general polygonal mesh, adding higher level
+functionality. For specialization purposes the class \c TriMeshT is
+derived from \c PolyMeshT and overrides some member functions or adds
+functions only suitable for pure triangle meshes.
+
+In most cases a class (e.g. \c PolyMeshT) gets the class it should
+derive from (e.g. the mesh kernel) as a template parameter. The
+documentation class OpenMesh::Concepts::MeshKernel::KernelT lists the
+minimal interface a mesh kernel must provide. Special kernels may
+provide some more functionality, in this case refer to this kernel's
+documentation (see \ref mesh_kernels_group). Therefore your mesh
+provides the pubic member functions of
+
+<ul>
+<li> The mesh kernel.</li>
+<li> The general polygonal mesh.</li>
+<li> The specialized triangle mesh (if you use a TriMesh instead of a PolyMesh).</li>
+</ul>
+
+
+\see OpenMesh::Concepts
+\see OpenMesh::Concepts::KernelT
+\see OpenMesh::PolyMeshT
+\see OpenMesh::TriMeshT
+
+**/
+
+
+//-----------------------------------------------------------------------------
+
+
+/** \page mesh_io Read and write meshes from files
+
+This section explains the methods used to read a mesh from a file or
+write it to a file. The corresponding functions are defined in the
+namespace OpenMesh::MeshIO. This section is divided into three steps.
+Step one will give a short example on how to use the %OpenMesh IOManager,
+step two will give some background information on how IOManager works and
+finally step three will show you how to add your own modules to IOManager.
+
+A tutorial with more information regarding file IO can be found here: \ref tutorial_08
+
+\section mesh_io_quick Step 1 - IOManager quick start
+
+For a quick start you can copy the following code directly to your project.
+
+\note
+<ul>
+<li>If you link statically against OpenMesh, you have to add the define
+OM_STATIC_BUILD to your application. This will ensure that readers and writers
+get initialized correctly.</li>
+<li>IOManager uses the filename extension to determine which reader/writer
+to use. I.e. if passing "inputmesh.obj" as filename parameter, the OBJ-File
+reader/writer will be used to parse/write the file.</li>
+</ul>
+
+\include mesh_io.cc
+
+
+<br><br>
+
+\section mesh_io_theory Step 2 - The theory behind IOManager
+
+Usually mesh reader and writer routines are written directly against
+the data structure and the respective file format they support. This
+approach has the main disadvantage that targeting a different data
+structure or adding another file format leads to duplication of code.
+
+IOManager acts as an interface between persistent data on one side and
+an arbitrary data structure on the other side by means of reader/writer
+and importer/exporter modules. This is illustrated by the following
+diagramm :
+
+\image html iomanager.png
+
+<br>
+
+Persistent data of arbitrary format is first interpreted by a reader
+module. The data is then passed - by means of a specified interface -
+to an importer module for the target data structure. The process for
+writing data is analogous. The IOManager controls the entire process.
+Reader/Writer modules are invisible to the user. Importer/Exporter
+however have to be specified explicitely as they are specific to a
+data structure.
+
+The complete separation of data structure and persistent data makes it
+especially easy to maintain existing code and to extend funtionality
+at both ends as will be shown in step three.
+
+\see OpenMesh::IO::_IOManager_
+
+<br><br>
+
+\section mesh_io_extend Step 3 - How to extend IOManager
+
+\subsection mesh_io_extend_fileformat Adding support for a new file format
+
+Adding support for a new file format involves adding a reader and
+writer module.  Reader modules are classes derived from
+OpenMesh::IO::BaseReader. The part of the interface that you
+usually have to define is shown below.
+
+\include BaseReader.hh
+
+Based on the file extension or the header information the IOManager
+decides which reader module to use. The reader then parses the format
+and the information will be passed to the target data structure be
+means of a class derived from OpenMesh::IO::BaseImporter.
+
+Writer modules are derived from OpenMesh::IO::BaseWriter and work
+the same way as reader modules.
+
+<br>
+
+\subsection mesh_io_extend_datastruct Adding support for a new data structure
+
+As we have already seen, Importers receive information from the reader modules.
+Reader modules pass information through a specified interface :
+
+\include BaseImporter.hh
+
+The Importer is then responsible for filling the target data structure.
+Exporting information from a data structure is a little bit more involved than
+importing data to it. The writer modules must be able to iterate over all
+vectors/texcoords/faces. Therefore an exporter has to provide these iterators :
+
+\include BaseExporter.hh
+
+There might be the need for the exporter to cache data from the structure it
+refers to. The update() function should be called at the beginning of
+each BaseWriter::save() method and it should make sure that cached information
+is up to date.
+
+For further information you are encouraged to take a look at the modules
+provided by %OpenMesh which can be found in the IO subdirectory.
+
+*/
+
+
+//-----------------------------------------------------------------------------
+
+
+/** \page mesh_iterators Mesh Iterators and Circulators
+
+- \ref it_iters
+- \ref it_iters_h
+- \ref it_iters_skipping
+- \ref it_circs
+- \ref it_circs_h
+
+\section it_iters Iterators
+
+The mesh provides linear iterators (that enumerate vertices,
+halfedges, edges, and faces). These can be used to easily navigate
+through a mesh. Each iterator \c XYZIter also exists in a const
+version \c ConstXYZIter.
+
+All iterators are defined in the namespace
+OpenMesh::Iterators. They are template classes that expect a mesh as
+template argument to be fully specified. You should use the
+iterator types provided by the mesh itself, i.e. \c MyMesh::VertexIter instead of \c
+OpenMesh::Iterators::VertexIterT<MyMesh>.
+
+The iterators are:
+
+\include iterators.cc
+
+The corresponding \c const counterparts are
+
+\arg \c ConstVertexIter,
+\arg \c ConstHalfedgeIter,
+\arg \c ConstEdgeIter,
+\arg \c ConstFaceIter.
+
+
+The linear iterators are conformant to STL iterators. For a
+description of their interface see OpenMesh::Concepts::IteratorT.
+
+When using iterators, use the pre-increment operation (++it) for efficiency
+reasons. 
+
+\deprecated
+While it is possible to use \c handle() to get the handle of the item referred
+to by the iterator, this function is deprecated. Simply dereference the iterator
+instead.
+
+\subsection deletedElements Deleted Elements
+If no elements of a mesh are marked as deleted, the indices provided by \c idx()
+are consecutive numbers from 0 to <I>number of elements</I>-1 (in the case of vertices this would be
+from 0 to n_vertices()-1).
+
+However, note that this is <B>not</B> the case when elements are marked
+as deleted and OpenMesh::ArrayKernel::garbage_collection() has not yet been called.
+
+After garbage_collection() has been called the elements are reorganized and their handles and
+iterators are guaranteed to be consecutive numbers again.
+
+OpenMesh uses a lazy deletion scheme to avoid unnecessary updates to the data structure. The 
+halfedge data structure will always be updated directly to ensure that following algorithms 
+will have the correct iterator setups.
+
+So if you delete a face, The face itself will still exist but the halfedges which are now located at
+the hole will be updated directly, which means that circulators on the adjacent vertices will not
+come across the face anymore.
+
+If an edge is deleted, the adjacent faces will be removed as well (flagging them deleted and updating
+the surrounding halfedges). The edge itself will also be flagged as deleted. Again the circulators will 
+not see the deleted primitives anymore.
+
+For a vertex, all adjacent faces and edges are deleted with the schemes above and the vertex flagged as deleted.
+
+The iterators, going across vertices edges and faces will still enumerate all primitives (including deleted ones).
+Except if you use the skipping iterators, which will skip deleted primitives. The circulators always only enumerate 
+primitives which are not deleted.
+
+
+\note
+<ul>
+<li>If you delete elements on the mesh, they will still be
+enumerated by the standard iterators. To skip deleted elements,
+use the \ref it_iters_skipping</li>
+<li>An iterator to an item usually needs more memory than a
+handle of an item. To store many references to an item, it is
+therefore better to use handles.</li>
+</ul>
+
+
+\section it_iters_h How to use iterators in OpenMesh
+
+This example shows how to iterate over all faces of a mesh:
+
+\code
+
+MyMesh mesh;
+
+for(MyMesh::FaceIter f_it = mesh.faces_begin(); f_it != mesh.faces_end(); ++f_it) {
+    std::cout << "The face's valence is " << mesh.valence( *f_it ) << std::endl;
+}
+
+\endcode
+
+\section it_iters_skipping Skipping Iterators
+All iterators are also available as skipping iterators. If elements are deleted on a mesh,
+the standard iterators go over all elements, even deleted ones(which are available until
+a garbage_collection is done). The skipping iterators ignore these elements. You can retrieve
+a skipping iterator by calling one of the following functions:
+
+\arg \c vertices_sbegin(),
+\arg \c edges_sbegin(),
+\arg \c halfedges_sbegin(),
+\arg \c faces_sbegin()
+
+The ends for these iterators are equal to the standard iterator ends (e.g. \c vertices_end() ).
+
+\section it_circs Circulators
+
+%OpenMesh also provides so called Circulators that
+provide means to enumerate items adjacent to
+another item of the same or another type.
+For example, a \c VertexVertexIter allows to enumerate all vertices
+immediately adjacent to a (center) vertex (i.e. it allows
+to enumerate the so-called 1-ring of the center vertex).
+Analogously, a \c FaceHalfedgeIter enumerates all the
+halfedges belonging to a face.
+In general, \c CenterItem_AuxiliaryInformation_TargetItem_Iter
+designates a circulator that enumerates all the target items
+around a given center item.
+
+The constructor of a circulator is of the form
+\c Circulator(MeshType mesh, TargetHandle center_handle),
+i.e. it takes a mesh and the handle of the item to circulate
+around.
+
+The circulators around a vertex are:
+
+\arg \c VertexVertexIter: iterate over all neighboring vertices.
+\arg \c VertexIHalfedgeIter: iterate over all \em incoming halfedges.
+\arg \c VertexOHalfedgeIter: iterate over all \em outgoing halfedges.
+\arg \c VertexEdgeIter: iterate over all incident edges.
+\arg \c VertexFaceIter: iterate over all adjacent faces.
+
+The circulators around a face are:
+
+\arg \c FaceVertexIter: iterate over the face's vertices.
+\arg \c FaceHalfedgeIter: iterate over the face's halfedges.
+\arg \c FaceEdgeIter: iterate over the face's edges.
+\arg \c FaceFaceIter: iterate over all edge-neighboring faces.
+
+Other circulators:
+\arg \c HalfedgeLoopIter: iterate over a sequence of Halfedges. (all Halfedges over a face or a hole)
+
+All circulators provide the operations listed in
+CirculatorT<Mesh>, which are basically the same as the
+iterator funtions.
+
+\note Circulators are similar to bidirectional iterators and therefore they have the bidirectional_iterator_tag.
+However, the bidirectional requires that the attribute OpenMesh::Attributes::PrevHalfedge is available.
+Otherwise it is just a forward iterator.
+
+\deprecated
+While it is possible to use \c operator \c bool(), which returns true, as long
+as the circulator hasn't reached the end of the sequence, this function is
+deprecated. Use the function \c is_valid() instead.
+
+%OpenMesh provides the following functions (defined in OpenMesh::PolyConnectivity)
+to get circulators around a specified center item:
+
+\include circulator_functions.cc
+
+Additionally to the normal circulators there exists some for each
+direction (clock-wise, counterclock-wise). Those circulators might be slower
+than the normal one, but the direction of circulation is guaranteed.
+You can get these types of circulators by adding the infix "ccw" or "cw" to
+the function used to request the circulator of an item after the underscore.
+Example:
+
+\code
+VertexVertexIter vvit = mesh.vv_iter(some_vertex_handle);          // fastest (clock or counterclockwise)
+VertexVertexCWIter vvcwit = mesh.vv_cwiter(some_vertex_handle);    // clockwise
+VertexVertexCCWIter vvccwit = mesh.vv_ccwiter(some_vertex_handle); // counter-clockwise
+\endcode
+
+It is also possible to convert a cw circulator to a ccw circulator and vice versa.
+For this purpose, each circulator provides a constructor taking the other circulator as input.
+If a cw circulator is converted, the ccw circulator points on the same element as
+the cw circulator pointed on, but the direction for the increment and decrement changed.\n
+The conversion is only valid for valid circulators. The resulting circulator from a invalid circulator is still invalid,
+but might behave in a fashion not expected by normal iterators. Example:
+\code
+  VertexVertexCWIter vvcwit = mesh.vv_cwend(some_vertex_handle);
+  VertexVertexCCWIter vvccwit = VertexVertexCCWIter(vvcwit); //conversion of an invalid circulator
+   --vvcwit;  //is valid now (if the range >= 1)
+   ++vvccwit; //can still be invalid
+\endcode
+
+CW and CCW circulators requires that OpenMesh::Attributes::PrevHalfedge is available.
+
+
+\note For every circulator there also exists a constant version.
+To make use of these constant circulators just add the prefix<br />
+"Const" to the type specifier and add the prefix "c" to the function used to request
+the circulator of an item. Example:<br/>
+
+\code
+ConstVertexVertexIter cvvit = mesh.cvv_iter(some_vertex_handle);
+\endcode
+
+\note When constructing Circulators from iterators, make sure you don't create
+a circulator of an deleted element(e.g. FaceVertexiter of a deleted Face), as
+this will lead to unpredictable behaviour. Using skipping iterators for iterating over
+the elements and creating circulators from them is safe as they don't contain
+deleted elements.
+
+\section it_circs_h How to use circulators in OpenMesh
+
+The following code example now shows how to enumerate the 1-ring of each vertex:
+
+\include circulators.cc
+
+Enumerating all halfedges adjacent to a certain face (the inner halfedges) is accomplished
+as follows:
+
+\code
+
+MyMesh mesh;
+
+...
+
+// Assuming faceHandle contains the face handle of the target face
+
+MyMesh::FaceHalfedgeIter fh_it = mesh.fh_iter(faceHandle);
+
+for(; fh_it.is_valid(); ++fh_it) {
+    std::cout << "Halfedge has handle " << *fh_it << std::endl;
+}
+
+\endcode
+
+
+
+*/
+
+
+//-----------------------------------------------------------------------------
+
+/** \defgroup mesh_property_handle_group Mesh Property Handles
+
+All custom properties are represented by the property
+handles. The handle mechanism allows to add arbitrary data to the mesh
+items. It stores the value type (by construction) and a 'reference' to the
+property. Use the mesh object to access the property values.
+
+\see OpenMesh::PropertyT, OpenMesh::BaseKernel, OpenMesh::Concepts::KernelT,
+     \ref tutorial_03, \ref tutorial_04, \ref tutorial_09
+
+ */
+
+//-----------------------------------------------------------------------------
+
+
+/** \defgroup mesh_kernels_group Mesh Kernels
+
+This group holds all mesh kernels. Since %OpenMesh makes heavily use
+of templates especially in the kernels, there's no direct inheritence
+relationship of the kernel classes. For a conceptual overview of the
+inheritance graph see \ref mesh_hierarchy. For a list of available
+methods see OpenMesh::Concepts::KernelT.
+
+\see \ref mesh_hierarchy, OpenMesh::Concepts::KernelT
+
+*/
+
+
+//-----------------------------------------------------------------------------
+
+
+/** \defgroup mesh_types_group Predefined Mesh Types
+
+This group holds all the predefind mesh types, i.e. all combinations
+of triangle/polygonal mesh and the set of kernels.
+
+*/
+
+
+//-----------------------------------------------------------------------------
+
+
+/** \defgroup mesh_concepts_group Interface Concepts
+
+Since for many classes no virtual inheritace is used one can't enforce
+a specific interface by pure virtual functions. Therefore these
+interfaces will be described in this group. Everyone implementing
+e.g. a new mesh kernel should at least implement the
+OpenMesh::Concepts::Kernel concept.
+
+*/
+
+
+//-----------------------------------------------------------------------------

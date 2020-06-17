@@ -1,0 +1,54 @@
+/** \page tutorial_07b Deleting geometry elements
+
+This small example shows how to remove faces and vertices from a mesh.
+
+We basically use the geometry created in \ref tutorial_01.
+
+If we want our mesh class to be able to remove vertices, faces or edges
+we have to extend the default traits for our mesh class.
+Vertices, faces and (half-)edges need the OpenMesh::Attributes::Status attribute
+which is used to hold the flag "deleted" if an element is deleted.
+
+Instead of defining the required attributes via traits on compile-time, it is possible to request
+attributes dynamically on run-time by requesting them.
+In this example, we want to delete faces, edges and vertices, therefore requesting the status attribute is required.
+\note You have to request attributes before you use them, if you don't enable them via traits.
+
+\dontinclude delete_geometry.cc
+\skipline // the request 
+\until mesh.request_vertex_status();
+
+After having created the geometry of the cube one can delete faces and vertices
+by simply calling delete_vertices() (delete_faces() or delete_edges() respectively).
+
+Note that there is actually no way to directly delete halfedges since they are automatically
+affected when the parent edge is marked as deleted!
+
+The status whether an element is marked as deleted can be requested by
+
+\code
+mesh.status(handle).deleted();  // true if element handle is marked as deleted
+                                // false otherwise
+\endcode
+
+where handle is either a vertex-, edge- or face-handle.
+
+In this example we delete all faces except one and the corresponding vertices.
+The code looks like this
+
+\dontinclude delete_geometry.cc
+\skipline // Delete face 0
+\until mesh.delete_vertex(vhandle[3], false);
+
+Now the deleted faces and vertices are marked as "deleted" internally.
+Call garbage_collection() to definitely remove them from memory.
+
+\dontinclude delete_geometry.cc
+\skipline // Delete all
+\until mesh.garbage_collection();
+
+The full source code of the example:
+
+\include delete_geometry.cc
+
+**/

@@ -1,0 +1,51 @@
+<map id="OpenMesh/Core/System/omstream.hh" name="OpenMesh/Core/System/omstream.hh">
+<area shape="rect" id="node2" href="$a00260_source.html" title="OpenMesh/Core/IO/SR\l_rbo.hh" alt="" coords="2598,102,2757,143"/>
+<area shape="rect" id="node9" href="$a00209_source.html" title="OpenMesh/Core/IO/OMFormat.hh" alt="" coords="523,489,742,515"/>
+<area shape="rect" id="node16" href="$a00455_source.html" title="OpenMesh/Core/Utils\l/BaseProperty.hh" alt="" coords="2865,392,3013,433"/>
+<area shape="rect" id="node38" href="$a00641_source.html" title="OpenMesh/Tools/SmartTagger\l/SmartTaggerT.hh" alt="" coords="5084,571,5284,612"/>
+<area shape="rect" id="node43" href="$a00188_source.html" title="OpenMesh/Core/IO/importer\l/ImporterT.hh" alt="" coords="1100,303,1287,344"/>
+<area shape="rect" id="node44" href="$a00734.html" title="A generic heap class. " alt="" coords="4908,303,5060,344"/>
+<area shape="rect" id="node45" href="$a00389_source.html" title="OpenMesh/Core/Mesh\l/PolyMeshT_impl.hh" alt="" coords="5073,102,5226,143"/>
+<area shape="rect" id="node46" href="$a00422_source.html" title="OpenMesh/Core/Mesh\l/TriMeshT_impl.hh" alt="" coords="5250,102,5404,143"/>
+<area shape="rect" id="node47" href="$a04497.html" title="OpenMesh/Tools/Subdivider\l/Adaptive/Composite/CompositeT\l_impl.hh" alt="" coords="5428,95,5647,151"/>
+<area shape="rect" id="node48" href="$a00737_source.html" title="OpenMesh/Tools/Utils\l/MeshCheckerT.hh" alt="" coords="5671,102,5823,143"/>
+<area shape="rect" id="node3" href="$a00263_source.html" title="OpenMesh/Core/IO/SR\l_store.hh" alt="" coords="2437,392,2596,433"/>
+<area shape="rect" id="node14" href="$a00257_source.html" title="OpenMesh/Core/IO/SR\l_binary_spec.hh" alt="" coords="2598,206,2757,247"/>
+<area shape="rect" id="node4" href="$a00200_source.html" title="OpenMesh/Core/IO/MeshIO.hh" alt="" coords="1310,667,1512,694"/>
+<area shape="rect" id="node5" href="$a00014_source.html" title="OpenMesh/Apps/Decimating\l/DecimaterViewerWidget.hh" alt="" coords="2084,846,2274,887"/>
+<area shape="rect" id="node6" href="$a00041_source.html" title="OpenMesh/Apps/QtViewer\l/MeshViewerWidgetT.hh" alt="" coords="1562,749,1740,791"/>
+<area shape="rect" id="node7" href="$a04461_source.html" title="OpenMesh/Apps/Subdivider\l/MeshViewerWidget.hh" alt="" coords="1559,846,1743,887"/>
+<area shape="rect" id="node8" href="$a00137_source.html" title="OpenMesh/Apps/VDProgMesh\l/Synthesizer/VDPMSynthesizerViewer\lWidget.hh" alt="" coords="1288,839,1534,895"/>
+<area shape="rect" id="node10" href="$a00182_source.html" title="OpenMesh/Core/IO/exporter\l/ExporterT.hh" alt="" coords="656,571,843,612"/>
+<area shape="rect" id="node11" href="$a00212_source.html" title="OpenMesh/Core/IO/OMFormat\lT_impl.hh" alt="" coords="430,571,632,612"/>
+<area shape="rect" id="node12" href="$a00239_source.html" title="OpenMesh/Core/IO/reader\l/OMReader.hh" alt="" coords="36,571,210,612"/>
+<area shape="rect" id="node13" href="$a00293_source.html" title="OpenMesh/Core/IO/writer\l/OMWriter.hh" alt="" coords="235,571,406,612"/>
+<area shape="rect" id="node15" href="$a00269_source.html" title="OpenMesh/Core/IO/StoreRestore.hh" alt="" coords="2604,310,2839,337"/>
+<area shape="rect" id="node17" href="$a00476_source.html" title="OpenMesh/Core/Utils\l/Property.hh" alt="" coords="2865,481,3013,523"/>
+<area shape="rect" id="node18" href="$a00479_source.html" title="OpenMesh/Core/Utils\l/PropertyContainer.hh" alt="" coords="2960,571,3110,612"/>
+<area shape="rect" id="node19" href="$a00470_source.html" title="OpenMesh/Core/Utils\l/HandleToPropHandle.hh" alt="" coords="3134,571,3302,612"/>
+<area shape="rect" id="node20" href="$a04383_source.html" title="Doc/Tutorial/04&#45;stl\l_algorithms/smooth_algo.hh" alt="" coords="3326,571,3512,612"/>
+<area shape="rect" id="node21" href="$a04413_source.html" title="Doc/Tutorial/10&#45;persistence\l/fill_props.hh" alt="" coords="3536,571,3718,612"/>
+<area shape="rect" id="node22" href="$a00551.html" title="OpenMesh/Tools/Decimater\l/DecimaterT.hh" alt="" coords="2685,660,2870,701"/>
+<area shape="rect" id="node23" href="$a00542.html" title="OpenMesh/Tools/Decimater\l/BaseDecimaterT.hh" alt="" coords="2750,571,2936,612"/>
+<area shape="rect" id="node24" href="$a00569.html" title="OpenMesh/Tools/Decimater\l/ModAspectRatioT.hh" alt="" coords="3742,571,3928,612"/>
+<area shape="rect" id="node25" href="$a00584.html" title="OpenMesh/Tools/Decimater\l/ModHausdorffT.hh" alt="" coords="3952,571,4137,612"/>
+<area shape="rect" id="node26" href="$a00593.html" title="OpenMesh/Tools/Decimater\l/ModNormalDeviationT.hh" alt="" coords="4161,571,4346,612"/>
+<area shape="rect" id="node27" href="$a00605.html" title="OpenMesh/Tools/Decimater\l/ModQuadricT.hh" alt="" coords="3565,749,3750,791"/>
+<area shape="rect" id="node28" href="$a00599.html" title="OpenMesh/Tools/Decimater\l/ModProgMeshT.hh" alt="" coords="4370,571,4556,612"/>
+<area shape="rect" id="node29" href="$a00746_source.html" title="OpenMesh/Tools/Utils\l/StripifierT.hh" alt="" coords="2259,660,2411,701"/>
+<area shape="rect" id="node30" href="$a00620_source.html" title="OpenMesh/Tools/Dualizer\l/meshDualT.hh" alt="" coords="4580,571,4754,612"/>
+<area shape="rect" id="node31" href="$a00662.html" title="OpenMesh/Tools/Smoother\l/SmootherT.hh" alt="" coords="4778,571,4959,612"/>
+<area shape="rect" id="node32" href="$a00701.html" title="OpenMesh/Tools/Subdivider\l/Uniform/LoopT.hh" alt="" coords="918,571,1104,612"/>
+<area shape="rect" id="node33" href="$a00707.html" title="The modified butterfly scheme of Denis Zorin, Peter Schröder and Wim Sweldens, ``Interpolating subdiv..." alt="" coords="1129,571,1333,612"/>
+<area shape="rect" id="node34" href="$a04386_source.html" title="OpenMesh/Examples/Tutorial04\l/smooth_algo.hh" alt="" coords="1358,571,1566,612"/>
+<area shape="rect" id="node35" href="$a04416_source.html" title="OpenMesh/Examples/Tutorial10\l/fill_props.hh" alt="" coords="1590,571,1798,612"/>
+<area shape="rect" id="node36" href="$a00632_source.html" title="OpenMesh/Tools/Kernel\l_OSG/PropertyT.hh" alt="" coords="2462,571,2624,612"/>
+<area shape="rect" id="node37" href="$a00629_source.html" title="OpenMesh/Tools/Kernel\l_OSG/PropertyKernel.hh" alt="" coords="1909,660,2076,701"/>
+<area shape="rect" id="node40" href="$a00659_source.html" title="OpenMesh/Tools/Smoother\l/smooth_mesh.hh" alt="" coords="1872,571,2054,612"/>
+<area shape="rect" id="node41" href="$a00698.html" title="OpenMesh/Tools/Subdivider\l/Uniform/LongestEdgeT.hh" alt="" coords="2078,571,2264,612"/>
+<area shape="rect" id="node42" href="$a04419_source.html" title="Unittests/fill_props.hh" alt="" coords="2288,578,2438,605"/>
+<area shape="rect" id="node39" href="$a00644_source.html" title="OpenMesh/Tools/SmartTagger\l/SmartTaggerT_impl.hh" alt="" coords="5084,660,5284,701"/>
+<area shape="rect" id="node49" href="$a00689_source.html" title="OpenMesh/Tools/Subdivider\l/Uniform/CatmullClarkT\l_impl.hh" alt="" coords="5554,199,5740,255"/>
+<area shape="rect" id="node50" href="$a00740_source.html" title="OpenMesh/Tools/Utils\l/MeshCheckerT_impl.hh" alt="" coords="5765,206,5929,247"/>
+</map>

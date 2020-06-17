@@ -1,0 +1,82 @@
+//=============================================================================
+//
+//  Documents all used namespaces for doxygen
+//
+//=============================================================================
+
+
+/** \namespace OpenMesh::Concepts
+    Descriptions of the concepts used in OpenMesh.
+*/
+
+
+/** \namespace OpenMesh
+    Contains all the mesh ingredients like the polygonal mesh,
+    the triangle mesh, different mesh kernels and mesh traits.
+**/
+
+
+/** \namespace OpenMesh::Iterators
+    Contains all mesh iterators and circulators. The two classes
+    OpenMesh::Concepts::IteratorT and OpenMesh::Concepts::CirculatorT describe 
+    the interfaces provided by all iterators and circulators, respectively.
+
+    All iterators/circulators defined in this namespace are template classes
+    that require a mesh a template parameter. Therefore you should use
+    the iterators/circulators that are defined by the mesh itself. See
+    OpenMesh::Mesh::PolyMeshT for a complete list of them.
+
+    \see The mesh docu section \ref mesh_iterators for a more detailed 
+         description.
+    \see OpenMesh::Concepts::IteratorT
+    \see OpenMesh::Concepts::CirculatorT
+*/
+
+
+/** \namespace OpenMesh::IO 
+    This namespace contains functions for reading and writing polygonal 
+    meshes and a list of supported file formats.  
+*/
+
+
+/** \namespace OpenMesh::GenProg
+    Utilities for generative programming.
+*/
+
+
+/** \namespace OpenMesh::Attributes
+    This namespace holds per item attributes like normal/color.
+    There are some macros provided for convenience, see Attributes.hh.
+    \see Attributes.hh
+*/
+
+
+/** \namespace OpenMesh::Kernel_OSG
+    In this namespace resides the OpenSG integration of OpenMesh.
+    Here you find the class
+    OpenMesh::OSG_Kernel::TriMesh_OSGArrayKernelT<> and the
+    template function OpenMesh::OSG_Kernel::bindT<> to link such a
+    mesh with a OpenSG Geometry.  */
+
+
+/** \namespace OpenMesh::Decimater
+    Software related to mesh decimation.
+    \see DecimaterT.hh
+*/
+
+
+/** \namespace OpenMesh::Subdivider::Adaptive
+ *  Software related to adaptive subdivision of meshes.
+ */
+
+/** \namespace OpenMesh::Subdivider::Uniform
+ *  Software related to uniform subdivision of meshes.
+ */
+
+/** \namespace OpenMesh::VDPM
+ *  Software related to view dependent progressive meshes.
+ */
+
+/** \namespace OpenMesh::Utils
+ *  Collection of little utility classes and helpers.
+ */

@@ -1,0 +1,108 @@
+/** \page tutorial_03 Using (custom) properties
+
+This examples shows:
+- How to add and remove custom properties
+- How to get and set the value of a custom property
+
+In the last example we computed the barycenter of each vertex'
+neighborhood and stored it in an array. It would be more convenient
+and less error-prone if we could store this data in the mesh and
+let %OpenMesh manage the data.
+It would be even more helpful if we could attach such properties
+dynamically to the mesh.
+
+Custom properties can be conveniently created and attached to meshes by creating an object of type OpenMesh::PropertyManager. A PropertyManager manages the lifetime of the property and provides read / write access to its values.
+
+You can use the typedefs VProp, HProp, EProp, FProp, and MProp in order to create a PropertyManager attached to vertices, halfedge, edges, faces and the mesh respectively. Each of these takes as template argument the type of the property value that is attached to each element (e.g., \p int, \p double, etc.).
+
+We differentiate between two kinds of properties. <em>Named</em> and <em>temporary</em> properties. Temporary properties are created by just providing the constructor with a mesh on which the property should be created. These properties will be removed as soon as the PropertyManager goes out of scope. If in addition to the mesh a property name is provided, a named property will be created which will stay alive even after the PropertyManager goes out of scope. If a PropertyManager is given a name of an already existing property, it will provide read and write access to the same property.
+
+Finally, an optional first parameter can be given containing a value that will be used to initialize the property for all elements if the property is freshly created (i.e. always for temporary properties, and only the first time a specific name is used).
+
+
+Here are a few examples of how to create and access mesh properties:
+
+\code
+// Add a temporary mesh property that stores a double value for every vertex
+auto temperature = OpenMesh::VProp<double>(mesh);
+OpenMesh::VertexHandle vh = ...;
+temperature[vh] = 1.0;
+// The temperature property will be removed from the mesh when the handle reaches the end of the scope.
+
+// Obtain an existing property that stores a 2D vector for every halfedge
+// (or create that property if it does not exist already) and initilize it with the Vector(1,1))
+auto uv = OpenMesh::HProp<OpenMesh::Vec2d>(mesh, "uv", OpenMesh::Vec2d(1,1));
+OpenMesh::VertexHandle heh = ...;
+std::cout << temperature[heh][0] << " " << temperature[heh][1] << std::endl;
+
+// Obtain an existing mesh property (or create that property if it does not exist already)
+// containing a description string
+auto desc = OpenMesh::MProp<std::string>(mesh, "desc");
+*desc = "This is a very nice mesh.";
+\endcode
+
+---
+
+## Code Example
+
+In this example, we will store the \c cog value (see previous example) in a vertex property instead of keeping it in a separate array.
+To do so, we first add a (temporary) property of the desired element type (OpenMesh::VertexHandle) and value type (\c %MyMesh::Point) to the mesh:
+
+\dontinclude 03-properties/smooth.cc
+\skipline VProp
+
+Enough memory is allocated to hold as many values of \c %MyMesh::Point as there are vertices.
+All insert and delete operations on the mesh are synchronized with the attached properties.
+
+Once the property is created, we can use it to compute the centers of the neighborhood of each vertex:
+
+\skipline mesh.vertices
+\until cog[vh] /= valence
+\until }
+
+Finally, we set the new position for each vertex:
+
+\skipline mesh.vertices
+\until mesh.point
+\until }
+
+Below is the complete source code:
+
+\include 03-properties/smooth.cc
+
+---
+
+## Property Lifetime
+
+In the above example, we chose to use VProp without a name. This causes the created property to automatically be removed from the mesh as soon as we leave the scope of the associated handle variable \c cog.
+
+If, instead, a property is desired to survive its local scope, it should be created with a name. For example:
+
+\code
+    auto face_area = OpenMesh::FProp<double>(mesh, "face_area");
+\endcode
+
+At a later time, we can access the same property by using the same name. If we want to make sure, that we access a property that has already been created earlier, we can use hasProperty() to test whether a mesh has the desired property:
+\code
+    if (OpenMesh::hasProperty<OpenMesh::FaceHandle, double>(mesh, "face_area")) {
+        // Property exists. Do something with it.
+        auto valley = OpenMesh::FProp<bool>(mesh, "face_area");
+    }
+    else {
+        // Property does not exist. Do something else.
+    }
+\endcode
+
+---
+
+## Low-Level Property API
+
+The property managers VProp, HProp, EProp, FProp and MProp are the convenient high-level interface for creating and accessing mesh properties.
+
+Beneath these convenience functions, there is also a low-level property interface where handle and property lifetime must be managed manually. This interface is accessed through a mesh's add_property(), get_property(), remove_property(), and property() functions and several property handle classes (OpenMesh::VPropHandleT, OpenMesh::HPropHandleT, OpenMesh::EPropHandleT, OpenMesh::FPropHandleT, OpenMesh::MPropHandleT).
+
+---
+
+
+
+*/

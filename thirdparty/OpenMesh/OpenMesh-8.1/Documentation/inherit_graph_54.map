@@ -1,0 +1,9 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" href="$a02081.html" title="Base class for all writer modules. " alt="" coords="5,132,185,159"/>
+<area shape="rect" id="node2" href="$a02085.html" title="This class defines the OBJ writer. " alt="" coords="233,5,424,32"/>
+<area shape="rect" id="node3" href="$a02089.html" title="Implementation of the OFF format writer. " alt="" coords="233,56,424,83"/>
+<area shape="rect" id="node4" href="$a02093.html" title="Implementation of the OM format writer. " alt="" coords="236,107,421,133"/>
+<area shape="rect" id="node5" href="$a02097.html" title="Implementation of the PLY format writer. " alt="" coords="234,157,423,184"/>
+<area shape="rect" id="node6" href="$a02105.html" title="Implementation of the STL format writer. " alt="" coords="235,208,423,235"/>
+<area shape="rect" id="node7" href="$a02109.html" title="OpenMesh::IO::_VTKWriter_" alt="" coords="233,259,424,285"/>
+</map>

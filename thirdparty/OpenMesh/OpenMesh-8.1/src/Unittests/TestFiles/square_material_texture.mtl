@@ -1,0 +1,8 @@
+newmtl Texture
+Ka 0.500 0.500 0.500
+Kd 0.500 0.500 0.500
+Ks 0.500 0.500 0.500
+Tr 1.000000
+illum 1
+Ns 0.000000
+map_Kd square_material_texture.jpg

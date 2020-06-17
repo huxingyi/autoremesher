@@ -1,0 +1,13 @@
+<map id="OpenMesh::Decimater::ModBaseT&lt; MeshT &gt;" name="OpenMesh::Decimater::ModBaseT&lt; MeshT &gt;">
+<area shape="rect" id="node2" href="$a02693.html" title="ModQuadricT\&lt; D \&gt;" alt="" coords="243,5,377,32"/>
+<area shape="rect" id="node3" href="$a02653.html" title="Use aspect ratio to control decimation. " alt="" coords="211,57,409,98"/>
+<area shape="rect" id="node4" href="$a02665.html" title="Use edge length to control decimation. " alt="" coords="212,122,408,163"/>
+<area shape="rect" id="node5" href="$a02669.html" title="Use Hausdorff distance to control decimation. " alt="" coords="218,187,402,229"/>
+<area shape="rect" id="node6" href="$a02673.html" title="Lock one&#45;ring around remaining vertex after a collapse to prevent further collapses of halfedges inci..." alt="" coords="229,253,391,309"/>
+<area shape="rect" id="node7" href="$a02677.html" title="Use Normal deviation to control decimation. " alt="" coords="230,333,390,389"/>
+<area shape="rect" id="node8" href="$a02681.html" title="Decimating module to avoid flipping of faces. " alt="" coords="233,413,387,469"/>
+<area shape="rect" id="node9" href="$a02685.html" title="Collect progressive mesh information while decimating. " alt="" coords="217,494,403,535"/>
+<area shape="rect" id="node10" href="$a02693.html" title="Mesh decimation module computing collapse priority based on error quadrics. " alt="" coords="224,559,396,601"/>
+<area shape="rect" id="node12" href="$a02697.html" title="Use Roundness of triangles to control decimation. " alt="" coords="213,625,407,666"/>
+<area shape="rect" id="node11" href="$a01961.html" title="ModBalancerT\&lt; D \&gt;" alt="" coords="457,567,597,593"/>
+</map>

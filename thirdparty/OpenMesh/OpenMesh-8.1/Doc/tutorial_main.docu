@@ -1,0 +1,46 @@
+/** \page tutorial Tutorials (code examples)
+
+The %OpenMesh mesh library is a powerful tool for handling polygonal
+meshes. Due to its inherent generative structure it allows the user to
+create mesh types which are custom tailored to the specific needs of
+the application. The user can either supply his own data structures
+for representing vertices, edges and faces or he can conveniently use
+the predefined structures of %OpenMesh.
+Additionally %OpenMesh offers dynamic properties allowing the user to attach
+and detach data to the mesh during runtime.
+
+This document is supposed to introduce the basic concepts of
+%OpenMesh. <!--For detailed information, consult the online documentation
+(\ref mesh_docu).-->
+
+In this tutorial we will introduce the %OpenMesh library by means of
+simple examples. The first one just builds a polygonal mesh
+representing a cube and writes the result to standard output. The
+following examples develop a simple mesh smoother: Recall that the
+immediate neighbors of a vertex are called the 1-ring of this
+vertex. It is well known that a polygonal mesh can be smoothed by
+repeatedly replacing each vertex' position by the center of gravity
+(cog) of its 1-ring. The basic smoother will
+
+\li read a polygonal mesh from standard input,
+\li compute the cog of the 1-ring of each vertex,
+\li replace each vertex' position by its cog and finally,
+\li write the mesh to standard output.
+
+<ol>
+<li> \subpage tutorial_build
+<li> \subpage tutorial_01
+<li> \subpage tutorial_02
+<li> \subpage tutorial_03
+<li> \subpage tutorial_04
+<li> \subpage tutorial_11
+<li> \subpage tutorial_05
+<li> \subpage tutorial_06
+<li> \subpage tutorial_07
+<li> \subpage tutorial_07b
+<li> \subpage tutorial_08
+<li> \subpage tutorial_09
+<li> \subpage tutorial_10
+</ol>
+
+*/

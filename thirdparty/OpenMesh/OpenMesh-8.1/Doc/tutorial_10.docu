@@ -1,0 +1,186 @@
+/** \page tutorial_10 Storing custom properties
+
+The %OpenMesh' proprietary OM format allows to store and restore
+custom properties along with the standard properties. For it we have
+to use named custom properties like the following one
+
+\dontinclude 10-persistence/persistence.cc
+\skipline VPropHandleT
+\skipline mesh.add_property
+
+Here we registered a float property for the vertices at the mesh with
+name "vprop_float". The name of a property, that we want to make
+persistent, must follow a few rules
+
+-# max. 256 characters long
+-# The prefixes \c "v:", \c "h:", \c "e:", \c "f:" and \c "m:" are reserved.
+
+If we stick to this rules we are fine. Furthermore we have to
+consider, that the names are handled case-sensitive.
+
+To actually make a custom property persistent we have to set the
+persistent flag in the property with
+
+\skipline mesh.property(vprop_float).set_persistent
+
+Now we can use \c IO::mesh_write() to write the mesh to a file on
+disk.  The custom properties are added after the standard properties
+in the file, with the name and it's binary size. These two pieces of
+information are evaluated when reading the file again. To successfully
+restore the custom properties, the mesh must have registered named
+properties with equal names (case-sensitive compare). Additionally,
+when reading the data, the number of bytes read for a property must
+match the provided number in the file. If the OM reader did not find a
+suitable named property, it will simply skip it. If the number of bytes
+do not match, the complete restore will be terminated and \c
+IO::read_mesh() will return \c false. And if the data cannot be
+restored, because the appropriate restore method is not available the
+exception std::logic_error() will be thrown.
+
+Since we now know the behaviour, we need to know what kind of data can
+we store?  Without any further effort, simply using named properties
+and setting the persistent flag, we can store following types
+
+- bool, stored as a bitset
+- all other fundamental types except long double, (unsigned) long and size_t
+- std::string, each up to 65536 characters long
+- OpenMesh::Vec[1,2,3,4,6][c,uc,s,us,i,ui,f,d]
+
+For further reading we call these types basic types. Apparently we
+cannot store non-basic types, which are
+
+- pointers
+- structs/classes
+- even more complex data structures, like container of containers.
+
+However there is a way to store custom types ( else we could not store
+std::string). Let's start with an more simple custom data. For
+instance we have a struct \c MyData like this
+
+\dontinclude 10-persistence/persistence.cc
+\skipline struct MyData
+\until vec4fval
+\skipline };
+
+Here we keep an int, bool, double value and a vector of 4 floats, which
+are all basic types. Then we need to specialize the template struct
+OpenMesh::IO::binary<> within the namespace \c OpenMesh::IO
+
+\skipline binary<MyData>
+
+Remember not to use long double, (unsigned) long and size_t as basic types
+because of inconsistencies between 32/64bit architectures.
+
+Herein we have to implement the following set of static member
+variables and functions:
+
+\skipline is_streamable
+\skipline size_of
+\skipline size_of
+\skipline store
+\skipline restore
+
+The flag \c is_streamable has to be set to \c true. Else the data
+cannot be stored at all. 
+
+<h5>\c size_of methods </h5>
+
+Since the size of the custom data can be static, which means we know
+the size at compile time, or the size of it is dynamic, which means me
+the size is known at runtime, we have to provide the two \c size_of()
+methods.
+
+The first declaration is for the static case, while the second for the
+dynamic case. Though the static case is more simple, it is not
+straight forward. We cannot simply use \c sizeof() to determine the
+data size, because it will return the number ob bytes it needs in
+memory (possible 32bit alignment). Instead we need the binary size,
+hence we have to add up the single elements in the struct.
+
+\dontinclude 10-persistence/persistence.cc
+\skipline return sizeof
+
+Actually we would need to sum up the single elements of the vector,
+but in this case we know for sure the result (4 floats make 16 bytes,
+which is 32bit aligned therefore \c sizeof() returns the wanted
+size). But keep in mind, that this a potential location for errors,
+when writing custom binary support.  
+
+The second declaration is for the dynamic case, where the custom data
+contains pointers or references. This static member must properly
+count the data, by disolving the pointers/references, if this data has
+to be stored as well. In the dynamic stetting the static variant cannot return
+the size, therefore it must return \c IO::UnknownSize.
+
+In this case the dynamic variant simply returns the size by calling the static
+variant, as the sizes are identical for both cases.
+
+<h5>\c store /  \c restore </h5>
+
+For the dynamic case as for the static case, we have to make up a
+scheme how we would store the data. One option is to store the length
+of the data and then store the data itself. For instance the type \c
+std::string is implemented this way. (We store first the length in a
+16bit word (=> max. length 65536), then the characters follow. Hence
+\c size_of() returns 2 bytes for the length plus the actual length of
+the value \c v.) Since \c MyData contains only basic types we can
+implement the necessary methods \c store and \c restore, by simply
+breaking up the data into the basic types using the pre-defined
+store/restore methods for them:
+
+\skipline static size_t store
+\until }
+\skipline static size_t restore
+\until }
+
+It's very important, that the store/restore methods count the
+written/read bytes correctly and return the value. On error both
+functions must return 0.
+
+A more complex situation is given with the following property
+
+\dontinclude 10-persistence/persistence.cc
+\skipline MyMap
+\skipline mprop_map
+
+In this case the data contains a container, a map from strings to
+integer numbers. If we want to store this as well, we need to make up
+a scheme how the map will be stored in a sequential layout. First we
+store the number of elements in the map. Then, since the map has an
+iterator, we simply iterate over all elements and store each pair
+(key/value). This procedure is equal for the \c size_of(), \c store(), and \c
+restore() methods. For example the \c size_of() methods look like this
+
+\dontinclude 10-persistence/persistence.cc
+\skip binary< MyMap >
+\skipline static size_t size_of
+\skipline static size_t size_of
+\until }
+\until }
+
+The implementation of \c store() and \c restore() follow a similar pattern.
+
+The given example program does the following steps
+
+-# Create a mesh and generate a cube
+-# Add a few custom properties
+-# Fill them with test data
+-# Make the properties persistent
+-# Store mesh in a file named 'persistent-check.om'
+-# Clear the mesh
+-# Restore mesh
+-# Check the content on equality with the test data.
+
+Since the example is a little bit longer than usual the source is in
+several files. The main program is in \c persistence.cc, the cube
+generator in \c generate_cube.hh, \c stats.hh provides little tools to
+display information about the mesh and the properties, the file \c
+fill_props.hh providing the test data, and \c int2roman.hh/.cc, which
+is used in fill_props.hh.  All necessary parts are in \c
+persistence.cc, which is displayed in full length below. For the other
+files please have a look in the directory \c
+OpenMesh/Doc/Tutorial/10-persistence/.
+
+\include 10-persistence/persistence.cc
+
+*/

@@ -1,0 +1,209 @@
+/** \page tutorial_05 Using standard properties
+
+This example shows:
+
+- How to add and remove a standard property,
+- How to get and set the value of a standard property.
+
+As we already have seen, we can bind additional data to the mesh
+entities by means of properties. %OpenMesh provides a set of so-called
+standard properties. Unlike the custom properties these have some
+special features and a different interface, which are the matter in this
+tutorial.
+
+The following table lists all available standard properties and the suitable
+entity for which it can be used.
+
+<table>
+  <tr>
+    <td>&nbsp;</td>
+    <td>Vertex</td>
+    <td>Face</td>
+    <td>Edge</td>
+    <td>Halfedge</td>
+  </tr>
+  <tr>
+    <td>Color</td>
+    <td>X</td>
+    <td>X</td>
+    <td>X</td>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td>Normal</td>
+    <td>X</td>
+    <td>X</td>
+    <td>&nbsp;</td>
+    <td>X</td>
+  </tr>
+  <tr>
+    <td>Position <sup> (*) </sup> </td>
+    <td>X</td>
+    <td>&nbsp;</td>
+    <td>&nbsp;</td>
+    <td>&nbsp;</td>
+  </tr>
+  <tr>
+    <td>Status</td>
+    <td>X</td>
+    <td>X</td>
+    <td>X</td>
+    <td>X</td>
+  </tr>
+  <tr>
+    <td>TexCoord</td>
+    <td>X</td>
+    <td>&nbsp;</td>
+    <td>&nbsp;</td>
+    <td>X</td>
+  </tr>
+</table>
+
+To add a standard property to an entity simply use the appropriate
+request method, e.g. \c request_face_normals(). The only exception is
+the position <sup>(*)</sup>. It cannot be added because it is
+permanently available, hence it cannot be removed as well.
+
+In this example we 
+-# add vertex normals to a mesh object
+-# load a file
+-# check if the file provides vertex normals and calculate them if not
+-# move every vertex one unit length along its normal direction
+-# print the resulting positions to std::cout
+
+Let's start with adding vertex normals to the mesh:
+
+\dontinclude 05-std_properties/properties.cc
+\skipline request_vertex_normals
+
+In a similar manner we can request the other standard properties. For example
+the face normals:
+
+\skipline request_face_normals
+
+We need them to calculate the vertex normals with \c update_normals(), if the
+file didn't provide any.
+
+But we can do more with standard properties. We can verify if the mesh
+has already the property vertex normals
+
+\dontinclude 05-std_properties/properties.cc
+\skipline has_vertex_normals
+\until }
+
+And after usage we remove them again
+
+\skipline release_vertex_normals
+
+But, what happens if for example the vertex status property has been
+requested twice? Then the first release does nothing, but the second
+one will remove it.  The standard properties have a reference counter,
+which is incremented by one for each request and decremented by one
+for each release. If the counter reaches 0 the property will be
+removed from memory.
+
+As we have seen in the table above, we have 9 dynamically requestable properties.
+The request functions as defined in OpenMesh::Concepts::KernelT
+are:
+
+<ul>
+<li>request_edge_status()</li>
+<li>request_edge_colors()</li>
+<li>request_face_colors()</li>
+<li>request_face_normals()</li>
+<li>request_face_status()</li>
+<li>request_face_texture_index()</li>
+<li>request_halfedge_status()</li>
+<li>request_halfedge_normals()</li>
+<li>request_halfedge_texcoords1D()</li>
+<li>request_halfedge_texcoords2D()</li>
+<li>request_halfedge_texcoords3D()</li>
+<li>request_vertex_colors()</li>
+<li>request_vertex_normals()</li>
+<li>request_vertex_status()</li>
+<li>request_vertex_texcoords1D()</li>
+<li>request_vertex_texcoords2D()</li>
+<li>request_vertex_texcoords3D()</li>
+</ul>
+
+Added properties can be released by the following functions:
+
+<ul>
+<li>release_edge_status()</li>
+<li>release_edge_colors()</li>
+<li>release_face_colors()</li>
+<li>release_face_normals()</li>
+<li>release_face_status()</li>
+<li>release_face_texture_index()</li>
+<li>release_halfedge_status()</li>
+<li>release_halfedge_normals()</li>
+<li>release_halfedge_texcoords1D()</li>
+<li>release_halfedge_texcoords2D()</li>
+<li>release_halfedge_texcoords3D()</li>
+<li>release_vertex_colors()</li>
+<li>release_vertex_normals()</li>
+<li>release_vertex_status()</li>
+<li>release_vertex_texcoords1D()</li>
+<li>release_vertex_texcoords2D()</li>
+<li>release_vertex_texcoords3D()</li>
+</ul>
+
+A property's existance can be tested with
+
+<ul>
+<li>has_edge_status()</li>
+<li>has_edge_colors()</li>
+<li>has_face_colors()</li>
+<li>has_face_normals()</li>
+<li>has_face_status()</li>
+<li>has_face_texture_index()</li>
+<li>has_halfedge_status()</li>
+<li>has_halfedge_normals()</li>
+<li>has_halfedge_texcoords1D()</li>
+<li>has_halfedge_texcoords2D()</li>
+<li>has_halfedge_texcoords3D()</li>
+<li>has_vertex_colors()</li>
+<li>has_vertex_normals()</li>
+<li>has_vertex_status()</li>
+<li>has_vertex_texcoords1D()</li>
+<li>has_vertex_texcoords2D()</li>
+<li>has_vertex_texcoords3D()</li>
+</ul>
+
+which return true if a property has been requested before and is available.
+
+The status property is used for marking geometry elements i.e. as selected or deleted.
+See \ref tutorial_07b for further information.
+
+Now we know how to add and remove standard properties, but how do we
+access them?  Again we need the mesh object. Unlike the custom
+properties, where we accessed one with the mesh member function \c
+property(), for each standard property the mesh provides a get and a
+set method.  We have used one pair of get/set methods already in the
+previous three tutorials, where we computed a new location for the
+vertex position. Here we move all vertices a unit length along their
+normal direction:
+
+\dontinclude 05-std_properties/properties.cc
+\skipline MyMesh::VertexIter
+\until {
+\skipline mesh.set_point
+\skipline }
+
+The get-methods take an entity handle and return the value of
+the desired property, and the set-methods require an additional
+parameter to pass the new value to the property. According to the
+table not every pair of get/set-methods apply to every entity. For
+example a face has normally no texture coordinates, hence a call to \c
+mesh.texcoord2D( _face_handle ) will result in an error when compiling
+the code.
+
+Since we know how to add/remove/access standard properties, one further
+question remains. What data types do they have? And are there more hidden
+secrets? The next tutorial (\ref tutorial_06) will give the answer.
+
+The complete source looks like this:
+
+\include 05-std_properties/properties.cc
+
+*/

@@ -1,0 +1,8 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" href="$a02497.html" title="Abstract class defining the basic interface of a dynamic property. " alt="" coords="5,108,177,135"/>
+<area shape="rect" id="node2" href="$a02725.html" title="Property adaptor for OpenSG GeoProperties. " alt="" coords="225,13,416,54"/>
+<area shape="rect" id="node4" href="$a02537.html" title="Default property class for any type T. " alt="" coords="229,79,412,105"/>
+<area shape="rect" id="node5" href="$a02541.html" title="Property specialization for bool type. " alt="" coords="245,130,396,171"/>
+<area shape="rect" id="node6" href="$a02545.html" title="Property specialization for std::string type. " alt="" coords="245,195,396,237"/>
+<area shape="rect" id="node3" href="$a02729.html" title="Adaptor for osg::GeoIndicesUI32. " alt="" coords="464,5,631,61"/>
+</map>

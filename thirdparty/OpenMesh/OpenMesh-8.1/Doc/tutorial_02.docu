@@ -1,0 +1,62 @@
+/** \page tutorial_02 Using iterators and circulators
+
+This examples shows:
+
+- How to use iterators,
+- How to use circulators.
+
+This example is the first version of the simple mesh smoother. Here we
+will introduce \em iterators and \em circulators. These two concepts
+provide functionality to linearly enumerate e.g. all vertices of a
+mesh, and to circulate around a vertex, i.e. to enumerate all its
+one-ring neighbors. For a more detailed description, see \ref
+mesh_iterators.
+
+First we have to define the mesh type we want to use. This time we use
+a triangle mesh instead of a polygonal mesh:
+
+\dontinclude 02-iterators/smooth.cc
+\skipline TriMesh_ArrayKernel
+\skipline MyMesh
+
+<br>We read the mesh to be smoothed from a file:
+
+\skipline read_mesh
+
+<br>One smoothing iteration is done in two steps: 
+<ol>
+<li>For each vertex: calculate the barycenter of its one-ring neighbors.</li>
+<li>For each vertex: move the vertex to the computed barycenter.</li>
+</ol>
+
+This can easily be implemented using vertex iterators. The mesh
+provides begin and end iterators by <tt>vertices_begin()</tt> and
+<tt>vertices_end()</tt>.
+
+\skipline VertexIter
+\skipline v_it!=v_end
+
+<br>For calculating the barycenter, we have to iterate through the
+one-ring neighborhood of the current vertex. This functionality 
+is provided by the <tt>VertexVertexIter</tt>:
+
+\dontinclude 02-iterators/smooth.cc
+\skipline VertexVertexIter
+\skipline vv_it=
+
+<br>Now we can calculate the barycenters for each vertex and store them in
+the array <tt>cogs</tt>:
+
+\dontinclude 02-iterators/smooth.cc
+\skipline std::vector
+\skipline v_it=
+\until cogs.push_back
+\until }
+
+<br>After we have calculated the barycenters all that is left to do is to
+move the vertices to the corresponding barycenters. The complete source
+code is listed below.
+
+\include 02-iterators/smooth.cc
+
+**/

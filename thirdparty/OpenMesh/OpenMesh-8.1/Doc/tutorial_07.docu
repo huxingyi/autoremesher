@@ -1,0 +1,45 @@
+/** \page tutorial_07 Extending the mesh using traits
+
+This examples shows:
+
+- How to extend the behaviour of entities using traits.
+
+In the previous tutorial we used attributes and changed the type of
+the data types \c Point, \c Normal, \c TexCoord, and \c Color. But we
+can do even more with traits. We can change the behaviour of the mesh
+entities \c Vertex, \c Face, \c Edge, and \c Halfedge. 
+
+One goal in the design was a highly customizable data structure. Using
+the traits technique makes it possible. We pick up the smoother again
+and show an alternative way to implement it. Now we place the necessary
+data and the functions in the vertex itself
+
+\dontinclude 07-traits/smooth.cc
+\skipline MyTraits
+\until };
+
+Note the definition of the vertex entity. We use the supplied define
+\c VertexTraits (which resolves in a rather inconvenient template
+definition). Similary we can use the defines \c FaceTraits, \c
+EdgeTraits, and \c HalfedgeTraits to extend these entities. Now we
+enhanced the vertex, with the additional member variable \c cog_, and
+the get/set-method pair to access the new member.
+
+As before we compute in a first loop the barycenters for all vertices
+and store the information at the vertices
+
+\skipline mesh.data(*v_it).set_cog
+
+In the second pass we set the new position of each vertex
+
+\skipline mesh.data(*v_it).cog
+
+It looks neat, but on the other hand we can't remove the data anymore
+as we could do with properties!  By using traits one creates a 'static'
+configuration, which can't be changed during runtime.
+
+The complete source looks like this:
+
+\include 07-traits/smooth.cc
+
+*/

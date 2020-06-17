@@ -1,0 +1,25 @@
+#!/usr/bin/make -f
+
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/class/cmake.mk
+
+build/libopenmesh-doc::
+	cd $(DEB_BUILDDIR) && $(MAKE) doc
+	mkdir -p debian/tmp/usr/share/doc/
+	cp -r $(DEB_BUILDDIR)/Build/share/OpenMesh/Doc/html debian/tmp/usr/share/doc/OpenMesh
+
+install/libopenmesh::
+	ln -sf libOpenMeshCore.so.2.0 debian/tmp/usr/lib/OpenMesh/libOpenMeshCore.so.2
+	ln -sf libOpenMeshTools.so.2.0 debian/tmp/usr/lib/OpenMesh/libOpenMeshTools.so.2
+	dh_install -plibopenmesh debian/tmp/usr/lib/OpenMesh/lib*.so.* /usr/lib/
+
+install/libopenmesh-dev::
+	dh_install -plibopenmesh-dev debian/tmp/usr/lib/OpenMesh/lib*.so /usr/lib/
+	dh_install -plibopenmesh-dev debian/tmp/usr/lib/OpenMesh/lib*.a /usr/lib/
+	dh_install -plibopenmesh-dev --autodest debian/tmp/usr/include/OpenMesh
+
+install/libopenmesh-apps::
+	dh_install -plibopenmesh-apps debian/tmp/usr/bin/* /usr/lib/OpenMesh/Apps
+
+install/libopenmesh-doc::
+	dh_install -plibopenmesh-doc debian/tmp/usr/share/doc/*
