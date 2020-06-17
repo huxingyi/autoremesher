@@ -36,6 +36,7 @@ test_script:
   - if "%PLATFORM%" == "x86"
     cmake -G "Visual Studio 15 2017" ../
   - cmake --build . --config Release
+  - cd %APPVEYOR_BUILD_FOLDER%
 
 after_test:
   # Check deps by Dependency Walker
