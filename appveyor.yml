@@ -1,0 +1,94 @@
+os: Visual Studio 2017
+
+environment:
+  matrix:
+    - platform: x64
+      target: x86_64-pc-windows-msvc
+      qtdir: C:\Qt\5.13.2\msvc2017_64
+      sysdirname: SysWOW64
+
+    - platform: x86
+      target: i686-pc-windows-msvc
+      qtdir: C:\Qt\5.13.2\msvc2017
+      sysdirname: system32
+
+install:
+  - if "%PLATFORM%" == "x64"
+    call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
+  - if "%PLATFORM%" == "x86"
+    call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars32.bat"
+
+  - cd thirdparty/OpenMesh/OpenMesh-8.1
+  - mkdir build
+  - cd build
+  - if "%PLATFORM%" == "x64"
+    cmake -G "Visual Studio 15 2017" -A %PLATFORM% ../
+  - if "%PLATFORM%" == "x86"
+    cmake -G "Visual Studio 15 2017" ../
+  - cmake --build . --config Release
+  - cd %APPVEYOR_BUILD_FOLDER%
+
+build: false
+
+test_script:
+  - mkdir build
+  - cd build
+  - if "%PLATFORM%" == "x64"
+    cmake -G "Visual Studio 15 2017" -A %PLATFORM% ../
+  - if "%PLATFORM%" == "x86"
+    cmake -G "Visual Studio 15 2017" ../
+  - cmake --build . --config Release
+
+after_test:
+  # Check deps by Dependency Walker
+  - set /p VCRedistVersion=<"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\Microsoft.VCRedistVersion.default.txt"
+  - set VCREDIST_CRT_DIR=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\%VCRedistVersion%\%PLATFORM%\Microsoft.VC141.CRT
+
+  - set TAG=%APPVEYOR_REPO_TAG_NAME%
+  - if "%TAG%" == ""
+    set TAG=unstable
+  - if "%PLATFORM%" == "x64"
+    set RELEASE_FILENAME=autoremesher-%TAG%.zip
+  - if "%PLATFORM%" == "x86"
+    set RELEASE_FILENAME=autoremesher-%TAG%-x86.zip
+  - 7z a %RELEASE_FILENAME% %APPVEYOR_BUILD_FOLDER%\release\autoremesher.exe
+  - 7z a %RELEASE_FILENAME% "%VCREDIST_CRT_DIR%\msvcp140.dll"
+  - 7z a %RELEASE_FILENAME% "%VCREDIST_CRT_DIR%\vcruntime140.dll"
+
+artifacts:
+  - path: '*.zip'
+    name: platform_zips
+
+deploy:
+  - provider: GitHub
+    release: $(TAG)
+    force_update: true
+    auth_token:
+      secure: Rhzhefjk89WN2tDht8vVKYAojGfR23LhDPKPxhQwbT7k3qswSWjmoFoDTpIHNfc0
+    artifact: platform_zips
+    draft: false
+    prerelease: false
+    on:
+      branch: master
+
+  - provider: GitHub
+    release: $(TAG)
+    force_update: true
+    auth_token:
+      secure: Rhzhefjk89WN2tDht8vVKYAojGfR23LhDPKPxhQwbT7k3qswSWjmoFoDTpIHNfc0
+    artifact: platform_zips
+    draft: false
+    prerelease: false
+    on:
+      branch: ci
+
+  - provider: GitHub
+    release: $(TAG)
+    force_update: true
+    auth_token:
+      secure: Rhzhefjk89WN2tDht8vVKYAojGfR23LhDPKPxhQwbT7k3qswSWjmoFoDTpIHNfc0
+    artifact: platform_zips
+    draft: false
+    prerelease: false
+    on:
+      APPVEYOR_REPO_TAG: true
