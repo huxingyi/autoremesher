@@ -5,6 +5,9 @@
 #include <cstdio>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
+#ifndef _WIN32
+#include <QtCore>
+#endif
 
 static void help()
 {
@@ -37,6 +40,10 @@ static bool saveObj(const char *filename,
 
 int main(int argc, char *argv[]) 
 {
+#ifndef _WIN32
+    QCoreApplication a(argc, argv);
+#endif
+    
     const char *inputFilename = nullptr;
     const char *outputFilename = nullptr;
     double gradientSize = 100;

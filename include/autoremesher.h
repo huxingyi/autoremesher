@@ -1,6 +1,7 @@
 #ifndef AUTO_REMESHER_H
 #define AUTO_REMESHER_H
 #include <vector>
+#include <cstddef>
 
 namespace autoremesher
 {

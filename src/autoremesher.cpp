@@ -187,19 +187,17 @@ bool remesh(const std::vector<Vector3> &inputVertices,
 extern "C" {
     // http://www.netlib.org/clapack/
     
-    typedef long int integer;
-    typedef unsigned long int uinteger;
+    typedef int integer;
+    typedef unsigned int uinteger;
     typedef char* address;
-    typedef short int shortint;
-    typedef float real;
     typedef double doublereal;
 
-    int daxpy_(integer* n,
-               doublereal* da,
-               doublereal* dx,
-               integer* incx,
+    void daxpy_(const integer* n,
+               const doublereal* da,
+               const doublereal* dx,
+               const integer* incx,
                doublereal* dy,
-               integer* incy) {
+               const integer* incy) {
       /* System generated locals */
       integer i__1;
 
@@ -219,10 +217,10 @@ extern "C" {
     #define DX(I) dx[(I)-1]
 
       if (*n <= 0) {
-        return 0;
+        return;
       }
       if (*da == 0.) {
-        return 0;
+        return;
       }
       if (*incx == 1 && *incy == 1) {
         goto L20;
@@ -246,7 +244,7 @@ extern "C" {
         iy += *incy;
         /* L10: */
       }
-      return 0;
+      return;
 
     /*        code for both increments equal to 1
 
@@ -264,7 +262,7 @@ extern "C" {
         /* L30: */
       }
       if (*n < 4) {
-        return 0;
+        return;
       }
     L40:
       mp1 = m + 1;
@@ -276,14 +274,14 @@ extern "C" {
         DY(i + 3) += *da * DX(i + 3);
         /* L50: */
       }
-      return 0;
+      return;
     } /* daxpy_ */
 
-    doublereal ddot_(integer* n,
-                     doublereal* dx,
-                     integer* incx,
-                     doublereal* dy,
-                     integer* incy) {
+    doublereal ddot_(const integer *n,
+                     const doublereal *dx,
+                     const integer *incx,
+                     const doublereal *dy,
+                     const integer *incy) {
       /* System generated locals */
       integer i__1;
       doublereal ret_val;
@@ -367,7 +365,7 @@ extern "C" {
       return ret_val;
     } /* ddot_ */
 
-    doublereal dnrm2_(integer* n, doublereal* x, integer* incx) {
+    doublereal dnrm2_(const integer *n, const doublereal *x, const integer *incx) {
       /* System generated locals */
       integer i__1, i__2;
       doublereal ret_val, d__1;

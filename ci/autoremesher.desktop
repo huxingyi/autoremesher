@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=AutoRemesher
+Icon=autoremesher
+Exec=autoremesher
+Categories=Graphics;
+Comment=Automatic quad remeshing tool

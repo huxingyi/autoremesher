@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+​  <id>autoremesher.desktop</id>
+​  <metadata_license>GPL-3.0-or-later</metadata_license>
+​  <project_license>GPLv3</project_license>
+​  <name>AutoRemesher</name>
+​  <summary>Automatic quad remeshing tool</summary>
+​  <description>
+​    <p>
+​      Automatic quad remeshing tool.
+​    </p>
+​  </description>
+​  <url type="homepage">https://github.com/huxingyi/autoremesher</url>
+  <url type="bugtracker">https://github.com/huxingyi/autoremesher/issues</url>
+​</component>

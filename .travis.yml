@@ -1,0 +1,101 @@
+notifications:
+  email: false
+
+os: osx
+
+language: cpp
+
+matrix:
+  include:
+    - os: linux
+      dist: trusty
+      sudo: required
+      compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+    - os: osx
+      compiler: clang
+      osx_image: xcode9.3
+
+install:
+  # (Linux) Prepare build environment
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo add-apt-repository --yes ppa:beineri/opt-qt591-trusty; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get update; fi
+  #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install gcc-4.9 g++-4.9; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt install cmake; fi
+
+  # Build OpenMesh from source
+  - cd thirdparty/OpenMesh/OpenMesh-8.1
+  - mkdir build
+  - cd build
+  - cmake -D "BUILD_APPS=OFF" -D "OPENMESH_BUILD_SHARED=OFF" ../
+  - cmake --build . --config Release
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then rm -rf Build/lib/libOpenMeshCore.so; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then rm -rf Build/lib/libOpenMeshCore.dylib; fi
+  - cd ../../../../
+
+  # (Mac) Install Qt5
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then HOMEBREW_VERBOSE_USING_DOTS=1 brew reinstall --verbose qt; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then export PATH="/usr/local/opt/qt/bin:$(brew --prefix)/bin:$PATH"; fi
+
+  # (Linux) Install Qt5
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install qt59base qt59tools --force-yes; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then source /opt/qt59/bin/qt59-env.sh; fi
+
+script:
+
+  # Build AutoRemesher
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then qmake -config release || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then qmake -config release || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then make || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then make CXX="g++ -fext-numeric-literals" || travis_terminate 1; fi
+
+  # Prepare tag name
+  - export TAG="$TRAVIS_TAG"
+  - if [[ "$TAG" == "" ]]; then export TAG=unstable; fi
+  - export BRANCH="$TRAVIS_BRANCH"
+  - if [[ "$BRANCH" == "$TAG" ]]; then export BRANCH=master; fi
+
+  # (Mac) Prepare dmg
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then mv autoremesher.app autoremesher-$TAG.app || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then macdeployqt autoremesher-$TAG.app -dmg || travis_terminate 1; fi
+
+  # (Linux) Prepare AppImage
+  # References:
+  # https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
+  # https://packages.ubuntu.com/search?suite=trusty&arch=amd64&mode=exactfilename&searchon=contents&keywords=libstdc%2B%2B.so.6
+  # https://github.com/darealshinji/AppImageKit-checkrt/issues/1
+  # https://github.com/darealshinji/AppImageKit-checkrt/releases/download/continuous/AppRun-patched-x86_64
+  # https://github.com/darealshinji/AppImageKit-checkrt/releases/download/continuous/exec-x86_64.so
+  # https://github.com/probonopd/audacity/blob/AppImage/.travis.yml
+  # https://discourse.appimage.org/t/im-a-big-fan-of-this-but-graphics-driver-libstdc-conflict/171
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mkdir -p appdir/usr/share/metainfo || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mkdir -p appdir/usr/share/applications || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mkdir -p appdir/usr/bin || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mkdir -p appdir/usr/optional/libstdc++ || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ldd --version; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo ls /usr/lib/x86_64-linux-gnu/ | grep libstdc; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cp /usr/lib/x86_64-linux-gnu/libstdc++.so.6 appdir/usr/optional/libstdc++/libstdc++.so.6 || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cp ./ci/exec-x86_64.so appdir/usr/optional/exec.so || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cp ./ci/autoremesher.png appdir/autoremesher.png || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cp ./ci/autoremesher.appdata.xml appdir/usr/share/metainfo/autoremesher.appdata.xml || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cp ./autoremesher appdir/usr/bin/autoremesher || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cp ./ci/autoremesher.desktop appdir/usr/share/applications/autoremesher.desktop || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then chmod a+x ./ci/linuxdeployqt.AppImage || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then unset QTDIR; unset QT_PLUGIN_PATH ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./ci/linuxdeployqt.AppImage appdir/usr/share/applications/autoremesher.desktop -bundle-non-qt-libs -verbose=2 || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then rm appdir/AppRun || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cp ./ci/AppRun-patched-x86_64 appdir/AppRun || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then chmod a+x appdir/AppRun || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./ci/linuxdeployqt.AppImage --appimage-extract || travis_terminate 1; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export PATH=$(readlink -f ./squashfs-root/usr/bin):$PATH || travis_terminate 1; fi
+  #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then rm -v "./appdir/usr/lib/libxcb-dri2.so"* "./appdir/usr/lib/libxcb-dri3.so"*; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./squashfs-root/usr/bin/appimagetool -g ./appdir/ autoremesher-$TAG.AppImage || travis_terminate 1; fi
+
+  # Distribute
+  - if [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then echo "No distribution on pull request"; fi
+  - if [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then travis_terminate 0; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sh ci/upload-github-release-asset.sh github_api_token=${my_auth_token} branch=$BRANCH owner=huxingyi repo=autoremesher tag=$TAG filename=autoremesher-$TAG.dmg; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then bash ci/upload-github-release-asset.sh github_api_token=${my_auth_token} branch=$BRANCH owner=huxingyi repo=autoremesher tag=$TAG filename=autoremesher-$TAG.AppImage; fi
