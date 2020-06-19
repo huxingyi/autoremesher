@@ -3,7 +3,8 @@
 Buy me a coffee for staying up late coding :-) [![](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=GHALWLWXYGCU6&item_name=Support+me+coding+in+my+spare+time&currency_code=AUD&source=url)  
 
 # Overview
-Automatic quad remeshing tool
+Automatic quad remeshing tool.  
+https://blogs.dust3d.org/2020/06/19/auto-remesher/
 
 ![](https://blogs.dust3d.org/public/attachments/2020-06-19-auto-remesher/auto-remesher-480.png)   
 
@@ -120,3 +121,4 @@ $ make
 - [eigen](https://gitlab.com/libeigen/eigen)  
 - [OpenMesh](https://graphics.rwth-aachen.de:9000/OpenMesh)  
 - [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader)  
+- [clapack](http://www.netlib.org/clapack/)  
