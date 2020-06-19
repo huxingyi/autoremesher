@@ -11,7 +11,7 @@ Automatic quad remeshing tool
 Download autoremesher-unstable.zip from [releases](https://github.com/huxingyi/autoremesher/releases)
 Extract it and run,
 ```
-> autoremesher.exe <input.obj> -o <output.obj>
+> autoremesher.exe <input.obj> -o <output.obj> [-s <gradient size>]
 ```
 *If you are running 32bit instead of 64bit, please download autoremesher-unstable-x86.zip*
 
@@ -19,7 +19,7 @@ Extract it and run,
 Download autoremesher-unstable.dmg file from [releases](https://github.com/huxingyi/autoremesher/releases)
 Double click the dmg file and drag the app to your folder, open a command line window, cd to the folder and run,
 ```
-$ ./autoremesher-unstable.app/Contents/MacOS/autoremesher <input.obj> -o <output.obj>
+$ ./autoremesher-unstable.app/Contents/MacOS/autoremesher <input.obj> -o <output.obj> [-s <gradient size>]
 ```
 *For the first time, Apple will reject to run and popup something like "can't be opened because its integrity cannot be verified", Goto System preferences > Security & Privacy > General and under "Allow apps downloaded from" click the button to allow it*
 
@@ -27,7 +27,7 @@ $ ./autoremesher-unstable.app/Contents/MacOS/autoremesher <input.obj> -o <output
 Download autoremesher-unstable.AppImage file from [releases](https://github.com/huxingyi/autoremesher/releases)
 ```
 $ chmod a+x ./autoremesher-unstable.AppImage
-$ ./autoremesher-unstable.AppImage <input.obj> -o <output.obj>
+$ ./autoremesher-unstable.AppImage <input.obj> -o <output.obj> [-s <gradient size>]
 ```
 
 # Build

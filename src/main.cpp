@@ -11,7 +11,9 @@
 
 static void help()
 {
-    printf("Usage: autoremesher.exe input.obj -o output.obj\n");
+    printf("Usage: autoremesher <input.obj> -o <output.obj> [-s <gradient size>]\n");
+    printf("       \n");
+    printf("       https://github.com/huxingyi/autoremesher\n");
     exit(1);
 }
 
@@ -54,7 +56,7 @@ int main(int argc, char *argv[])
                     ++i;
                     outputFilename = argv[i];
                 }
-            } else if (0 == strcmp(argv[i], "-size")) {
+            } else if (0 == strcmp(argv[i], "-s")) {
                 if (i + 1 < argc) {
                     ++i;
                     gradientSize = atof(argv[i]);
