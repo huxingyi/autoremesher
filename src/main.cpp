@@ -3,6 +3,9 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstdio>
+#include <unordered_set>
+#include <unordered_map>
+#include <queue>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 #ifndef _WIN32
@@ -38,6 +41,52 @@ static bool saveObj(const char *filename,
     }
     fclose(fp);
     return true;
+}
+
+static void buildEdgeToFaceMap(const std::vector<std::vector<size_t>> &triangles, std::map<std::pair<size_t, size_t>, size_t> &edgeToFaceMap)
+{
+    edgeToFaceMap.clear();
+    for (size_t index = 0; index < triangles.size(); ++index) {
+        const auto &face = triangles[index];
+        for (size_t i = 0; i < 3; i++) {
+            size_t j = (i + 1) % 3;
+            edgeToFaceMap[{face[i], face[j]}] = index;
+        }
+    }
+}
+
+static void splitToIslands(const std::vector<std::vector<size_t>> &triangles, std::vector<std::vector<std::vector<size_t>>> &islands)
+{
+    std::map<std::pair<size_t, size_t>, size_t> edgeToFaceMap;
+    buildEdgeToFaceMap(triangles, edgeToFaceMap);
+    
+    std::unordered_set<size_t> processedFaces;
+    std::queue<size_t> waitFaces;
+    for (size_t indexInGroup = 0; indexInGroup < triangles.size(); ++indexInGroup) {
+        if (processedFaces.find(indexInGroup) != processedFaces.end())
+            continue;
+        waitFaces.push(indexInGroup);
+        std::vector<std::vector<size_t>> island;
+        while (!waitFaces.empty()) {
+            size_t index = waitFaces.front();
+            waitFaces.pop();
+            if (processedFaces.find(index) != processedFaces.end())
+                continue;
+            const auto &face = triangles[index];
+            for (size_t i = 0; i < 3; i++) {
+                size_t j = (i + 1) % 3;
+                auto findOppositeFaceResult = edgeToFaceMap.find({face[j], face[i]});
+                if (findOppositeFaceResult == edgeToFaceMap.end())
+                    continue;
+                waitFaces.push(findOppositeFaceResult->second);
+            }
+            island.push_back(triangles[index]);
+            processedFaces.insert(index);
+        }
+        if (island.empty())
+            continue;
+        islands.push_back(island);
+    }
 }
 
 int main(int argc, char *argv[]) 
@@ -105,12 +154,48 @@ int main(int argc, char *argv[])
             });
         }
     }
+    
+    std::vector<std::vector<std::vector<size_t>>> inputTrianglesIslands;
+    splitToIslands(inputTriangles, inputTrianglesIslands);
+    
+    if (inputTrianglesIslands.empty()) {
+        std::cerr << "Input mesh is empty" << std::endl;
+        exit(1);
+    }
+    
+    auto pickedTriangleIsland = std::max_element(inputTrianglesIslands.begin(), inputTrianglesIslands.end(), [](
+            const std::vector<std::vector<size_t>> &lhs,
+            const std::vector<std::vector<size_t>> &rhs) {
+        return lhs.size() < rhs.size();
+    });
+    
+    if (inputTrianglesIslands.size() > 1) {
+        std::cerr << "Input mesh contains multiple surfaces, here only pick the one with most triangles to remesh" << std::endl;
+    }
+    
+    std::vector<autoremesher::Vector3> pickedVertices;
+    std::vector<std::vector<size_t>> pickedTriangles;
+    std::unordered_set<size_t> addedIndices;
+    std::unordered_map<size_t, size_t> oldToNewVertexMap;
+    for (const auto &face: *pickedTriangleIsland) {
+        std::vector<size_t> triangle;
+        for (size_t i = 0; i < 3; ++i) {
+            auto insertResult = addedIndices.insert(face[i]);
+            if (insertResult.second) {
+                oldToNewVertexMap.insert({face[i], pickedVertices.size()});
+                pickedVertices.push_back(inputVertices[face[i]]);
+            }
+            triangle.push_back(oldToNewVertexMap[face[i]]);
+        }
+        pickedTriangles.push_back(triangle);
+    }
+    
     std::vector<std::vector<size_t>> inputQuads;
     
     std::vector<autoremesher::Vector3> outputVertices;
     std::vector<std::vector<size_t>> outputQuads;
-    autoremesher::remesh(inputVertices,
-        inputTriangles,
+    autoremesher::remesh(pickedVertices,
+        pickedTriangles,
         inputQuads,
         &outputVertices,
         &outputQuads,

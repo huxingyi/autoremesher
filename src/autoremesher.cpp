@@ -374,9 +374,9 @@ extern "C" {
       double sqrt(doublereal);
 
       /* Local variables */
-      static doublereal norm, scale, absxi;
-      static integer ix;
-      static doublereal ssq;
+      static thread_local doublereal norm, scale, absxi;
+      static thread_local integer ix;
+      static thread_local doublereal ssq;
 
     /*  DNRM2 returns the euclidean norm of a vector via the function
         name, so that
