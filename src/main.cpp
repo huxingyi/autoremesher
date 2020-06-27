@@ -20,7 +20,7 @@ static void help()
     exit(1);
 }
 
-static bool saveObj(const char *filename,
+bool saveObj(const char *filename,
     const std::vector<autoremesher::Vector3> &vertices,
     const std::vector<std::vector<size_t>> &faces)
 {

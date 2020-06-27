@@ -15,6 +15,10 @@
 #include <qex.h>
 #include <autoremesher.h>
 
+extern bool saveObj(const char *filename,
+            const std::vector<autoremesher::Vector3> &vertices,
+            const std::vector<std::vector<size_t>> &faces);
+
 namespace autoremesher
 {
 
@@ -157,6 +161,26 @@ bool remesh(const std::vector<Vector3> &inputVertices,
             qex_Point2 {{v1[0], v1[1]}}, 
             qex_Point2 {{v2[0], v2[1]}}
         }};
+    }
+    
+    {   
+        std::vector<autoremesher::Vector3> uvVertices;
+        std::vector<std::vector<size_t>> uvFaces;
+        for (unsigned int i = 0; i < UV.rows(); ++i) {
+            const auto &src = UV.row(i);
+            uvVertices.push_back(autoremesher::Vector3 {
+                (float)src[0], (float)src[1], 0.0f
+            });
+        }
+        for (unsigned int i = 0; i < FUV.rows(); ++i) {
+            const auto &triangleVertexIndices = FUV.row(i);
+            uvFaces.push_back(std::vector<size_t> {
+                (size_t)triangleVertexIndices[0],
+                (size_t)triangleVertexIndices[1],
+                (size_t)triangleVertexIndices[2]
+            });
+        }
+        saveObj("C:\\Users\\Jeremy\\Desktop\\uvmesh.obj", uvVertices, uvFaces);
     }
 
     qex_extractQuadMesh(&triMesh, nullptr, &quadMesh);
