@@ -1,6 +1,7 @@
 #ifndef AUTO_REMESHER_VECTOR3_H
 #define AUTO_REMESHER_VECTOR3_H
 #include <AutoRemesher/Double>
+#include <AutoRemesher/Vector2>
 
 namespace AutoRemesher
 {
@@ -194,6 +195,33 @@ public:
         auto ab = b - a;
         auto ac = c - a;
         return 0.5 * crossProduct(ab, ac).length();
+    }
+    
+    inline static void project(const std::vector<Vector3> &pointsIn3d, std::vector<Vector2> *pointsIn2d,
+        const Vector3 &normal, const Vector3 &axis, const Vector3 &origin=Vector3())
+    {
+        Vector3 perpendicularAxis = crossProduct(normal, axis);
+        for (const auto &it: pointsIn3d) {
+            Vector3 direction = it - origin;
+            pointsIn2d->push_back({
+                dotProduct(direction, axis),
+                dotProduct(direction, perpendicularAxis)
+            });
+        }
+    }
+    
+    inline static void project(const std::vector<Vector3> &pointsIn3d, std::vector<Vector3> *pointsIn2d,
+        const Vector3 &normal, const Vector3 &axis, const Vector3 &origin=Vector3())
+    {
+        Vector3 perpendicularAxis = crossProduct(normal, axis);
+        for (const auto &it: pointsIn3d) {
+            Vector3 direction = it - origin;
+            pointsIn2d->push_back({
+                dotProduct(direction, axis),
+                dotProduct(direction, perpendicularAxis),
+                0.0
+            });
+        }
     }
     
 private:

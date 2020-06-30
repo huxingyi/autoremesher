@@ -35,6 +35,7 @@ struct HalfEdge
     HalfEdge *previousHalfEdge = nullptr;
     HalfEdge *nextHalfEdge = nullptr;
     HalfEdge *oppositeHalfEdge = nullptr;
+    double length2 = 0.0;
 };
 
 struct Face
@@ -42,7 +43,6 @@ struct Face
     Face *_previous = nullptr;
     Face *_next = nullptr;
     HalfEdge *anyHalfEdge = nullptr;
-    double area = std::numeric_limits<double>::epsilon();
 };
 
 class Mesh
@@ -57,6 +57,22 @@ public:
     void freeVertex(Vertex *vertex);
     void freeFace(Face *face);
     void freeHalfEdge(HalfEdge *halfEdge);
+    
+    inline HalfEdge *findShortestHalfEdgeAroundVertex(Vertex *vertex) const
+    {
+        HalfEdge *halfEdge = vertex->anyHalfEdge;
+        double shortestLength2 = std::numeric_limits<double>::max();
+        HalfEdge *shortest = halfEdge;
+        do {
+            if (halfEdge->length2 < shortestLength2) {
+                shortest = halfEdge;
+                shortestLength2 = halfEdge->length2;
+            }
+            halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
+        } while (halfEdge != vertex->anyHalfEdge);
+        return shortest;
+    }
+    
     void exportPly(const char *filename);
     
 private:
@@ -70,16 +86,6 @@ private:
             halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
         } while (halfEdge != vertex->anyHalfEdge);
         vertex->curvature = std::abs(2.0 * M_PI - sumOfAngle);
-    }
-    
-    inline void calculateFaceArea(Face *face)
-    {
-        HalfEdge *h0 = face->anyHalfEdge;
-        HalfEdge *h1 = h0->nextHalfEdge;
-        HalfEdge *h2 = h1->nextHalfEdge;
-        face->area = Vector3::area(h0->startVertex->position, 
-            h1->startVertex->position, 
-            h2->startVertex->position);
     }
 
     Vertex *m_firstVertex = nullptr;
@@ -97,7 +103,7 @@ private:
     {
         bool operator()(const Vertex *lhs, const Vertex *rhs) const
         {
-            return lhs->curvature > rhs->curvature;
+            return lhs->curvature < rhs->curvature;
         }
     };
     vertexCurvatureComparer m_vertexCurvatureComparer;

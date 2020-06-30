@@ -131,11 +131,13 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
             const auto &vertexIndex = triangleIndices[j];
             const auto &nextVertexIndex = triangleIndices[k];
             auto &vertex = halfEdgeVertices[vertexIndex];
+            const auto &nextVertex = halfEdgeVertices[nextVertexIndex];
             vertex->anyHalfEdge = halfEdge;
             halfEdge->startVertex = vertex;
             halfEdge->previousHalfEdge = halfEdges[h];
             halfEdge->nextHalfEdge = halfEdges[k];
             halfEdge->leftFace = face;
+            halfEdge->length2 = (vertex->position - nextVertex->position).lengthSquared();
             auto insertResult = halfEdgeIndexMap.insert({{vertexIndex, nextVertexIndex}, halfEdge});
             if (!insertResult.second)
                 ++m_repeatedHalfEdges;
@@ -161,8 +163,6 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
     }
     
     if (0 == m_repeatedHalfEdges && 0 == m_aloneHalfEdges) {
-        for (Face *face = m_firstFace; nullptr != face; face = face->_next)
-            calculateFaceArea(face);
         for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
             calculateVertexCurvature(vertex);
             m_flatVertexPointers.push(vertex);

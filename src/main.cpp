@@ -191,12 +191,16 @@ int main(int argc, char *argv[])
         pickedTriangles.push_back(triangle);
     }
     
-    {
-        AutoRemesher::HalfEdge::Mesh mesh(pickedVertices, pickedTriangles);
-        mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test.ply");
-    }
+    //std::vector<AutoRemesher::Vector3> projectedVertices;
+    //AutoRemesher::Vector3::project(pickedVertices, &projectedVertices, AutoRemesher::Vector3(0, 0, 1), AutoRemesher::Vector3(1, 0, 0));
+    //saveObj("C:\\Users\\Jeremy\\Desktop\\project.obj", projectedVertices, pickedTriangles);
+    //return 0;
     
-    /*
+    //{
+    //    AutoRemesher::HalfEdge::Mesh mesh(pickedVertices, pickedTriangles);
+    //    mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test.ply");
+    //}
+    
     AutoRemesher::Remesher remesher(pickedVertices, pickedTriangles);
     remesher.setGradientSize(gradientSize);
     if (!remesher.remesh()) {
@@ -206,7 +210,6 @@ int main(int argc, char *argv[])
     if (!saveObj(outputFilename, remesher.remeshedVertices(), remesher.remeshedQuads())) {
         exit(1);
     }
-    */
     
     return 0;
 }
