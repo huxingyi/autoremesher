@@ -1,4 +1,5 @@
-#include <autoremesher.h>
+#include <AutoRemesher/Remesher>
+#include <AutoRemesher/HalfEdge>
 #include <cassert>
 #include <iostream>
 #include <cstdlib>
@@ -21,7 +22,7 @@ static void help()
 }
 
 bool saveObj(const char *filename,
-    const std::vector<autoremesher::Vector3> &vertices,
+    const std::vector<AutoRemesher::Vector3> &vertices,
     const std::vector<std::vector<size_t>> &faces)
 {
     FILE *fp = fopen(filename, "wb");
@@ -29,8 +30,8 @@ bool saveObj(const char *filename,
         std::cerr << "Output to file failed:" << filename << std::endl;
         return false;
     }
-    for (std::vector<autoremesher::Vector3>::const_iterator it = vertices.begin() ; it != vertices.end(); ++it) {
-        fprintf(fp, "v %f %f %f\n", (*it).x, (*it).y, (*it).z);
+    for (std::vector<AutoRemesher::Vector3>::const_iterator it = vertices.begin() ; it != vertices.end(); ++it) {
+        fprintf(fp, "v %f %f %f\n", (*it).x(), (*it).y(), (*it).z());
     }
     for (std::vector<std::vector<size_t>>::const_iterator it = faces.begin() ; it != faces.end(); ++it) {
         fprintf(fp, "f");
@@ -136,12 +137,12 @@ int main(int argc, char *argv[])
         exit(1);
     }
     
-    std::vector<autoremesher::Vector3> inputVertices(attributes.vertices.size() / 3);
+    std::vector<AutoRemesher::Vector3> inputVertices(attributes.vertices.size() / 3);
     for (size_t i = 0, j = 0; i < inputVertices.size(); ++i) {
         auto &dest = inputVertices[i];
-        dest.x = attributes.vertices[j++];
-        dest.y = attributes.vertices[j++];
-        dest.z = attributes.vertices[j++];
+        dest.setX(attributes.vertices[j++]);
+        dest.setY(attributes.vertices[j++]);
+        dest.setZ(attributes.vertices[j++]);
     }
     
     std::vector<std::vector<size_t>> inputTriangles;
@@ -173,7 +174,7 @@ int main(int argc, char *argv[])
         std::cerr << "Input mesh contains multiple surfaces, here only pick the one with most triangles to remesh" << std::endl;
     }
     
-    std::vector<autoremesher::Vector3> pickedVertices;
+    std::vector<AutoRemesher::Vector3> pickedVertices;
     std::vector<std::vector<size_t>> pickedTriangles;
     std::unordered_set<size_t> addedIndices;
     std::unordered_map<size_t, size_t> oldToNewVertexMap;
@@ -190,19 +191,22 @@ int main(int argc, char *argv[])
         pickedTriangles.push_back(triangle);
     }
     
-    std::vector<std::vector<size_t>> inputQuads;
+    {
+        AutoRemesher::HalfEdge::Mesh mesh(pickedVertices, pickedTriangles);
+        mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test.ply");
+    }
     
-    std::vector<autoremesher::Vector3> outputVertices;
-    std::vector<std::vector<size_t>> outputQuads;
-    autoremesher::remesh(pickedVertices,
-        pickedTriangles,
-        inputQuads,
-        &outputVertices,
-        &outputQuads,
-        gradientSize);
-    if (!saveObj(outputFilename, outputVertices, outputQuads)) {
+    /*
+    AutoRemesher::Remesher remesher(pickedVertices, pickedTriangles);
+    remesher.setGradientSize(gradientSize);
+    if (!remesher.remesh()) {
+        std::cerr << "Remesh failed" << std::endl;
         exit(1);
     }
+    if (!saveObj(outputFilename, remesher.remeshedVertices(), remesher.remeshedQuads())) {
+        exit(1);
+    }
+    */
     
     return 0;
 }

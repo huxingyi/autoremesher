@@ -52,7 +52,8 @@ INCLUDEPATH += src
 
 SOURCES += src/main.cpp
 
-SOURCES += src/autoremesher.cpp
+SOURCES += src/remesher.cpp
+HEADERS += src/remesher.h
 
 INCLUDEPATH += thirdparty/comiso
 INCLUDEPATH += thirdparty/comiso/Solver

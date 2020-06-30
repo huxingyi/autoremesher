@@ -13,27 +13,25 @@
 #include <igl/copyleft/comiso/miq.h>
 #include <igl/copyleft/comiso/nrosy.h>
 #include <qex.h>
-#include <autoremesher.h>
+#include <AutoRemesher/Remesher>
 
 extern bool saveObj(const char *filename,
-            const std::vector<autoremesher::Vector3> &vertices,
+            const std::vector<AutoRemesher::Vector3> &vertices,
             const std::vector<std::vector<size_t>> &faces);
 
-namespace autoremesher
+namespace AutoRemesher
 {
 
-bool remesh(const std::vector<Vector3> &inputVertices,
-    std::vector<std::vector<size_t>> &inputTriangles,
-    std::vector<std::vector<size_t>> &inputQuads,
-    std::vector<Vector3> *outputVertices,
-    std::vector<std::vector<size_t>> *outputQuads,
-    double gradientSize)
+bool Remesher::remesh()
 {
     qex_TriMesh triMesh = {0};
     qex_QuadMesh quadMesh = {0};
     
+    const auto &inputVertices = m_vertices;
+    const auto &inputTriangles = m_triangles;
+    
     triMesh.vertex_count = inputVertices.size();
-    triMesh.tri_count = inputTriangles.size() + inputQuads.size() * 2;
+    triMesh.tri_count = inputTriangles.size();
     
     triMesh.vertices = (qex_Point3*)malloc(sizeof(qex_Point3) * triMesh.vertex_count);
     triMesh.tris = (qex_Tri*)malloc(sizeof(qex_Tri) * triMesh.tri_count);
@@ -41,15 +39,11 @@ bool remesh(const std::vector<Vector3> &inputVertices,
     
     for (unsigned int i = 0; i < triMesh.vertex_count; ++i) {
         const auto &src = inputVertices[i];
-        triMesh.vertices[i] = qex_Point3 {{(double)src.x, (double)src.y, (double)src.z}};
+        triMesh.vertices[i] = qex_Point3 {{(double)src.x(), (double)src.y(), (double)src.z()}};
     }
     size_t triangleNum = 0;
     for (const auto &it: inputTriangles) {
         triMesh.tris[triangleNum++] = qex_Tri {{(qex_Index)it[0], (qex_Index)it[1], (qex_Index)it[2]}};
-    }
-    for (const auto &it: inputQuads) {
-        triMesh.tris[triangleNum++] = qex_Tri {{(qex_Index)it[0], (qex_Index)it[1], (qex_Index)it[2]}};
-        triMesh.tris[triangleNum++] = qex_Tri {{(qex_Index)it[2], (qex_Index)it[3], (qex_Index)it[0]}};
     }
     
     // https://github.com/libigl/libigl/blob/master/tutorial/505_MIQ/main.cpp
@@ -63,16 +57,12 @@ bool remesh(const std::vector<Vector3> &inputVertices,
     
     for (decltype(inputVertices.size()) i = 0; i < inputVertices.size(); i++) {
         const auto &vertex = inputVertices[i];
-        V.row(i) << vertex.x, vertex.y, vertex.z;
+        V.row(i) << vertex.x(), vertex.y(), vertex.z();
     }
     
     size_t rowNum = 0;
     for (const auto &it: inputTriangles) {
         F.row(rowNum++) << it[0], it[1], it[2];
-    }
-    for (const auto &it: inputQuads) {
-        F.row(rowNum++) << it[0], it[1], it[2];
-        F.row(rowNum++) << it[2], it[3], it[0];
     }
     
     bool extend_arrows = false;
@@ -143,7 +133,7 @@ bool remesh(const std::vector<Vector3> &inputVertices,
         Seams,
         UV,
         FUV,
-        gradientSize,
+        m_gradientSize,
         stiffness,
         direct_round,
         iter,
@@ -164,12 +154,12 @@ bool remesh(const std::vector<Vector3> &inputVertices,
     }
     
     {   
-        std::vector<autoremesher::Vector3> uvVertices;
+        std::vector<AutoRemesher::Vector3> uvVertices;
         std::vector<std::vector<size_t>> uvFaces;
         for (unsigned int i = 0; i < UV.rows(); ++i) {
             const auto &src = UV.row(i);
-            uvVertices.push_back(autoremesher::Vector3 {
-                (float)src[0], (float)src[1], 0.0f
+            uvVertices.push_back(AutoRemesher::Vector3 {
+                (double)src[0], (double)src[1], 0.0
             });
         }
         for (unsigned int i = 0; i < FUV.rows(); ++i) {
@@ -185,15 +175,15 @@ bool remesh(const std::vector<Vector3> &inputVertices,
 
     qex_extractQuadMesh(&triMesh, nullptr, &quadMesh);
     
-    outputVertices->resize(quadMesh.vertex_count);
+    m_remeshedVertices.resize(quadMesh.vertex_count);
     for (unsigned int i = 0; i < quadMesh.vertex_count; ++i) {
         const auto &src = quadMesh.vertices[i];
-        (*outputVertices)[i] = Vector3 {(float)src.x[0], (float)src.x[1], (float)src.x[2]};
+        m_remeshedVertices[i] = Vector3 {(double)src.x[0], (double)src.x[1], (double)src.x[2]};
     }
-    outputQuads->resize(quadMesh.quad_count);
+    m_remeshedQuads.resize(quadMesh.quad_count);
     for (unsigned int i = 0; i < quadMesh.quad_count; ++i) {
         const auto &src = quadMesh.quads[i];
-        (*outputQuads)[i] = std::vector<size_t> {src.indices[0], src.indices[1], src.indices[2], src.indices[3]};
+        m_remeshedQuads[i] = std::vector<size_t> {src.indices[0], src.indices[1], src.indices[2], src.indices[3]};
     }
     
     free(triMesh.vertices);

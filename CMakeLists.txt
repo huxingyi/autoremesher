@@ -14,7 +14,9 @@ link_directories(
 
 add_executable(autoremesher 
     src/main.cpp
-    src/autoremesher.cpp
+    src/AutoRemesher/remesher.cpp
+    src/AutoRemesher/decimator.cpp
+    src/AutoRemesher/halfedge.cpp
     thirdparty/comiso/CoMISo/Solver/EigenLDLTSolver.cc
     thirdparty/comiso/CoMISo/Solver/MISolver.cc
     thirdparty/comiso/CoMISo/Solver/ConstrainedSolver.cc
