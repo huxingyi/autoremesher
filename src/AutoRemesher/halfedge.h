@@ -23,7 +23,8 @@ struct Vertex
     Vertex *_previous = nullptr;
     Vertex *_next = nullptr;
     HalfEdge *anyHalfEdge = nullptr;
-    double curvature = std::numeric_limits<double>::max();
+    double fineCurvature = 0.0;
+    double coarseCurvature = 0.0;
 };
 
 struct HalfEdge
@@ -57,36 +58,14 @@ public:
     void freeVertex(Vertex *vertex);
     void freeFace(Face *face);
     void freeHalfEdge(HalfEdge *halfEdge);
-    
-    inline HalfEdge *findShortestHalfEdgeAroundVertex(Vertex *vertex) const
-    {
-        HalfEdge *halfEdge = vertex->anyHalfEdge;
-        double shortestLength2 = std::numeric_limits<double>::max();
-        HalfEdge *shortest = halfEdge;
-        do {
-            if (halfEdge->length2 < shortestLength2) {
-                shortest = halfEdge;
-                shortestLength2 = halfEdge->length2;
-            }
-            halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
-        } while (halfEdge != vertex->anyHalfEdge);
-        return shortest;
-    }
-    
+    double calculateVertexCurvature(Vertex *vertex) const;
+    double calculateVertexRemovalCost(Vertex *vertex) const;
+    Vector3 calculateVertexNormal(Vertex *vertex) const;
+    HalfEdge *findShortestHalfEdgeAroundVertex(Vertex *vertex) const;
+    std::vector<std::pair<Vertex *, Vertex *>> collectConesAroundVertexExclude(Vertex *vertex, Vertex *exclude) const;
     void exportPly(const char *filename);
     
 private:
-    inline void calculateVertexCurvature(Vertex *vertex)
-    {
-        double sumOfAngle = 0.0;
-        HalfEdge *halfEdge = vertex->anyHalfEdge;
-        do {
-            sumOfAngle += Vector3::angle(halfEdge->nextHalfEdge->startVertex->position - vertex->position,
-                halfEdge->previousHalfEdge->startVertex->position - vertex->position);
-            halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
-        } while (halfEdge != vertex->anyHalfEdge);
-        vertex->curvature = std::abs(2.0 * M_PI - sumOfAngle);
-    }
 
     Vertex *m_firstVertex = nullptr;
     Vertex *m_lastVertex = nullptr;
@@ -99,16 +78,16 @@ private:
     size_t m_vertexCount = 0;
     size_t m_faceCount = 0;
     
-    struct vertexCurvatureComparer
-    {
-        bool operator()(const Vertex *lhs, const Vertex *rhs) const
-        {
-            return lhs->curvature < rhs->curvature;
-        }
-    };
-    vertexCurvatureComparer m_vertexCurvatureComparer;
+    //struct vertexCurvatureComparer
+    //{
+    //    bool operator()(const Vertex *lhs, const Vertex *rhs) const
+    //    {
+    //        return lhs->curvature < rhs->curvature;
+    //    }
+    //};
+    //vertexCurvatureComparer m_vertexCurvatureComparer;
     
-    std::priority_queue<Vertex *, std::vector<Vertex *>, vertexCurvatureComparer> m_flatVertexPointers;
+    //std::priority_queue<Vertex *, std::vector<Vertex *>, vertexCurvatureComparer> m_flatVertexPointers;
 };
 
 }

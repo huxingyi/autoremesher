@@ -88,14 +88,13 @@ public:
         m_data[1] = y() / length;
     }
     
-    inline static bool isLocallyDelaunay(const Vector2 &a, const Vector2 &b, const Vector2 &c, 
-        const Vector2 &point)
+    inline bool isInCircle(const Vector2 &a, const Vector2 &b, const Vector2 &c) const
     {
         Eigen::Matrix4d m;
         m << a.x(), a.y(), a.x() * a.x() + a.y() * a.y(), 1,
             b.x(), b.y(), b.x() * b.x() + b.y() * b.y(), 1,
             c.x(), c.y(), c.x() * c.x() + c.y() * c.y(), 1,
-            point.x(), point.y(), point.x() * point.x() + point.y() * point.y(), 1;
+            x(), y(), x() * x() + y() * y(), 1;
         return m.determinant() > 0;
     }
     
