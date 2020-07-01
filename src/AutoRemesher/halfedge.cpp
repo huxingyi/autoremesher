@@ -253,7 +253,8 @@ double Mesh::calculateVertexRemovalCost(Vertex *vertex) const
     //std::vector<std::pair<Vertex *, Vertex *>> edges;
     std::vector<std::vector<Vertex *>> triangles;
     const auto &a = fanPointsIn2d[0];
-    for (size_t i = 1; i + 2 < fanPointsIn2d.size(); ++i) {
+    size_t i = 1;
+    for (; i + 2 < fanPointsIn2d.size(); ++i) {
         const auto &b = fanPointsIn2d[i];
         const auto &c = fanPointsIn2d[i + 1];
         const auto &d = fanPointsIn2d[i + 2];
@@ -280,13 +281,14 @@ double Mesh::calculateVertexRemovalCost(Vertex *vertex) const
                 fanVertices[i + 1]
             });
         }
-        if (i + 1 < fanPointsIn2d.size()) {
-            triangles.push_back(std::vector<Vertex *> {
-                fanVertices[0],
-                fanVertices[i],
-                fanVertices[i + 1]
-            });
-        }
+    }
+    if (i + 1 < fanPointsIn2d.size()) {
+        // Add the last triangle
+        triangles.push_back(std::vector<Vertex *> {
+            fanVertices[0],
+            fanVertices[i],
+            fanVertices[i + 1]
+        });
     }
     for (const auto &it: triangles) {
         for (size_t i = 0; i < 3; ++i) {
