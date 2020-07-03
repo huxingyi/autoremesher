@@ -151,9 +151,9 @@ public:
     
     inline Vector3 &operator+=(const Vector3 &other)
     {
-        m_data[0] *= other.x();
-        m_data[1] *= other.y();
-        m_data[2] *= other.z();
+        m_data[0] += other.x();
+        m_data[1] += other.y();
+        m_data[2] += other.z();
         return *this;
     }
     

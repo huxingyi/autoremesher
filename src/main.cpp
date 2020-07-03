@@ -196,10 +196,13 @@ int main(int argc, char *argv[])
     //saveObj("C:\\Users\\Jeremy\\Desktop\\project.obj", projectedVertices, pickedTriangles);
     //return 0;
     
-    //{
-    //    AutoRemesher::HalfEdge::Mesh mesh(pickedVertices, pickedTriangles);
-    //    mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test.ply");
-    //}
+    {
+        AutoRemesher::HalfEdge::Mesh mesh(pickedVertices, pickedTriangles);
+        mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test.ply");
+        mesh.decimate();
+        mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
+        exit(0);
+    }
     
     AutoRemesher::Remesher remesher(pickedVertices, pickedTriangles);
     remesher.setGradientSize(gradientSize);

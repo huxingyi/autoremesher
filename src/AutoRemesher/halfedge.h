@@ -18,13 +18,13 @@ struct Face;
 
 struct Vertex
 {
-    size_t index;
-    Vector3 position;
     Vertex *_previous = nullptr;
     Vertex *_next = nullptr;
+    size_t index;
+    Vector3 position;
     HalfEdge *anyHalfEdge = nullptr;
     double fineCurvature = 0.0;
-    double coarseCurvature = 0.0;
+    double removalCost = 0.0;
 };
 
 struct HalfEdge
@@ -53,22 +53,34 @@ public:
         std::vector<std::vector<size_t>> &triangles);
     ~Mesh();
     Vertex *allocVertex();
+    Vertex *replaceVertex(Vertex *vertex);
     Face *allocFace();
     HalfEdge *allocHalfEdge();
     void freeVertex(Vertex *vertex);
+    void deferedFreeVertex(Vertex *vertex);
     void freeFace(Face *face);
     void freeHalfEdge(HalfEdge *halfEdge);
     double calculateVertexCurvature(Vertex *vertex) const;
     double calculateVertexRemovalCost(Vertex *vertex) const;
+    bool removeVertex(Vertex *target);
     Vector3 calculateVertexNormal(Vertex *vertex) const;
     HalfEdge *findShortestHalfEdgeAroundVertex(Vertex *vertex) const;
     std::vector<std::pair<Vertex *, Vertex *>> collectConesAroundVertexExclude(Vertex *vertex, Vertex *exclude) const;
+    void setTargetVertexCount(size_t targetVertexCount);
+    bool decimate();
+    bool isWatertight();
+    bool delaunayTriangulate(std::vector<Vertex *> &ringVertices,
+        const Vector3 &projectNormal, const Vector3 &projectAxis,
+        std::vector<std::vector<Vertex *>> *triangles) const;
     void exportPly(const char *filename);
+    void exportObj(const char *filename, std::vector<std::vector<Vertex *>> &faces);
+    void exportObj(const char *filename, std::vector<Vertex *> &face);
     
 private:
 
     Vertex *m_firstVertex = nullptr;
     Vertex *m_lastVertex = nullptr;
+    Vertex *m_firstDeferedRemovalVertex = nullptr;
     Face *m_firstFace = nullptr;
     Face *m_lastFace = nullptr;
     HalfEdge *m_firstHalfEdge = nullptr;
@@ -77,17 +89,18 @@ private:
     size_t m_aloneHalfEdges = 0;
     size_t m_vertexCount = 0;
     size_t m_faceCount = 0;
+    size_t m_targetVertexCount = 1000;
     
-    //struct vertexCurvatureComparer
-    //{
-    //    bool operator()(const Vertex *lhs, const Vertex *rhs) const
-    //    {
-    //        return lhs->curvature < rhs->curvature;
-    //    }
-    //};
-    //vertexCurvatureComparer m_vertexCurvatureComparer;
+    struct vertexRemovalCostComparer
+    {
+        bool operator()(const Vertex *lhs, const Vertex *rhs) const
+        {
+            return lhs->removalCost > rhs->removalCost;
+        }
+    };
+    vertexRemovalCostComparer m_vertexRemovalCostComparer;
     
-    //std::priority_queue<Vertex *, std::vector<Vertex *>, vertexCurvatureComparer> m_flatVertexPointers;
+    std::priority_queue<Vertex *, std::vector<Vertex *>, vertexRemovalCostComparer> m_vertexRemovalCostPriorityQueue;
 };
 
 }
