@@ -370,6 +370,17 @@ bool Mesh::removeVertex(Vertex *target)
     if (!delaunayTriangulate(ringVertices, projectNormal, projectAxis, &triangles)) {
         return false;
     }
+    
+    for (const auto &triangle: triangles) {
+        for (size_t j = 0; j < 3; ++j) {
+            size_t k = (j + 1) % 3;
+            const auto &currentVertex = triangle[j];
+            const auto &nextVertex = triangle[k];
+            if (ringOppositeHalfEdges.end() != ringOppositeHalfEdges.find({currentVertex, nextVertex})) {
+                return false;
+            }
+        }
+    }
     //exportObj("C:\\Users\\Jeremy\\Desktop\\test-ring.obj", ringVertices);
     //exportObj("C:\\Users\\Jeremy\\Desktop\\test-delaunay.obj", triangles);
     
