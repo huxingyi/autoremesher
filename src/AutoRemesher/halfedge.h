@@ -5,6 +5,7 @@
 #include <queue>
 #include <limits>
 #include <AutoRemesher/Vector3>
+#include <AutoRemesher/Vector2>
 
 namespace AutoRemesher
 {

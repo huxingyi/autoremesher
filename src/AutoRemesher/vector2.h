@@ -22,6 +22,16 @@ public:
         m_data {x, y}
     {
     }
+    
+    inline double &operator[](size_t index)
+    {
+        return m_data[index];
+    }
+    
+    inline const double &operator[](size_t index) const
+    {
+        return m_data[index];
+    }
 
     inline const double &x() const
     {
@@ -98,6 +108,30 @@ public:
         return m.determinant() > 0;
     }
     
+    inline static double dotProduct(const Vector2 &a, const Vector2 &b)
+    {
+        return a.x() * b.x() + a.y() * b.y();
+    }
+    
+    inline static Vector2 barycentricCoordinates(const Vector2 &a, const Vector2 &b, const Vector2 &c, const Vector2 &point)
+    {
+        auto v0 = c - a;
+        auto v1 = b - a;
+        auto v2 = point - a;
+
+        auto dot00 = dotProduct(v0, v0);
+        auto dot01 = dotProduct(v0, v1);
+        auto dot02 = dotProduct(v0, v2);
+        auto dot11 = dotProduct(v1, v1);
+        auto dot12 = dotProduct(v1, v2);
+
+        auto invDenom = 1.0 / (dot00 * dot11 - dot01 * dot01);
+        auto alpha = (dot11 * dot02 - dot01 * dot12) * invDenom;
+        auto beta = (dot00 * dot12 - dot01 * dot02) * invDenom;
+        
+        return Vector2(alpha, beta);
+    }
+
 private:
     double m_data[2] = {0.0};
 };

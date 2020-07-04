@@ -24,6 +24,16 @@ public:
         m_data {x, y, z}
     {
     }
+    
+    inline double &operator[](size_t index)
+    {
+        return m_data[index];
+    }
+    
+    inline const double &operator[](size_t index) const
+    {
+        return m_data[index];
+    }
 
     inline const double &x() const
     {
@@ -222,6 +232,16 @@ public:
                 0.0
             });
         }
+    }
+    
+    inline static Vector3 barycentricCoordinates(const Vector3 &a, const Vector3 &b, const Vector3 &c, const Vector3 &point)
+    {
+        auto invertedAreaOfAbc = 1.0 / area(a, b, c);
+        auto areaOfPbc = area(point, b, c);
+        auto areaOfPca = area(point, c, a);
+        auto alpha = areaOfPbc * invertedAreaOfAbc;
+        auto beta = areaOfPca * invertedAreaOfAbc;
+        return Vector3(alpha, beta, 1.0 - alpha - beta);
     }
     
 private:
