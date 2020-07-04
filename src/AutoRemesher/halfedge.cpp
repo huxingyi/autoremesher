@@ -83,7 +83,7 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
         vertex->removalCost = calculateVertexRemovalCost(vertex);
         //std::cerr << "removalCost[" << vertex->index << "]:" << vertex->removalCost << std::endl;
-        m_vertexRemovalCostPriorityQueue.push(vertex);
+        m_vertexRemovalCostPriorityQueue.push({vertex, vertex->removalCost, vertex->version});
     }
 }
 
@@ -113,27 +113,9 @@ void Mesh::deferedFreeVertex(Vertex *vertex)
     if (nullptr != vertex->_previous)
         vertex->_previous->_next = vertex->_next;
     --m_vertexCount;
-    vertex->anyHalfEdge = nullptr;
+    vertex->version = std::numeric_limits<uint32_t>::max();
     vertex->_next = m_firstDeferedRemovalVertex;
     m_firstDeferedRemovalVertex = vertex;
-}
-
-Vertex *Mesh::replaceVertex(Vertex *vertex)
-{
-    Vertex *update = allocVertex();
-
-    update->position = vertex->position;
-    update->anyHalfEdge = vertex->anyHalfEdge;
-    update->fineCurvature = vertex->fineCurvature;
-    update->removalCost = vertex->removalCost;
-    
-    HalfEdge *halfEdge = vertex->anyHalfEdge;
-    do {
-        halfEdge->startVertex = update;
-        halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
-    } while (halfEdge != vertex->anyHalfEdge);
-    deferedFreeVertex(vertex);
-    return update;
 }
 
 void Mesh::freeVertex(Vertex *vertex)
@@ -409,7 +391,7 @@ bool Mesh::removeVertex(Vertex *target)
         freeHalfEdge(halfEdge->oppositeHalfEdge);
         freeHalfEdge(halfEdge);
     }
-    freeVertex(target);
+    deferedFreeVertex(target);
     
     // Create new halfedges
     std::cerr << "Create new halfedges..." << std::endl;
@@ -452,7 +434,10 @@ bool Mesh::removeVertex(Vertex *target)
     std::cerr << "Update removal cost for vertices:" << ringOppositeHalfEdges.size() << "..." << std::endl;
     for (auto &it: ringOppositeHalfEdges) {
         it.second->startVertex->removalCost = calculateVertexRemovalCost(it.second->startVertex);
-        m_vertexRemovalCostPriorityQueue.push(replaceVertex(it.second->startVertex));
+        ++it.second->startVertex->version;
+        m_vertexRemovalCostPriorityQueue.push({it.second->startVertex, 
+            it.second->startVertex->removalCost, 
+            it.second->startVertex->version});
     }
     std::cerr << "Done." << std::endl;
     
@@ -472,10 +457,13 @@ bool Mesh::decimate()
     }
     auto vertexCountBeforeDecimation = m_vertexCount;
     while (m_vertexCount > m_targetVertexCount && !m_vertexRemovalCostPriorityQueue.empty()) {
-        Vertex *vertex = m_vertexRemovalCostPriorityQueue.top();
-        m_vertexRemovalCostPriorityQueue.pop();
-        if (nullptr == vertex->anyHalfEdge)
+        const auto &item = m_vertexRemovalCostPriorityQueue.top();
+        Vertex *vertex = item.vertex;
+        if (item.version != vertex->version) {
+            m_vertexRemovalCostPriorityQueue.pop();
             continue;
+        }
+        m_vertexRemovalCostPriorityQueue.pop();
         if (removeVertex(vertex)) {
             std::cerr << "Vertex " << vertex->index << " removed" << std::endl;
             std::cerr << "Vertices reduced from:" << vertexCountBeforeDecimation << " to:" << m_vertexCount << std::endl;

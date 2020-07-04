@@ -26,6 +26,7 @@ struct Vertex
     HalfEdge *anyHalfEdge = nullptr;
     double fineCurvature = 0.0;
     double removalCost = 0.0;
+    uint32_t version = 0;
 };
 
 struct HalfEdge
@@ -54,7 +55,6 @@ public:
         std::vector<std::vector<size_t>> &triangles);
     ~Mesh();
     Vertex *allocVertex();
-    Vertex *replaceVertex(Vertex *vertex);
     Face *allocFace();
     HalfEdge *allocHalfEdge();
     void freeVertex(Vertex *vertex);
@@ -92,16 +92,23 @@ private:
     size_t m_faceCount = 0;
     size_t m_targetVertexCount = 1000;
     
+    struct VertexRemovalCost
+    {
+        Vertex *vertex;
+        double cost;
+        uint32_t version;
+    };
+    
     struct vertexRemovalCostComparer
     {
-        bool operator()(const Vertex *lhs, const Vertex *rhs) const
+        bool operator()(const VertexRemovalCost &lhs, const VertexRemovalCost &rhs) const
         {
-            return lhs->removalCost > rhs->removalCost;
+            return lhs.cost > rhs.cost;
         }
     };
     vertexRemovalCostComparer m_vertexRemovalCostComparer;
     
-    std::priority_queue<Vertex *, std::vector<Vertex *>, vertexRemovalCostComparer> m_vertexRemovalCostPriorityQueue;
+    std::priority_queue<VertexRemovalCost, std::vector<VertexRemovalCost>, vertexRemovalCostComparer> m_vertexRemovalCostPriorityQueue;
 };
 
 }
