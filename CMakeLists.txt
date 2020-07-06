@@ -16,7 +16,7 @@ add_executable(autoremesher
     src/main.cpp
     src/AutoRemesher/remesher.cpp
     src/AutoRemesher/halfedge.cpp
-    src/AutoRemesher/coarsetofinemapper.cpp
+    src/AutoRemesher/parametrization.cpp
     thirdparty/comiso/CoMISo/Solver/EigenLDLTSolver.cc
     thirdparty/comiso/CoMISo/Solver/MISolver.cc
     thirdparty/comiso/CoMISo/Solver/ConstrainedSolver.cc

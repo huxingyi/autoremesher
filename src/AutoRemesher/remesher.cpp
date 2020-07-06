@@ -1,176 +1,66 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <igl/avg_edge_length.h>
-#include <igl/barycenter.h>
-#include <igl/comb_cross_field.h>
-#include <igl/comb_frame_field.h>
-#include <igl/compute_frame_field_bisectors.h>
-#include <igl/cross_field_mismatch.h>
-#include <igl/cut_mesh_from_singularities.h>
-#include <igl/find_cross_field_singularities.h>
-#include <igl/local_basis.h>
-#include <igl/rotate_vectors.h>
-#include <igl/copyleft/comiso/miq.h>
-#include <igl/copyleft/comiso/nrosy.h>
+#include <cstdio>
+#include <cstdlib>
+#include <iostream>
 #include <qex.h>
 #include <AutoRemesher/Remesher>
-
-extern bool saveObj(const char *filename,
-            const std::vector<AutoRemesher::Vector3> &vertices,
-            const std::vector<std::vector<size_t>> &faces);
+#include <AutoRemesher/HalfEdge>
 
 namespace AutoRemesher
 {
 
 bool Remesher::remesh()
 {
+    AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles);
+    if (!mesh.decimate()) {
+        std::cerr << "Mesh decimate failed" << std::endl;
+        return false;
+    }
+    mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
+    if (!mesh.parametrize(m_gradientSize)) {
+        std::cerr << "Mesh parametrize failed" << std::endl;
+        return false;
+    }
+    if (!mesh.coarseToFineMap()) {
+        std::cerr << "Mesh coarseToFineMap failed" << std::endl;
+        return false;
+    }
+    
     qex_TriMesh triMesh = {0};
     qex_QuadMesh quadMesh = {0};
     
-    const auto &inputVertices = m_vertices;
-    const auto &inputTriangles = m_triangles;
-    
-    triMesh.vertex_count = inputVertices.size();
-    triMesh.tri_count = inputTriangles.size();
+    triMesh.vertex_count = mesh.vertexCount();
+    triMesh.tri_count = mesh.faceCount();
     
     triMesh.vertices = (qex_Point3*)malloc(sizeof(qex_Point3) * triMesh.vertex_count);
     triMesh.tris = (qex_Tri*)malloc(sizeof(qex_Tri) * triMesh.tri_count);
     triMesh.uvTris = (qex_UVTri*)malloc(sizeof(qex_UVTri) * triMesh.tri_count);
     
-    for (unsigned int i = 0; i < triMesh.vertex_count; ++i) {
-        const auto &src = inputVertices[i];
-        triMesh.vertices[i] = qex_Point3 {{(double)src.x(), (double)src.y(), (double)src.z()}};
-    }
-    size_t triangleNum = 0;
-    for (const auto &it: inputTriangles) {
-        triMesh.tris[triangleNum++] = qex_Tri {{(qex_Index)it[0], (qex_Index)it[1], (qex_Index)it[2]}};
-    }
-    
-    // https://github.com/libigl/libigl/blob/master/tutorial/505_MIQ/main.cpp
-
-    double iter = 0;
-    double stiffness = 5.0;
-    bool direct_round = 0;
-    
-    Eigen::MatrixXd V(triMesh.vertex_count, 3);
-    Eigen::MatrixXi F(triMesh.tri_count, 3);
-    
-    for (decltype(inputVertices.size()) i = 0; i < inputVertices.size(); i++) {
-        const auto &vertex = inputVertices[i];
-        V.row(i) << vertex.x(), vertex.y(), vertex.z();
-    }
-    
-    size_t rowNum = 0;
-    for (const auto &it: inputTriangles) {
-        F.row(rowNum++) << it[0], it[1], it[2];
-    }
-    
-    bool extend_arrows = false;
-
-    // Cross field
-    Eigen::MatrixXd X1,X2;
-
-    // Bisector field
-    Eigen::MatrixXd BIS1, BIS2;
-
-    // Combed bisector
-    Eigen::MatrixXd BIS1_combed, BIS2_combed;
-
-    // Per-corner, integer mismatches
-    Eigen::Matrix<int, Eigen::Dynamic, 3> MMatch;
-
-    // Field singularities
-    Eigen::Matrix<int, Eigen::Dynamic, 1> isSingularity, singularityIndex;
-
-    // Per corner seams
-    Eigen::Matrix<int, Eigen::Dynamic, 3> Seams;
-
-    // Combed field
-    Eigen::MatrixXd X1_combed, X2_combed;
-
-    // Global parametrization
-    Eigen::MatrixXd UV;
-    Eigen::MatrixXi FUV;
-    
-    Eigen::VectorXi b(1);
-    b << 0;
-    Eigen::MatrixXd bc(1, 3);
-    bc << 1, 0, 0;
-    
-    Eigen::VectorXd S;
-    igl::copyleft::comiso::nrosy(V, F, b, bc, Eigen::VectorXi(), Eigen::VectorXd(), Eigen::MatrixXd(), 4, 0.5, X1, S);
-
-    // Find the orthogonal vector
-    Eigen::MatrixXd B1, B2, B3;
-    igl::local_basis(V, F, B1, B2, B3);
-    X2 = igl::rotate_vectors(X1, Eigen::VectorXd::Constant(1, igl::PI / 2), B1, B2);
-
-    // Always work on the bisectors, it is more general
-    igl::compute_frame_field_bisectors(V, F, X1, X2, BIS1, BIS2);
-
-    // Comb the field, implicitly defining the seams
-    igl::comb_cross_field(V, F, BIS1, BIS2, BIS1_combed, BIS2_combed);
-
-    // Find the integer mismatches
-    igl::cross_field_mismatch(V, F, BIS1_combed, BIS2_combed, true, MMatch);
-
-    // Find the singularities
-    igl::find_cross_field_singularities(V, F, MMatch, isSingularity, singularityIndex);
-
-    // Cut the mesh, duplicating all vertices on the seams
-    igl::cut_mesh_from_singularities(V, F, MMatch, Seams);
-
-    // Comb the frame-field accordingly
-    igl::comb_frame_field(V, F, X1, X2, BIS1_combed, BIS2_combed, X1_combed, X2_combed);
-
-    // Global parametrization
-    igl::copyleft::comiso::miq(V,
-        F,
-        X1_combed,
-        X2_combed,
-        MMatch,
-        isSingularity,
-        Seams,
-        UV,
-        FUV,
-        m_gradientSize,
-        stiffness,
-        direct_round,
-        iter,
-        5,
-        true);
-    
-    triMesh.uvTris = (qex_UVTri*)malloc(sizeof(qex_UVTri) * FUV.rows());
-    for (unsigned int i = 0; i < FUV.rows(); ++i) {
-        const auto &triangleVertexIndices = FUV.row(i);
-        const auto &v0 = UV.row(triangleVertexIndices[0]);
-        const auto &v1 = UV.row(triangleVertexIndices[1]);
-        const auto &v2 = UV.row(triangleVertexIndices[2]);
-        triMesh.uvTris[i] = qex_UVTri {{
-            qex_Point2 {{v0[0], v0[1]}}, 
-            qex_Point2 {{v1[0], v1[1]}}, 
-            qex_Point2 {{v2[0], v2[1]}}
+    size_t vertexNum = 0;
+    for (HalfEdge::Vertex *vertex = mesh.firstVertex(); nullptr != vertex; vertex = vertex->_next) {
+        vertex->outputIndex = vertexNum;
+        triMesh.vertices[vertexNum++] = qex_Point3 {{
+            (double)vertex->position.x(), 
+            (double)vertex->position.y(), 
+            (double)vertex->position.z()
         }};
     }
     
-    {   
-        std::vector<AutoRemesher::Vector3> uvVertices;
-        std::vector<std::vector<size_t>> uvFaces;
-        for (unsigned int i = 0; i < UV.rows(); ++i) {
-            const auto &src = UV.row(i);
-            uvVertices.push_back(AutoRemesher::Vector3 {
-                (double)src[0], (double)src[1], 0.0
-            });
-        }
-        for (unsigned int i = 0; i < FUV.rows(); ++i) {
-            const auto &triangleVertexIndices = FUV.row(i);
-            uvFaces.push_back(std::vector<size_t> {
-                (size_t)triangleVertexIndices[0],
-                (size_t)triangleVertexIndices[1],
-                (size_t)triangleVertexIndices[2]
-            });
-        }
-        saveObj("C:\\Users\\Jeremy\\Desktop\\uvmesh.obj", uvVertices, uvFaces);
+    size_t faceNum = 0;
+    for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
+        HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
+        HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
+        HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
+        triMesh.tris[faceNum] = qex_Tri {{
+            (qex_Index)h0->startVertex->outputIndex, 
+            (qex_Index)h1->startVertex->outputIndex, 
+            (qex_Index)h2->startVertex->outputIndex
+        }};
+        triMesh.uvTris[faceNum] = qex_UVTri {{
+            qex_Point2 {{h0->startVertexUv[0], h0->startVertexUv[1]}}, 
+            qex_Point2 {{h1->startVertexUv[0], h1->startVertexUv[1]}}, 
+            qex_Point2 {{h2->startVertexUv[0], h2->startVertexUv[1]}}
+        }};
+        ++faceNum;
     }
 
     qex_extractQuadMesh(&triMesh, nullptr, &quadMesh);
