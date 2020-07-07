@@ -2,6 +2,8 @@
 #define AUTO_REMESHER_VECTOR3_H
 #include <AutoRemesher/Double>
 #include <AutoRemesher/Vector2>
+#include <string>
+#include <iostream>
 
 namespace AutoRemesher
 {
@@ -276,6 +278,17 @@ inline Vector3 operator-(const Vector3 &v)
 inline Vector3 operator/(const Vector3 &v, double number)
 {
     return Vector3(v.x() / number, v.y() / number, v.z() / number);
+}
+
+inline std::string to_string(const Vector3 &v)
+{
+    return std::to_string(v.x()) + "," + std::to_string(v.y()) + "," + std::to_string(v.z());
+}
+
+inline std::ostream &operator<<(std::ostream &os, const Vector3 &v)
+{
+    os << v.x() << ',' << v.y() << ',' << v.z();
+    return os;
 }
 
 }

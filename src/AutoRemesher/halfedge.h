@@ -83,10 +83,13 @@ public:
     bool isWatertight();
     bool delaunayTriangulate(std::vector<Vertex *> &ringVertices,
         const Vector3 &projectNormal, const Vector3 &projectAxis,
-        std::vector<std::vector<Vertex *>> *triangles) const;
+        std::vector<std::vector<Vertex *>> *triangles,
+        const Vector3 &origin) const;
     void exportPly(const char *filename);
+    void updateVertexRemovalCostToColor();
     void exportObj(const char *filename, std::vector<std::vector<Vertex *>> &faces);
     void exportObj(const char *filename, std::vector<Vertex *> &face);
+    void exportObj(const char *filename, std::vector<Vector2> &face);
     const size_t &vertexCount() const;
     const size_t &faceCount() const;
     Vertex *firstVertex() const;

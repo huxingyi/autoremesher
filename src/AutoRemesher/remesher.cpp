@@ -11,6 +11,8 @@ namespace AutoRemesher
 bool Remesher::remesh()
 {
     AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles);
+    mesh.updateVertexRemovalCostToColor();
+    mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-removalcost.ply");
     if (!mesh.decimate()) {
         std::cerr << "Mesh decimate failed" << std::endl;
         return false;
