@@ -72,6 +72,12 @@ public:
     double calculateVertexRemovalCost(Vertex *vertex) const;
     bool collapse(Vertex *vertex, std::vector<HalfEdge *> &halfEdgesAroundVertex);
     bool flip(HalfEdge *halfEdge);
+    void unFlip(HalfEdge *hflip, HalfEdge *hflip_x, 
+        HalfEdge *ha, HalfEdge *hb, HalfEdge *hc, HalfEdge *hd);
+    void unCollapse(std::vector<HalfEdge *> h, std::vector<HalfEdge *> h_x,
+        std::vector<HalfEdge *> ring, 
+        double alpha, double beta, double gamma,
+        size_t alpha_index, size_t beta_index, size_t gamma_index);
     Vector3 calculateVertexNormal(Vertex *vertex) const;
     HalfEdge *findShortestHalfEdgeAroundVertex(Vertex *vertex) const;
     std::vector<std::pair<Vertex *, Vertex *>> collectConesAroundVertexExclude(Vertex *vertex, Vertex *exclude) const;

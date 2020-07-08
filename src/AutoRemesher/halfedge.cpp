@@ -417,12 +417,8 @@ bool Mesh::decimate(Vertex *vertex)
     Vector3 origin = vertex->position;
     Vector3 projectNormal = calculateVertexNormal(vertex);
     Vector3 projectAxis = (shortestHalfEdge->nextHalfEdge->startVertex->position - vertex->position).normalized();
-    
-    // Project to 2D plane
     std::vector<Vector2> ringPointsIn2d;
     Vector3::project(ringPoints, &ringPointsIn2d, projectNormal, projectAxis, origin);
-    
-    std::cerr << "collapse halfEdgesPointToTarget.size:" << halfEdgesPointToTarget.size() << std::endl;
  
     if (!collapse(vertex, halfEdgesPointToTarget))
         return false;
@@ -438,93 +434,10 @@ bool Mesh::decimate(Vertex *vertex)
         if (ringPointsIn2d[d].isInCircle(ringPointsIn2d[a], ringPointsIn2d[c], ringPointsIn2d[b])) {
             const auto &hflip_x = halfEdgesPointToTarget[i + 1];
             const auto &hflip = hflip_x->oppositeHalfEdge;
-            const auto &ha = hflip->previousHalfEdge;
-            const auto &hb = hflip_x->previousHalfEdge;
-            /*
-            std::cerr << "edge:" <<
-                hflip->startVertex->position << " " << 
-                hflip_x->startVertex->position << " " << 
-                ha->startVertex->position << " " << 
-                hb->startVertex->position << " " <<  
-                std::endl;
-                
-            std::cerr << "point:" <<
-                ringPoints[a] << " " << 
-                ringPoints[c] << " " << 
-                ringPoints[b] << " " << 
-                ringPoints[d] << " " <<  
-                std::endl;
-                
-            std::cerr << "projectNormal:" <<
-                projectNormal <<  
-                std::endl;
-                
-            std::cerr << "projectAxis:" <<
-                projectAxis <<  
-                std::endl;
-                
-            std::cerr << "origin:" <<
-                origin <<  
-                std::endl;
-                
-            static int s_count = 0;
-            ++s_count;
-            if (2 == s_count) {
-                hflip->startVertex->r = 255;
-                hflip_x->startVertex->g = 125;
-                ha->startVertex->r = 255;
-                hb->startVertex->b = 255;
-                exportPly("C:\\Users\\Jeremy\\Desktop\\test-before-flip.ply");
-                if (!flip(hflip))
-                    return false;
-                exportPly("C:\\Users\\Jeremy\\Desktop\\test-after-flip.ply");
-                exportObj("C:\\Users\\Jeremy\\Desktop\\test-2d.obj", std::vector<Vector2> {
-                    ringPointsIn2d[a],
-                    ringPointsIn2d[b],
-                    ringPointsIn2d[c],
-                    ringPointsIn2d[d]
-                });
-                exit(0);
-            }
-            */
             if (!flip(hflip))
                 return false;
         }
     }
-    
-    /*
-    for (size_t i = 2; i + 1 < h.size(); i += 2) {
-        const auto &hflip_x = h[i];
-        const auto &hflip = hflip_x->oppositeHalfEdge;
-        const auto &ha = hflip->previousHalfEdge;
-        const auto &hb = hflip_x->previousHalfEdge;
-        std::vector<Vector3> abcd = {
-            hflip->startVertex->position,
-            ha->startVertex->position,
-            hflip_x->startVertex->position,
-            hb->startVertex->position
-        };
-        std::vector<Vector2> abcdIn2d;
-        Vector3::project(abcd, &abcdIn2d, projectNormal, projectAxis, origin);
-        if (abcdIn2d[3].isInCircle(abcdIn2d[0], abcdIn2d[1], abcdIn2d[2])) {
-            static int s_count = 0;
-            ++s_count;
-            if (2 == s_count) {
-                hflip->startVertex->g = 255;
-                hflip_x->startVertex->g = 255;
-                ha->startVertex->g = 255;
-                hb->startVertex->b = 255;
-                exportPly("C:\\Users\\Jeremy\\Desktop\\test-before-flip.ply");
-                if (!flip(hflip))
-                    return false;
-                exportPly("C:\\Users\\Jeremy\\Desktop\\test-after-flip.ply");
-                exit(0);
-            }
-            if (!flip(hflip))
-                return false;
-        }
-    }
-    */
     
     for (auto &it: ringVertices) {
         it->removalCost = calculateVertexRemovalCost(it);
@@ -549,6 +462,110 @@ void Mesh::updateVertexRemovalCostToColor()
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
         auto cost = std::min(vertex->removalCost, maxRemovalCost);
         vertex->r = cost * 255 / maxRemovalCost;
+    }
+}
+
+void unFlip(HalfEdge *hflip, HalfEdge *hflip_x, 
+        HalfEdge *ha, HalfEdge *hb, HalfEdge *hc, HalfEdge *hd)
+{
+    // cf. <Interactively Controlled Quad Remeshing of High Resolution 3D Models> Figure 6
+    
+    auto fjb = hc->startVertexUv;
+    auto fjc = hflip_x->startVertexUv;
+    auto fjflip_x = hb->startVertexUv;
+    
+    auto fja = hflip->startVertexUv;
+    auto fjd = hflip->startVertexUv;
+    auto fjflip = hd->startVertexUv;
+    
+    auto &fib = hflip_x->startVertexUv;
+    auto &fiflip_x = hd->startVertexUv;
+    auto &fid = hb->startVertexUv;
+    
+    auto &fia = hflip->startVertexUv;
+    auto &fiflip = hc->startVertexUv;
+    auto &fic = hflip->startVertexUv;
+
+    QEx::TransitionFunctionT<double> tjflip;
+    tjflip.estimate_from_point_pair<Vector2>(fjflip, fjc, fjd, fjflip_x);
+    
+    QEx::TransitionFunctionT<double> tjflip_inverse;
+    tjflip_inverse = tjflip.inverse();
+    
+    fiflip = fjb;
+    fiflip_x = fja;
+    
+    fia = fja;
+    tjflip.transform_vector(fia);
+    
+    fib = fjb;
+    tjflip_inverse.transform_vector(fjb);
+    
+    fic = fjc;
+    fid = fjd;
+}
+
+void Mesh::unCollapse(std::vector<HalfEdge *> h, std::vector<HalfEdge *> h_x,
+        std::vector<HalfEdge *> ring, 
+        double alpha, double beta, double gamma,
+        size_t alpha_index, size_t beta_index, size_t gamma_index)
+{
+    // cf. <Interactively Controlled Quad Remeshing of High Resolution 3D Models> Figure 7
+    
+    auto k = ring.size();
+    
+    auto &a = ring[0];
+    auto &b = ring[1];
+    auto &c = ring[k - 1];
+    
+    auto fja = h[0]->startVertexUv;
+    auto fjb = a->startVertexUv;
+    auto fjc = ring[k - 2]->startVertexUv;
+    
+    std::vector<QEx::TransitionFunctionT<double>> tj_x(k, QEx::TransitionFunctionT<double>::IDENTITY);
+    for (size_t i = 2; i <= k - 2; ++i) {
+        // TODO:
+    }
+    
+    auto tj_l = [&](size_t j, size_t l) {
+        QEx::TransitionFunctionT<double> t = QEx::TransitionFunctionT<double>::IDENTITY;
+        for (size_t i = j; i <= l; ++i) {
+            t = t * tj_x[i];
+        }
+        return t;
+    };
+    
+    auto ti = [&](size_t i) {
+        if (0 == i) {
+            return tj_l(2, k - 2);
+        } else if (1 == i || k - 1 == i) {
+            return QEx::TransitionFunctionT<double>::IDENTITY;
+        }
+        return tj_x[i].inverse();
+    };
+    
+    auto ti_l = [&](size_t j, size_t l) {
+        QEx::TransitionFunctionT<double> t = QEx::TransitionFunctionT<double>::IDENTITY;
+        for (size_t i = j; i <= l; ++i) {
+            t = t * ti(i).inverse();
+        }
+        return t;
+    };
+    
+    auto transformed = [](const QEx::TransitionFunctionT<double> &t, Vector2 uv) {
+        t.transform_vector(uv);
+        return uv;
+    };
+    
+    c->startVertexUv = transformed(ti(0), fja);
+    a->startVertexUv = fjb;
+    ring[k - 2]->startVertexUv = fjc;
+    
+    h_x[0]->startVertexUv = alpha * transformed(ti_l(0, alpha_index - 1).inverse(), ring[(alpha_index + k - 1) % k]->startVertexUv) +
+        beta * transformed(ti_l(0, beta_index - 1).inverse(), ring[(beta_index + k - 1) % k]->startVertexUv) +
+        gamma * transformed(ti_l(0, gamma_index - 1).inverse(), ring[(gamma_index + k - 1) % k]->startVertexUv);
+    for (size_t j = 0; j < k - 1; ++j) {
+        h_x[j + 1]->startVertexUv = transformed(ti_l(0, j), h_x[0]->startVertexUv);
     }
 }
 
