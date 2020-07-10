@@ -11,8 +11,9 @@ namespace AutoRemesher
 bool Remesher::remesh()
 {
     AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles);
+    mesh.setTargetVertexCount(mesh.vertexCount() - 100);
     mesh.updateVertexRemovalCostToColor();
-    mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-removalcost.ply");
+    //mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-removalcost.ply");
     
     qex_TriMesh triMesh = {0};
     qex_QuadMesh quadMesh = {0};
@@ -57,14 +58,36 @@ bool Remesher::remesh()
         return false;
     }
     mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
+    
+    std::cerr << "Parametrizing..." << std::endl;
     if (!mesh.parametrize(m_gradientSize)) {
         std::cerr << "Mesh parametrize failed" << std::endl;
         return false;
     }
+    std::cerr << "Parametrization done..." << std::endl;
+    
+    {
+        std::vector<std::vector<Vector2>> uvs;
+        for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
+            HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
+            HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
+            HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
+            uvs.push_back({
+                h0->startVertexUv,
+                h1->startVertexUv,
+                h2->startVertexUv
+            });
+        }
+        AutoRemesher::HalfEdge::Mesh::exportObj("C:\\Users\\Jeremy\\Desktop\\test-uv-before.obj", uvs);
+    }
+    
+    std::cerr << "Corse to fine mapping..." << std::endl;
     if (!mesh.coarseToFineMap()) {
         std::cerr << "Mesh coarseToFineMap failed" << std::endl;
         return false;
     }
+    
+    std::cerr << "Corse to fine mapping done" << std::endl;
     
     faceNum = 0;
     for (size_t i = 0; i < triangleHalfEdges.size(); ) {
@@ -77,6 +100,22 @@ bool Remesher::remesh()
             qex_Point2 {{h2->startVertexUv[0], h2->startVertexUv[1]}}
         }};
     }
+    
+    {
+        std::vector<std::vector<Vector2>> uvs;
+        for (size_t i = 0; i < triangleHalfEdges.size(); ) {
+            auto &h0 = triangleHalfEdges[i++];
+            auto &h1 = triangleHalfEdges[i++];
+            auto &h2 = triangleHalfEdges[i++];
+            uvs.push_back({
+                h0->startVertexUv,
+                h1->startVertexUv,
+                h2->startVertexUv
+            });
+        }
+        AutoRemesher::HalfEdge::Mesh::exportObj("C:\\Users\\Jeremy\\Desktop\\test-uv.obj", uvs);
+    }
+    //exit(0);
 
     qex_extractQuadMesh(&triMesh, nullptr, &quadMesh);
     

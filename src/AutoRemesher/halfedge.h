@@ -124,10 +124,10 @@ public:
         const Vector3 &origin) const;
     void exportPly(const char *filename);
     void updateVertexRemovalCostToColor();
-    void exportObj(const char *filename, std::vector<std::vector<Vertex *>> &faces);
-    void exportObj(const char *filename, std::vector<Vertex *> &face);
-    void exportObj(const char *filename, std::vector<Vector2> &face);
-    void exportObj(const char *filename, std::vector<std::vector<Vector2>> &faces);
+    static void exportObj(const char *filename, std::vector<std::vector<Vertex *>> &faces);
+    static void exportObj(const char *filename, std::vector<Vertex *> &face);
+    static void exportObj(const char *filename, std::vector<Vector2> &face);
+    static void exportObj(const char *filename, std::vector<std::vector<Vector2>> &faces);
     const size_t &vertexCount() const;
     const size_t &faceCount() const;
     Vertex *firstVertex() const;

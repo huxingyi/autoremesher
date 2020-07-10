@@ -465,7 +465,9 @@ bool Mesh::decimate(Vertex *vertex)
             size_t v1 = i;
             size_t v3 = i + 1;
             Vector2 uv = Vector2::barycentricCoordinates(ringPointsIn2d[v1], ringPointsIn2d[v2], ringPointsIn2d[v3], origin2d);
-            if (uv.x() >= 0.0 && uv.y() >= 0.0 && uv.x() + uv.y() < 1.0) {
+            std::cerr << "barycenteric i:" << i << "/" << ringPointsIn2d.size() << " uv:" << uv << std::endl;
+            if (uv.x() > 0.01 && uv.y() > 0.01 && uv.x() + uv.y() + 0.01 < 1.0) {
+                std::cerr << "CHOOSE" << std::endl;
                 collapseLog->alpha = uv.x();
                 collapseLog->beta = uv.y();
                 collapseLog->gamma = 1.0 - (uv.x() + uv.y());
@@ -475,6 +477,7 @@ bool Mesh::decimate(Vertex *vertex)
                 foundBaryCenter = true;
                 break;
             }
+            std::cerr << "ignore" << std::endl;
         }
         if (!foundBaryCenter) {
             freeDecimationLog(collapseLog);
@@ -575,14 +578,16 @@ void Mesh::unFlip(HalfEdge *hflip, HalfEdge *hflip_x,
     fic = fjc;
     fid = fjd;
     
-    //exportObj("C:\\Users\\Jeremy\\Desktop\\test-before-unflip.obj", std::vector<std::vector<Vector2>> {
-    //    {fjb, fjc, fjflip_x},
-    //    {fja, fjd, fjflip},
-    //});
-    //exportObj("C:\\Users\\Jeremy\\Desktop\\test-after-unflip.obj", std::vector<std::vector<Vector2>> {
-    //    {fib, fiflip_x, fid},
-    //    {fia, fiflip, fic}
-    //});
+    /*
+    exportObj("C:\\Users\\Jeremy\\Desktop\\test-unflip-before.obj", std::vector<std::vector<Vector2>> {
+        {fjb, fjc, fjflip_x},
+        {fja, fjd, fjflip},
+    });
+    exportObj("C:\\Users\\Jeremy\\Desktop\\test-unflip-after.obj", std::vector<std::vector<Vector2>> {
+        {fib, fiflip_x, fid},
+        {fia, fiflip, fic}
+    });
+    */
 }
 
 void Mesh::unCollapse(int k,
@@ -591,39 +596,43 @@ void Mesh::unCollapse(int k,
         double alpha, double beta, double gamma,
         int alpha_i, int beta_i, int gamma_i)
 {
+    static int s_count = 0;
+    ++s_count;
+    extern int gDebugIndex;
+        
     // cf. <Interactively Controlled Quad Remeshing of High Resolution 3D Models> Figure 7
     
-    /*
-    std::cerr << "k:" << k << std::endl;
-    std::cerr << "alpha:" << alpha << std::endl;
-    std::cerr << "beta:" << beta << std::endl;
-    std::cerr << "gamma:" << gamma << std::endl;
-    std::cerr << "alpha_i:" << alpha_i << std::endl;
-    std::cerr << "beta_i:" << beta_i << std::endl;
-    std::cerr << "gamma_i:" << gamma_i << std::endl;
-    
-    {
-        std::vector<std::vector<Vector2>> debugFaces;
-        debugFaces.push_back({
-            h_x[2]->startVertexUv,
-            ring[1]->startVertexUv,
-            ring[0]->startVertexUv
-        });
-        for (int i = 2; i < k - 2; ++i) {
+    if (gDebugIndex == s_count) {
+        std::cerr << "k:" << k << std::endl;
+        std::cerr << "alpha:" << alpha << std::endl;
+        std::cerr << "beta:" << beta << std::endl;
+        std::cerr << "gamma:" << gamma << std::endl;
+        std::cerr << "alpha_i:" << alpha_i << std::endl;
+        std::cerr << "beta_i:" << beta_i << std::endl;
+        std::cerr << "gamma_i:" << gamma_i << std::endl;
+        
+        {
+            std::vector<std::vector<Vector2>> debugFaces;
             debugFaces.push_back({
-                h[i]->startVertexUv,
-                h_x[i + 1]->startVertexUv,
-                ring[i]->startVertexUv
+                h_x[2]->startVertexUv,
+                ring[1]->startVertexUv,
+                ring[0]->startVertexUv
             });
+            for (int i = 2; i < k - 2; ++i) {
+                debugFaces.push_back({
+                    h[i]->startVertexUv,
+                    h_x[i + 1]->startVertexUv,
+                    ring[i]->startVertexUv
+                });
+            }
+            debugFaces.push_back({
+                h[k - 2]->startVertexUv,
+                ring[k - 1]->startVertexUv,
+                ring[k - 2]->startVertexUv
+            });
+            exportObj("C:\\Users\\Jeremy\\Desktop\\test-uncollapse-before.obj", debugFaces);
         }
-        debugFaces.push_back({
-            h[k - 2]->startVertexUv,
-            ring[k - 1]->startVertexUv,
-            ring[k - 2]->startVertexUv
-        });
-        exportObj("C:\\Users\\Jeremy\\Desktop\\test-before-uncollapse.obj", debugFaces);
     }
-    */
 
     auto fja = ring[k - 1]->startVertexUv;
     auto fjb = ring[0]->startVertexUv;
@@ -669,30 +678,30 @@ void Mesh::unCollapse(int k,
     };
     
     h[0]->startVertexUv = fja;
-    h[1]->startVertexUv = transformed(ti(1).inverse(), fjb);
-    h[k - 1]->startVertexUv = transformed(ti(k - 1).inverse(), fjc);
+    h[1]->startVertexUv = fjb; //transformed(ti(1).inverse(), fjb);
+    h[k - 1]->startVertexUv = fjc; //transformed(ti(k - 1).inverse(), fjc);
 
-    h_x[0]->startVertexUv = alpha * ring[(alpha_i + k - 1) % k]->startVertexUv +
-        beta * ring[(beta_i + k - 1) % k]->startVertexUv +
-        gamma * ring[(gamma_i + k - 1) % k]->startVertexUv;
+    h_x[0]->startVertexUv = alpha * transformed(ti_l(0, alpha_i - 1), ring[(alpha_i + k - 1) % k]->startVertexUv) +
+        beta * transformed(ti_l(0, beta_i - 1), ring[(beta_i + k - 1) % k]->startVertexUv) +
+        gamma * transformed(ti_l(0, gamma_i - 1), ring[(gamma_i + k - 1) % k]->startVertexUv);
     for (int j = 0; j < k - 1; ++j) {
         h_x[j + 1]->startVertexUv = transformed(ti_l(0, j), h_x[0]->startVertexUv);
     }
     
-    /*
     {
-        std::vector<std::vector<Vector2>> debugFaces;
-        for (int i = 0; i <= k - 1; ++i) {
-            debugFaces.push_back({
-                h[i]->startVertexUv,
-                h_x[(i + 1) % k]->startVertexUv,
-                ring[i]->startVertexUv
-            });
+        if (gDebugIndex == s_count) {
+            std::vector<std::vector<Vector2>> debugFaces;
+            for (int i = 0; i <= k - 1; ++i) {
+                debugFaces.push_back({
+                    h[i]->startVertexUv,
+                    h_x[(i + 1) % k]->startVertexUv,
+                    ring[i]->startVertexUv
+                });
+            }
+            exportObj("C:\\Users\\Jeremy\\Desktop\\test-uncollapse-after.obj", debugFaces);
+            exit(0);
         }
-        exportObj("C:\\Users\\Jeremy\\Desktop\\test-after-uncollapse.obj", debugFaces);
-        exit(0);
     }
-    */
 }
 
 bool Mesh::flip(HalfEdge *halfEdge)
@@ -821,7 +830,7 @@ bool Mesh::decimate()
             std::cerr << "Vertices reduced from:" << vertexCountBeforeDecimation << " to:" << m_vertexCount << std::endl;
         }
     }
-    std::cerr << "decimated vertices:" << (vertexCountBeforeDecimation - m_vertexCount) << std::endl;
+    std::cerr << "decimated vertices:" << (vertexCountBeforeDecimation - m_vertexCount) << " from:" << m_vertexCount << std::endl;
     return true;
 }
 

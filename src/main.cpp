@@ -21,6 +21,8 @@ static void help()
     exit(1);
 }
 
+int gDebugIndex = 0;
+
 bool saveObj(const char *filename,
     const std::vector<AutoRemesher::Vector3> &vertices,
     const std::vector<std::vector<size_t>> &faces)
@@ -110,6 +112,11 @@ int main(int argc, char *argv[])
                 if (i + 1 < argc) {
                     ++i;
                     gradientSize = atof(argv[i]);
+                }
+            } else if (0 == strcmp(argv[i], "-d")) {
+                if (i + 1 < argc) {
+                    ++i;
+                    gDebugIndex = atof(argv[i]);
                 }
             }
         } else {
