@@ -96,6 +96,8 @@ Mesh::~Mesh()
         freeFace(m_lastFace);
     while (nullptr != m_lastHalfEdge)
         freeHalfEdge(m_lastHalfEdge);
+    while (nullptr != m_lastDecimationLog)
+        freeDecimationLog(m_lastDecimationLog);
     while (nullptr != m_firstDeferedRemovalVertex) {
         auto vertex = m_firstDeferedRemovalVertex;
         m_firstDeferedRemovalVertex = vertex->_next;
@@ -179,6 +181,19 @@ void Mesh::freeHalfEdge(HalfEdge *halfEdge)
     delete halfEdge;
 }
 
+void Mesh::freeDecimationLog(DecimationLog *decimationLog)
+{
+    if (decimationLog == m_firstDecimationLog)
+        m_firstDecimationLog = decimationLog->_next;
+    if (decimationLog == m_lastDecimationLog)
+        m_lastDecimationLog = decimationLog->_previous;
+    if (nullptr != decimationLog->_next)
+        decimationLog->_next->_previous = decimationLog->_previous;
+    if (nullptr != decimationLog->_previous)
+        decimationLog->_previous->_next = decimationLog->_next;
+    delete decimationLog;
+}
+
 Vertex *Mesh::allocVertex()
 {
     Vertex *vertex = new Vertex;
@@ -217,6 +232,18 @@ HalfEdge *Mesh::allocHalfEdge()
     halfEdge->index = m_halfEdgeCount;
     ++m_halfEdgeCount;
     return halfEdge;
+}
+
+DecimationLog *Mesh::allocDecimationLog()
+{
+    DecimationLog *decimationLog = new DecimationLog;
+    decimationLog->_previous = m_lastDecimationLog;
+    if (nullptr != m_lastDecimationLog)
+        m_lastDecimationLog->_next = decimationLog;
+    else
+        m_firstDecimationLog = decimationLog;
+    m_lastDecimationLog = decimationLog;
+    return decimationLog;
 }
 
 const size_t &Mesh::vertexCount() const
@@ -419,23 +446,67 @@ bool Mesh::decimate(Vertex *vertex)
     Vector3 projectAxis = (shortestHalfEdge->nextHalfEdge->startVertex->position - vertex->position).normalized();
     std::vector<Vector2> ringPointsIn2d;
     Vector3::project(ringPoints, &ringPointsIn2d, projectNormal, projectAxis, origin);
- 
+    
+    DecimationLog *collapseLog = allocDecimationLog();
+    collapseLog->k = halfEdgesPointToTarget.size();
+    collapseLog->h = halfEdgesPointToTarget;
+    collapseLog->h_x.reserve(collapseLog->h.size());
+    collapseLog->ring.reserve(collapseLog->h.size());
+    for (size_t i = 0; i < collapseLog->h.size(); ++i) {
+        collapseLog->h_x.push_back(collapseLog->h[i]->oppositeHalfEdge);
+        collapseLog->ring.push_back(collapseLog->h[i]->previousHalfEdge);
+    }
+    {
+        size_t v2 = 0;
+        size_t i = 1;
+        Vector2 origin2d = {0.0, 0.0};
+        bool foundBaryCenter = false;
+        for (; i + 2 < ringPointsIn2d.size(); i += 2) {
+            size_t v1 = i;
+            size_t v3 = i + 1;
+            Vector2 uv = Vector2::barycentricCoordinates(ringPointsIn2d[v1], ringPointsIn2d[v2], ringPointsIn2d[v3], origin2d);
+            if (uv.x() >= 0.0 && uv.y() >= 0.0 && uv.x() + uv.y() < 1.0) {
+                collapseLog->alpha = uv.x();
+                collapseLog->beta = uv.y();
+                collapseLog->gamma = 1.0 - (uv.x() + uv.y());
+                collapseLog->alpha_i = v1;
+                collapseLog->beta_i = v2;
+                collapseLog->gamma_i = v3;
+                foundBaryCenter = true;
+                break;
+            }
+        }
+        if (!foundBaryCenter) {
+            freeDecimationLog(collapseLog);
+            return false;
+        }
+    }
     if (!collapse(vertex, halfEdgesPointToTarget))
         return false;
     vertex = nullptr;
     
-    size_t a = 0;
-    size_t i = 1;
-    for (; i + 2 < ringPointsIn2d.size(); i += 2) {
-        size_t b = i;
-        size_t c = i + 1;
-        size_t d = i + 2;
-
-        if (ringPointsIn2d[d].isInCircle(ringPointsIn2d[a], ringPointsIn2d[c], ringPointsIn2d[b])) {
-            const auto &hflip_x = halfEdgesPointToTarget[i + 1];
-            const auto &hflip = hflip_x->oppositeHalfEdge;
-            if (!flip(hflip))
-                return false;
+    {
+        size_t a = 0;
+        size_t i = 1;
+        for (; i + 2 < ringPointsIn2d.size(); i += 2) {
+            size_t b = i;
+            size_t c = i + 1;
+            size_t d = i + 2;
+            
+            if (ringPointsIn2d[d].isInCircle(ringPointsIn2d[a], ringPointsIn2d[c], ringPointsIn2d[b])) {
+                const auto &hflip_x = halfEdgesPointToTarget[i + 1];
+                const auto &hflip = hflip_x->oppositeHalfEdge;
+                DecimationLog *flipLog = allocDecimationLog();
+                flipLog->k = 0;
+                flipLog->hflip = hflip;
+                flipLog->hflip_x = hflip_x;
+                flipLog->ha = hflip->previousHalfEdge;
+                flipLog->hb = hflip_x->previousHalfEdge;
+                flipLog->hc = hflip->nextHalfEdge;
+                flipLog->hd = hflip_x->nextHalfEdge;
+                if (!flip(hflip))
+                    return false;
+            }
         }
     }
     
@@ -465,7 +536,7 @@ void Mesh::updateVertexRemovalCostToColor()
     }
 }
 
-void unFlip(HalfEdge *hflip, HalfEdge *hflip_x, 
+void Mesh::unFlip(HalfEdge *hflip, HalfEdge *hflip_x, 
         HalfEdge *ha, HalfEdge *hb, HalfEdge *hc, HalfEdge *hd)
 {
     // cf. <Interactively Controlled Quad Remeshing of High Resolution 3D Models> Figure 6
@@ -474,9 +545,9 @@ void unFlip(HalfEdge *hflip, HalfEdge *hflip_x,
     auto fjc = hflip_x->startVertexUv;
     auto fjflip_x = hb->startVertexUv;
     
-    auto fja = hflip->startVertexUv;
+    auto fja = hd->startVertexUv;
     auto fjd = hflip->startVertexUv;
-    auto fjflip = hd->startVertexUv;
+    auto fjflip = ha->startVertexUv;
     
     auto &fib = hflip_x->startVertexUv;
     auto &fiflip_x = hd->startVertexUv;
@@ -484,10 +555,10 @@ void unFlip(HalfEdge *hflip, HalfEdge *hflip_x,
     
     auto &fia = hflip->startVertexUv;
     auto &fiflip = hc->startVertexUv;
-    auto &fic = hflip->startVertexUv;
+    auto &fic = ha->startVertexUv;
 
     QEx::TransitionFunctionT<double> tjflip;
-    tjflip.estimate_from_point_pair<Vector2>(fjflip, fjc, fjd, fjflip_x);
+    tjflip.estimate_from_point_pair<Vector2>(fjd, fjflip_x, fjflip, fjc);
     
     QEx::TransitionFunctionT<double> tjflip_inverse;
     tjflip_inverse = tjflip.inverse();
@@ -499,43 +570,83 @@ void unFlip(HalfEdge *hflip, HalfEdge *hflip_x,
     tjflip.transform_vector(fia);
     
     fib = fjb;
-    tjflip_inverse.transform_vector(fjb);
+    tjflip_inverse.transform_vector(fib);
     
     fic = fjc;
     fid = fjd;
+    
+    //exportObj("C:\\Users\\Jeremy\\Desktop\\test-before-unflip.obj", std::vector<std::vector<Vector2>> {
+    //    {fjb, fjc, fjflip_x},
+    //    {fja, fjd, fjflip},
+    //});
+    //exportObj("C:\\Users\\Jeremy\\Desktop\\test-after-unflip.obj", std::vector<std::vector<Vector2>> {
+    //    {fib, fiflip_x, fid},
+    //    {fia, fiflip, fic}
+    //});
 }
 
-void Mesh::unCollapse(std::vector<HalfEdge *> h, std::vector<HalfEdge *> h_x,
-        std::vector<HalfEdge *> ring, 
+void Mesh::unCollapse(int k,
+        std::vector<HalfEdge *> &h, std::vector<HalfEdge *> &h_x,
+        std::vector<HalfEdge *> &ring, 
         double alpha, double beta, double gamma,
-        size_t alpha_index, size_t beta_index, size_t gamma_index)
+        int alpha_i, int beta_i, int gamma_i)
 {
     // cf. <Interactively Controlled Quad Remeshing of High Resolution 3D Models> Figure 7
     
-    auto k = ring.size();
+    /*
+    std::cerr << "k:" << k << std::endl;
+    std::cerr << "alpha:" << alpha << std::endl;
+    std::cerr << "beta:" << beta << std::endl;
+    std::cerr << "gamma:" << gamma << std::endl;
+    std::cerr << "alpha_i:" << alpha_i << std::endl;
+    std::cerr << "beta_i:" << beta_i << std::endl;
+    std::cerr << "gamma_i:" << gamma_i << std::endl;
     
-    auto &a = ring[0];
-    auto &b = ring[1];
-    auto &c = ring[k - 1];
-    
-    auto fja = h[0]->startVertexUv;
-    auto fjb = a->startVertexUv;
+    {
+        std::vector<std::vector<Vector2>> debugFaces;
+        debugFaces.push_back({
+            h_x[2]->startVertexUv,
+            ring[1]->startVertexUv,
+            ring[0]->startVertexUv
+        });
+        for (int i = 2; i < k - 2; ++i) {
+            debugFaces.push_back({
+                h[i]->startVertexUv,
+                h_x[i + 1]->startVertexUv,
+                ring[i]->startVertexUv
+            });
+        }
+        debugFaces.push_back({
+            h[k - 2]->startVertexUv,
+            ring[k - 1]->startVertexUv,
+            ring[k - 2]->startVertexUv
+        });
+        exportObj("C:\\Users\\Jeremy\\Desktop\\test-before-uncollapse.obj", debugFaces);
+    }
+    */
+
+    auto fja = ring[k - 1]->startVertexUv;
+    auto fjb = ring[0]->startVertexUv;
     auto fjc = ring[k - 2]->startVertexUv;
     
     std::vector<QEx::TransitionFunctionT<double>> tj_x(k, QEx::TransitionFunctionT<double>::IDENTITY);
-    for (size_t i = 2; i <= k - 2; ++i) {
-        // TODO:
+    for (int i = 2; i <= k - 2; ++i) {
+        tj_x[i].estimate_from_point_pair<Vector2>(
+            h_x[i]->startVertexUv, 
+            i + 1 <= k - 2 ? h_x[i + 1]->startVertexUv : ring[k - 1]->startVertexUv,
+            ring[i - 1]->startVertexUv, 
+            h[i]->startVertexUv);
     }
     
-    auto tj_l = [&](size_t j, size_t l) {
+    auto tj_l = [&](int j, int l) {
         QEx::TransitionFunctionT<double> t = QEx::TransitionFunctionT<double>::IDENTITY;
-        for (size_t i = j; i <= l; ++i) {
+        for (int i = j; i <= l; ++i) {
             t = t * tj_x[i];
         }
         return t;
     };
     
-    auto ti = [&](size_t i) {
+    auto ti = [&](int i) {
         if (0 == i) {
             return tj_l(2, k - 2);
         } else if (1 == i || k - 1 == i) {
@@ -544,9 +655,9 @@ void Mesh::unCollapse(std::vector<HalfEdge *> h, std::vector<HalfEdge *> h_x,
         return tj_x[i].inverse();
     };
     
-    auto ti_l = [&](size_t j, size_t l) {
+    auto ti_l = [&](int j, int l) {
         QEx::TransitionFunctionT<double> t = QEx::TransitionFunctionT<double>::IDENTITY;
-        for (size_t i = j; i <= l; ++i) {
+        for (int i = j; i <= l; ++i) {
             t = t * ti(i).inverse();
         }
         return t;
@@ -557,16 +668,31 @@ void Mesh::unCollapse(std::vector<HalfEdge *> h, std::vector<HalfEdge *> h_x,
         return uv;
     };
     
-    c->startVertexUv = transformed(ti(0), fja);
-    a->startVertexUv = fjb;
-    ring[k - 2]->startVertexUv = fjc;
-    
-    h_x[0]->startVertexUv = alpha * transformed(ti_l(0, alpha_index - 1).inverse(), ring[(alpha_index + k - 1) % k]->startVertexUv) +
-        beta * transformed(ti_l(0, beta_index - 1).inverse(), ring[(beta_index + k - 1) % k]->startVertexUv) +
-        gamma * transformed(ti_l(0, gamma_index - 1).inverse(), ring[(gamma_index + k - 1) % k]->startVertexUv);
-    for (size_t j = 0; j < k - 1; ++j) {
+    h[0]->startVertexUv = fja;
+    h[1]->startVertexUv = transformed(ti(1).inverse(), fjb);
+    h[k - 1]->startVertexUv = transformed(ti(k - 1).inverse(), fjc);
+
+    h_x[0]->startVertexUv = alpha * ring[(alpha_i + k - 1) % k]->startVertexUv +
+        beta * ring[(beta_i + k - 1) % k]->startVertexUv +
+        gamma * ring[(gamma_i + k - 1) % k]->startVertexUv;
+    for (int j = 0; j < k - 1; ++j) {
         h_x[j + 1]->startVertexUv = transformed(ti_l(0, j), h_x[0]->startVertexUv);
     }
+    
+    /*
+    {
+        std::vector<std::vector<Vector2>> debugFaces;
+        for (int i = 0; i <= k - 1; ++i) {
+            debugFaces.push_back({
+                h[i]->startVertexUv,
+                h_x[(i + 1) % k]->startVertexUv,
+                ring[i]->startVertexUv
+            });
+        }
+        exportObj("C:\\Users\\Jeremy\\Desktop\\test-after-uncollapse.obj", debugFaces);
+        exit(0);
+    }
+    */
 }
 
 bool Mesh::flip(HalfEdge *halfEdge)
@@ -710,8 +836,34 @@ bool Mesh::parametrize(double gradientSize)
 
 bool Mesh::coarseToFineMap()
 {
-    // QEx::TransitionFunctionT<double> transitionFlipI;
-    
+    size_t i = 0;
+    while (nullptr != m_lastDecimationLog) {
+        ++i;
+        auto &decimationLog = m_lastDecimationLog;
+        if (0 == decimationLog->k) {
+            std::cerr << "[" << i << "]:unFlip..." << std::endl;
+            unFlip(decimationLog->hflip, 
+                decimationLog->hflip_x, 
+                decimationLog->ha, 
+                decimationLog->hb, 
+                decimationLog->hc, 
+                decimationLog->hd);
+        } else {
+            std::cerr << "[" << i << "]:unCollapse..." << std::endl;
+            unCollapse(decimationLog->k,
+                decimationLog->h, 
+                decimationLog->h_x,
+                decimationLog->ring, 
+                decimationLog->alpha, 
+                decimationLog->beta, 
+                decimationLog->gamma,
+                decimationLog->alpha_i, 
+                decimationLog->beta_i, 
+                decimationLog->gamma_i);
+        }
+        freeDecimationLog(decimationLog);
+    }
+    std::cerr << "Coarse to fine map done" << std::endl;
     return true;
 }
 
@@ -721,14 +873,36 @@ void Mesh::exportObj(const char *filename, std::vector<Vector2> &face)
     for (size_t i = 0; i < face.size(); ++i) {
         fprintf(fp, "v %f %f %f\n", 
             face[i].x(), 
-            face[i].y(), 
-            0.0f);
+            0.0f, 
+            face[i].y());
     }
     fprintf(fp, "f");
     for (size_t i = 0; i < face.size(); ++i) {
         fprintf(fp, " %zu", 1 + i);
     }
     fprintf(fp, "\n");
+    fclose(fp);
+}
+
+void Mesh::exportObj(const char *filename, std::vector<std::vector<Vector2>> &faces)
+{
+    FILE *fp = fopen(filename, "wb");
+    for (const auto &face: faces) {
+        for (size_t i = 0; i < face.size(); ++i) {
+            fprintf(fp, "v %f %f %f\n", 
+                face[i].x(), 
+                0.0f,
+                face[i].y());
+        }
+    }
+    size_t vertexIndex = 0;
+    for (const auto &face: faces) {
+        fprintf(fp, "f");
+        for (size_t i = 0; i < face.size(); ++i) {
+            fprintf(fp, " %zu", 1 + (vertexIndex++));
+        }
+        fprintf(fp, "\n");
+    }
     fclose(fp);
 }
 

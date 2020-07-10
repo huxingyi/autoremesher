@@ -13,19 +13,6 @@ bool Remesher::remesh()
     AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles);
     mesh.updateVertexRemovalCostToColor();
     mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-removalcost.ply");
-    if (!mesh.decimate()) {
-        std::cerr << "Mesh decimate failed" << std::endl;
-        return false;
-    }
-    mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
-    if (!mesh.parametrize(m_gradientSize)) {
-        std::cerr << "Mesh parametrize failed" << std::endl;
-        return false;
-    }
-    if (!mesh.coarseToFineMap()) {
-        std::cerr << "Mesh coarseToFineMap failed" << std::endl;
-        return false;
-    }
     
     qex_TriMesh triMesh = {0};
     qex_QuadMesh quadMesh = {0};
@@ -47,6 +34,8 @@ bool Remesher::remesh()
         }};
     }
     
+    std::vector<HalfEdge::HalfEdge *> triangleHalfEdges;
+    triangleHalfEdges.reserve(triMesh.tri_count * 3);
     size_t faceNum = 0;
     for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
         HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
@@ -57,12 +46,36 @@ bool Remesher::remesh()
             (qex_Index)h1->startVertex->outputIndex, 
             (qex_Index)h2->startVertex->outputIndex
         }};
-        triMesh.uvTris[faceNum] = qex_UVTri {{
+        triangleHalfEdges.push_back(h0);
+        triangleHalfEdges.push_back(h1);
+        triangleHalfEdges.push_back(h2);
+        ++faceNum;
+    }
+    
+    if (!mesh.decimate()) {
+        std::cerr << "Mesh decimate failed" << std::endl;
+        return false;
+    }
+    mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
+    if (!mesh.parametrize(m_gradientSize)) {
+        std::cerr << "Mesh parametrize failed" << std::endl;
+        return false;
+    }
+    if (!mesh.coarseToFineMap()) {
+        std::cerr << "Mesh coarseToFineMap failed" << std::endl;
+        return false;
+    }
+    
+    faceNum = 0;
+    for (size_t i = 0; i < triangleHalfEdges.size(); ) {
+        auto &h0 = triangleHalfEdges[i++];
+        auto &h1 = triangleHalfEdges[i++];
+        auto &h2 = triangleHalfEdges[i++];
+        triMesh.uvTris[faceNum++] = qex_UVTri {{
             qex_Point2 {{h0->startVertexUv[0], h0->startVertexUv[1]}}, 
             qex_Point2 {{h1->startVertexUv[0], h1->startVertexUv[1]}}, 
             qex_Point2 {{h2->startVertexUv[0], h2->startVertexUv[1]}}
         }};
-        ++faceNum;
     }
 
     qex_extractQuadMesh(&triMesh, nullptr, &quadMesh);

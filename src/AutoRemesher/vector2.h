@@ -156,6 +156,17 @@ inline Vector2 operator-(const Vector2 &a, const Vector2 &b)
     return Vector2(a.x() - b.x(), a.y() - b.y());
 }
 
+inline std::string to_string(const Vector2 &v)
+{
+    return std::to_string(v.x()) + "," + std::to_string(v.y());
+}
+
+inline std::ostream &operator<<(std::ostream &os, const Vector2 &v)
+{
+    os << v.x() << ',' << v.y();
+    return os;
+}
+
 }
 
 #endif

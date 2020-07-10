@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <queue>
 #include <limits>
+#include <stack>
 #include <AutoRemesher/Vector3>
 #include <AutoRemesher/Vector2>
 
@@ -54,6 +55,33 @@ struct Face
     HalfEdge *anyHalfEdge = nullptr;
 };
 
+struct DecimationLog
+{
+    DecimationLog *_previous = nullptr;
+    DecimationLog *_next = nullptr;
+    
+    uint8_t k;
+    
+    // flip
+    HalfEdge *hflip;
+    HalfEdge *hflip_x;
+    HalfEdge *ha;
+    HalfEdge *hb;
+    HalfEdge *hc;
+    HalfEdge *hd;
+    
+    // collapse
+    std::vector<HalfEdge *> h;
+    std::vector<HalfEdge *> h_x;
+    std::vector<HalfEdge *> ring;
+    double alpha;
+    double beta;
+    double gamma;
+    uint8_t alpha_i;
+    uint8_t beta_i;
+    uint8_t gamma_i;
+};
+
 class Mesh
 {
 public:
@@ -63,10 +91,12 @@ public:
     Vertex *allocVertex();
     Face *allocFace();
     HalfEdge *allocHalfEdge();
+    DecimationLog *allocDecimationLog();
     void freeVertex(Vertex *vertex);
     void deferedFreeVertex(Vertex *vertex);
     void freeFace(Face *face);
     void freeHalfEdge(HalfEdge *halfEdge);
+    void freeDecimationLog(DecimationLog *decimationLog);
     void deferedFreeHalfEdge(HalfEdge *halfEdge);
     double calculateVertexCurvature(Vertex *vertex) const;
     double calculateVertexRemovalCost(Vertex *vertex) const;
@@ -74,10 +104,11 @@ public:
     bool flip(HalfEdge *halfEdge);
     void unFlip(HalfEdge *hflip, HalfEdge *hflip_x, 
         HalfEdge *ha, HalfEdge *hb, HalfEdge *hc, HalfEdge *hd);
-    void unCollapse(std::vector<HalfEdge *> h, std::vector<HalfEdge *> h_x,
-        std::vector<HalfEdge *> ring, 
+    void unCollapse(int k,
+        std::vector<HalfEdge *> &h, std::vector<HalfEdge *> &h_x,
+        std::vector<HalfEdge *> &ring, 
         double alpha, double beta, double gamma,
-        size_t alpha_index, size_t beta_index, size_t gamma_index);
+        int alpha_i, int beta_i, int gamma_i);
     Vector3 calculateVertexNormal(Vertex *vertex) const;
     HalfEdge *findShortestHalfEdgeAroundVertex(Vertex *vertex) const;
     std::vector<std::pair<Vertex *, Vertex *>> collectConesAroundVertexExclude(Vertex *vertex, Vertex *exclude) const;
@@ -96,6 +127,7 @@ public:
     void exportObj(const char *filename, std::vector<std::vector<Vertex *>> &faces);
     void exportObj(const char *filename, std::vector<Vertex *> &face);
     void exportObj(const char *filename, std::vector<Vector2> &face);
+    void exportObj(const char *filename, std::vector<std::vector<Vector2>> &faces);
     const size_t &vertexCount() const;
     const size_t &faceCount() const;
     Vertex *firstVertex() const;
@@ -117,6 +149,8 @@ private:
     size_t m_faceCount = 0;
     size_t m_halfEdgeCount = 0;
     size_t m_targetVertexCount = 1000;
+    DecimationLog *m_firstDecimationLog = nullptr;
+    DecimationLog *m_lastDecimationLog = nullptr;
     
     struct VertexRemovalCost
     {
