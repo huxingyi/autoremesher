@@ -78,7 +78,6 @@ struct DecimationLog
     double beta;
     double gamma;
     uint8_t alpha_i;
-    uint8_t beta_i;
     uint8_t gamma_i;
 };
 
@@ -108,7 +107,7 @@ public:
         std::vector<HalfEdge *> &h, std::vector<HalfEdge *> &h_x,
         std::vector<HalfEdge *> &ring, 
         double alpha, double beta, double gamma,
-        int alpha_i, int beta_i, int gamma_i);
+        int alpha_i, int gamma_i);
     Vector3 calculateVertexNormal(Vertex *vertex) const;
     HalfEdge *findShortestHalfEdgeAroundVertex(Vertex *vertex) const;
     std::vector<std::pair<Vertex *, Vertex *>> collectConesAroundVertexExclude(Vertex *vertex, Vertex *exclude) const;

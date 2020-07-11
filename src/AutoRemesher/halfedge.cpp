@@ -441,14 +441,15 @@ bool Mesh::decimate(Vertex *vertex)
     if (halfEdgesPointToTarget.size() < 4)
         return false;
     
-    Vector3 origin = vertex->position;
     Vector3 projectNormal = calculateVertexNormal(vertex);
-    Vector3 projectAxis = (shortestHalfEdge->nextHalfEdge->startVertex->position - vertex->position).normalized();
+    Vector3 projectAxis = (ringPoints[0] - vertex->position).normalized();
     std::vector<Vector2> ringPointsIn2d;
-    Vector3::project(ringPoints, &ringPointsIn2d, projectNormal, projectAxis, origin);
+    Vector3::project(ringPoints, &ringPointsIn2d, projectNormal, projectAxis, vertex->position);
+    
+    auto k = halfEdgesPointToTarget.size();
     
     DecimationLog *collapseLog = allocDecimationLog();
-    collapseLog->k = halfEdgesPointToTarget.size();
+    collapseLog->k = k;
     collapseLog->h = halfEdgesPointToTarget;
     collapseLog->h_x.reserve(collapseLog->h.size());
     collapseLog->ring.reserve(collapseLog->h.size());
@@ -458,28 +459,26 @@ bool Mesh::decimate(Vertex *vertex)
     }
     {
         size_t v2 = 0;
-        size_t i = 1;
-        Vector2 origin2d = {0.0, 0.0};
+        const Vector2 origin2d = Vector2(0.0, 0.0);
         bool foundBaryCenter = false;
-        for (; i + 2 < ringPointsIn2d.size(); i += 2) {
+        for (size_t i = 2; i + 2 < k; ++i) {
             size_t v1 = i;
             size_t v3 = i + 1;
-            Vector2 uv = Vector2::barycentricCoordinates(ringPointsIn2d[v1], ringPointsIn2d[v2], ringPointsIn2d[v3], origin2d);
-            std::cerr << "barycenteric i:" << i << "/" << ringPointsIn2d.size() << " uv:" << uv << std::endl;
-            if (uv.x() > 0.01 && uv.y() > 0.01 && uv.x() + uv.y() + 0.01 < 1.0) {
-                std::cerr << "CHOOSE" << std::endl;
+            if (origin2d.isOnLeft(ringPointsIn2d[v2], ringPointsIn2d[v3]) != origin2d.isOnLeft(ringPointsIn2d[v2], ringPointsIn2d[v1])) {
+                std::cerr << "origin is on left v2:" << ringPointsIn2d[v2] << " v3:" << ringPointsIn2d[v3] << std::endl;
+                Vector2 uv = Vector2::barycentricCoordinates(ringPointsIn2d[v1], ringPointsIn2d[v2], ringPointsIn2d[v3], origin2d);
                 collapseLog->alpha = uv.x();
                 collapseLog->beta = uv.y();
                 collapseLog->gamma = 1.0 - (uv.x() + uv.y());
                 collapseLog->alpha_i = v1;
-                collapseLog->beta_i = v2;
                 collapseLog->gamma_i = v3;
+                //std::cerr << "barycenteric i:" << i << "/" << ringPointsIn2d.size() << " alpha:" << collapseLog->alpha << " beta:" << collapseLog->beta << " gamma:" << collapseLog->gamma << std::endl;
                 foundBaryCenter = true;
                 break;
             }
-            std::cerr << "ignore" << std::endl;
         }
         if (!foundBaryCenter) {
+            std::cerr << "No barycenteric coordinates found" << std::endl;
             freeDecimationLog(collapseLog);
             return false;
         }
@@ -491,7 +490,7 @@ bool Mesh::decimate(Vertex *vertex)
     {
         size_t a = 0;
         size_t i = 1;
-        for (; i + 2 < ringPointsIn2d.size(); i += 2) {
+        for (; i + 2 < k; i += 2) {
             size_t b = i;
             size_t c = i + 1;
             size_t d = i + 2;
@@ -539,6 +538,12 @@ void Mesh::updateVertexRemovalCostToColor()
     }
 }
 
+static inline Vector2 transformedPoint(const QEx::TransitionFunctionT<double> &t, Vector2 uv) 
+{
+    t.transform_point(uv);
+    return uv;
+}
+
 void Mesh::unFlip(HalfEdge *hflip, HalfEdge *hflip_x, 
         HalfEdge *ha, HalfEdge *hb, HalfEdge *hc, HalfEdge *hd)
 {
@@ -553,27 +558,22 @@ void Mesh::unFlip(HalfEdge *hflip, HalfEdge *hflip_x,
     auto fjflip = ha->startVertexUv;
     
     auto &fib = hflip_x->startVertexUv;
-    auto &fiflip_x = hd->startVertexUv;
+    //auto &fiflip_x = hd->startVertexUv;
     auto &fid = hb->startVertexUv;
     
     auto &fia = hflip->startVertexUv;
-    auto &fiflip = hc->startVertexUv;
+    //auto &fiflip = hc->startVertexUv;
     auto &fic = ha->startVertexUv;
 
     QEx::TransitionFunctionT<double> tjflip;
     tjflip.estimate_from_point_pair<Vector2>(fjd, fjflip_x, fjflip, fjc);
     
-    QEx::TransitionFunctionT<double> tjflip_inverse;
-    tjflip_inverse = tjflip.inverse();
+    //fiflip = fjb;
+    //fiflip_x = fja;
     
-    fiflip = fjb;
-    fiflip_x = fja;
+    fia = transformedPoint(tjflip, fja);
     
-    fia = fja;
-    tjflip.transform_vector(fia);
-    
-    fib = fjb;
-    tjflip_inverse.transform_vector(fib);
+    fib = transformedPoint(tjflip.inverse(), fjb);
     
     fic = fjc;
     fid = fjd;
@@ -594,7 +594,7 @@ void Mesh::unCollapse(int k,
         std::vector<HalfEdge *> &h, std::vector<HalfEdge *> &h_x,
         std::vector<HalfEdge *> &ring, 
         double alpha, double beta, double gamma,
-        int alpha_i, int beta_i, int gamma_i)
+        int alpha_i, int gamma_i)
 {
     static int s_count = 0;
     ++s_count;
@@ -602,13 +602,22 @@ void Mesh::unCollapse(int k,
         
     // cf. <Interactively Controlled Quad Remeshing of High Resolution 3D Models> Figure 7
     
+    if (-1 == gDebugIndex) {
+        for (int i = 2; i < k - 2; ++i) {
+            int j = i + 1;
+            if (h_x[i]->startVertexUv != h_x[j]->startVertexUv) {
+                std::cerr << "Good debug index:" << s_count << std::endl;
+                exit(0);
+            }
+        }
+    }
+    
     if (gDebugIndex == s_count) {
         std::cerr << "k:" << k << std::endl;
         std::cerr << "alpha:" << alpha << std::endl;
         std::cerr << "beta:" << beta << std::endl;
         std::cerr << "gamma:" << gamma << std::endl;
         std::cerr << "alpha_i:" << alpha_i << std::endl;
-        std::cerr << "beta_i:" << beta_i << std::endl;
         std::cerr << "gamma_i:" << gamma_i << std::endl;
         
         {
@@ -633,10 +642,6 @@ void Mesh::unCollapse(int k,
             exportObj("C:\\Users\\Jeremy\\Desktop\\test-uncollapse-before.obj", debugFaces);
         }
     }
-
-    auto fja = ring[k - 1]->startVertexUv;
-    auto fjb = ring[0]->startVertexUv;
-    auto fjc = ring[k - 2]->startVertexUv;
     
     std::vector<QEx::TransitionFunctionT<double>> tj_x(k, QEx::TransitionFunctionT<double>::IDENTITY);
     for (int i = 2; i <= k - 2; ++i) {
@@ -645,6 +650,9 @@ void Mesh::unCollapse(int k,
             i + 1 <= k - 2 ? h_x[i + 1]->startVertexUv : ring[k - 1]->startVertexUv,
             ring[i - 1]->startVertexUv, 
             h[i]->startVertexUv);
+        if (gDebugIndex == s_count) {
+            std::cerr << "tj_x[" << i << "]:" << tj_x[i] << std::endl;
+        }
     }
     
     auto tj_l = [&](int j, int l) {
@@ -655,38 +663,39 @@ void Mesh::unCollapse(int k,
         return t;
     };
     
-    auto ti = [&](int i) {
-        if (0 == i) {
-            return tj_l(2, k - 2);
-        } else if (1 == i || k - 1 == i) {
-            return QEx::TransitionFunctionT<double>::IDENTITY;
+    auto unCollapsedVertexUv = alpha * h[alpha_i]->startVertexUv +
+        beta * h_x[gamma_i]->startVertexUv +
+        gamma * ring[(gamma_i + k - 1) % k]->startVertexUv;
+        
+    h_x[gamma_i]->startVertexUv = unCollapsedVertexUv;
+    std::cerr << "h_x[" << gamma_i << "]=" << h_x[gamma_i]->startVertexUv << std::endl;
+    {
+        QEx::TransitionFunctionT<double> accumulatedTransition = QEx::TransitionFunctionT<double>::IDENTITY;
+        for (int i = gamma_i; i <= k - 2; ++i) {
+            accumulatedTransition = accumulatedTransition * tj_x[i];
+            h_x[i + 1]->startVertexUv = transformedPoint(accumulatedTransition, unCollapsedVertexUv);
+            std::cerr << "h_x[" << (i + 1) << "]=" << h_x[i + 1]->startVertexUv << " t:" << accumulatedTransition << " o:" << unCollapsedVertexUv << std::endl;
         }
-        return tj_x[i].inverse();
-    };
-    
-    auto ti_l = [&](int j, int l) {
-        QEx::TransitionFunctionT<double> t = QEx::TransitionFunctionT<double>::IDENTITY;
-        for (int i = j; i <= l; ++i) {
-            t = t * ti(i).inverse();
-        }
-        return t;
-    };
-    
-    auto transformed = [](const QEx::TransitionFunctionT<double> &t, Vector2 uv) {
-        t.transform_vector(uv);
-        return uv;
-    };
-    
-    h[0]->startVertexUv = fja;
-    h[1]->startVertexUv = fjb; //transformed(ti(1).inverse(), fjb);
-    h[k - 1]->startVertexUv = fjc; //transformed(ti(k - 1).inverse(), fjc);
-
-    h_x[0]->startVertexUv = alpha * transformed(ti_l(0, alpha_i - 1), ring[(alpha_i + k - 1) % k]->startVertexUv) +
-        beta * transformed(ti_l(0, beta_i - 1), ring[(beta_i + k - 1) % k]->startVertexUv) +
-        gamma * transformed(ti_l(0, gamma_i - 1), ring[(gamma_i + k - 1) % k]->startVertexUv);
-    for (int j = 0; j < k - 1; ++j) {
-        h_x[j + 1]->startVertexUv = transformed(ti_l(0, j), h_x[0]->startVertexUv);
     }
+    {
+        QEx::TransitionFunctionT<double> accumulatedTransition = QEx::TransitionFunctionT<double>::IDENTITY;
+        for (int i = gamma_i - 1; i >= 2; --i) {
+            accumulatedTransition = accumulatedTransition * tj_x[i].inverse();
+            h_x[i]->startVertexUv = transformedPoint(accumulatedTransition, unCollapsedVertexUv);
+            std::cerr << "h_x[" << (i) << "]=" << h_x[i]->startVertexUv << " t:" << accumulatedTransition << " o:" << unCollapsedVertexUv << std::endl;
+        }
+    }
+    h_x[0]->startVertexUv = h_x[k - 1]->startVertexUv;
+    std::cerr << "h_x[" << 0 << "]=" << h_x[0]->startVertexUv << std::endl;
+    h_x[1]->startVertexUv = h_x[2]->startVertexUv;
+    std::cerr << "h_x[" << 1 << "]=" << h_x[1]->startVertexUv << std::endl;
+    
+    h[0]->startVertexUv = transformedPoint(tj_l(2, k - 1).inverse(), ring[k - 1]->startVertexUv);
+    std::cerr << "h[" << 0 << "]=" << h[0]->startVertexUv << std::endl;
+    h[k - 1]->startVertexUv = ring[k - 2]->startVertexUv;
+    std::cerr << "h[" << (k - 1) << "]=" << h[k - 1]->startVertexUv << std::endl;
+    h[1]->startVertexUv = ring[0]->startVertexUv;
+    std::cerr << "h[" << 1 << "]=" << h[1]->startVertexUv << std::endl;
     
     {
         if (gDebugIndex == s_count) {
@@ -867,7 +876,6 @@ bool Mesh::coarseToFineMap()
                 decimationLog->beta, 
                 decimationLog->gamma,
                 decimationLog->alpha_i, 
-                decimationLog->beta_i, 
                 decimationLog->gamma_i);
         }
         freeDecimationLog(decimationLog);

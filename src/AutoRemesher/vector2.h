@@ -108,6 +108,11 @@ public:
         return m.determinant() > 0;
     }
     
+    inline bool isOnLeft(const Vector2 &a, const Vector2 &b) const
+    {
+        return ((b.x() - a.x()) * (y() - a.y()) - (b.y() - a.y()) * (x() - a.x())) > 0;
+    }
+    
     inline static double dotProduct(const Vector2 &a, const Vector2 &b)
     {
         return a.x() * b.x() + a.y() * b.y();
@@ -165,6 +170,18 @@ inline std::ostream &operator<<(std::ostream &os, const Vector2 &v)
 {
     os << v.x() << ',' << v.y();
     return os;
+}
+
+inline bool operator==(const Vector2 &a, const Vector2 &b)
+{
+    return Double::isEqual(a.x(), b.x()) &&
+        Double::isEqual(a.y(), b.y());
+}
+
+inline bool operator!=(const Vector2 &a, const Vector2 &b)
+{
+    return !Double::isEqual(a.x(), b.x()) ||
+        !Double::isEqual(a.y(), b.y());
 }
 
 }
