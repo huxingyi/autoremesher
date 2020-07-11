@@ -12,7 +12,7 @@ namespace AutoRemesher
 namespace HalfEdge
 {
     
-typedef QEx::TransitionFunctionInt Transition;
+typedef QEx::TransitionFunctionDouble Transition;
     
 inline void makeLinkedHalfEdges(HalfEdge *previous, HalfEdge *next) 
 {
@@ -443,12 +443,47 @@ bool Mesh::decimate(Vertex *vertex)
     if (halfEdgesPointToTarget.size() < 4)
         return false;
     
+    auto k = halfEdgesPointToTarget.size();
+    
     Vector3 projectNormal = calculateVertexNormal(vertex);
-    Vector3 projectAxis = (ringPoints[0] - vertex->position).normalized();
+    Vector3 projectAxis = (ringPoints[k / 2] - vertex->position).normalized();
     std::vector<Vector2> ringPointsIn2d;
     Vector3::project(ringPoints, &ringPointsIn2d, projectNormal, projectAxis, vertex->position);
     
-    auto k = halfEdgesPointToTarget.size();
+    const Vector2 origin2d = Vector2(0.0, 0.0);
+    int alphaIndex = -1;
+    for (size_t i = 1; i <= k - 2; ++i) {
+        if (origin2d.isOnLeft(ringPointsIn2d[0], ringPointsIn2d[i]) != 
+                origin2d.isOnLeft(ringPointsIn2d[0], ringPointsIn2d[i + 1])) {
+            alphaIndex = i;
+            break;
+        }
+    }
+    if (-1 == alphaIndex) {
+        std::cerr << "No barycentricCoordinates found" << std::endl;
+        /*
+        {
+            std::vector<std::vector<Vector2>> debugFaces;
+            for (size_t i = 0; i < ringPointsIn2d.size(); ++i) {
+                debugFaces.push_back({
+                    ringPointsIn2d[i], origin2d, ringPointsIn2d[(i + 1) % ringPointsIn2d.size()]
+                });
+            }
+            exportObj("C:\\Users\\Jeremy\\Desktop\\test-debug-1.obj", debugFaces);
+        }
+        {
+            std::vector<std::vector<Vector2>> debugFaces;
+            for (size_t i = 2; i < ringPointsIn2d.size(); ++i) {
+                debugFaces.push_back({
+                    ringPointsIn2d[i - 1], ringPointsIn2d[0], ringPointsIn2d[i]
+                });
+            }
+            exportObj("C:\\Users\\Jeremy\\Desktop\\test-debug-2.obj", debugFaces);
+        }
+        exit(0);
+        */
+        return false;
+    }
     
     DecimationLog *collapseLog = allocDecimationLog();
     collapseLog->k = k;
@@ -459,32 +494,15 @@ bool Mesh::decimate(Vertex *vertex)
         collapseLog->h_x.push_back(collapseLog->h[i]->oppositeHalfEdge);
         collapseLog->ring.push_back(collapseLog->h[i]->previousHalfEdge);
     }
-    {
-        size_t v2 = 0;
-        const Vector2 origin2d = Vector2(0.0, 0.0);
-        bool foundBaryCenter = false;
-        for (size_t i = 2; i + 2 < k; ++i) {
-            size_t v1 = i;
-            size_t v3 = i + 1;
-            if (origin2d.isOnLeft(ringPointsIn2d[v2], ringPointsIn2d[v3]) != origin2d.isOnLeft(ringPointsIn2d[v2], ringPointsIn2d[v1])) {
-                //std::cerr << "origin is on left v2:" << ringPointsIn2d[v2] << " v3:" << ringPointsIn2d[v3] << std::endl;
-                Vector2 uv = Vector2::barycentricCoordinates(ringPointsIn2d[v1], ringPointsIn2d[v2], ringPointsIn2d[v3], origin2d);
-                collapseLog->alpha = uv.x();
-                collapseLog->beta = uv.y();
-                collapseLog->gamma = 1.0 - (uv.x() + uv.y());
-                collapseLog->alpha_i = v1;
-                collapseLog->gamma_i = v3;
-                //std::cerr << "barycenteric i:" << i << "/" << ringPointsIn2d.size() << " alpha:" << collapseLog->alpha << " beta:" << collapseLog->beta << " gamma:" << collapseLog->gamma << std::endl;
-                foundBaryCenter = true;
-                break;
-            }
-        }
-        if (!foundBaryCenter) {
-            //std::cerr << "No barycenteric coordinates found" << std::endl;
-            freeDecimationLog(collapseLog);
-            return false;
-        }
-    }
+    Vector2 uv = Vector2::barycentricCoordinates(ringPointsIn2d[alphaIndex], ringPointsIn2d[0], ringPointsIn2d[alphaIndex + 1], origin2d);
+    collapseLog->alpha = uv.x();
+    collapseLog->beta = uv.y();
+    collapseLog->gamma = 1.0 - (uv.x() + uv.y());
+    collapseLog->alpha_i = alphaIndex;
+    collapseLog->gamma_i = alphaIndex + 1;
+    
+    //std::cerr << "uv:" << uv << " alpha:" << alphaIndex << " k:" << k << std::endl;
+
     if (!collapse(vertex, halfEdgesPointToTarget))
         return false;
     vertex = nullptr;
@@ -605,6 +623,10 @@ void Mesh::unCollapse(int k,
     // cf. <Interactively Controlled Quad Remeshing of High Resolution 3D Models> Figure 7
     double averageEdgeLengthBefore = 0.0;
     if (-1 == gDebugIndex) {
+        if (4 == k) {
+            std::cerr << "Good debug index:" << s_count << std::endl;
+            exit(0);
+        }
         double edgeCount = 0;
         for (int i = 2; i < k - 2; ++i) {
             //int j = i + 1;
@@ -661,48 +683,63 @@ void Mesh::unCollapse(int k,
         }
     }
     
-    //auto tj_l = [&](int j, int l) {
-    //    Transition t = Transition::IDENTITY;
-    //    for (int i = j; i <= l; ++i) {
-    //        t = t * tj_x[i];
-    //    }
-    //    return t;
-    //};
+    std::cerr << "alpha_i:" << alpha_i << " k:" << k << std::endl;
+    Vector2 unCollapsedVertexUv;
+    if (alpha_i < 2) {
+        unCollapsedVertexUv = alpha * ring[alpha_i - 1]->startVertexUv +
+            beta * h_x[2]->startVertexUv +
+            gamma * ring[alpha_i]->startVertexUv;
+        h_x[2]->startVertexUv = unCollapsedVertexUv;
+        std::cerr << "h_x[" << 2 << "]:" << h_x[2]->startVertexUv << std::endl;
+        {
+            auto uv = unCollapsedVertexUv;
+            for (int i = 2; i <= k - 2; ++i) {
+                uv = transformedPoint(tj_x[i], uv);
+                h_x[i + 1]->startVertexUv = uv;
+                std::cerr << "h_x[" << (i + 1) << "]:" << h_x[i + 1]->startVertexUv << std::endl;
+            }
+        }
+    } else if (alpha_i >= k - 2) {
+        unCollapsedVertexUv = alpha * h[alpha_i]->startVertexUv +
+            beta * ring[k - 1]->startVertexUv +
+            gamma * ring[k - 2]->startVertexUv;
+        h_x[k - 1]->startVertexUv = unCollapsedVertexUv;
+        std::cerr << "unCollapsedVertexUv:" << unCollapsedVertexUv << std::endl;
+        {
+            auto uv = unCollapsedVertexUv;
+            for (int i = k - 2; i >= 2; --i) {
+                uv = transformedPoint(tj_x[i].inverse(), uv);
+                h_x[i]->startVertexUv = uv;
+                std::cerr << "h_x[" << i << "]:" << h_x[i]->startVertexUv << std::endl;
+            }
+        }
+    } else {
+        unCollapsedVertexUv = alpha * h[alpha_i]->startVertexUv +
+            beta * h_x[gamma_i]->startVertexUv +
+            gamma * ring[alpha_i]->startVertexUv;
+        h_x[gamma_i]->startVertexUv = unCollapsedVertexUv;
+        std::cerr << "h_x[" << gamma_i << "]:" << h_x[gamma_i]->startVertexUv << std::endl;
+        {
+            auto uv = unCollapsedVertexUv;
+            for (int i = gamma_i; i <= k - 2; ++i) {
+                uv = transformedPoint(tj_x[i], uv);
+                h_x[i + 1]->startVertexUv = uv;
+                std::cerr << "h_x[" << (i + 1) << "]:" << h_x[i + 1]->startVertexUv << std::endl;
+            }
+        }
+        {
+            auto uv = unCollapsedVertexUv;
+            for (int i = gamma_i - 1; i >= 2; --i) {
+                uv = transformedPoint(tj_x[i].inverse(), uv);
+                h_x[i]->startVertexUv = uv;
+                std::cerr << "h_x[" << i << "]:" << h_x[i]->startVertexUv << std::endl;
+            }
+        }
+    }
     
-    auto unCollapsedVertexUv = alpha * h[alpha_i]->startVertexUv +
-        beta * h_x[gamma_i]->startVertexUv +
-        gamma * ring[(gamma_i + k - 1) % k]->startVertexUv;
-        
-    h_x[gamma_i]->startVertexUv = unCollapsedVertexUv;
-    //std::cerr << "h_x[" << gamma_i << "]=" << h_x[gamma_i]->startVertexUv << std::endl;
-    {
-        //Transition accumulatedTransition = Transition::IDENTITY;
-        auto uv = unCollapsedVertexUv;
-        for (int i = gamma_i; i <= k - 2; ++i) {
-            //accumulatedTransition = accumulatedTransition * tj_x[i];
-            //h_x[i + 1]->startVertexUv = transformedPoint(accumulatedTransition, unCollapsedVertexUv);
-            uv = transformedPoint(tj_x[i], uv);
-            h_x[i + 1]->startVertexUv = uv;
-            //std::cerr << "h_x[" << (i + 1) << "]=" << h_x[i + 1]->startVertexUv << " t:" << accumulatedTransition << " o:" << unCollapsedVertexUv << std::endl;
-        }
-    }
-    {
-        //Transition accumulatedTransition = Transition::IDENTITY;
-        auto uv = unCollapsedVertexUv;
-        for (int i = gamma_i - 1; i >= 2; --i) {
-            //accumulatedTransition = accumulatedTransition * tj_x[i].inverse();
-            //h_x[i]->startVertexUv = transformedPoint(accumulatedTransition, unCollapsedVertexUv);
-            h_x[i]->startVertexUv = transformedPoint(tj_x[i].inverse(), uv);
-            uv = h_x[i]->startVertexUv;
-            //std::cerr << "h_x[" << (i) << "]=" << h_x[i]->startVertexUv << " t:" << accumulatedTransition << " o:" << unCollapsedVertexUv << std::endl;
-        }
-    }
     h_x[0]->startVertexUv = h_x[k - 1]->startVertexUv;
-    //std::cerr << "h_x[" << 0 << "]=" << h_x[0]->startVertexUv << std::endl;
     h_x[1]->startVertexUv = h_x[2]->startVertexUv;
-    //std::cerr << "h_x[" << 1 << "]=" << h_x[1]->startVertexUv << std::endl;
     
-    //h[0]->startVertexUv = transformedPoint(tj_l(2, k - 1).inverse(), ring[k - 1]->startVertexUv);
     {
         auto uv = ring[k - 1]->startVertexUv;
         for (int i = k - 2; i >= 2; --i) {
@@ -710,11 +747,8 @@ void Mesh::unCollapse(int k,
         }
         h[0]->startVertexUv = uv;
     }
-    //std::cerr << "h[" << 0 << "]=" << h[0]->startVertexUv << std::endl;
     h[k - 1]->startVertexUv = ring[k - 2]->startVertexUv;
-    //std::cerr << "h[" << (k - 1) << "]=" << h[k - 1]->startVertexUv << std::endl;
     h[1]->startVertexUv = ring[0]->startVertexUv;
-    //std::cerr << "h[" << 1 << "]=" << h[1]->startVertexUv << std::endl;
     
     double averageEdgeLengthAfter = 0.0;
     if (-1 == gDebugIndex) {
@@ -869,8 +903,8 @@ bool Mesh::decimate()
         }
         m_vertexRemovalCostPriorityQueue.pop();
         if (decimate(vertex)) {
-            std::cerr << "Vertex " << vertex->index << " decimated" << std::endl;
-            std::cerr << "Vertices reduced from:" << vertexCountBeforeDecimation << " to:" << m_vertexCount << std::endl;
+            //std::cerr << "Vertex " << vertex->index << " decimated" << std::endl;
+            //std::cerr << "Vertices reduced from:" << vertexCountBeforeDecimation << " to:" << m_vertexCount << std::endl;
         }
     }
     std::cerr << "decimated vertices:" << (vertexCountBeforeDecimation - m_vertexCount) << " from:" << m_vertexCount << std::endl;
