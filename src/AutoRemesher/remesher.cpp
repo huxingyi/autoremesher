@@ -11,7 +11,7 @@ namespace AutoRemesher
 bool Remesher::remesh()
 {
     AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles);
-    mesh.setTargetVertexCount(mesh.vertexCount() - 200); //mesh.vertexCount() - 100);
+    mesh.setTargetVertexCount(1000); //mesh.vertexCount() - 300); //mesh.vertexCount() - 100);
     mesh.updateVertexRemovalCostToColor();
     //mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-removalcost.ply");
     

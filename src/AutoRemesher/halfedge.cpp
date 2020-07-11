@@ -12,6 +12,8 @@ namespace AutoRemesher
 namespace HalfEdge
 {
     
+typedef QEx::TransitionFunctionInt Transition;
+    
 inline void makeLinkedHalfEdges(HalfEdge *previous, HalfEdge *next) 
 {
     previous->nextHalfEdge = next;
@@ -465,7 +467,7 @@ bool Mesh::decimate(Vertex *vertex)
             size_t v1 = i;
             size_t v3 = i + 1;
             if (origin2d.isOnLeft(ringPointsIn2d[v2], ringPointsIn2d[v3]) != origin2d.isOnLeft(ringPointsIn2d[v2], ringPointsIn2d[v1])) {
-                std::cerr << "origin is on left v2:" << ringPointsIn2d[v2] << " v3:" << ringPointsIn2d[v3] << std::endl;
+                //std::cerr << "origin is on left v2:" << ringPointsIn2d[v2] << " v3:" << ringPointsIn2d[v3] << std::endl;
                 Vector2 uv = Vector2::barycentricCoordinates(ringPointsIn2d[v1], ringPointsIn2d[v2], ringPointsIn2d[v3], origin2d);
                 collapseLog->alpha = uv.x();
                 collapseLog->beta = uv.y();
@@ -478,7 +480,7 @@ bool Mesh::decimate(Vertex *vertex)
             }
         }
         if (!foundBaryCenter) {
-            std::cerr << "No barycenteric coordinates found" << std::endl;
+            //std::cerr << "No barycenteric coordinates found" << std::endl;
             freeDecimationLog(collapseLog);
             return false;
         }
@@ -538,7 +540,7 @@ void Mesh::updateVertexRemovalCostToColor()
     }
 }
 
-static inline Vector2 transformedPoint(const QEx::TransitionFunctionT<double> &t, Vector2 uv) 
+static inline Vector2 transformedPoint(const Transition &t, Vector2 uv) 
 {
     t.transform_point(uv);
     return uv;
@@ -565,7 +567,7 @@ void Mesh::unFlip(HalfEdge *hflip, HalfEdge *hflip_x,
     //auto &fiflip = hc->startVertexUv;
     auto &fic = ha->startVertexUv;
 
-    QEx::TransitionFunctionT<double> tjflip;
+    Transition tjflip;
     tjflip.estimate_from_point_pair<Vector2>(fjd, fjflip_x, fjflip, fjc);
     
     //fiflip = fjb;
@@ -601,15 +603,19 @@ void Mesh::unCollapse(int k,
     extern int gDebugIndex;
         
     // cf. <Interactively Controlled Quad Remeshing of High Resolution 3D Models> Figure 7
-    
+    double averageEdgeLengthBefore = 0.0;
     if (-1 == gDebugIndex) {
+        double edgeCount = 0;
         for (int i = 2; i < k - 2; ++i) {
-            int j = i + 1;
-            if (h_x[i]->startVertexUv != h_x[j]->startVertexUv) {
-                std::cerr << "Good debug index:" << s_count << std::endl;
-                exit(0);
-            }
+            //int j = i + 1;
+            //if (h_x[i]->startVertexUv != h_x[j]->startVertexUv) {
+            //    std::cerr << "Good debug index:" << s_count << std::endl;
+            //    exit(0);
+            //}
+            averageEdgeLengthBefore += (h_x[i]->startVertexUv - ring[i - 1]->startVertexUv).length();
+            ++edgeCount;
         }
+        averageEdgeLengthBefore /= edgeCount;
     }
     
     if (gDebugIndex == s_count) {
@@ -643,7 +649,7 @@ void Mesh::unCollapse(int k,
         }
     }
     
-    std::vector<QEx::TransitionFunctionT<double>> tj_x(k, QEx::TransitionFunctionT<double>::IDENTITY);
+    std::vector<Transition> tj_x(k, Transition::IDENTITY);
     for (int i = 2; i <= k - 2; ++i) {
         tj_x[i].estimate_from_point_pair<Vector2>(
             h_x[i]->startVertexUv, 
@@ -655,47 +661,75 @@ void Mesh::unCollapse(int k,
         }
     }
     
-    auto tj_l = [&](int j, int l) {
-        QEx::TransitionFunctionT<double> t = QEx::TransitionFunctionT<double>::IDENTITY;
-        for (int i = j; i <= l; ++i) {
-            t = t * tj_x[i];
-        }
-        return t;
-    };
+    //auto tj_l = [&](int j, int l) {
+    //    Transition t = Transition::IDENTITY;
+    //    for (int i = j; i <= l; ++i) {
+    //        t = t * tj_x[i];
+    //    }
+    //    return t;
+    //};
     
     auto unCollapsedVertexUv = alpha * h[alpha_i]->startVertexUv +
         beta * h_x[gamma_i]->startVertexUv +
         gamma * ring[(gamma_i + k - 1) % k]->startVertexUv;
         
     h_x[gamma_i]->startVertexUv = unCollapsedVertexUv;
-    std::cerr << "h_x[" << gamma_i << "]=" << h_x[gamma_i]->startVertexUv << std::endl;
+    //std::cerr << "h_x[" << gamma_i << "]=" << h_x[gamma_i]->startVertexUv << std::endl;
     {
-        QEx::TransitionFunctionT<double> accumulatedTransition = QEx::TransitionFunctionT<double>::IDENTITY;
+        //Transition accumulatedTransition = Transition::IDENTITY;
+        auto uv = unCollapsedVertexUv;
         for (int i = gamma_i; i <= k - 2; ++i) {
-            accumulatedTransition = accumulatedTransition * tj_x[i];
-            h_x[i + 1]->startVertexUv = transformedPoint(accumulatedTransition, unCollapsedVertexUv);
-            std::cerr << "h_x[" << (i + 1) << "]=" << h_x[i + 1]->startVertexUv << " t:" << accumulatedTransition << " o:" << unCollapsedVertexUv << std::endl;
+            //accumulatedTransition = accumulatedTransition * tj_x[i];
+            //h_x[i + 1]->startVertexUv = transformedPoint(accumulatedTransition, unCollapsedVertexUv);
+            uv = transformedPoint(tj_x[i], uv);
+            h_x[i + 1]->startVertexUv = uv;
+            //std::cerr << "h_x[" << (i + 1) << "]=" << h_x[i + 1]->startVertexUv << " t:" << accumulatedTransition << " o:" << unCollapsedVertexUv << std::endl;
         }
     }
     {
-        QEx::TransitionFunctionT<double> accumulatedTransition = QEx::TransitionFunctionT<double>::IDENTITY;
+        //Transition accumulatedTransition = Transition::IDENTITY;
+        auto uv = unCollapsedVertexUv;
         for (int i = gamma_i - 1; i >= 2; --i) {
-            accumulatedTransition = accumulatedTransition * tj_x[i].inverse();
-            h_x[i]->startVertexUv = transformedPoint(accumulatedTransition, unCollapsedVertexUv);
-            std::cerr << "h_x[" << (i) << "]=" << h_x[i]->startVertexUv << " t:" << accumulatedTransition << " o:" << unCollapsedVertexUv << std::endl;
+            //accumulatedTransition = accumulatedTransition * tj_x[i].inverse();
+            //h_x[i]->startVertexUv = transformedPoint(accumulatedTransition, unCollapsedVertexUv);
+            h_x[i]->startVertexUv = transformedPoint(tj_x[i].inverse(), uv);
+            uv = h_x[i]->startVertexUv;
+            //std::cerr << "h_x[" << (i) << "]=" << h_x[i]->startVertexUv << " t:" << accumulatedTransition << " o:" << unCollapsedVertexUv << std::endl;
         }
     }
     h_x[0]->startVertexUv = h_x[k - 1]->startVertexUv;
-    std::cerr << "h_x[" << 0 << "]=" << h_x[0]->startVertexUv << std::endl;
+    //std::cerr << "h_x[" << 0 << "]=" << h_x[0]->startVertexUv << std::endl;
     h_x[1]->startVertexUv = h_x[2]->startVertexUv;
-    std::cerr << "h_x[" << 1 << "]=" << h_x[1]->startVertexUv << std::endl;
+    //std::cerr << "h_x[" << 1 << "]=" << h_x[1]->startVertexUv << std::endl;
     
-    h[0]->startVertexUv = transformedPoint(tj_l(2, k - 1).inverse(), ring[k - 1]->startVertexUv);
-    std::cerr << "h[" << 0 << "]=" << h[0]->startVertexUv << std::endl;
+    //h[0]->startVertexUv = transformedPoint(tj_l(2, k - 1).inverse(), ring[k - 1]->startVertexUv);
+    {
+        auto uv = ring[k - 1]->startVertexUv;
+        for (int i = k - 2; i >= 2; --i) {
+            uv = transformedPoint(tj_x[i].inverse(), uv);
+        }
+        h[0]->startVertexUv = uv;
+    }
+    //std::cerr << "h[" << 0 << "]=" << h[0]->startVertexUv << std::endl;
     h[k - 1]->startVertexUv = ring[k - 2]->startVertexUv;
-    std::cerr << "h[" << (k - 1) << "]=" << h[k - 1]->startVertexUv << std::endl;
+    //std::cerr << "h[" << (k - 1) << "]=" << h[k - 1]->startVertexUv << std::endl;
     h[1]->startVertexUv = ring[0]->startVertexUv;
-    std::cerr << "h[" << 1 << "]=" << h[1]->startVertexUv << std::endl;
+    //std::cerr << "h[" << 1 << "]=" << h[1]->startVertexUv << std::endl;
+    
+    double averageEdgeLengthAfter = 0.0;
+    if (-1 == gDebugIndex) {
+        double edgeCount = 0;
+        for (int i = 2; i < k - 2; ++i) {
+            averageEdgeLengthAfter += (h_x[i]->startVertexUv - ring[i - 1]->startVertexUv).length();
+            ++edgeCount;
+        }
+        averageEdgeLengthAfter /= edgeCount;
+        if (averageEdgeLengthAfter > averageEdgeLengthBefore * 3) {
+            std::cerr << "averageEdgeLengthAfter:" << averageEdgeLengthAfter << " averageEdgeLengthBefore:" << averageEdgeLengthBefore << std::endl;
+            std::cerr << "Good debug index:" << s_count << std::endl;
+            exit(0);
+        }
+    }
     
     {
         if (gDebugIndex == s_count) {
@@ -859,7 +893,7 @@ bool Mesh::coarseToFineMap()
         ++i;
         auto &decimationLog = m_lastDecimationLog;
         if (0 == decimationLog->k) {
-            std::cerr << "[" << i << "]:unFlip..." << std::endl;
+            //std::cerr << "[" << i << "]:unFlip..." << std::endl;
             unFlip(decimationLog->hflip, 
                 decimationLog->hflip_x, 
                 decimationLog->ha, 
@@ -867,7 +901,7 @@ bool Mesh::coarseToFineMap()
                 decimationLog->hc, 
                 decimationLog->hd);
         } else {
-            std::cerr << "[" << i << "]:unCollapse..." << std::endl;
+            //std::cerr << "[" << i << "]:unCollapse..." << std::endl;
             unCollapse(decimationLog->k,
                 decimationLog->h, 
                 decimationLog->h_x,
