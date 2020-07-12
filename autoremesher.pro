@@ -48,11 +48,17 @@ DEFINES += _USE_MATH_DEFINES
 DEFINES += INCLUDE_TEMPLATES
 
 INCLUDEPATH += include
-INCLUDEPATH += src
 
 SOURCES += src/main.cpp
 
-SOURCES += src/autoremesher.cpp
+SOURCES += src/AutoRemesher/remesher.cpp
+HEADERS += src/AutoRemesher/remesher.h
+
+SOURCES += src/AutoRemesher/halfedge.cpp
+HEADERS += src/AutoRemesher/halfedge.h
+
+SOURCES += src/AutoRemesher/parametrization.cpp
+HEADERS += src/AutoRemesher/parametrization.h
 
 INCLUDEPATH += thirdparty/comiso
 INCLUDEPATH += thirdparty/comiso/Solver

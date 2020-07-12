@@ -929,10 +929,10 @@ IGL_INLINE void igl::copyleft::comiso::PoissonSolver<DerivedV, DerivedF>::alloca
   rhs.resize(n_vert_vars * 2);
   constraints_rhs.resize(num_constraint_equations);
 
-  printf("\n INITIALIZED SPARSE MATRIX OF %ud x %ud \n",n_vert_vars*2, n_vert_vars*2);
-  printf("\n INITIALIZED SPARSE MATRIX OF %ud x %ud \n",num_constraint_equations, num_total_vars);
-  printf("\n INITIALIZED VECTOR OF %ud x 1 \n",n_vert_vars*2);
-  printf("\n INITIALIZED VECTOR OF %ud x 1 \n",num_constraint_equations);
+  if (DEBUGPRINT)     printf("\n INITIALIZED SPARSE MATRIX OF %ud x %ud \n",n_vert_vars*2, n_vert_vars*2);
+  if (DEBUGPRINT)     printf("\n INITIALIZED SPARSE MATRIX OF %ud x %ud \n",num_constraint_equations, num_total_vars);
+  if (DEBUGPRINT)     printf("\n INITIALIZED VECTOR OF %ud x 1 \n",n_vert_vars*2);
+  if (DEBUGPRINT)     printf("\n INITIALIZED VECTOR OF %ud x 1 \n",num_constraint_equations);
 }
 
 ///intitialize the whole matrix
@@ -1231,7 +1231,7 @@ F(F_)
                            roundVertices, hardFeatures);
       int nflips=NumFlips(PSolver.WUV);
       bool folded = updateStiffeningJacobianDistorsion(gradientSize,PSolver.WUV);
-      printf("ITERATION %d FLIPS %d \n",i,nflips);
+      if (DEBUGPRINT) printf("ITERATION %d FLIPS %d \n",i,nflips);
       if (!folded)break;
     }
   }
@@ -1242,7 +1242,7 @@ F(F_)
   }
 
   int nflips=NumFlips(PSolver.WUV);
-  printf("**** END OPTIMIZING #FLIPS %d  ****\n",nflips);
+  if (DEBUGPRINT) printf("**** END OPTIMIZING #FLIPS %d  ****\n",nflips);
 
   UV_out = PSolver.UV_out;
   FUV_out = PSolver.Fcut;
@@ -1323,7 +1323,7 @@ IGL_INLINE double igl::copyleft::comiso::MIQ_class<DerivedV, DerivedF, DerivedU>
     assert(sig2 >= 0);
 
     if (sig2 < 0) {
-      printf("Distortion will be NaN! sig1^2 is negative (%lg)\n",
+      if (DEBUGPRINT) printf("Distortion will be NaN! sig1^2 is negative (%lg)\n",
              sig2);
     }
 
@@ -1401,8 +1401,8 @@ IGL_INLINE bool igl::copyleft::comiso::MIQ_class<DerivedV, DerivedF, DerivedU>::
       stiffnessVector[i]+=stiffDelta;
     }
   }
-  printf("Maximum Distorsion %4.4f \n",maxD);
-  printf("Maximum Laplacian %4.4f \n",maxL);
+  if (DEBUGPRINT) printf("Maximum Distorsion %4.4f \n",maxD);
+  if (DEBUGPRINT) printf("Maximum Laplacian %4.4f \n",maxL);
   return flipped;
 }
 

@@ -1,175 +1,88 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <igl/avg_edge_length.h>
-#include <igl/barycenter.h>
-#include <igl/comb_cross_field.h>
-#include <igl/comb_frame_field.h>
-#include <igl/compute_frame_field_bisectors.h>
-#include <igl/cross_field_mismatch.h>
-#include <igl/cut_mesh_from_singularities.h>
-#include <igl/find_cross_field_singularities.h>
-#include <igl/local_basis.h>
-#include <igl/rotate_vectors.h>
-#include <igl/copyleft/comiso/miq.h>
-#include <igl/copyleft/comiso/nrosy.h>
+#include <cstdio>
+#include <cstdlib>
+#include <iostream>
 #include <qex.h>
-#include <autoremesher.h>
+#include <AutoRemesher/Remesher>
+#include <AutoRemesher/HalfEdge>
 
-namespace autoremesher
+namespace AutoRemesher
 {
 
-bool remesh(const std::vector<Vector3> &inputVertices,
-    std::vector<std::vector<size_t>> &inputTriangles,
-    std::vector<std::vector<size_t>> &inputQuads,
-    std::vector<Vector3> *outputVertices,
-    std::vector<std::vector<size_t>> *outputQuads,
-    double gradientSize)
+bool Remesher::remesh()
 {
+    AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles);
+
+    if (!mesh.decimate()) {
+        std::cerr << "Mesh decimate failed" << std::endl;
+        return false;
+    }
+
     qex_TriMesh triMesh = {0};
     qex_QuadMesh quadMesh = {0};
     
-    triMesh.vertex_count = inputVertices.size();
-    triMesh.tri_count = inputTriangles.size() + inputQuads.size() * 2;
+    triMesh.vertex_count = mesh.vertexCount();
+    triMesh.tri_count = mesh.faceCount();
     
     triMesh.vertices = (qex_Point3*)malloc(sizeof(qex_Point3) * triMesh.vertex_count);
     triMesh.tris = (qex_Tri*)malloc(sizeof(qex_Tri) * triMesh.tri_count);
     triMesh.uvTris = (qex_UVTri*)malloc(sizeof(qex_UVTri) * triMesh.tri_count);
     
-    for (unsigned int i = 0; i < triMesh.vertex_count; ++i) {
-        const auto &src = inputVertices[i];
-        triMesh.vertices[i] = qex_Point3 {{(double)src.x, (double)src.y, (double)src.z}};
-    }
-    size_t triangleNum = 0;
-    for (const auto &it: inputTriangles) {
-        triMesh.tris[triangleNum++] = qex_Tri {{(qex_Index)it[0], (qex_Index)it[1], (qex_Index)it[2]}};
-    }
-    for (const auto &it: inputQuads) {
-        triMesh.tris[triangleNum++] = qex_Tri {{(qex_Index)it[0], (qex_Index)it[1], (qex_Index)it[2]}};
-        triMesh.tris[triangleNum++] = qex_Tri {{(qex_Index)it[2], (qex_Index)it[3], (qex_Index)it[0]}};
-    }
-    
-    // https://github.com/libigl/libigl/blob/master/tutorial/505_MIQ/main.cpp
-
-    double iter = 0;
-    double stiffness = 5.0;
-    bool direct_round = 0;
-    
-    Eigen::MatrixXd V(triMesh.vertex_count, 3);
-    Eigen::MatrixXi F(triMesh.tri_count, 3);
-    
-    for (decltype(inputVertices.size()) i = 0; i < inputVertices.size(); i++) {
-        const auto &vertex = inputVertices[i];
-        V.row(i) << vertex.x, vertex.y, vertex.z;
-    }
-    
-    size_t rowNum = 0;
-    for (const auto &it: inputTriangles) {
-        F.row(rowNum++) << it[0], it[1], it[2];
-    }
-    for (const auto &it: inputQuads) {
-        F.row(rowNum++) << it[0], it[1], it[2];
-        F.row(rowNum++) << it[2], it[3], it[0];
-    }
-    
-    bool extend_arrows = false;
-
-    // Cross field
-    Eigen::MatrixXd X1,X2;
-
-    // Bisector field
-    Eigen::MatrixXd BIS1, BIS2;
-
-    // Combed bisector
-    Eigen::MatrixXd BIS1_combed, BIS2_combed;
-
-    // Per-corner, integer mismatches
-    Eigen::Matrix<int, Eigen::Dynamic, 3> MMatch;
-
-    // Field singularities
-    Eigen::Matrix<int, Eigen::Dynamic, 1> isSingularity, singularityIndex;
-
-    // Per corner seams
-    Eigen::Matrix<int, Eigen::Dynamic, 3> Seams;
-
-    // Combed field
-    Eigen::MatrixXd X1_combed, X2_combed;
-
-    // Global parametrization
-    Eigen::MatrixXd UV;
-    Eigen::MatrixXi FUV;
-    
-    Eigen::VectorXi b(1);
-    b << 0;
-    Eigen::MatrixXd bc(1, 3);
-    bc << 1, 0, 0;
-    
-    Eigen::VectorXd S;
-    igl::copyleft::comiso::nrosy(V, F, b, bc, Eigen::VectorXi(), Eigen::VectorXd(), Eigen::MatrixXd(), 4, 0.5, X1, S);
-
-    // Find the orthogonal vector
-    Eigen::MatrixXd B1, B2, B3;
-    igl::local_basis(V, F, B1, B2, B3);
-    X2 = igl::rotate_vectors(X1, Eigen::VectorXd::Constant(1, igl::PI / 2), B1, B2);
-
-    // Always work on the bisectors, it is more general
-    igl::compute_frame_field_bisectors(V, F, X1, X2, BIS1, BIS2);
-
-    // Comb the field, implicitly defining the seams
-    igl::comb_cross_field(V, F, BIS1, BIS2, BIS1_combed, BIS2_combed);
-
-    // Find the integer mismatches
-    igl::cross_field_mismatch(V, F, BIS1_combed, BIS2_combed, true, MMatch);
-
-    // Find the singularities
-    igl::find_cross_field_singularities(V, F, MMatch, isSingularity, singularityIndex);
-
-    // Cut the mesh, duplicating all vertices on the seams
-    igl::cut_mesh_from_singularities(V, F, MMatch, Seams);
-
-    // Comb the frame-field accordingly
-    igl::comb_frame_field(V, F, X1, X2, BIS1_combed, BIS2_combed, X1_combed, X2_combed);
-
-    // Global parametrization
-    igl::copyleft::comiso::miq(V,
-        F,
-        X1_combed,
-        X2_combed,
-        MMatch,
-        isSingularity,
-        Seams,
-        UV,
-        FUV,
-        gradientSize,
-        stiffness,
-        direct_round,
-        iter,
-        5,
-        true);
-    
-    triMesh.uvTris = (qex_UVTri*)malloc(sizeof(qex_UVTri) * FUV.rows());
-    for (unsigned int i = 0; i < FUV.rows(); ++i) {
-        const auto &triangleVertexIndices = FUV.row(i);
-        const auto &v0 = UV.row(triangleVertexIndices[0]);
-        const auto &v1 = UV.row(triangleVertexIndices[1]);
-        const auto &v2 = UV.row(triangleVertexIndices[2]);
-        triMesh.uvTris[i] = qex_UVTri {{
-            qex_Point2 {{v0[0], v0[1]}}, 
-            qex_Point2 {{v1[0], v1[1]}}, 
-            qex_Point2 {{v2[0], v2[1]}}
+    size_t vertexNum = 0;
+    for (HalfEdge::Vertex *vertex = mesh.firstVertex(); nullptr != vertex; vertex = vertex->_next) {
+        vertex->outputIndex = vertexNum;
+        triMesh.vertices[vertexNum++] = qex_Point3 {{
+            (double)vertex->position.x(), 
+            (double)vertex->position.y(), 
+            (double)vertex->position.z()
         }};
     }
-
-    qex_extractQuadMesh(&triMesh, nullptr, &quadMesh);
     
-    outputVertices->resize(quadMesh.vertex_count);
-    for (unsigned int i = 0; i < quadMesh.vertex_count; ++i) {
-        const auto &src = quadMesh.vertices[i];
-        (*outputVertices)[i] = Vector3 {(float)src.x[0], (float)src.x[1], (float)src.x[2]};
+    std::vector<HalfEdge::HalfEdge *> triangleHalfEdges;
+    triangleHalfEdges.reserve(triMesh.tri_count * 3);
+    size_t faceNum = 0;
+    for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
+        HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
+        HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
+        HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
+        triMesh.tris[faceNum] = qex_Tri {{
+            (qex_Index)h0->startVertex->outputIndex, 
+            (qex_Index)h1->startVertex->outputIndex, 
+            (qex_Index)h2->startVertex->outputIndex
+        }};
+        triangleHalfEdges.push_back(h0);
+        triangleHalfEdges.push_back(h1);
+        triangleHalfEdges.push_back(h2);
+        ++faceNum;
     }
-    outputQuads->resize(quadMesh.quad_count);
-    for (unsigned int i = 0; i < quadMesh.quad_count; ++i) {
-        const auto &src = quadMesh.quads[i];
-        (*outputQuads)[i] = std::vector<size_t> {src.indices[0], src.indices[1], src.indices[2], src.indices[3]};
+    
+    bool remeshSucceed = false;
+    if (mesh.parametrize(m_gradientSize)) {
+        faceNum = 0;
+        for (size_t i = 0; i < triangleHalfEdges.size(); ) {
+            auto &h0 = triangleHalfEdges[i++];
+            auto &h1 = triangleHalfEdges[i++];
+            auto &h2 = triangleHalfEdges[i++];
+            triMesh.uvTris[faceNum++] = qex_UVTri {{
+                qex_Point2 {{h0->startVertexUv[0], h0->startVertexUv[1]}}, 
+                qex_Point2 {{h1->startVertexUv[0], h1->startVertexUv[1]}}, 
+                qex_Point2 {{h2->startVertexUv[0], h2->startVertexUv[1]}}
+            }};
+        }
+
+        qex_extractQuadMesh(&triMesh, nullptr, &quadMesh);
+        
+        m_remeshedVertices.resize(quadMesh.vertex_count);
+        for (unsigned int i = 0; i < quadMesh.vertex_count; ++i) {
+            const auto &src = quadMesh.vertices[i];
+            m_remeshedVertices[i] = Vector3 {(double)src.x[0], (double)src.x[1], (double)src.x[2]};
+        }
+        m_remeshedQuads.resize(quadMesh.quad_count);
+        for (unsigned int i = 0; i < quadMesh.quad_count; ++i) {
+            const auto &src = quadMesh.quads[i];
+            m_remeshedQuads[i] = std::vector<size_t> {src.indices[0], src.indices[1], src.indices[2], src.indices[3]};
+        }
+        
+        remeshSucceed = true;
     }
     
     free(triMesh.vertices);
@@ -179,7 +92,7 @@ bool remesh(const std::vector<Vector3> &inputVertices,
     free(quadMesh.vertices);
     free(quadMesh.quads);
     
-    return true;
+    return remeshSucceed;
 }
 
 #if 1
