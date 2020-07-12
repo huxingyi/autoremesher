@@ -11,17 +11,12 @@ namespace AutoRemesher
 bool Remesher::remesh()
 {
     AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles);
-    mesh.setTargetVertexCount(5000); //mesh.vertexCount() - 300); //mesh.vertexCount() - 100);
-    mesh.updateVertexRemovalCostToColor();
-    mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-removalcost.ply");
-    
+
     if (!mesh.decimate()) {
         std::cerr << "Mesh decimate failed" << std::endl;
         return false;
     }
-    mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
-    mesh.exportObj("C:\\Users\\Jeremy\\Desktop\\test-obj-decimated.obj");
-    
+
     qex_TriMesh triMesh = {0};
     qex_QuadMesh quadMesh = {0};
     
@@ -60,76 +55,34 @@ bool Remesher::remesh()
         ++faceNum;
     }
     
-    std::cerr << "Parametrizing..." << std::endl;
-    if (!mesh.parametrize(m_gradientSize)) {
-        std::cerr << "Mesh parametrize failed" << std::endl;
-        return false;
-    }
-    std::cerr << "Parametrization done..." << std::endl;
-    
-    {
-        std::vector<std::vector<Vector2>> uvs;
-        for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
-            HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
-            HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
-            HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
-            uvs.push_back({
-                h0->startVertexUv,
-                h1->startVertexUv,
-                h2->startVertexUv
-            });
-        }
-        AutoRemesher::HalfEdge::Mesh::exportObj("C:\\Users\\Jeremy\\Desktop\\test-uv-before.obj", uvs);
-    }
-    
-    /*
-    std::cerr << "Corse to fine mapping..." << std::endl;
-    if (!mesh.coarseToFineMap()) {
-        std::cerr << "Mesh coarseToFineMap failed" << std::endl;
-        return false;
-    }
-    std::cerr << "Corse to fine mapping done" << std::endl;
-    */
-    
-    faceNum = 0;
-    for (size_t i = 0; i < triangleHalfEdges.size(); ) {
-        auto &h0 = triangleHalfEdges[i++];
-        auto &h1 = triangleHalfEdges[i++];
-        auto &h2 = triangleHalfEdges[i++];
-        triMesh.uvTris[faceNum++] = qex_UVTri {{
-            qex_Point2 {{h0->startVertexUv[0], h0->startVertexUv[1]}}, 
-            qex_Point2 {{h1->startVertexUv[0], h1->startVertexUv[1]}}, 
-            qex_Point2 {{h2->startVertexUv[0], h2->startVertexUv[1]}}
-        }};
-    }
-    
-    {
-        std::vector<std::vector<Vector2>> uvs;
+    bool remeshSucceed = false;
+    if (mesh.parametrize(m_gradientSize)) {
+        faceNum = 0;
         for (size_t i = 0; i < triangleHalfEdges.size(); ) {
             auto &h0 = triangleHalfEdges[i++];
             auto &h1 = triangleHalfEdges[i++];
             auto &h2 = triangleHalfEdges[i++];
-            uvs.push_back({
-                h0->startVertexUv,
-                h1->startVertexUv,
-                h2->startVertexUv
-            });
+            triMesh.uvTris[faceNum++] = qex_UVTri {{
+                qex_Point2 {{h0->startVertexUv[0], h0->startVertexUv[1]}}, 
+                qex_Point2 {{h1->startVertexUv[0], h1->startVertexUv[1]}}, 
+                qex_Point2 {{h2->startVertexUv[0], h2->startVertexUv[1]}}
+            }};
         }
-        AutoRemesher::HalfEdge::Mesh::exportObj("C:\\Users\\Jeremy\\Desktop\\test-uv.obj", uvs);
-    }
-    //exit(0);
 
-    qex_extractQuadMesh(&triMesh, nullptr, &quadMesh);
-    
-    m_remeshedVertices.resize(quadMesh.vertex_count);
-    for (unsigned int i = 0; i < quadMesh.vertex_count; ++i) {
-        const auto &src = quadMesh.vertices[i];
-        m_remeshedVertices[i] = Vector3 {(double)src.x[0], (double)src.x[1], (double)src.x[2]};
-    }
-    m_remeshedQuads.resize(quadMesh.quad_count);
-    for (unsigned int i = 0; i < quadMesh.quad_count; ++i) {
-        const auto &src = quadMesh.quads[i];
-        m_remeshedQuads[i] = std::vector<size_t> {src.indices[0], src.indices[1], src.indices[2], src.indices[3]};
+        qex_extractQuadMesh(&triMesh, nullptr, &quadMesh);
+        
+        m_remeshedVertices.resize(quadMesh.vertex_count);
+        for (unsigned int i = 0; i < quadMesh.vertex_count; ++i) {
+            const auto &src = quadMesh.vertices[i];
+            m_remeshedVertices[i] = Vector3 {(double)src.x[0], (double)src.x[1], (double)src.x[2]};
+        }
+        m_remeshedQuads.resize(quadMesh.quad_count);
+        for (unsigned int i = 0; i < quadMesh.quad_count; ++i) {
+            const auto &src = quadMesh.quads[i];
+            m_remeshedQuads[i] = std::vector<size_t> {src.indices[0], src.indices[1], src.indices[2], src.indices[3]};
+        }
+        
+        remeshSucceed = true;
     }
     
     free(triMesh.vertices);
@@ -139,7 +92,7 @@ bool Remesher::remesh()
     free(quadMesh.vertices);
     free(quadMesh.quads);
     
-    return true;
+    return remeshSucceed;
 }
 
 #if 1

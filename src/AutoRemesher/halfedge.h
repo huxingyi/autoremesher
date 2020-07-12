@@ -30,9 +30,6 @@ struct Vertex
     double fineCurvature = 0.0;
     double removalCost = 0.0;
     uint32_t version = 0;
-    uint8_t r = 0;
-    uint8_t g = 0;
-    uint8_t b = 0;
 };
 
 struct HalfEdge
@@ -56,32 +53,6 @@ struct Face
     HalfEdge *anyHalfEdge = nullptr;
 };
 
-struct DecimationLog
-{
-    DecimationLog *_previous = nullptr;
-    DecimationLog *_next = nullptr;
-    
-    uint8_t k;
-    
-    // flip
-    HalfEdge *hflip;
-    HalfEdge *hflip_x;
-    HalfEdge *ha;
-    HalfEdge *hb;
-    HalfEdge *hc;
-    HalfEdge *hd;
-    
-    // collapse
-    std::vector<HalfEdge *> h;
-    std::vector<HalfEdge *> h_x;
-    std::vector<HalfEdge *> ring;
-    double alpha;
-    double beta;
-    double gamma;
-    uint8_t alpha_i;
-    uint8_t gamma_i;
-};
-
 class Mesh
 {
 public:
@@ -91,12 +62,10 @@ public:
     Vertex *allocVertex();
     Face *allocFace();
     HalfEdge *allocHalfEdge();
-    DecimationLog *allocDecimationLog();
     void freeVertex(Vertex *vertex);
     void deferedFreeVertex(Vertex *vertex);
     void freeFace(Face *face);
     void freeHalfEdge(HalfEdge *halfEdge);
-    void freeDecimationLog(DecimationLog *decimationLog);
     void deferedFreeHalfEdge(HalfEdge *halfEdge);
     void deferedFreeFace(Face *face);
     double calculateVertexCurvature(Vertex *vertex) const;
@@ -117,20 +86,11 @@ public:
     bool decimate();
     bool decimate(Vertex *vertex);
     bool parametrize(double gradientSize);
-    bool coarseToFineMap();
     bool isWatertight();
     bool delaunayTriangulate(std::vector<Vertex *> &ringVertices,
         const Vector3 &projectNormal, const Vector3 &projectAxis,
         std::vector<std::vector<Vertex *>> *triangles,
         const Vector3 &origin) const;
-    void exportPly(const char *filename) const;
-    void updateVertexRemovalCostToColor();
-    void exportObj(const char *filename);
-    static void exportObj(const char *filename, std::vector<std::vector<Vertex *>> &faces);
-    static void exportObj(const char *filename, std::vector<Vertex *> &face);
-    static void exportObj(const char *filename, std::vector<Vector2> &face);
-    static void exportObj(const char *filename, std::vector<std::vector<Vector2>> &faces);
-    static void exportObj(const char *filename, std::vector<std::vector<Vector3>> &faces);
     const size_t &vertexCount() const;
     const size_t &faceCount() const;
     Vertex *firstVertex() const;
@@ -152,10 +112,7 @@ private:
     size_t m_vertexCount = 0;
     size_t m_faceCount = 0;
     size_t m_halfEdgeCount = 0;
-    size_t m_targetVertexCount = 1000;
-    DecimationLog *m_firstDecimationLog = nullptr;
-    DecimationLog *m_lastDecimationLog = nullptr;
-    static const bool m_enableDecimationLog;
+    size_t m_targetVertexCount = 5000;
     
     struct VertexRemovalCost
     {

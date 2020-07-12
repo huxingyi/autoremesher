@@ -171,53 +171,46 @@ int main(int argc, char *argv[])
         exit(1);
     }
     
-    auto pickedTriangleIsland = std::max_element(inputTrianglesIslands.begin(), inputTrianglesIslands.end(), [](
-            const std::vector<std::vector<size_t>> &lhs,
-            const std::vector<std::vector<size_t>> &rhs) {
-        return lhs.size() < rhs.size();
-    });
-    
-    if (inputTrianglesIslands.size() > 1) {
-        std::cerr << "Input mesh contains multiple surfaces, here only pick the one with most triangles to remesh" << std::endl;
-    }
-    
-    std::vector<AutoRemesher::Vector3> pickedVertices;
-    std::vector<std::vector<size_t>> pickedTriangles;
-    std::unordered_set<size_t> addedIndices;
-    std::unordered_map<size_t, size_t> oldToNewVertexMap;
-    for (const auto &face: *pickedTriangleIsland) {
-        std::vector<size_t> triangle;
-        for (size_t i = 0; i < 3; ++i) {
-            auto insertResult = addedIndices.insert(face[i]);
-            if (insertResult.second) {
-                oldToNewVertexMap.insert({face[i], pickedVertices.size()});
-                pickedVertices.push_back(inputVertices[face[i]]);
+    std::vector<AutoRemesher::Vector3> resultVertices;
+    std::vector<std::vector<size_t>> resultQuads;
+    for (const auto &island: inputTrianglesIslands) {
+        std::vector<AutoRemesher::Vector3> pickedVertices;
+        std::vector<std::vector<size_t>> pickedTriangles;
+        std::unordered_set<size_t> addedIndices;
+        std::unordered_map<size_t, size_t> oldToNewVertexMap;
+        for (const auto &face: island) {
+            std::vector<size_t> triangle;
+            for (size_t i = 0; i < 3; ++i) {
+                auto insertResult = addedIndices.insert(face[i]);
+                if (insertResult.second) {
+                    oldToNewVertexMap.insert({face[i], pickedVertices.size()});
+                    pickedVertices.push_back(inputVertices[face[i]]);
+                }
+                triangle.push_back(oldToNewVertexMap[face[i]]);
             }
-            triangle.push_back(oldToNewVertexMap[face[i]]);
+            pickedTriangles.push_back(triangle);
         }
-        pickedTriangles.push_back(triangle);
+        AutoRemesher::Remesher remesher(pickedVertices, pickedTriangles);
+        remesher.setGradientSize(gradientSize);
+        if (!remesher.remesh())
+            continue;
+        const auto &quads = remesher.remeshedQuads();
+        if (quads.empty())
+            continue;
+        const auto &vertices = remesher.remeshedVertices();
+        size_t vertexStartIndex = resultVertices.size();
+        resultVertices.insert(resultVertices.end(), vertices.begin(), vertices.end());
+        for (const auto &it: quads) {
+            resultQuads.push_back({
+                vertexStartIndex + it[0], 
+                vertexStartIndex + it[1], 
+                vertexStartIndex + it[2], 
+                vertexStartIndex + it[3]
+            });
+        }
     }
     
-    //std::vector<AutoRemesher::Vector3> projectedVertices;
-    //AutoRemesher::Vector3::project(pickedVertices, &projectedVertices, AutoRemesher::Vector3(0, 0, 1), AutoRemesher::Vector3(1, 0, 0));
-    //saveObj("C:\\Users\\Jeremy\\Desktop\\project.obj", projectedVertices, pickedTriangles);
-    //return 0;
-    
-    //{
-    //    AutoRemesher::HalfEdge::Mesh mesh(pickedVertices, pickedTriangles);
-    //    mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test.ply");
-    //    mesh.decimate();
-    //    mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
-    //    exit(0);
-    //}
-    
-    AutoRemesher::Remesher remesher(pickedVertices, pickedTriangles);
-    remesher.setGradientSize(gradientSize);
-    if (!remesher.remesh()) {
-        std::cerr << "Remesh failed" << std::endl;
-        exit(1);
-    }
-    if (!saveObj(outputFilename, remesher.remeshedVertices(), remesher.remeshedQuads())) {
+    if (!saveObj(outputFilename, resultVertices, resultQuads)) {
         exit(1);
     }
     
