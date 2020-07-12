@@ -11,9 +11,16 @@ namespace AutoRemesher
 bool Remesher::remesh()
 {
     AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles);
-    mesh.setTargetVertexCount(1000); //mesh.vertexCount() - 300); //mesh.vertexCount() - 100);
+    mesh.setTargetVertexCount(5000); //mesh.vertexCount() - 300); //mesh.vertexCount() - 100);
     mesh.updateVertexRemovalCostToColor();
-    //mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-removalcost.ply");
+    mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-removalcost.ply");
+    
+    if (!mesh.decimate()) {
+        std::cerr << "Mesh decimate failed" << std::endl;
+        return false;
+    }
+    mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
+    mesh.exportObj("C:\\Users\\Jeremy\\Desktop\\test-obj-decimated.obj");
     
     qex_TriMesh triMesh = {0};
     qex_QuadMesh quadMesh = {0};
@@ -53,12 +60,6 @@ bool Remesher::remesh()
         ++faceNum;
     }
     
-    if (!mesh.decimate()) {
-        std::cerr << "Mesh decimate failed" << std::endl;
-        return false;
-    }
-    mesh.exportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
-    
     std::cerr << "Parametrizing..." << std::endl;
     if (!mesh.parametrize(m_gradientSize)) {
         std::cerr << "Mesh parametrize failed" << std::endl;
@@ -81,13 +82,14 @@ bool Remesher::remesh()
         AutoRemesher::HalfEdge::Mesh::exportObj("C:\\Users\\Jeremy\\Desktop\\test-uv-before.obj", uvs);
     }
     
+    /*
     std::cerr << "Corse to fine mapping..." << std::endl;
     if (!mesh.coarseToFineMap()) {
         std::cerr << "Mesh coarseToFineMap failed" << std::endl;
         return false;
     }
-    
     std::cerr << "Corse to fine mapping done" << std::endl;
+    */
     
     faceNum = 0;
     for (size_t i = 0; i < triangleHalfEdges.size(); ) {

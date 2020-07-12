@@ -26,6 +26,7 @@ struct Vertex
     size_t outputIndex;
     Vector3 position;
     HalfEdge *anyHalfEdge = nullptr;
+    size_t halfEdgeCount = 0;
     double fineCurvature = 0.0;
     double removalCost = 0.0;
     uint32_t version = 0;
@@ -97,6 +98,7 @@ public:
     void freeHalfEdge(HalfEdge *halfEdge);
     void freeDecimationLog(DecimationLog *decimationLog);
     void deferedFreeHalfEdge(HalfEdge *halfEdge);
+    void deferedFreeFace(Face *face);
     double calculateVertexCurvature(Vertex *vertex) const;
     double calculateVertexRemovalCost(Vertex *vertex) const;
     bool collapse(Vertex *vertex, std::vector<HalfEdge *> &halfEdgesAroundVertex);
@@ -121,12 +123,14 @@ public:
         const Vector3 &projectNormal, const Vector3 &projectAxis,
         std::vector<std::vector<Vertex *>> *triangles,
         const Vector3 &origin) const;
-    void exportPly(const char *filename);
+    void exportPly(const char *filename) const;
     void updateVertexRemovalCostToColor();
+    void exportObj(const char *filename);
     static void exportObj(const char *filename, std::vector<std::vector<Vertex *>> &faces);
     static void exportObj(const char *filename, std::vector<Vertex *> &face);
     static void exportObj(const char *filename, std::vector<Vector2> &face);
     static void exportObj(const char *filename, std::vector<std::vector<Vector2>> &faces);
+    static void exportObj(const char *filename, std::vector<std::vector<Vector3>> &faces);
     const size_t &vertexCount() const;
     const size_t &faceCount() const;
     Vertex *firstVertex() const;
@@ -142,6 +146,7 @@ private:
     HalfEdge *m_firstHalfEdge = nullptr;
     HalfEdge *m_lastHalfEdge = nullptr;
     HalfEdge *m_firstDeferedRemovalHalfEdge = nullptr;
+    Face *m_firstDeferedRemovalFace = nullptr;
     size_t m_repeatedHalfEdges = 0;
     size_t m_aloneHalfEdges = 0;
     size_t m_vertexCount = 0;
@@ -150,6 +155,7 @@ private:
     size_t m_targetVertexCount = 1000;
     DecimationLog *m_firstDecimationLog = nullptr;
     DecimationLog *m_lastDecimationLog = nullptr;
+    static const bool m_enableDecimationLog;
     
     struct VertexRemovalCost
     {

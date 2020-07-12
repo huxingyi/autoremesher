@@ -30,6 +30,8 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     Eigen::MatrixXd V(mesh.vertexCount(), 3);
     Eigen::MatrixXi F(mesh.faceCount(), 3);
     
+    std::cerr << "miq preparing..." << std::endl;
+    
     size_t vertexNum = 0;
     for (HalfEdge::Vertex *vertex = mesh.firstVertex(); nullptr != vertex; vertex = vertex->_next) {
         vertex->outputIndex = vertexNum;
@@ -83,32 +85,42 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     bc << 1, 0, 0;
     
     Eigen::VectorXd S;
+    std::cerr << "igl::copyleft::comiso::nrosy..." << std::endl;
     igl::copyleft::comiso::nrosy(V, F, b, bc, Eigen::VectorXi(), Eigen::VectorXd(), Eigen::MatrixXd(), 4, 0.5, X1, S);
 
     // Find the orthogonal vector
     Eigen::MatrixXd B1, B2, B3;
+    std::cerr << "igl::local_basis..." << std::endl;
     igl::local_basis(V, F, B1, B2, B3);
+    std::cerr << "igl::rotate_vectors..." << std::endl;
     X2 = igl::rotate_vectors(X1, Eigen::VectorXd::Constant(1, igl::PI / 2), B1, B2);
 
     // Always work on the bisectors, it is more general
+    std::cerr << "igl::compute_frame_field_bisectors..." << std::endl;
     igl::compute_frame_field_bisectors(V, F, X1, X2, BIS1, BIS2);
 
     // Comb the field, implicitly defining the seams
+    std::cerr << "igl::comb_cross_field..." << std::endl;
     igl::comb_cross_field(V, F, BIS1, BIS2, BIS1_combed, BIS2_combed);
 
     // Find the integer mismatches
+    std::cerr << "igl::cross_field_mismatch..." << std::endl;
     igl::cross_field_mismatch(V, F, BIS1_combed, BIS2_combed, true, MMatch);
 
     // Find the singularities
+    std::cerr << "igl::find_cross_field_singularities..." << std::endl;
     igl::find_cross_field_singularities(V, F, MMatch, isSingularity, singularityIndex);
 
     // Cut the mesh, duplicating all vertices on the seams
+    std::cerr << "igl::cut_mesh_from_singularities..." << std::endl;
     igl::cut_mesh_from_singularities(V, F, MMatch, Seams);
 
     // Comb the frame-field accordingly
+    std::cerr << "igl::comb_frame_field..." << std::endl;
     igl::comb_frame_field(V, F, X1, X2, BIS1_combed, BIS2_combed, X1_combed, X2_combed);
 
     // Global parametrization
+    std::cerr << "start miq..." << std::endl;
     igl::copyleft::comiso::miq(V,
         F,
         X1_combed,
@@ -124,6 +136,7 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
         iter,
         5,
         true);
+    std::cerr << "miq done" << std::endl;
     
     if (FUV.rows() != mesh.faceCount()) {
         std::cerr << "miq failed" << std::endl;

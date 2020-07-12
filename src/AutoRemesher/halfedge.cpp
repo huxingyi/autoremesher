@@ -12,6 +12,8 @@ namespace AutoRemesher
 namespace HalfEdge
 {
     
+const bool Mesh::m_enableDecimationLog = false;
+    
 typedef QEx::TransitionFunctionDouble Transition;
     
 inline void makeLinkedHalfEdges(HalfEdge *previous, HalfEdge *next) 
@@ -57,6 +59,7 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
             auto &vertex = halfEdgeVertices[vertexIndex];
             const auto &nextVertex = halfEdgeVertices[nextVertexIndex];
             vertex->anyHalfEdge = halfEdge;
+            ++vertex->halfEdgeCount;
             halfEdge->startVertex = vertex;
             halfEdge->previousHalfEdge = halfEdges[h];
             halfEdge->nextHalfEdge = halfEdges[k];
@@ -110,6 +113,11 @@ Mesh::~Mesh()
         m_firstDeferedRemovalHalfEdge = halfEdge->_next;
         delete halfEdge;
     }
+    while (nullptr != m_firstDeferedRemovalFace) {
+        auto face = m_firstDeferedRemovalFace;
+        m_firstDeferedRemovalFace = face->_next;
+        delete face;
+    }
 }
 
 void Mesh::deferedFreeVertex(Vertex *vertex)
@@ -154,6 +162,21 @@ void Mesh::freeFace(Face *face)
         face->_previous->_next = face->_next;
     --m_faceCount;
     delete face;
+}
+
+void Mesh::deferedFreeFace(Face *face)
+{
+    if (face == m_firstFace)
+        m_firstFace = face->_next;
+    if (face == m_lastFace)
+        m_lastFace = face->_previous;
+    if (nullptr != face->_next)
+        face->_next->_previous = face->_previous;
+    if (nullptr != face->_previous)
+        face->_previous->_next = face->_next;
+    --m_faceCount;
+    face->_next = m_firstDeferedRemovalFace;
+    m_firstDeferedRemovalFace = face;
 }
 
 void Mesh::deferedFreeHalfEdge(HalfEdge *halfEdge)
@@ -335,13 +358,25 @@ double Mesh::calculateVertexRemovalCost(Vertex *vertex) const
 {
     HalfEdge *shortestHalfEdge = findShortestHalfEdgeAroundVertex(vertex);
     
+    // The following two checks are necessary, unless non-manifold vertex will be created because of collapse 
+    if (shortestHalfEdge->nextHalfEdge->nextHalfEdge->startVertex->halfEdgeCount < 4)
+        return std::numeric_limits<double>::max();
+    if (shortestHalfEdge->oppositeHalfEdge->previousHalfEdge->startVertex->halfEdgeCount < 4)
+        return std::numeric_limits<double>::max();
+    
     std::vector<Vertex *> ringVertices;
     std::set<Vertex *> verticesAroundTarget;
     std::map<Vertex *, std::vector<std::pair<Vertex *, Vertex *>>> vertexCones;
+    std::set<std::pair<Vertex *, Vertex *>> halfEdges;
     HalfEdge *halfEdge = shortestHalfEdge;
     do {
-        auto insertResult = verticesAroundTarget.insert(halfEdge->oppositeHalfEdge->startVertex);
-        if (!insertResult.second) {
+        auto insertVertexResult = verticesAroundTarget.insert(halfEdge->oppositeHalfEdge->startVertex);
+        if (!insertVertexResult.second) {
+            return std::numeric_limits<double>::max();
+        }
+        auto insertEdgeResult = halfEdges.insert({halfEdge->nextHalfEdge->nextHalfEdge->startVertex,
+            halfEdge->nextHalfEdge->startVertex});
+        if (!insertEdgeResult.second) {
             return std::numeric_limits<double>::max();
         }
         ringVertices.push_back(halfEdge->oppositeHalfEdge->startVertex);
@@ -349,6 +384,17 @@ double Mesh::calculateVertexRemovalCost(Vertex *vertex) const
             collectConesAroundVertexExclude(halfEdge->oppositeHalfEdge->startVertex, vertex)});
         halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
     } while (halfEdge != shortestHalfEdge);
+    
+    if (verticesAroundTarget.size() < 4)
+        return std::numeric_limits<double>::max();
+    
+    if (vertex->halfEdgeCount != verticesAroundTarget.size()) {
+        //std::cerr << "vertex halfEdgeCount:" << vertex->halfEdgeCount << " verticesAroundTarget:" << verticesAroundTarget.size() << std::endl;
+        //vertex->g = 255;
+        //exportPly("C:\\Users\\Jeremy\\Desktop\\test-halfedge.ply");
+        //exit(0);
+        return std::numeric_limits<double>::max();
+    }
     
     std::vector<std::vector<Vertex *>> triangles;
     Vector3 projectNormal = calculateVertexNormal(vertex);
@@ -360,8 +406,15 @@ double Mesh::calculateVertexRemovalCost(Vertex *vertex) const
         for (size_t i = 0; i < 3; ++i) {
             size_t j = (i + 1) % 3;
             size_t k = (i + 2) % 3;
+            auto insertEdgeResult = halfEdges.insert({it[i], it[j]});
+            if (!insertEdgeResult.second)
+                return std::numeric_limits<double>::max();
             vertexCones[it[j]].push_back({it[i], it[k]});
         }
+    }
+    for (const auto &it: halfEdges) {
+        if (halfEdges.end() == halfEdges.find({it.second, it.first}))
+            return std::numeric_limits<double>::max();
     }
     double oneRingCurvature = 0.0;
     for (const auto &it: vertexCones) {
@@ -439,67 +492,86 @@ bool Mesh::decimate(Vertex *vertex)
         halfEdgesPointToTarget.push_back(halfEdge->oppositeHalfEdge);
         halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
     } while (halfEdge != shortestHalfEdge);
-    
+
     if (halfEdgesPointToTarget.size() < 4)
         return false;
     
     auto k = halfEdgesPointToTarget.size();
     
     Vector3 projectNormal = calculateVertexNormal(vertex);
-    Vector3 projectAxis = (ringPoints[k / 2] - vertex->position).normalized();
+    Vector3 projectAxis = (shortestHalfEdge->nextHalfEdge->startVertex->position - vertex->position).normalized();
     std::vector<Vector2> ringPointsIn2d;
     Vector3::project(ringPoints, &ringPointsIn2d, projectNormal, projectAxis, vertex->position);
     
-    const Vector2 origin2d = Vector2(0.0, 0.0);
-    int alphaIndex = -1;
-    for (size_t i = 1; i <= k - 2; ++i) {
-        if (origin2d.isOnLeft(ringPointsIn2d[0], ringPointsIn2d[i]) != 
-                origin2d.isOnLeft(ringPointsIn2d[0], ringPointsIn2d[i + 1])) {
-            alphaIndex = i;
-            break;
+    if (m_enableDecimationLog) {
+        
+        const Vector2 origin2d = Vector2(0.0, 0.0);
+        int alphaIndex = -1;
+        for (size_t i = 1; i <= k - 2; ++i) {
+            if (origin2d.isOnLeft(ringPointsIn2d[0], ringPointsIn2d[i]) != 
+                    origin2d.isOnLeft(ringPointsIn2d[0], ringPointsIn2d[i + 1])) {
+                alphaIndex = i;
+                break;
+            }
         }
-    }
-    if (-1 == alphaIndex) {
-        std::cerr << "No barycentricCoordinates found" << std::endl;
+        if (-1 == alphaIndex) {
+            //std::cerr << "No barycentricCoordinates found" << std::endl;
+            return false;
+        }
+        
         /*
-        {
-            std::vector<std::vector<Vector2>> debugFaces;
-            for (size_t i = 0; i < ringPointsIn2d.size(); ++i) {
-                debugFaces.push_back({
-                    ringPointsIn2d[i], origin2d, ringPointsIn2d[(i + 1) % ringPointsIn2d.size()]
-                });
+        static int s_count = 0;
+        ++s_count;
+        extern int gDebugIndex;
+        if (gDebugIndex == s_count) {
+            {
+                std::vector<std::vector<Vector3>> debugFaces;
+                for (size_t i = 0; i < ringPoints.size(); ++i) {
+                    debugFaces.push_back({
+                        ringPoints[i], vertex->position, ringPoints[(i + 1) % ringPoints.size()]
+                    });
+                }
+                exportObj("C:\\Users\\Jeremy\\Desktop\\test-debug-0.obj", debugFaces);
             }
-            exportObj("C:\\Users\\Jeremy\\Desktop\\test-debug-1.obj", debugFaces);
-        }
-        {
-            std::vector<std::vector<Vector2>> debugFaces;
-            for (size_t i = 2; i < ringPointsIn2d.size(); ++i) {
-                debugFaces.push_back({
-                    ringPointsIn2d[i - 1], ringPointsIn2d[0], ringPointsIn2d[i]
-                });
+            {
+                std::vector<std::vector<Vector2>> debugFaces;
+                for (size_t i = 0; i < ringPointsIn2d.size(); ++i) {
+                    debugFaces.push_back({
+                        ringPointsIn2d[i], origin2d, ringPointsIn2d[(i + 1) % ringPointsIn2d.size()]
+                    });
+                }
+                exportObj("C:\\Users\\Jeremy\\Desktop\\test-debug-1.obj", debugFaces);
             }
-            exportObj("C:\\Users\\Jeremy\\Desktop\\test-debug-2.obj", debugFaces);
+            {
+                std::vector<std::vector<Vector2>> debugFaces;
+                for (size_t i = 2; i < ringPointsIn2d.size(); ++i) {
+                    debugFaces.push_back({
+                        ringPointsIn2d[i - 1], ringPointsIn2d[0], ringPointsIn2d[i]
+                    });
+                }
+                exportObj("C:\\Users\\Jeremy\\Desktop\\test-debug-2.obj", debugFaces);
+            }
+            exit(0);
         }
-        exit(0);
         */
-        return false;
-    }
     
-    DecimationLog *collapseLog = allocDecimationLog();
-    collapseLog->k = k;
-    collapseLog->h = halfEdgesPointToTarget;
-    collapseLog->h_x.reserve(collapseLog->h.size());
-    collapseLog->ring.reserve(collapseLog->h.size());
-    for (size_t i = 0; i < collapseLog->h.size(); ++i) {
-        collapseLog->h_x.push_back(collapseLog->h[i]->oppositeHalfEdge);
-        collapseLog->ring.push_back(collapseLog->h[i]->previousHalfEdge);
+    
+        DecimationLog *collapseLog = allocDecimationLog();
+        collapseLog->k = k;
+        collapseLog->h = halfEdgesPointToTarget;
+        collapseLog->h_x.reserve(collapseLog->h.size());
+        collapseLog->ring.reserve(collapseLog->h.size());
+        for (size_t i = 0; i < collapseLog->h.size(); ++i) {
+            collapseLog->h_x.push_back(collapseLog->h[i]->oppositeHalfEdge);
+            collapseLog->ring.push_back(collapseLog->h[i]->previousHalfEdge);
+        }
+        Vector2 uv = Vector2::barycentricCoordinates(ringPointsIn2d[alphaIndex], ringPointsIn2d[0], ringPointsIn2d[alphaIndex + 1], origin2d);
+        collapseLog->alpha = uv.x();
+        collapseLog->beta = uv.y();
+        collapseLog->gamma = 1.0 - (uv.x() + uv.y());
+        collapseLog->alpha_i = alphaIndex;
+        collapseLog->gamma_i = alphaIndex + 1;
     }
-    Vector2 uv = Vector2::barycentricCoordinates(ringPointsIn2d[alphaIndex], ringPointsIn2d[0], ringPointsIn2d[alphaIndex + 1], origin2d);
-    collapseLog->alpha = uv.x();
-    collapseLog->beta = uv.y();
-    collapseLog->gamma = 1.0 - (uv.x() + uv.y());
-    collapseLog->alpha_i = alphaIndex;
-    collapseLog->gamma_i = alphaIndex + 1;
     
     //std::cerr << "uv:" << uv << " alpha:" << alphaIndex << " k:" << k << std::endl;
 
@@ -518,14 +590,16 @@ bool Mesh::decimate(Vertex *vertex)
             if (ringPointsIn2d[d].isInCircle(ringPointsIn2d[a], ringPointsIn2d[c], ringPointsIn2d[b])) {
                 const auto &hflip_x = halfEdgesPointToTarget[i + 1];
                 const auto &hflip = hflip_x->oppositeHalfEdge;
-                DecimationLog *flipLog = allocDecimationLog();
-                flipLog->k = 0;
-                flipLog->hflip = hflip;
-                flipLog->hflip_x = hflip_x;
-                flipLog->ha = hflip->previousHalfEdge;
-                flipLog->hb = hflip_x->previousHalfEdge;
-                flipLog->hc = hflip->nextHalfEdge;
-                flipLog->hd = hflip_x->nextHalfEdge;
+                if (m_enableDecimationLog) {
+                    DecimationLog *flipLog = allocDecimationLog();
+                    flipLog->k = 0;
+                    flipLog->hflip = hflip;
+                    flipLog->hflip_x = hflip_x;
+                    flipLog->ha = hflip->previousHalfEdge;
+                    flipLog->hb = hflip_x->previousHalfEdge;
+                    flipLog->hc = hflip->nextHalfEdge;
+                    flipLog->hd = hflip_x->nextHalfEdge;
+                }
                 if (!flip(hflip))
                     return false;
             }
@@ -683,20 +757,20 @@ void Mesh::unCollapse(int k,
         }
     }
     
-    std::cerr << "alpha_i:" << alpha_i << " k:" << k << std::endl;
+    //std::cerr << "alpha_i:" << alpha_i << " k:" << k << std::endl;
     Vector2 unCollapsedVertexUv;
     if (alpha_i < 2) {
         unCollapsedVertexUv = alpha * ring[alpha_i - 1]->startVertexUv +
             beta * h_x[2]->startVertexUv +
             gamma * ring[alpha_i]->startVertexUv;
         h_x[2]->startVertexUv = unCollapsedVertexUv;
-        std::cerr << "h_x[" << 2 << "]:" << h_x[2]->startVertexUv << std::endl;
+        //std::cerr << "h_x[" << 2 << "]:" << h_x[2]->startVertexUv << std::endl;
         {
             auto uv = unCollapsedVertexUv;
             for (int i = 2; i <= k - 2; ++i) {
                 uv = transformedPoint(tj_x[i], uv);
                 h_x[i + 1]->startVertexUv = uv;
-                std::cerr << "h_x[" << (i + 1) << "]:" << h_x[i + 1]->startVertexUv << std::endl;
+                //std::cerr << "h_x[" << (i + 1) << "]:" << h_x[i + 1]->startVertexUv << std::endl;
             }
         }
     } else if (alpha_i >= k - 2) {
@@ -704,13 +778,13 @@ void Mesh::unCollapse(int k,
             beta * ring[k - 1]->startVertexUv +
             gamma * ring[k - 2]->startVertexUv;
         h_x[k - 1]->startVertexUv = unCollapsedVertexUv;
-        std::cerr << "unCollapsedVertexUv:" << unCollapsedVertexUv << std::endl;
+        //std::cerr << "unCollapsedVertexUv:" << unCollapsedVertexUv << std::endl;
         {
             auto uv = unCollapsedVertexUv;
             for (int i = k - 2; i >= 2; --i) {
                 uv = transformedPoint(tj_x[i].inverse(), uv);
                 h_x[i]->startVertexUv = uv;
-                std::cerr << "h_x[" << i << "]:" << h_x[i]->startVertexUv << std::endl;
+                //std::cerr << "h_x[" << i << "]:" << h_x[i]->startVertexUv << std::endl;
             }
         }
     } else {
@@ -718,13 +792,13 @@ void Mesh::unCollapse(int k,
             beta * h_x[gamma_i]->startVertexUv +
             gamma * ring[alpha_i]->startVertexUv;
         h_x[gamma_i]->startVertexUv = unCollapsedVertexUv;
-        std::cerr << "h_x[" << gamma_i << "]:" << h_x[gamma_i]->startVertexUv << std::endl;
+        //std::cerr << "h_x[" << gamma_i << "]:" << h_x[gamma_i]->startVertexUv << std::endl;
         {
             auto uv = unCollapsedVertexUv;
             for (int i = gamma_i; i <= k - 2; ++i) {
                 uv = transformedPoint(tj_x[i], uv);
                 h_x[i + 1]->startVertexUv = uv;
-                std::cerr << "h_x[" << (i + 1) << "]:" << h_x[i + 1]->startVertexUv << std::endl;
+                //std::cerr << "h_x[" << (i + 1) << "]:" << h_x[i + 1]->startVertexUv << std::endl;
             }
         }
         {
@@ -732,7 +806,7 @@ void Mesh::unCollapse(int k,
             for (int i = gamma_i - 1; i >= 2; --i) {
                 uv = transformedPoint(tj_x[i].inverse(), uv);
                 h_x[i]->startVertexUv = uv;
-                std::cerr << "h_x[" << i << "]:" << h_x[i]->startVertexUv << std::endl;
+                //std::cerr << "h_x[" << i << "]:" << h_x[i]->startVertexUv << std::endl;
             }
         }
     }
@@ -801,11 +875,16 @@ bool Mesh::flip(HalfEdge *halfEdge)
     ha->leftFace = faceB;
     hb->leftFace = faceA;
     
+    --hflip->startVertex->halfEdgeCount;
     if (hflip->startVertex->anyHalfEdge == hflip)
         hflip->startVertex->anyHalfEdge = hd;
     
+    --hflip_x->startVertex->halfEdgeCount;
     if (hflip_x->startVertex->anyHalfEdge == hflip_x)
         hflip_x->startVertex->anyHalfEdge = hc;
+    
+    ++hb->startVertex->halfEdgeCount;
+    ++ha->startVertex->halfEdgeCount;
     
     hflip->startVertex = hb->startVertex;
     hflip_x->startVertex = ha->startVertex;
@@ -845,11 +924,15 @@ bool Mesh::collapse(Vertex *vertex, std::vector<HalfEdge *> &h)
         h[i]->oppositeHalfEdge->startVertex = collapseToVertex;
     }
     
+    collapseToVertex->halfEdgeCount += k - 4;
     if (collapseToVertex->anyHalfEdge == h0)
         collapseToVertex->anyHalfEdge = c;
     
+    --hk_1->startVertex->halfEdgeCount;
     if (hk_1->startVertex->anyHalfEdge == hk_1)
         hk_1->startVertex->anyHalfEdge = hk_1->oppositeHalfEdge->nextHalfEdge;
+    
+    --h1->startVertex->halfEdgeCount;
     if (h1->startVertex->anyHalfEdge == h1)
         h1->startVertex->anyHalfEdge = h1->oppositeHalfEdge->nextHalfEdge;
     
@@ -861,8 +944,8 @@ bool Mesh::collapse(Vertex *vertex, std::vector<HalfEdge *> &h)
     if (h1->leftFace->anyHalfEdge == h1)
         h1->leftFace->anyHalfEdge = b;
     
-    freeFace(hk_1->leftFace);
-    freeFace(h1->oppositeHalfEdge->leftFace);
+    deferedFreeFace(hk_1->leftFace);
+    deferedFreeFace(h1->oppositeHalfEdge->leftFace);
     
     makeLinkedHalfEdges(h[k-2], c);
     makeLinkedHalfEdges(c, hk_1->oppositeHalfEdge->nextHalfEdge);
@@ -903,11 +986,11 @@ bool Mesh::decimate()
         }
         m_vertexRemovalCostPriorityQueue.pop();
         if (decimate(vertex)) {
-            //std::cerr << "Vertex " << vertex->index << " decimated" << std::endl;
+            //std::cerr << "Vertex " << vertex->index << " decimated at cost:" << vertex->removalCost << std::endl;
             //std::cerr << "Vertices reduced from:" << vertexCountBeforeDecimation << " to:" << m_vertexCount << std::endl;
         }
     }
-    std::cerr << "decimated vertices:" << (vertexCountBeforeDecimation - m_vertexCount) << " from:" << m_vertexCount << std::endl;
+    std::cerr << "decimated vertices:" << (vertexCountBeforeDecimation - m_vertexCount) << " from:" << vertexCountBeforeDecimation << std::endl;
     return true;
 }
 
@@ -991,6 +1074,28 @@ void Mesh::exportObj(const char *filename, std::vector<std::vector<Vector2>> &fa
     fclose(fp);
 }
 
+void Mesh::exportObj(const char *filename, std::vector<std::vector<Vector3>> &faces)
+{
+    FILE *fp = fopen(filename, "wb");
+    for (const auto &face: faces) {
+        for (size_t i = 0; i < face.size(); ++i) {
+            fprintf(fp, "v %f %f %f\n", 
+                face[i].x(), 
+                face[i].z(), 
+                face[i].y());
+        }
+    }
+    size_t vertexIndex = 0;
+    for (const auto &face: faces) {
+        fprintf(fp, "f");
+        for (size_t i = 0; i < face.size(); ++i) {
+            fprintf(fp, " %zu", 1 + (vertexIndex++));
+        }
+        fprintf(fp, "\n");
+    }
+    fclose(fp);
+}
+
 void Mesh::exportObj(const char *filename, std::vector<std::vector<Vertex *>> &faces)
 {
     std::map<Vertex *, size_t> vertexToIndexMap;
@@ -1027,7 +1132,38 @@ void Mesh::exportObj(const char *filename, std::vector<Vertex *> &face)
     exportObj(filename, faces);
 }
 
-void Mesh::exportPly(const char *filename)
+void Mesh::exportObj(const char *filename)
+{
+    FILE *fp = fopen(filename, "wb");
+    
+    size_t index = 0;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        vertex->outputIndex = index++;
+        fprintf(fp, "v %f %f %f\n", 
+            (double)vertex->position.x(), 
+            (double)vertex->position.y(), 
+            (double)vertex->position.z());
+    }
+    
+    size_t count = 0;
+    for (const Face *face = firstFace(); nullptr != face; face = face->_next) {
+        ++count;
+        HalfEdge *h0 = face->anyHalfEdge;
+        HalfEdge *h1 = h0->nextHalfEdge;
+        HalfEdge *h2 = h1->nextHalfEdge;
+        fprintf(fp, "f %zu %zu %zu\n",
+            1 + h0->startVertex->outputIndex, 
+            1 + h1->startVertex->outputIndex, 
+            1 + h2->startVertex->outputIndex);
+    }
+    if (count != m_faceCount) {
+        std::cerr << "Face count:" << m_faceCount << " but output count:" << count << std::endl;
+    }
+    
+    fclose(fp);
+}
+
+void Mesh::exportPly(const char *filename) const
 {
     FILE *fp = fopen(filename, "wb");
     fprintf(fp, "ply\n");
