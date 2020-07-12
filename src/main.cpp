@@ -13,11 +13,22 @@
 #include <QtCore>
 #endif
 
+static void copyright()
+{
+    std::cerr << "libigl        - Copyright (c) 2019 Alec Jacobson, Daniele Panozzo, Christian Schüller, Olga Diamanti, Qingnan Zhou, Sebastian Koch, Jeremie Dumas, Amir Vaxman, Nico Pietroni, Stefan Brugger, Kenshi Takayama, Wenzel Jakob, Nikolas De Giorgis, Luigi Rocca, Leonardo Sacht, Kevin Walliman, Olga Sorkine-Hornung, Teseo Schneider, and others." << std::endl;
+    std::cerr << "libqex        - Copyright (c) Ebke, Hans-Christian and Bommes, David and Campen, Marcel and Kobbelt, Leif" << std::endl;
+    std::cerr << "openmesh      - Copyright (c) 2001-2015, RWTH-Aachen University" << std::endl;
+    std::cerr << "eigen         - http://eigen.tuxfamily.org/" << std::endl;
+    std::cerr << "tinyobjloader - Copyright (c) 2012-2019 Syoyo Fujita and many contributors." << std::endl;
+    std::cerr << "clapack       - http://icl.cs.utk.edu/lapack-forum/" << std::endl;
+    std::cerr << "autoremesher  - Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved." << std::endl;
+    std::cerr << "       " << std::endl;
+}
+
 static void help()
 {
-    printf("Usage: autoremesher <input.obj> -o <output.obj> [-s <gradient size>]\n");
-    printf("       \n");
-    printf("       https://github.com/huxingyi/autoremesher\n");
+    std::cerr << "Usage: autoremesher <input.obj> -o <output.obj> [-s <gradient size>]" << std::endl;
+    std::cerr << "       " << std::endl;
     exit(1);
 }
 
@@ -97,6 +108,8 @@ int main(int argc, char *argv[])
 #ifndef _WIN32
     QCoreApplication a(argc, argv);
 #endif
+
+    copyright();
     
     const char *inputFilename = nullptr;
     const char *outputFilename = nullptr;
@@ -132,6 +145,8 @@ int main(int argc, char *argv[])
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
     std::string warn, err;
+    
+    std::cerr << "Loading input mesh..." << std::endl;
 
     bool loadSuccess = tinyobj::LoadObj(&attributes, &shapes, &materials, &warn, &err, inputFilename);
     if (!warn.empty()) {
@@ -143,6 +158,8 @@ int main(int argc, char *argv[])
     if (!loadSuccess) {
         exit(1);
     }
+    
+    std::cerr << "Preprocessing..." << std::endl;
     
     std::vector<AutoRemesher::Vector3> inputVertices(attributes.vertices.size() / 3);
     for (size_t i = 0, j = 0; i < inputVertices.size(); ++i) {
@@ -171,9 +188,12 @@ int main(int argc, char *argv[])
         exit(1);
     }
     
+    std::cerr << "Start remeshing, this may take a few minutes..." << std::endl;
+    
     std::vector<AutoRemesher::Vector3> resultVertices;
     std::vector<std::vector<size_t>> resultQuads;
-    for (const auto &island: inputTrianglesIslands) {
+    for (size_t islandIndex = 0; islandIndex < inputTrianglesIslands.size(); ++islandIndex) {
+        const auto &island = inputTrianglesIslands[islandIndex];
         std::vector<AutoRemesher::Vector3> pickedVertices;
         std::vector<std::vector<size_t>> pickedTriangles;
         std::unordered_set<size_t> addedIndices;
@@ -190,14 +210,25 @@ int main(int argc, char *argv[])
             }
             pickedTriangles.push_back(triangle);
         }
+        std::cerr << "Remeshing surface #" << (islandIndex + 1) << "/" << inputTrianglesIslands.size() << "(vertices:" << pickedVertices.size() << " triangles:" << pickedTriangles.size() << ")..." << std::endl;
         AutoRemesher::Remesher remesher(pickedVertices, pickedTriangles);
         remesher.setGradientSize(gradientSize);
-        if (!remesher.remesh())
+        auto coutBuffer = std::cout.rdbuf();
+        auto cerrBuffer = std::cerr.rdbuf();
+        std::cout.rdbuf(nullptr);
+        std::cerr.rdbuf(nullptr);
+        bool remeshSucceed = remesher.remesh();
+        std::cout.rdbuf(coutBuffer);
+        std::cerr.rdbuf(cerrBuffer);
+        if (!remeshSucceed) {
+            std::cerr << "Surface #" << (islandIndex + 1) << "/" << inputTrianglesIslands.size() << " failed to remesh" << std::endl;
             continue;
+        }
         const auto &quads = remesher.remeshedQuads();
         if (quads.empty())
             continue;
         const auto &vertices = remesher.remeshedVertices();
+        std::cerr << "Surface #" << (islandIndex + 1) << "/" << inputTrianglesIslands.size() << " remesh succeed(vertices:" << vertices.size() << " quads:" << quads.size() << ")" << std::endl;
         size_t vertexStartIndex = resultVertices.size();
         resultVertices.insert(resultVertices.end(), vertices.begin(), vertices.end());
         for (const auto &it: quads) {
@@ -213,6 +244,8 @@ int main(int argc, char *argv[])
     if (!saveObj(outputFilename, resultVertices, resultQuads)) {
         exit(1);
     }
+    
+    std::cerr << "All done!" << std::endl;
     
     return 0;
 }
