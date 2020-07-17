@@ -10,8 +10,21 @@ add_definitions(
     -DINCLUDE_TEMPLATES
 )
 
+if (NOT DEFINED CGAL_DIR)
+    message(FATAL_ERROR "Couldn't find CGAL_DIR" )
+else()
+    message("CGAL_DIR: ${CGAL_DIR}")
+endif()
+
+if (NOT DEFINED BOOST_INCLUDEDIR)
+    message(FATAL_ERROR "Couldn't find BOOST_INCLUDEDIR" )
+else()
+    message("BOOST_INCLUDEDIR: ${BOOST_INCLUDEDIR}")
+endif()
+
 link_directories(
     thirdparty/OpenMesh/OpenMesh-8.1/build/Build/lib
+    ${CGAL_DIR}/auxiliary/gmp/lib
 )
 
 add_executable(autoremesher 
@@ -19,6 +32,7 @@ add_executable(autoremesher
     src/AutoRemesher/remesher.cpp
     src/AutoRemesher/halfedge.cpp
     src/AutoRemesher/parametrization.cpp
+    src/AutoRemesher/skeletonextractor.cpp
     thirdparty/comiso/CoMISo/Solver/EigenLDLTSolver.cc
     thirdparty/comiso/CoMISo/Solver/MISolver.cc
     thirdparty/comiso/CoMISo/Solver/ConstrainedSolver.cc
@@ -38,8 +52,13 @@ target_include_directories(autoremesher PUBLIC
     thirdparty/libQEx/interfaces/c
     thirdparty/libigl/include
     thirdparty/eigen
+    ${BOOST_INCLUDEDIR}
+    ${CGAL_DIR}/include
+    ${CGAL_DIR}/auxiliary/gmp/include
 )
 
 target_link_libraries(autoremesher PUBLIC 
     OpenMeshCore
+    libgmp-10
+    libmpfr-4
 )
