@@ -33,6 +33,7 @@ add_executable(autoremesher
     src/AutoRemesher/halfedge.cpp
     src/AutoRemesher/parametrization.cpp
     src/AutoRemesher/skeletonextractor.cpp
+    src/AutoRemesher/guidelinegenerator.cpp
     thirdparty/comiso/CoMISo/Solver/EigenLDLTSolver.cc
     thirdparty/comiso/CoMISo/Solver/MISolver.cc
     thirdparty/comiso/CoMISo/Solver/ConstrainedSolver.cc

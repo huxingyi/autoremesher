@@ -4,6 +4,7 @@
 #include <AutoRemesher/Vector2>
 #include <string>
 #include <iostream>
+#include <vector>
 
 namespace AutoRemesher
 {

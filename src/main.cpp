@@ -1,6 +1,6 @@
 #include <AutoRemesher/Remesher>
 #include <AutoRemesher/HalfEdge>
-#include <AutoRemesher/SkeletonExtractor>
+#include <AutoRemesher/GuidelineGenerator>
 #include <cassert>
 #include <iostream>
 #include <cstdlib>
@@ -213,8 +213,8 @@ int main(int argc, char *argv[])
         }
         std::cerr << "Remeshing surface #" << (islandIndex + 1) << "/" << inputTrianglesIslands.size() << "(vertices:" << pickedVertices.size() << " triangles:" << pickedTriangles.size() << ")..." << std::endl;
         
-        //AutoRemesher::SkeletonExtractor skeletonExtractor(pickedVertices, pickedTriangles);
-        //skeletonExtractor.extract();
+        //AutoRemesher::GuidelineGenerator guidelineGenerator(&pickedVertices, &pickedTriangles);
+        //guidelineGenerator.generate();
         //exit(0);
         
         AutoRemesher::Remesher remesher(pickedVertices, pickedTriangles);
