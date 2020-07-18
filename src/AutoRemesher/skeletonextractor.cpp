@@ -28,7 +28,7 @@ void SkeletonExtractor::extract()
     CGAL::extract_mean_curvature_flow_skeleton(m_mesh, m_skeleton);
 }
 
-std::vector<std::vector<Skeleton::vertex_descriptor>> SkeletonExtractor::convertToStrokes()
+std::vector<std::vector<Skeleton::vertex_descriptor>> SkeletonExtractor::convertToStrokes() const
 {
     std::map<Skeleton::vertex_descriptor, std::vector<Skeleton::vertex_descriptor>> neighbors;
     for (Skeleton_edge e : CGAL::make_range(edges(m_skeleton))) {
@@ -83,19 +83,23 @@ std::vector<std::vector<Skeleton::vertex_descriptor>> SkeletonExtractor::convert
     return strokes;
 }
 
-Vector3 SkeletonExtractor::calculateStrokeBaseNormal(const std::vector<Skeleton::vertex_descriptor> &stroke)
+Vector3 SkeletonExtractor::calculateStrokeTraverseDirection(const std::vector<Skeleton::vertex_descriptor> &stroke) const
 {
-    if (stroke.size() < 2)
-        return Vector3(0.0, 0.0, 1.0);
-    
     Vector3 traverseDirection;
     for (size_t i = 1; i < stroke.size(); ++i) {
         size_t h = i - 1;
         auto p = m_skeleton[stroke[i]].point - m_skeleton[stroke[h]].point;
         traverseDirection += Vector3(CGAL::to_double(p.x()), CGAL::to_double(p.y()), CGAL::to_double(p.z()));
     }
-    traverseDirection.normalize();
-    
+    return traverseDirection.normalized();
+}
+
+Vector3 SkeletonExtractor::calculateStrokeBaseNormal(const std::vector<Skeleton::vertex_descriptor> &stroke, 
+    const Vector3 &traverseDirection) const
+{
+    if (stroke.size() < 2)
+        return Vector3(0.0, 0.0, 1.0);
+
     const std::vector<Vector3> axisList = {
         Vector3 {1.0, 0.0, 0.0},
         Vector3 {0.0, 1.0, 0.0},
@@ -121,13 +125,14 @@ Vector3 SkeletonExtractor::calculateStrokeBaseNormal(const std::vector<Skeleton:
     return reversed ? -baseNormal : baseNormal;
 }
 
-std::vector<std::vector<Mesh::Vertex_index>> SkeletonExtractor::calculateStrokeSeam(const std::vector<Skeleton::vertex_descriptor> &stroke)
+std::vector<std::vector<Mesh::Vertex_index>> SkeletonExtractor::calculateStrokeSeam(const std::vector<Skeleton::vertex_descriptor> &stroke, 
+    const Vector3 &traverseDirection) const
 {
     std::vector<std::vector<Mesh::Vertex_index>> seam;
     if (stroke.size() < 2)
         return seam;
-
-    auto baseNormal = calculateStrokeBaseNormal(stroke);
+    
+    auto baseNormal = calculateStrokeBaseNormal(stroke, traverseDirection);
     for (const auto &v: stroke) {
         const auto originPoint = m_skeleton[v].point;
         auto origin = Vector3(originPoint.x(), originPoint.y(), originPoint.z());

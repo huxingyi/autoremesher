@@ -27,6 +27,8 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     double stiffness = 5.0;
     bool direct_round = 0;
     
+    std::vector<std::vector<int>> featuredEdges;
+    
     Eigen::MatrixXd V(mesh.vertexCount(), 3);
     Eigen::MatrixXi F(mesh.faceCount(), 3);
     
@@ -41,15 +43,31 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
             vertex->position.z();
     }
     
+    Eigen::VectorXi b_soft(1);
+    Eigen::VectorXd w_soft(1);
+    Eigen::MatrixXd bc_soft(1, 3);
     size_t faceNum = 0;
     for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
         HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
         HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
         HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
-        F.row(faceNum++) << 
+        F.row(faceNum) << 
             h0->startVertex->outputIndex, 
             h1->startVertex->outputIndex, 
             h2->startVertex->outputIndex;
+        if (0 != h0->featured || 0 != h1->featured || 0 != h2->featured) {
+            b_soft << faceNum;
+            w_soft << 0.5;
+            bc_soft << face->guidelineDirection.x(), face->guidelineDirection.y(), face->guidelineDirection.z();
+        }
+        //TODO: hardFeatures not work on the current igl::copyleft::comiso::miq implementation
+        //if (0 != h0->featured)
+        //    featuredEdges.push_back({(int)faceNum, (int)0});
+        //if (0 != h1->featured)
+        //    featuredEdges.push_back({(int)faceNum, (int)1});
+        //if (0 != h2->featured)
+        //    featuredEdges.push_back({(int)faceNum, (int)2});
+        ++faceNum;
     }
     
     bool extend_arrows = false;
@@ -86,7 +104,7 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     
     Eigen::VectorXd S;
     std::cerr << "igl::copyleft::comiso::nrosy..." << std::endl;
-    igl::copyleft::comiso::nrosy(V, F, b, bc, Eigen::VectorXi(), Eigen::VectorXd(), Eigen::MatrixXd(), 4, 0.5, X1, S);
+    igl::copyleft::comiso::nrosy(V, F, b, bc, b_soft, w_soft, bc_soft, 4, 0.5, X1, S);
 
     // Find the orthogonal vector
     Eigen::MatrixXd B1, B2, B3;
@@ -121,6 +139,7 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
 
     // Global parametrization
     std::cerr << "start miq..." << std::endl;
+    std::vector<int> roundVertices;
     igl::copyleft::comiso::miq(V,
         F,
         X1_combed,
@@ -135,7 +154,10 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
         direct_round,
         iter,
         5,
-        true);
+        true,
+        true,
+        roundVertices,
+        featuredEdges);
     std::cerr << "miq done" << std::endl;
     
     if (FUV.rows() != mesh.faceCount()) {

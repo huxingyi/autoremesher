@@ -19,7 +19,7 @@ inline void makeLinkedHalfEdges(HalfEdge *previous, HalfEdge *next)
 
 Mesh::Mesh(const std::vector<Vector3> &vertices,
         const std::vector<std::vector<size_t>> &triangles,
-        const std::unordered_set<size_t> &guidelineVertices) :
+        const std::unordered_map<size_t, Vector3> &guidelineVertices) :
     m_vertexRemovalCostPriorityQueue(m_vertexRemovalCostComparer)
 {
     std::vector<Vertex *> halfEdgeVertices(vertices.size());
@@ -54,8 +54,11 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
             const auto &nextVertexIndex = triangleIndices[k];
             auto &vertex = halfEdgeVertices[vertexIndex];
             const auto &nextVertex = halfEdgeVertices[nextVertexIndex];
-            if (guidelineVertices.end() != guidelineVertices.find(vertexIndex))
+            auto findGuideline = guidelineVertices.find(vertexIndex);
+            if (guidelineVertices.end() != findGuideline) {
                 face->isGuideline = true;
+                face->guidelineDirection = findGuideline->second;
+            }
             vertex->anyHalfEdge = halfEdge;
             ++vertex->halfEdgeCount;
             halfEdge->startVertex = vertex;
@@ -325,20 +328,13 @@ bool Mesh::isWatertight()
 
 bool Mesh::isVertexConstrained(Vertex *vertex) const
 {
-    bool foundGuidelineFace = false;
-    bool foundNormalFace = false;
     HalfEdge *halfEdge = vertex->anyHalfEdge;
     do {
-        if (halfEdge->leftFace->isGuideline) {
-            foundGuidelineFace = true;
-        } else {
-            foundNormalFace = true;
-        }
+        if (0 != halfEdge->featured)
+            return true;
         halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
     } while (halfEdge != vertex->anyHalfEdge);
-    if (!foundGuidelineFace || !foundNormalFace)
-        return false;
-    return true;
+    return false;
 }
 
 double Mesh::calculateVertexRemovalCost(Vertex *vertex) const
@@ -468,6 +464,18 @@ HalfEdge *Mesh::findHalfEdgeBetweenVertices(Vertex *firstVertex, Vertex *secondV
         halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
     } while (halfEdge != firstVertex->anyHalfEdge);
     return nullptr;
+}
+
+bool Mesh::isVertexMixed(Vertex *vertex) const
+{
+    HalfEdge *halfEdge = vertex->anyHalfEdge;
+    bool isGuideline = halfEdge->leftFace->isGuideline;
+    do {
+        if (halfEdge->leftFace->isGuideline != isGuideline)
+            return true;
+        halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
+    } while (halfEdge != vertex->anyHalfEdge);
+    return false;
 }
 
 bool Mesh::decimate(Vertex *vertex)
@@ -689,6 +697,35 @@ bool Mesh::decimate()
     return true;
 }
 
+void Mesh::markGuidelineEdgesAsFeatured()
+{
+    for (Face *face = m_firstFace; nullptr != face; face = face->_next) {
+        if (0 == face->isGuideline)
+            continue;
+        HalfEdge *h0 = face->anyHalfEdge;
+        HalfEdge *h1 = h0->nextHalfEdge;
+        HalfEdge *h2 = h1->nextHalfEdge;
+        HalfEdge *halfEdges[] = {
+            h0, h1, h2
+        };
+        bool vertexMixedChecks[] = {
+            isVertexMixed(h0->startVertex),
+            isVertexMixed(h1->startVertex),
+            isVertexMixed(h2->startVertex)
+        };
+        for (size_t i = 0; i < 3; ++i) {
+            size_t j = (i + 1) % 3;
+            if (!vertexMixedChecks[i] || !vertexMixedChecks[j])
+                continue;
+            Vector3 edgeDirection = (halfEdges[j]->startVertex->position - halfEdges[i]->startVertex->position).normalized();
+            if (std::abs(Vector3::dotProduct(face->guidelineDirection, edgeDirection)) >= 0.966) { //<=15 degrees
+                halfEdges[i]->featured = 1;
+                halfEdges[i]->oppositeHalfEdge->featured = 1;
+            }
+        }
+    }
+}
+
 bool Mesh::parametrize(double gradientSize)
 {
     Parametrization::Parameters parameters;
@@ -751,16 +788,16 @@ void Mesh::debugExportGuidelinePly(const char *filename)
         HalfEdge *h0 = face->anyHalfEdge;
         HalfEdge *h1 = h0->nextHalfEdge;
         HalfEdge *h2 = h1->nextHalfEdge;
-        int r = face->isGuideline ? 255 : 0;
-        fprintf(fp, "%f %f %f %d %d %d\n", 
-            h0->startVertex->position.x(), h0->startVertex->position.y(), h0->startVertex->position.z(),
-            r, 0, 0);
-        fprintf(fp, "%f %f %f %d %d %d\n", 
-            h1->startVertex->position.x(), h1->startVertex->position.y(), h1->startVertex->position.z(),
-            r, 0, 0);
-        fprintf(fp, "%f %f %f %d %d %d\n", 
-            h2->startVertex->position.x(), h2->startVertex->position.y(), h2->startVertex->position.z(),
-            r, 0, 0);
+        HalfEdge *halfEdges[] = {
+            h0, h1, h2
+        };
+        for (size_t i = 0; i < 3; ++i) {
+            size_t j = (i + 1) % 3;
+            int r = halfEdges[i]->featured ? 255 : 0;
+            fprintf(fp, "%f %f %f %d %d %d\n", 
+                halfEdges[i]->startVertex->position.x(), halfEdges[i]->startVertex->position.y(), halfEdges[i]->startVertex->position.z(),
+                r, 0, 0);
+        }
     }
     size_t index = 0;
     for (Face *face = m_firstFace; nullptr != face; face = face->_next) {

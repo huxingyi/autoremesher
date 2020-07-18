@@ -20,6 +20,8 @@ bool QuadRemesher::remesh()
     
     AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles, guideline);
 
+    mesh.markGuidelineEdgesAsFeatured();
+    
     if (!mesh.decimate()) {
         std::cerr << "Mesh decimate failed" << std::endl;
         return false;

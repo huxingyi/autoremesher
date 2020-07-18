@@ -21,24 +21,25 @@ void GuidelineGenerator::generate()
     std::vector<std::vector<Skeleton::vertex_descriptor>> strokes = skeletonExtractor.convertToStrokes();
     const auto &meshPropertyMap = skeletonExtractor.meshPropertyMap();
     for (const auto &stroke: strokes) {
-        std::vector<std::vector<Mesh::Vertex_index>> seam = skeletonExtractor.calculateStrokeSeam(stroke);
+        Vector3 traversalDirection = skeletonExtractor.calculateStrokeTraverseDirection(stroke);
+        std::vector<std::vector<Mesh::Vertex_index>> seam = skeletonExtractor.calculateStrokeSeam(stroke, traversalDirection);
         if (seam.empty())
             continue;
         for (const auto &seamVertices: seam) {
             for (const auto &v: seamVertices)
-                m_guidelineVertices.insert(meshPropertyMap[v]);
+                m_guidelineVertices.insert({meshPropertyMap[v], traversalDirection});
         }
     }
     //skeletonExtractor.debugExportStrokes("C:\\Users\\Jeremy\\Desktop\\test-skeleton-strokes.obj", strokes);
     //debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-skeleton-guideline.ply", guidelineVertices);
 }
 
-const std::unordered_set<size_t> &GuidelineGenerator::guidelineVertices() const
+const std::unordered_map<size_t, Vector3> &GuidelineGenerator::guidelineVertices() const
 {
     return m_guidelineVertices;
 }
 
-void GuidelineGenerator::debugExportPly(const char *filename, const std::unordered_set<size_t> &guidelineVertices)
+void GuidelineGenerator::debugExportPly(const char *filename, const std::unordered_map<size_t, Vector3> &guidelineVertices) const
 {
     FILE *fp = fopen(filename, "wb");
     fprintf(fp, "ply\n");

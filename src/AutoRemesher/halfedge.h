@@ -5,7 +5,7 @@
 #include <queue>
 #include <limits>
 #include <stack>
-#include <unordered_set>
+#include <unordered_map>
 #include <AutoRemesher/Vector3>
 #include <AutoRemesher/Vector2>
 
@@ -44,6 +44,7 @@ struct HalfEdge
     HalfEdge *nextHalfEdge = nullptr;
     HalfEdge *oppositeHalfEdge = nullptr;
     double length2 = 0.0;
+    uint8_t featured = 0;
     Vector2 startVertexUv;
 };
 
@@ -52,6 +53,7 @@ struct Face
     Face *_previous = nullptr;
     Face *_next = nullptr;
     uint8_t isGuideline = false;
+    Vector3 guidelineDirection;
     HalfEdge *anyHalfEdge = nullptr;
 };
 
@@ -60,7 +62,7 @@ class Mesh
 public:
     Mesh(const std::vector<Vector3> &vertices,
         const std::vector<std::vector<size_t>> &triangles,
-        const std::unordered_set<size_t> &guidelineVertices);
+        const std::unordered_map<size_t, Vector3> &guidelineVertices);
     ~Mesh();
     Vertex *allocVertex();
     Face *allocFace();
@@ -100,6 +102,8 @@ public:
     Vertex *firstVertex() const;
     Face *firstFace() const;
     HalfEdge *findHalfEdgeBetweenVertices(Vertex *firstVertex, Vertex *secondVertex);
+    void markGuidelineEdgesAsFeatured();
+    bool isVertexMixed(Vertex *vertex) const;
     void debugExportGuidelinePly(const char *filename);
     void debugExportPly(const char *filename);
     
@@ -119,7 +123,7 @@ private:
     size_t m_vertexCount = 0;
     size_t m_faceCount = 0;
     size_t m_halfEdgeCount = 0;
-    size_t m_targetVertexCount = 10000;
+    size_t m_targetVertexCount = 9000;
     
     struct VertexRemovalCost
     {

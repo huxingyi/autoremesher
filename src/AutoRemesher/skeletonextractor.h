@@ -26,8 +26,9 @@ public:
     SkeletonExtractor(const std::vector<Vector3> *vertices,
             const std::vector<std::vector<size_t>> *faces);
     void extract();
-    std::vector<std::vector<Skeleton::vertex_descriptor>> convertToStrokes();
-    std::vector<std::vector<Mesh::Vertex_index>> calculateStrokeSeam(const std::vector<Skeleton::vertex_descriptor> &stroke);
+    std::vector<std::vector<Skeleton::vertex_descriptor>> convertToStrokes() const;
+    Vector3 calculateStrokeTraverseDirection(const std::vector<Skeleton::vertex_descriptor> &stroke) const;
+    std::vector<std::vector<Mesh::Vertex_index>> calculateStrokeSeam(const std::vector<Skeleton::vertex_descriptor> &stroke, const Vector3 &traverseDirection) const;
     Mesh &mesh();
     Skeleton &skeleton();
     Mesh::Property_map<Mesh::Vertex_index, size_t> &meshPropertyMap();
@@ -40,7 +41,7 @@ private:
     Skeleton m_skeleton;
     Mesh::Property_map<Mesh::Vertex_index, size_t> m_meshPropertyMap;
     
-    Vector3 calculateStrokeBaseNormal(const std::vector<Skeleton::vertex_descriptor> &stroke);
+    Vector3 calculateStrokeBaseNormal(const std::vector<Skeleton::vertex_descriptor> &stroke, const Vector3 &traverseDirection) const;
 };
     
 }
