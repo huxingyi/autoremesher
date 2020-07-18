@@ -136,7 +136,7 @@ std::vector<std::vector<Mesh::Vertex_index>> SkeletonExtractor::calculateStrokeS
             auto currentPoint = m_mesh.point(mv);
             auto current = Vector3(currentPoint.x(), currentPoint.y(), currentPoint.z());
             auto direction = (current - origin).normalized();
-            if (Vector3::dotProduct(direction, baseNormal) >= 0.866) { //<=30 degrees
+            if (std::abs(Vector3::dotProduct(direction, baseNormal)) >= 0.866) { //<=30 or >=150 degrees
                 seamVertices.push_back(mv);
             }
         }

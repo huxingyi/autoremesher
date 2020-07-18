@@ -1,5 +1,5 @@
-#ifndef AUTO_REMESHER_REMESHER_H
-#define AUTO_REMESHER_REMESHER_H
+#ifndef AUTO_REMESHER_QUAD_REMESHER_H
+#define AUTO_REMESHER_QUAD_REMESHER_H
 #include <vector>
 #include <cstddef>
 #include <AutoRemesher/Vector3>
@@ -7,11 +7,11 @@
 namespace AutoRemesher
 {
 
-class Remesher
+class QuadRemesher
 {
 public:
-    Remesher(const std::vector<Vector3> &vertices,
-            std::vector<std::vector<size_t>> &triangles) :
+    QuadRemesher(const std::vector<Vector3> &vertices,
+            const std::vector<std::vector<size_t>> &triangles) :
         m_vertices(vertices),
         m_triangles(triangles)
     {

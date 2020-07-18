@@ -5,6 +5,7 @@
 #include <queue>
 #include <limits>
 #include <stack>
+#include <unordered_set>
 #include <AutoRemesher/Vector3>
 #include <AutoRemesher/Vector2>
 
@@ -50,6 +51,7 @@ struct Face
 {
     Face *_previous = nullptr;
     Face *_next = nullptr;
+    uint8_t isGuideline = false;
     HalfEdge *anyHalfEdge = nullptr;
 };
 
@@ -57,11 +59,13 @@ class Mesh
 {
 public:
     Mesh(const std::vector<Vector3> &vertices,
-        std::vector<std::vector<size_t>> &triangles);
+        const std::vector<std::vector<size_t>> &triangles,
+        const std::unordered_set<size_t> &guidelineVertices);
     ~Mesh();
     Vertex *allocVertex();
     Face *allocFace();
     HalfEdge *allocHalfEdge();
+    bool isVertexConstrained(Vertex *vertex) const;
     void freeVertex(Vertex *vertex);
     void deferedFreeVertex(Vertex *vertex);
     void freeFace(Face *face);
@@ -95,6 +99,9 @@ public:
     const size_t &faceCount() const;
     Vertex *firstVertex() const;
     Face *firstFace() const;
+    HalfEdge *findHalfEdgeBetweenVertices(Vertex *firstVertex, Vertex *secondVertex);
+    void debugExportGuidelinePly(const char *filename);
+    void debugExportPly(const char *filename);
     
 private:
 
@@ -112,7 +119,7 @@ private:
     size_t m_vertexCount = 0;
     size_t m_faceCount = 0;
     size_t m_halfEdgeCount = 0;
-    size_t m_targetVertexCount = 5000;
+    size_t m_targetVertexCount = 10000;
     
     struct VertexRemovalCost
     {

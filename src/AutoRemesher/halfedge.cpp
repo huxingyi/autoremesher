@@ -18,7 +18,8 @@ inline void makeLinkedHalfEdges(HalfEdge *previous, HalfEdge *next)
 }
 
 Mesh::Mesh(const std::vector<Vector3> &vertices,
-        std::vector<std::vector<size_t>> &triangles) :
+        const std::vector<std::vector<size_t>> &triangles,
+        const std::unordered_set<size_t> &guidelineVertices) :
     m_vertexRemovalCostPriorityQueue(m_vertexRemovalCostComparer)
 {
     std::vector<Vertex *> halfEdgeVertices(vertices.size());
@@ -53,6 +54,8 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
             const auto &nextVertexIndex = triangleIndices[k];
             auto &vertex = halfEdgeVertices[vertexIndex];
             const auto &nextVertex = halfEdgeVertices[nextVertexIndex];
+            if (guidelineVertices.end() != guidelineVertices.find(vertexIndex))
+                face->isGuideline = true;
             vertex->anyHalfEdge = halfEdge;
             ++vertex->halfEdgeCount;
             halfEdge->startVertex = vertex;
@@ -262,15 +265,15 @@ HalfEdge *Mesh::findShortestHalfEdgeAroundVertex(Vertex *vertex) const
 {
     HalfEdge *halfEdge = vertex->anyHalfEdge;
     double shortestLength2 = std::numeric_limits<double>::max();
-    HalfEdge *shortest = halfEdge;
+    HalfEdge *selected = halfEdge;
     do {
         if (halfEdge->length2 < shortestLength2) {
-            shortest = halfEdge;
+            selected = halfEdge;
             shortestLength2 = halfEdge->length2;
         }
         halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
     } while (halfEdge != vertex->anyHalfEdge);
-    return shortest;
+    return selected;
 }
 
 double Mesh::calculateVertexCurvature(Vertex *vertex) const
@@ -320,14 +323,32 @@ bool Mesh::isWatertight()
         0 == m_aloneHalfEdges;
 }
 
+bool Mesh::isVertexConstrained(Vertex *vertex) const
+{
+    bool foundGuidelineFace = false;
+    bool foundNormalFace = false;
+    HalfEdge *halfEdge = vertex->anyHalfEdge;
+    do {
+        if (halfEdge->leftFace->isGuideline) {
+            foundGuidelineFace = true;
+        } else {
+            foundNormalFace = true;
+        }
+        halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
+    } while (halfEdge != vertex->anyHalfEdge);
+    if (!foundGuidelineFace || !foundNormalFace)
+        return false;
+    return true;
+}
+
 double Mesh::calculateVertexRemovalCost(Vertex *vertex) const
 {
-    HalfEdge *shortestHalfEdge = findShortestHalfEdgeAroundVertex(vertex);
+    HalfEdge *collapsedHalfEdge = findShortestHalfEdgeAroundVertex(vertex);
     
     // The following two checks are necessary, unless non-manifold vertex will be created because of collapse 
-    if (shortestHalfEdge->nextHalfEdge->nextHalfEdge->startVertex->halfEdgeCount < 4)
+    if (collapsedHalfEdge->nextHalfEdge->nextHalfEdge->startVertex->halfEdgeCount < 4)
         return std::numeric_limits<double>::max();
-    if (shortestHalfEdge->oppositeHalfEdge->previousHalfEdge->startVertex->halfEdgeCount < 4)
+    if (collapsedHalfEdge->oppositeHalfEdge->previousHalfEdge->startVertex->halfEdgeCount < 4)
         return std::numeric_limits<double>::max();
     
     if (vertex->halfEdgeCount < 4)
@@ -337,7 +358,7 @@ double Mesh::calculateVertexRemovalCost(Vertex *vertex) const
     std::set<Vertex *> verticesAroundTarget;
     std::map<Vertex *, std::vector<std::pair<Vertex *, Vertex *>>> vertexCones;
     std::set<std::pair<Vertex *, Vertex *>> halfEdges;
-    HalfEdge *halfEdge = shortestHalfEdge;
+    HalfEdge *halfEdge = collapsedHalfEdge;
     do {
         auto insertVertexResult = verticesAroundTarget.insert(halfEdge->oppositeHalfEdge->startVertex);
         if (!insertVertexResult.second) {
@@ -352,14 +373,17 @@ double Mesh::calculateVertexRemovalCost(Vertex *vertex) const
         vertexCones.insert({halfEdge->oppositeHalfEdge->startVertex,
             collectConesAroundVertexExclude(halfEdge->oppositeHalfEdge->startVertex, vertex)});
         halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
-    } while (halfEdge != shortestHalfEdge);
+    } while (halfEdge != collapsedHalfEdge);
     
     if (vertex->halfEdgeCount != verticesAroundTarget.size())
+        return std::numeric_limits<double>::max();
+
+    if (isVertexConstrained(vertex))
         return std::numeric_limits<double>::max();
     
     std::vector<std::vector<Vertex *>> triangles;
     Vector3 projectNormal = calculateVertexNormal(vertex);
-    Vector3 projectAxis = (shortestHalfEdge->nextHalfEdge->startVertex->position - vertex->position).normalized();
+    Vector3 projectAxis = (collapsedHalfEdge->nextHalfEdge->startVertex->position - vertex->position).normalized();
     if (!delaunayTriangulate(ringVertices, projectNormal, projectAxis, &triangles, vertex->position))
         return std::numeric_limits<double>::max();
     
@@ -416,7 +440,8 @@ bool Mesh::delaunayTriangulate(std::vector<Vertex *> &ringVertices,
         size_t b = i;
         size_t c = i + 1;
         size_t d = i + 2;
-        if (ringPointsIn2d[d].isInCircle(ringPointsIn2d[a], ringPointsIn2d[c], ringPointsIn2d[b])) {
+        if (ringPointsIn2d[d].isInCircle(ringPointsIn2d[a], ringPointsIn2d[c], ringPointsIn2d[b]) &&
+                ringVertices[a]->halfEdgeCount >= 4 && ringVertices[c]->halfEdgeCount >= 4) {
             triangles->push_back({ringVertices[a], ringVertices[d], ringVertices[b]});
             triangles->push_back({ringVertices[c], ringVertices[b], ringVertices[d]});
         } else {
@@ -434,16 +459,33 @@ bool Mesh::delaunayTriangulate(std::vector<Vertex *> &ringVertices,
     return true;
 }
 
+HalfEdge *Mesh::findHalfEdgeBetweenVertices(Vertex *firstVertex, Vertex *secondVertex)
+{
+    HalfEdge *halfEdge = firstVertex->anyHalfEdge;
+    do {
+        if (halfEdge->oppositeHalfEdge->startVertex == secondVertex)
+            return halfEdge;
+        halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
+    } while (halfEdge != firstVertex->anyHalfEdge);
+    return nullptr;
+}
+
 bool Mesh::decimate(Vertex *vertex)
 {
     // cf. <Interactively Controlled Quad Remeshing of High Resolution 3D Models> Figure 7
     
-    HalfEdge *shortestHalfEdge = findShortestHalfEdgeAroundVertex(vertex);
+    HalfEdge *collapsedHalfEdge = findShortestHalfEdgeAroundVertex(vertex);
+    
+    // The following two checks are necessary, unless non-manifold vertex will be created because of collapse 
+    if (collapsedHalfEdge->nextHalfEdge->nextHalfEdge->startVertex->halfEdgeCount < 4)
+        return false;
+    if (collapsedHalfEdge->oppositeHalfEdge->previousHalfEdge->startVertex->halfEdgeCount < 4)
+        return false;
     
     std::vector<HalfEdge *> halfEdgesPointToTarget;
     std::set<Vertex *> ringVertices;
     std::vector<Vector3> ringPoints;
-    HalfEdge *halfEdge = shortestHalfEdge;
+    HalfEdge *halfEdge = collapsedHalfEdge;
     do {
         auto insertResult = ringVertices.insert(halfEdge->oppositeHalfEdge->startVertex);
         if (!insertResult.second) {
@@ -452,7 +494,7 @@ bool Mesh::decimate(Vertex *vertex)
         ringPoints.push_back(halfEdge->oppositeHalfEdge->startVertex->position);
         halfEdgesPointToTarget.push_back(halfEdge->oppositeHalfEdge);
         halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
-    } while (halfEdge != shortestHalfEdge);
+    } while (halfEdge != collapsedHalfEdge);
 
     if (halfEdgesPointToTarget.size() < 4)
         return false;
@@ -460,9 +502,14 @@ bool Mesh::decimate(Vertex *vertex)
     auto k = halfEdgesPointToTarget.size();
     
     Vector3 projectNormal = calculateVertexNormal(vertex);
-    Vector3 projectAxis = (shortestHalfEdge->nextHalfEdge->startVertex->position - vertex->position).normalized();
+    Vector3 projectAxis = (collapsedHalfEdge->nextHalfEdge->startVertex->position - vertex->position).normalized();
     std::vector<Vector2> ringPointsIn2d;
     Vector3::project(ringPoints, &ringPointsIn2d, projectNormal, projectAxis, vertex->position);
+    
+    for (size_t i = 2; i <= k - 2; ++i) {
+        if (nullptr != findHalfEdgeBetweenVertices(halfEdgesPointToTarget[0]->startVertex, halfEdgesPointToTarget[i]->startVertex))
+            return false;
+    }
 
     if (!collapse(vertex, halfEdgesPointToTarget))
         return false;
@@ -478,6 +525,12 @@ bool Mesh::decimate(Vertex *vertex)
             if (ringPointsIn2d[d].isInCircle(ringPointsIn2d[a], ringPointsIn2d[c], ringPointsIn2d[b])) {
                 const auto &hflip_x = halfEdgesPointToTarget[i + 1];
                 const auto &hflip = hflip_x->oppositeHalfEdge;
+                if (hflip->startVertex->halfEdgeCount < 4)
+                    continue;
+                if (hflip_x->startVertex->halfEdgeCount < 4)
+                    continue;
+                if (nullptr != findHalfEdgeBetweenVertices(hflip->previousHalfEdge->startVertex, hflip_x->previousHalfEdge->startVertex))
+                    continue;
                 if (!flip(hflip))
                     return false;
             }
@@ -627,6 +680,12 @@ bool Mesh::decimate()
         m_vertexRemovalCostPriorityQueue.pop();
         decimate(vertex);
     }
+    std::cerr << "Postchecking begin" << std::endl;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        if (vertex->halfEdgeCount <= 2)
+            std::cerr << "Found invalid vertex" << std::endl;
+    }
+    std::cerr << "Postchecking end" << std::endl;
     return true;
 }
 
@@ -637,6 +696,84 @@ bool Mesh::parametrize(double gradientSize)
     if (!Parametrization::miq(*this, parameters))
         return false;
     return true;
+}
+
+void Mesh::debugExportPly(const char *filename)
+{
+    FILE *fp = fopen(filename, "wb");
+    fprintf(fp, "ply\n");
+    fprintf(fp, "format ascii 1.0\n");
+    fprintf(fp, "element vertex %zu\n", m_vertexCount);
+    fprintf(fp, "property float x\n");
+    fprintf(fp, "property float y\n");
+    fprintf(fp, "property float z\n");
+    fprintf(fp, "property uchar red\n");
+    fprintf(fp, "property uchar green\n");
+    fprintf(fp, "property uchar blue\n");
+    fprintf(fp, "element face %zu\n", m_faceCount);
+    fprintf(fp, "property list uchar uint vertex_indices\n");
+    fprintf(fp, "end_header\n");
+    size_t index = 0;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        vertex->outputIndex = index++;
+        fprintf(fp, "%f %f %f %d %d %d\n", 
+            vertex->position.x(), vertex->position.y(), vertex->position.z(),
+            0, 0, 0);
+    }
+    for (Face *face = m_firstFace; nullptr != face; face = face->_next) {
+        HalfEdge *h0 = face->anyHalfEdge;
+        HalfEdge *h1 = h0->nextHalfEdge;
+        HalfEdge *h2 = h1->nextHalfEdge;
+        fprintf(fp, "3 %zu %zu %zu\n",
+            h0->startVertex->outputIndex, 
+            h1->startVertex->outputIndex, 
+            h2->startVertex->outputIndex);
+    }
+    fclose(fp);
+}
+
+void Mesh::debugExportGuidelinePly(const char *filename)
+{
+    FILE *fp = fopen(filename, "wb");
+    fprintf(fp, "ply\n");
+    fprintf(fp, "format ascii 1.0\n");
+    fprintf(fp, "element vertex %zu\n", m_faceCount * 3);
+    fprintf(fp, "property float x\n");
+    fprintf(fp, "property float y\n");
+    fprintf(fp, "property float z\n");
+    fprintf(fp, "property uchar red\n");
+    fprintf(fp, "property uchar green\n");
+    fprintf(fp, "property uchar blue\n");
+    fprintf(fp, "element face %zu\n", m_faceCount);
+    fprintf(fp, "property list uchar uint vertex_indices\n");
+    fprintf(fp, "end_header\n");
+    for (Face *face = m_firstFace; nullptr != face; face = face->_next) {
+        HalfEdge *h0 = face->anyHalfEdge;
+        HalfEdge *h1 = h0->nextHalfEdge;
+        HalfEdge *h2 = h1->nextHalfEdge;
+        int r = face->isGuideline ? 255 : 0;
+        fprintf(fp, "%f %f %f %d %d %d\n", 
+            h0->startVertex->position.x(), h0->startVertex->position.y(), h0->startVertex->position.z(),
+            r, 0, 0);
+        fprintf(fp, "%f %f %f %d %d %d\n", 
+            h1->startVertex->position.x(), h1->startVertex->position.y(), h1->startVertex->position.z(),
+            r, 0, 0);
+        fprintf(fp, "%f %f %f %d %d %d\n", 
+            h2->startVertex->position.x(), h2->startVertex->position.y(), h2->startVertex->position.z(),
+            r, 0, 0);
+    }
+    size_t index = 0;
+    for (Face *face = m_firstFace; nullptr != face; face = face->_next) {
+        HalfEdge *h0 = face->anyHalfEdge;
+        HalfEdge *h1 = h0->nextHalfEdge;
+        HalfEdge *h2 = h1->nextHalfEdge;
+        fprintf(fp, "3 %zu %zu %zu\n",
+            index + 0, 
+            index + 1, 
+            index + 2);
+        index += 3;
+    }
+    fclose(fp);
 }
  
 }

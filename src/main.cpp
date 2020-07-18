@@ -1,6 +1,6 @@
-#include <AutoRemesher/Remesher>
+#include <AutoRemesher/QuadRemesher>
+#include <AutoRemesher/IsotropicRemesher>
 #include <AutoRemesher/HalfEdge>
-#include <AutoRemesher/GuidelineGenerator>
 #include <cassert>
 #include <iostream>
 #include <cstdlib>
@@ -212,28 +212,27 @@ int main(int argc, char *argv[])
             pickedTriangles.push_back(triangle);
         }
         std::cerr << "Remeshing surface #" << (islandIndex + 1) << "/" << inputTrianglesIslands.size() << "(vertices:" << pickedVertices.size() << " triangles:" << pickedTriangles.size() << ")..." << std::endl;
+        AutoRemesher::IsotropicRemesher isotropicRemesher(pickedVertices, pickedTriangles);
+        isotropicRemesher.remesh();
+        isotropicRemesher.debugExportObj("C:\\Users\\Jeremy\\Desktop\\test-isotropic.obj");
         
-        //AutoRemesher::GuidelineGenerator guidelineGenerator(&pickedVertices, &pickedTriangles);
-        //guidelineGenerator.generate();
-        //exit(0);
-        
-        AutoRemesher::Remesher remesher(pickedVertices, pickedTriangles);
-        remesher.setGradientSize(gradientSize);
-        auto coutBuffer = std::cout.rdbuf();
-        auto cerrBuffer = std::cerr.rdbuf();
-        std::cout.rdbuf(nullptr);
-        std::cerr.rdbuf(nullptr);
-        bool remeshSucceed = remesher.remesh();
-        std::cout.rdbuf(coutBuffer);
-        std::cerr.rdbuf(cerrBuffer);
+        AutoRemesher::QuadRemesher quadRemesher(isotropicRemesher.remeshedVertices(), isotropicRemesher.remeshedTriangles());
+        quadRemesher.setGradientSize(gradientSize);
+        //auto coutBuffer = std::cout.rdbuf();
+        //auto cerrBuffer = std::cerr.rdbuf();
+        //std::cout.rdbuf(nullptr);
+        //std::cerr.rdbuf(nullptr);
+        bool remeshSucceed = quadRemesher.remesh();
+        //std::cout.rdbuf(coutBuffer);
+        //std::cerr.rdbuf(cerrBuffer);
         if (!remeshSucceed) {
             std::cerr << "Surface #" << (islandIndex + 1) << "/" << inputTrianglesIslands.size() << " failed to remesh" << std::endl;
             continue;
         }
-        const auto &quads = remesher.remeshedQuads();
+        const auto &quads = quadRemesher.remeshedQuads();
         if (quads.empty())
             continue;
-        const auto &vertices = remesher.remeshedVertices();
+        const auto &vertices = quadRemesher.remeshedVertices();
         std::cerr << "Surface #" << (islandIndex + 1) << "/" << inputTrianglesIslands.size() << " remesh succeed(vertices:" << vertices.size() << " quads:" << quads.size() << ")" << std::endl;
         size_t vertexStartIndex = resultVertices.size();
         resultVertices.insert(resultVertices.end(), vertices.begin(), vertices.end());

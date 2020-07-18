@@ -2,20 +2,31 @@
 #include <cstdlib>
 #include <iostream>
 #include <qex.h>
-#include <AutoRemesher/Remesher>
+#include <AutoRemesher/QuadRemesher>
 #include <AutoRemesher/HalfEdge>
+#include <AutoRemesher/GuidelineGenerator>
 
 namespace AutoRemesher
 {
 
-bool Remesher::remesh()
+bool QuadRemesher::remesh()
 {
-    AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles);
+    AutoRemesher::GuidelineGenerator guidelineGenerator(&m_vertices, &m_triangles);
+    guidelineGenerator.generate();
+    
+    const auto &guideline = guidelineGenerator.guidelineVertices();
+    
+    guidelineGenerator.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-guideline.ply", guideline);
+    
+    AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles, guideline);
 
     if (!mesh.decimate()) {
         std::cerr << "Mesh decimate failed" << std::endl;
         return false;
     }
+    
+    mesh.debugExportGuidelinePly("C:\\Users\\Jeremy\\Desktop\\test-guideline-decimated.ply");
+    mesh.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
 
     qex_TriMesh triMesh = {0};
     qex_QuadMesh quadMesh = {0};

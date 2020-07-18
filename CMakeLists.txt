@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-#string( REPLACE "/DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+string( REPLACE "/DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
 
 project(autoremesher)
 
@@ -29,11 +29,12 @@ link_directories(
 
 add_executable(autoremesher 
     src/main.cpp
-    src/AutoRemesher/remesher.cpp
+    src/AutoRemesher/quadremesher.cpp
     src/AutoRemesher/halfedge.cpp
     src/AutoRemesher/parametrization.cpp
     src/AutoRemesher/skeletonextractor.cpp
     src/AutoRemesher/guidelinegenerator.cpp
+    src/AutoRemesher/isotropicremesher.cpp
     thirdparty/comiso/CoMISo/Solver/EigenLDLTSolver.cc
     thirdparty/comiso/CoMISo/Solver/MISolver.cc
     thirdparty/comiso/CoMISo/Solver/ConstrainedSolver.cc
