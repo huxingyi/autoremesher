@@ -115,6 +115,7 @@ int main(int argc, char *argv[])
     const char *inputFilename = nullptr;
     const char *outputFilename = nullptr;
     double gradientSize = 100;
+    double constraintStength = 0.5;
     for (int i = 1; i < argc; ++i) {
         if ('-' == argv[i][0]) {
             if (0 == strcmp(argv[i], "-o")) {
@@ -126,6 +127,11 @@ int main(int argc, char *argv[])
                 if (i + 1 < argc) {
                     ++i;
                     gradientSize = atof(argv[i]);
+                }
+            } else if (0 == strcmp(argv[i], "-c")) {
+                if (i + 1 < argc) {
+                    ++i;
+                    constraintStength = atof(argv[i]);
                 }
             } else if (0 == strcmp(argv[i], "-d")) {
                 if (i + 1 < argc) {
@@ -218,6 +224,7 @@ int main(int argc, char *argv[])
         
         AutoRemesher::QuadRemesher quadRemesher(isotropicRemesher.remeshedVertices(), isotropicRemesher.remeshedTriangles());
         quadRemesher.setGradientSize(gradientSize);
+        quadRemesher.setConstraintStength(constraintStength);
         //auto coutBuffer = std::cout.rdbuf();
         //auto cerrBuffer = std::cerr.rdbuf();
         //std::cout.rdbuf(nullptr);

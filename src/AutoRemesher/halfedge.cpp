@@ -726,10 +726,11 @@ void Mesh::markGuidelineEdgesAsFeatured()
     }
 }
 
-bool Mesh::parametrize(double gradientSize)
+bool Mesh::parametrize(double gradientSize, double constraintStength)
 {
     Parametrization::Parameters parameters;
     parameters.gradientSize = gradientSize;
+    parameters.constraintStength = constraintStength;
     if (!Parametrization::miq(*this, parameters))
         return false;
     return true;
@@ -765,6 +766,40 @@ void Mesh::debugExportPly(const char *filename)
             h0->startVertex->outputIndex, 
             h1->startVertex->outputIndex, 
             h2->startVertex->outputIndex);
+    }
+    fclose(fp);
+}
+
+void Mesh::debugExportUvObj(const char *filename)
+{
+    FILE *fp = fopen(filename, "wb");
+    for (Face *face = m_firstFace; nullptr != face; face = face->_next) {
+        HalfEdge *h0 = face->anyHalfEdge;
+        HalfEdge *h1 = h0->nextHalfEdge;
+        HalfEdge *h2 = h1->nextHalfEdge;
+        fprintf(fp, "v %f %f %f\n",
+            h0->startVertexUv.x(), 
+            0.0, 
+            h0->startVertexUv.y());
+        fprintf(fp, "v %f %f %f\n",
+            h1->startVertexUv.x(), 
+            0.0, 
+            h1->startVertexUv.y());
+        fprintf(fp, "v %f %f %f\n",
+            h2->startVertexUv.x(), 
+            0.0, 
+            h2->startVertexUv.y());
+    }
+    size_t index = 0;
+    for (Face *face = m_firstFace; nullptr != face; face = face->_next) {
+        HalfEdge *h0 = face->anyHalfEdge;
+        HalfEdge *h1 = h0->nextHalfEdge;
+        HalfEdge *h2 = h1->nextHalfEdge;
+        fprintf(fp, "f %zu %zu %zu\n",
+            index + 1, 
+            index + 2, 
+            index + 3);
+        index += 3;
     }
     fclose(fp);
 }

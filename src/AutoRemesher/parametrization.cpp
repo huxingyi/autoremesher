@@ -23,8 +23,9 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
 {
     // https://github.com/libigl/libigl/blob/master/tutorial/505_MIQ/main.cpp
 
-    double iter = 0;
+    unsigned int iter = 5;
     double stiffness = 5.0;
+    unsigned int localIter = 5;
     bool direct_round = 0;
     
     std::vector<std::vector<int>> featuredEdges;
@@ -43,6 +44,11 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
             vertex->position.z();
     }
     
+    Eigen::VectorXi b(1);
+    b << 0;
+    Eigen::MatrixXd bc(1, 3);
+    bc << 1, 0, 0;
+    
     Eigen::VectorXi b_soft(1);
     Eigen::VectorXd w_soft(1);
     Eigen::MatrixXd bc_soft(1, 3);
@@ -55,11 +61,16 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
             h0->startVertex->outputIndex, 
             h1->startVertex->outputIndex, 
             h2->startVertex->outputIndex;
-        if (0 != h0->featured || 0 != h1->featured || 0 != h2->featured) {
+        if (face->isGuideline) {
             b_soft << faceNum;
-            w_soft << 0.5;
+            w_soft << 1.0;
             bc_soft << face->guidelineDirection.x(), face->guidelineDirection.y(), face->guidelineDirection.z();
         }
+        //if (0 != h0->featured || 0 != h1->featured || 0 != h2->featured) {
+            //b_soft << faceNum;
+            //w_soft << 1.0;
+            //bc_soft << face->guidelineDirection.x(), face->guidelineDirection.y(), face->guidelineDirection.z();
+        //}
         //TODO: hardFeatures not work on the current igl::copyleft::comiso::miq implementation
         //if (0 != h0->featured)
         //    featuredEdges.push_back({(int)faceNum, (int)0});
@@ -97,14 +108,9 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     Eigen::MatrixXd UV;
     Eigen::MatrixXi FUV;
     
-    Eigen::VectorXi b(1);
-    b << 0;
-    Eigen::MatrixXd bc(1, 3);
-    bc << 1, 0, 0;
-    
     Eigen::VectorXd S;
-    std::cerr << "igl::copyleft::comiso::nrosy..." << std::endl;
-    igl::copyleft::comiso::nrosy(V, F, b, bc, b_soft, w_soft, bc_soft, 4, 0.5, X1, S);
+    std::cerr << "igl::copyleft::comiso::nrosy... constraintStength:" << parameters.constraintStength << std::endl;
+    igl::copyleft::comiso::nrosy(V, F, b, bc, b_soft, w_soft, bc_soft, 4, parameters.constraintStength, X1, S);
 
     // Find the orthogonal vector
     Eigen::MatrixXd B1, B2, B3;
@@ -153,7 +159,7 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
         stiffness,
         direct_round,
         iter,
-        5,
+        localIter,
         true,
         true,
         roundVertices,

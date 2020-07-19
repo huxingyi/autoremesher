@@ -11,6 +11,7 @@ namespace Parametrization
 struct Parameters
 {
     double gradientSize = 100;
+    double constraintStength = 0.5;
 };
 
 bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters=Parameters());

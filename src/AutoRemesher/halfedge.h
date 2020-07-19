@@ -91,7 +91,7 @@ public:
     void setTargetVertexCount(size_t targetVertexCount);
     bool decimate();
     bool decimate(Vertex *vertex);
-    bool parametrize(double gradientSize);
+    bool parametrize(double gradientSize, double constraintStength);
     bool isWatertight();
     bool delaunayTriangulate(std::vector<Vertex *> &ringVertices,
         const Vector3 &projectNormal, const Vector3 &projectAxis,
@@ -106,6 +106,7 @@ public:
     bool isVertexMixed(Vertex *vertex) const;
     void debugExportGuidelinePly(const char *filename);
     void debugExportPly(const char *filename);
+    void debugExportUvObj(const char *filename);
     
 private:
 
@@ -123,7 +124,7 @@ private:
     size_t m_vertexCount = 0;
     size_t m_faceCount = 0;
     size_t m_halfEdgeCount = 0;
-    size_t m_targetVertexCount = 9000;
+    size_t m_targetVertexCount = 7000;
     
     struct VertexRemovalCost
     {

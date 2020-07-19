@@ -22,6 +22,11 @@ public:
         m_gradientSize = gradientSize;
     }
     
+    void setConstraintStength(double constraintStength)
+    {
+        m_constraintStength = constraintStength;
+    }
+    
     const std::vector<Vector3> &remeshedVertices()
     {
         return m_remeshedVertices;
@@ -37,6 +42,7 @@ private:
     std::vector<Vector3> m_vertices;
     std::vector<std::vector<size_t>> m_triangles;
     double m_gradientSize = 100.0;
+    double m_constraintStength = 0.5;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedQuads;
 };

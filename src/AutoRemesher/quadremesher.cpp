@@ -69,7 +69,10 @@ bool QuadRemesher::remesh()
     }
     
     bool remeshSucceed = false;
-    if (mesh.parametrize(m_gradientSize)) {
+    if (mesh.parametrize(m_gradientSize, m_constraintStength)) {
+        
+        mesh.debugExportUvObj("C:\\Users\\Jeremy\\Desktop\\test-uv.obj");
+        
         faceNum = 0;
         for (size_t i = 0; i < triangleHalfEdges.size(); ) {
             auto &h0 = triangleHalfEdges[i++];
