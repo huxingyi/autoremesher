@@ -62,7 +62,7 @@ class Mesh
 public:
     Mesh(const std::vector<Vector3> &vertices,
         const std::vector<std::vector<size_t>> &triangles,
-        const std::unordered_map<size_t, Vector3> &guidelineVertices);
+        const std::unordered_map<size_t, Vector3> &guidelineVertices=std::unordered_map<size_t, Vector3>());
     ~Mesh();
     Vertex *allocVertex();
     Face *allocFace();
@@ -107,6 +107,7 @@ public:
     void debugExportGuidelinePly(const char *filename);
     void debugExportPly(const char *filename);
     void debugExportUvObj(const char *filename);
+    void debugExportCurvaturePly(const char *filename);
     
 private:
 

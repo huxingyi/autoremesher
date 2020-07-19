@@ -770,6 +770,47 @@ void Mesh::debugExportPly(const char *filename)
     fclose(fp);
 }
 
+void Mesh::debugExportCurvaturePly(const char *filename)
+{
+    FILE *fp = fopen(filename, "wb");
+    fprintf(fp, "ply\n");
+    fprintf(fp, "format ascii 1.0\n");
+    fprintf(fp, "element vertex %zu\n", m_vertexCount);
+    fprintf(fp, "property float x\n");
+    fprintf(fp, "property float y\n");
+    fprintf(fp, "property float z\n");
+    fprintf(fp, "property uchar red\n");
+    fprintf(fp, "property uchar green\n");
+    fprintf(fp, "property uchar blue\n");
+    fprintf(fp, "element face %zu\n", m_faceCount);
+    fprintf(fp, "property list uchar uint vertex_indices\n");
+    fprintf(fp, "end_header\n");
+    double maxCurvature = std::numeric_limits<double>::lowest();
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        if (vertex->fineCurvature > maxCurvature) {
+            maxCurvature = vertex->fineCurvature;
+        }
+    }
+    size_t index = 0;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        vertex->outputIndex = index++;
+        int r = 255 * vertex->fineCurvature / maxCurvature;
+        fprintf(fp, "%f %f %f %d %d %d\n", 
+            vertex->position.x(), vertex->position.y(), vertex->position.z(),
+            r, 0, 0);
+    }
+    for (Face *face = m_firstFace; nullptr != face; face = face->_next) {
+        HalfEdge *h0 = face->anyHalfEdge;
+        HalfEdge *h1 = h0->nextHalfEdge;
+        HalfEdge *h2 = h1->nextHalfEdge;
+        fprintf(fp, "3 %zu %zu %zu\n",
+            h0->startVertex->outputIndex, 
+            h1->startVertex->outputIndex, 
+            h2->startVertex->outputIndex);
+    }
+    fclose(fp);
+}
+
 void Mesh::debugExportUvObj(const char *filename)
 {
     FILE *fp = fopen(filename, "wb");

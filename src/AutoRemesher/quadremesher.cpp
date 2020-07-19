@@ -11,24 +11,27 @@ namespace AutoRemesher
 
 bool QuadRemesher::remesh()
 {
-    AutoRemesher::GuidelineGenerator guidelineGenerator(&m_vertices, &m_triangles);
-    guidelineGenerator.generate();
+    //AutoRemesher::GuidelineGenerator guidelineGenerator(&m_vertices, &m_triangles);
+    //guidelineGenerator.generate();
     
-    const auto &guideline = guidelineGenerator.guidelineVertices();
+    //const auto &guideline = guidelineGenerator.guidelineVertices();
     
-    guidelineGenerator.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-guideline.ply", guideline);
+    //guidelineGenerator.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-guideline.ply", guideline);
     
-    AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles, guideline);
+    AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles);
+    mesh.debugExportCurvaturePly("C:\\Users\\Jeremy\\Desktop\\test-curvature.ply");
+    exit(0);
 
-    mesh.markGuidelineEdgesAsFeatured();
+    //mesh.markGuidelineEdgesAsFeatured();
     
-    if (!mesh.decimate()) {
-        std::cerr << "Mesh decimate failed" << std::endl;
-        return false;
-    }
+    //if (!mesh.decimate()) {
+    //    std::cerr << "Mesh decimate failed" << std::endl;
+    //    return false;
+    //}
     
-    mesh.debugExportGuidelinePly("C:\\Users\\Jeremy\\Desktop\\test-guideline-decimated.ply");
-    mesh.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
+    //mesh.debugExportGuidelinePly("C:\\Users\\Jeremy\\Desktop\\test-guideline-decimated.ply");
+    
+    //mesh.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
 
     qex_TriMesh triMesh = {0};
     qex_QuadMesh quadMesh = {0};
