@@ -155,7 +155,13 @@ public:
     
     inline static double angle(const Vector3 &a, const Vector3 &b)
     {
-        return std::acos(Vector3::dotProduct(a.normalized(), b.normalized()));
+        double dot = Vector3::dotProduct(a.normalized(), b.normalized());
+        if (dot <= -1.0)
+            return M_PI;
+        else if (dot >= 1.0)
+            return 0;
+        else
+            return std::acos(dot);
     }
     
     inline bool isZero() const

@@ -35,6 +35,7 @@ add_executable(autoremesher
     src/AutoRemesher/skeletonextractor.cpp
     src/AutoRemesher/guidelinegenerator.cpp
     src/AutoRemesher/isotropicremesher.cpp
+    src/AutoRemesher/meshsegmenter.cpp
     thirdparty/comiso/CoMISo/Solver/EigenLDLTSolver.cc
     thirdparty/comiso/CoMISo/Solver/MISolver.cc
     thirdparty/comiso/CoMISo/Solver/ConstrainedSolver.cc

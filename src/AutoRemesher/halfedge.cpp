@@ -4,6 +4,8 @@
 #include <set>
 #include <AutoRemesher/HalfEdge>
 #include <AutoRemesher/Parametrization>
+#include <AutoRemesher/Radians>
+#include <AutoRemesher/MeshSegmenter>
 
 namespace AutoRemesher
 {
@@ -22,6 +24,10 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
         const std::unordered_map<size_t, Vector3> &guidelineVertices) :
     m_vertexRemovalCostPriorityQueue(m_vertexRemovalCostComparer)
 {
+    MeshSegmenter meshSegmenter(&vertices, &triangles);
+    meshSegmenter.segment();
+    const std::vector<size_t> &segmentIds = meshSegmenter.triangleSegmentIds();
+    
     std::vector<Vertex *> halfEdgeVertices(vertices.size());
     for (size_t i = 0; i < vertices.size(); ++i) {
         Vertex *vertex = allocVertex();
@@ -38,6 +44,8 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
     std::map<std::pair<size_t, size_t>, HalfEdge *> halfEdgeIndexMap;
     for (size_t i = 0; i < triangles.size(); ++i) {
         auto &face = halfEdgeFaces[i];
+        
+        face->segmentId = segmentIds[i];
         
         const auto &triangleIndices = triangles[i];
         std::vector<HalfEdge *> halfEdges = {
@@ -736,8 +744,33 @@ bool Mesh::parametrize(double gradientSize, double constraintStength)
     return true;
 }
 
+void Mesh::calculateFaceNormals()
+{
+    for (Face *face = m_firstFace; nullptr != face; face = face->_next) {
+        HalfEdge *h0 = face->anyHalfEdge;
+        HalfEdge *h1 = h0->nextHalfEdge;
+        HalfEdge *h2 = h1->nextHalfEdge;
+        face->normal = Vector3::normal(h0->startVertex->position,
+            h1->startVertex->position,
+            h2->startVertex->position);
+    }
+}
+
+void Mesh::calculateAnglesBetweenFaces()
+{
+    for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {
+        if (-1 != halfEdge->degreesBetweenFaces)
+            continue;
+        halfEdge->degreesBetweenFaces = std::round(Radians::toDegrees(Vector3::angle(halfEdge->leftFace->normal, 
+            halfEdge->oppositeHalfEdge->leftFace->normal)));
+        halfEdge->oppositeHalfEdge->degreesBetweenFaces = halfEdge->degreesBetweenFaces;
+    }
+}
+
 void Mesh::debugExportPly(const char *filename)
 {
+    std::cerr << "debugExportPly:" << filename << std::endl;
+    
     FILE *fp = fopen(filename, "wb");
     fprintf(fp, "ply\n");
     fprintf(fp, "format ascii 1.0\n");
@@ -756,7 +789,7 @@ void Mesh::debugExportPly(const char *filename)
         vertex->outputIndex = index++;
         fprintf(fp, "%f %f %f %d %d %d\n", 
             vertex->position.x(), vertex->position.y(), vertex->position.z(),
-            0, 0, 0);
+            vertex->debugColor > 255 ? 255 : vertex->debugColor, 0, 0);
     }
     for (Face *face = m_firstFace; nullptr != face; face = face->_next) {
         HalfEdge *h0 = face->anyHalfEdge;
@@ -768,6 +801,52 @@ void Mesh::debugExportPly(const char *filename)
             h2->startVertex->outputIndex);
     }
     fclose(fp);
+}
+
+void Mesh::debugExportEdgeAnglesPly(const char *filename)
+{
+    debugResetColor();
+    
+    int maxDegrees = 0;
+    for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {
+        if (-1 == halfEdge->degreesBetweenFaces)
+            continue;
+        if (halfEdge->degreesBetweenFaces > maxDegrees)
+            maxDegrees = halfEdge->degreesBetweenFaces;
+    }
+    std::cerr << "maxDegrees:" << maxDegrees << std::endl;
+    for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {
+        if (-1 == halfEdge->degreesBetweenFaces)
+            continue;
+        if (halfEdge->degreesBetweenFaces < 60)
+            continue;
+        //auto degrees = 255 * halfEdge->degreesBetweenFaces / maxDegrees;
+        halfEdge->startVertex->debugColor = 255;
+        halfEdge->oppositeHalfEdge->startVertex->debugColor = 255;
+    }
+    
+    debugExportPly(filename);
+}
+
+void Mesh::debugExportSegmentEdgesPly(const char *filename)
+{
+    debugResetColor();
+    
+    for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {
+        if (halfEdge->leftFace->segmentId == halfEdge->oppositeHalfEdge->leftFace->segmentId)
+            continue;
+        halfEdge->startVertex->debugColor = 255;
+        halfEdge->oppositeHalfEdge->startVertex->debugColor = 255;
+    }
+    
+    debugExportPly(filename);
+}
+
+void Mesh::debugResetColor()
+{
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        vertex->debugColor = 0;
+    }
 }
 
 void Mesh::debugExportCurvaturePly(const char *filename)

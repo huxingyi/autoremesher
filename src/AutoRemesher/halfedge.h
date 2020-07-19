@@ -31,6 +31,7 @@ struct Vertex
     double fineCurvature = 0.0;
     double removalCost = 0.0;
     uint32_t version = 0;
+    uint8_t debugColor = 0;
 };
 
 struct HalfEdge
@@ -46,6 +47,7 @@ struct HalfEdge
     double length2 = 0.0;
     uint8_t featured = 0;
     Vector2 startVertexUv;
+    int degreesBetweenFaces = -1;
 };
 
 struct Face
@@ -55,6 +57,8 @@ struct Face
     uint8_t isGuideline = false;
     Vector3 guidelineDirection;
     HalfEdge *anyHalfEdge = nullptr;
+    Vector3 normal;
+    size_t segmentId = 0;
 };
 
 class Mesh
@@ -103,11 +107,16 @@ public:
     Face *firstFace() const;
     HalfEdge *findHalfEdgeBetweenVertices(Vertex *firstVertex, Vertex *secondVertex);
     void markGuidelineEdgesAsFeatured();
+    void calculateAnglesBetweenFaces();
+    void calculateFaceNormals();
     bool isVertexMixed(Vertex *vertex) const;
+    void debugResetColor();
     void debugExportGuidelinePly(const char *filename);
     void debugExportPly(const char *filename);
     void debugExportUvObj(const char *filename);
     void debugExportCurvaturePly(const char *filename);
+    void debugExportEdgeAnglesPly(const char *filename);
+    void debugExportSegmentEdgesPly(const char *filename);
     
 private:
 
