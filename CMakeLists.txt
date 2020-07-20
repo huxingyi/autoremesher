@@ -36,6 +36,7 @@ add_executable(autoremesher
     src/AutoRemesher/guidelinegenerator.cpp
     src/AutoRemesher/isotropicremesher.cpp
     src/AutoRemesher/meshsegmenter.cpp
+    src/AutoRemesher/heatmapgenerator.cpp
     thirdparty/comiso/CoMISo/Solver/EigenLDLTSolver.cc
     thirdparty/comiso/CoMISo/Solver/MISolver.cc
     thirdparty/comiso/CoMISo/Solver/ConstrainedSolver.cc

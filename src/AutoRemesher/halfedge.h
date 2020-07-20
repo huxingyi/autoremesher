@@ -32,6 +32,7 @@ struct Vertex
     double removalCost = 0.0;
     uint32_t version = 0;
     uint8_t debugColor = 0;
+    double heat = 0;
 };
 
 struct HalfEdge
@@ -117,6 +118,7 @@ public:
     void debugExportCurvaturePly(const char *filename);
     void debugExportEdgeAnglesPly(const char *filename);
     void debugExportSegmentEdgesPly(const char *filename);
+    void debugExportVertexHeatMapPly(const char *filename);
     
 private:
 

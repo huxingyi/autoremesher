@@ -2,10 +2,12 @@
 #include <cassert>
 #include <iostream>
 #include <set>
+#include <unordered_set>
 #include <AutoRemesher/HalfEdge>
 #include <AutoRemesher/Parametrization>
 #include <AutoRemesher/Radians>
 #include <AutoRemesher/MeshSegmenter>
+#include <AutoRemesher/HeatMapGenerator>
 
 namespace AutoRemesher
 {
@@ -92,6 +94,23 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
     }
     
     if (isWatertight()) {
+        calculateFaceNormals();
+        calculateAnglesBetweenFaces();
+    
+        HeatMapGenerator heatMapGenerator(&vertices, &triangles);
+        std::unordered_set<size_t> heatMapSources;
+        for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {
+            if (halfEdge->leftFace->segmentId != halfEdge->oppositeHalfEdge->leftFace->segmentId/* ||
+                    halfEdge->degreesBetweenFaces >= 80*/) {
+                heatMapSources.insert(halfEdge->startVertex->index);
+                heatMapSources.insert(halfEdge->oppositeHalfEdge->startVertex->index);
+            }
+        }
+        heatMapGenerator.generate(heatMapSources);
+        const std::vector<double> &vertexHeatMap = heatMapGenerator.vertexHeatMap();
+        for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next)
+            vertex->heat = vertexHeatMap[vertex->index];
+        
         for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next)
             vertex->fineCurvature = calculateVertexCurvature(vertex);
         for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
@@ -787,9 +806,10 @@ void Mesh::debugExportPly(const char *filename)
     size_t index = 0;
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
         vertex->outputIndex = index++;
+        int c = vertex->debugColor > 255 ? 255 : vertex->debugColor;
         fprintf(fp, "%f %f %f %d %d %d\n", 
             vertex->position.x(), vertex->position.y(), vertex->position.z(),
-            vertex->debugColor > 255 ? 255 : vertex->debugColor, 0, 0);
+            c, c, c);
     }
     for (Face *face = m_firstFace; nullptr != face; face = face->_next) {
         HalfEdge *h0 = face->anyHalfEdge;
@@ -823,6 +843,29 @@ void Mesh::debugExportEdgeAnglesPly(const char *filename)
         //auto degrees = 255 * halfEdge->degreesBetweenFaces / maxDegrees;
         halfEdge->startVertex->debugColor = 255;
         halfEdge->oppositeHalfEdge->startVertex->debugColor = 255;
+    }
+    
+    debugExportPly(filename);
+}
+
+void Mesh::debugExportVertexHeatMapPly(const char *filename)
+{
+    debugResetColor();
+    
+    double maxHeat = 0;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        if (vertex->heat > maxHeat)
+            maxHeat = vertex->heat;
+    }
+    std::cerr << "maxHeat:" << maxHeat << std::endl;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        const int maxLevel = 30;
+        int level = (int)(maxLevel * vertex->heat / maxHeat);
+        vertex->debugColor = 255 * level / maxLevel;
+        if (level % 2 == 0)
+            vertex->debugColor = 0xff;
+        else
+            vertex->debugColor = 0xcc;
     }
     
     debugExportPly(filename);
