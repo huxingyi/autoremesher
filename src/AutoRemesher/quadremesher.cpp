@@ -19,19 +19,18 @@ bool QuadRemesher::remesh()
     //guidelineGenerator.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-guideline.ply", guideline);
     
     AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles);
-    mesh.debugExportVertexHeatMapPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
-    exit(0);
+    //mesh.debugExportVertexHeatMapPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
+    //exit(0);
 
     //mesh.markGuidelineEdgesAsFeatured();
     
-    //if (!mesh.decimate()) {
-    //    std::cerr << "Mesh decimate failed" << std::endl;
-    //    return false;
-    //}
+    if (!mesh.decimate()) {
+        std::cerr << "Mesh decimate failed" << std::endl;
+        return false;
+    }
     
-    //mesh.debugExportGuidelinePly("C:\\Users\\Jeremy\\Desktop\\test-guideline-decimated.ply");
-    
-    //mesh.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
+    mesh.debugExportSegmentEdgesPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
+    mesh.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
 
     qex_TriMesh triMesh = {0};
     qex_QuadMesh quadMesh = {0};

@@ -96,20 +96,59 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
     if (isWatertight()) {
         calculateFaceNormals();
         calculateAnglesBetweenFaces();
-    
-        HeatMapGenerator heatMapGenerator(&vertices, &triangles);
-        std::unordered_set<size_t> heatMapSources;
+        
         for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {
             if (halfEdge->leftFace->segmentId != halfEdge->oppositeHalfEdge->leftFace->segmentId/* ||
                     halfEdge->degreesBetweenFaces >= 80*/) {
-                heatMapSources.insert(halfEdge->startVertex->index);
-                heatMapSources.insert(halfEdge->oppositeHalfEdge->startVertex->index);
+                halfEdge->featured = true;
+                halfEdge->oppositeHalfEdge->featured = true;
             }
         }
-        heatMapGenerator.generate(heatMapSources);
-        const std::vector<double> &vertexHeatMap = heatMapGenerator.vertexHeatMap();
-        for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next)
-            vertex->heat = vertexHeatMap[vertex->index];
+        
+        //for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {
+        //    if (halfEdge->leftFace->segmentId != halfEdge->oppositeHalfEdge->leftFace->segmentId/* ||
+        //            halfEdge->degreesBetweenFaces >= 80*/) {
+        //        heatMapSources.insert(halfEdge->startVertex->index);
+        //        heatMapSources.insert(halfEdge->oppositeHalfEdge->startVertex->index);
+        //    }
+        //}
+        
+        /*
+        {
+            HeatMapGenerator heatMapGenerator(&vertices, &triangles);
+            std::unordered_set<size_t> heatMapSources;
+            size_t pickedIndex = m_firstVertex->index;
+            double pickedY = m_firstVertex->position.y();
+            for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+                if (vertex->position.y() > pickedY) {
+                    pickedIndex = vertex->index;
+                    pickedY = vertex->position.y();
+                }
+            }
+            heatMapSources.insert(pickedIndex);
+            heatMapGenerator.generate(heatMapSources);
+            const std::vector<double> &vertexHeatMap = heatMapGenerator.vertexHeatMap();
+            for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next)
+                vertex->heat = vertexHeatMap[vertex->index];
+        }
+        {
+            HeatMapGenerator heatMapGenerator(&vertices, &triangles);
+            std::unordered_set<size_t> heatMapSources;
+            size_t pickedIndex = m_firstVertex->index;
+            double pickedX = m_firstVertex->position.x();
+            for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+                if (vertex->position.x() > pickedX) {
+                    pickedIndex = vertex->index;
+                    pickedX = vertex->position.x();
+                }
+            }
+            heatMapSources.insert(pickedIndex);
+            heatMapGenerator.generate(heatMapSources);
+            const std::vector<double> &vertexHeatMap = heatMapGenerator.vertexHeatMap();
+            for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next)
+                vertex->heat2 = vertexHeatMap[vertex->index];
+        }
+        */
         
         for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next)
             vertex->fineCurvature = calculateVertexCurvature(vertex);
@@ -859,10 +898,10 @@ void Mesh::debugExportVertexHeatMapPly(const char *filename)
     }
     std::cerr << "maxHeat:" << maxHeat << std::endl;
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
-        const int maxLevel = 30;
-        int level = (int)(maxLevel * vertex->heat / maxHeat);
-        vertex->debugColor = 255 * level / maxLevel;
-        if (level % 2 == 0)
+        int level = (int)(200 * vertex->heat / maxHeat);
+        int level2 = (int)(200 * vertex->heat2 / maxHeat);
+        //vertex->debugColor = 255 * level / maxLevel;
+        if (level % 2 == 0 && level2 % 2 == 0)
             vertex->debugColor = 0xff;
         else
             vertex->debugColor = 0xcc;

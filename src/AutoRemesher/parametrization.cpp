@@ -23,7 +23,7 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
 {
     // https://github.com/libigl/libigl/blob/master/tutorial/505_MIQ/main.cpp
 
-    unsigned int iter = 5;
+    unsigned int iter = 0;
     double stiffness = 5.0;
     unsigned int localIter = 5;
     bool direct_round = 0;
@@ -49,9 +49,9 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     Eigen::MatrixXd bc(1, 3);
     bc << 1, 0, 0;
     
-    Eigen::VectorXi b_soft(1);
-    Eigen::VectorXd w_soft(1);
-    Eigen::MatrixXd bc_soft(1, 3);
+    //Eigen::VectorXi b_soft(1);
+    //Eigen::VectorXd w_soft(1);
+    //Eigen::MatrixXd bc_soft(1, 3);
     size_t faceNum = 0;
     for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
         HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
@@ -61,23 +61,23 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
             h0->startVertex->outputIndex, 
             h1->startVertex->outputIndex, 
             h2->startVertex->outputIndex;
-        if (face->isGuideline) {
-            b_soft << faceNum;
-            w_soft << 1.0;
-            bc_soft << face->guidelineDirection.x(), face->guidelineDirection.y(), face->guidelineDirection.z();
-        }
+        //if (face->isGuideline) {
+        //    b_soft << faceNum;
+        //    w_soft << 1.0;
+        //    bc_soft << face->guidelineDirection.x(), face->guidelineDirection.y(), face->guidelineDirection.z();
+        //}
         //if (0 != h0->featured || 0 != h1->featured || 0 != h2->featured) {
             //b_soft << faceNum;
             //w_soft << 1.0;
             //bc_soft << face->guidelineDirection.x(), face->guidelineDirection.y(), face->guidelineDirection.z();
         //}
         //TODO: hardFeatures not work on the current igl::copyleft::comiso::miq implementation
-        //if (0 != h0->featured)
-        //    featuredEdges.push_back({(int)faceNum, (int)0});
-        //if (0 != h1->featured)
-        //    featuredEdges.push_back({(int)faceNum, (int)1});
-        //if (0 != h2->featured)
-        //    featuredEdges.push_back({(int)faceNum, (int)2});
+        if (0 != h0->featured)
+            featuredEdges.push_back({(int)faceNum, (int)0});
+        if (0 != h1->featured)
+            featuredEdges.push_back({(int)faceNum, (int)1});
+        if (0 != h2->featured)
+            featuredEdges.push_back({(int)faceNum, (int)2});
         ++faceNum;
     }
     
@@ -110,7 +110,7 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     
     Eigen::VectorXd S;
     std::cerr << "igl::copyleft::comiso::nrosy... constraintStength:" << parameters.constraintStength << std::endl;
-    igl::copyleft::comiso::nrosy(V, F, b, bc, b_soft, w_soft, bc_soft, 4, parameters.constraintStength, X1, S);
+    igl::copyleft::comiso::nrosy(V, F, b, bc, Eigen::VectorXi(), Eigen::VectorXd(), Eigen::MatrixXd(), 4, parameters.constraintStength, X1, S);
 
     // Find the orthogonal vector
     Eigen::MatrixXd B1, B2, B3;

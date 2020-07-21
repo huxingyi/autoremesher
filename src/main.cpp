@@ -218,11 +218,12 @@ int main(int argc, char *argv[])
             pickedTriangles.push_back(triangle);
         }
         std::cerr << "Remeshing surface #" << (islandIndex + 1) << "/" << inputTrianglesIslands.size() << "(vertices:" << pickedVertices.size() << " triangles:" << pickedTriangles.size() << ")..." << std::endl;
-        AutoRemesher::IsotropicRemesher isotropicRemesher(pickedVertices, pickedTriangles);
-        isotropicRemesher.remesh();
-        isotropicRemesher.debugExportObj("C:\\Users\\Jeremy\\Desktop\\test-isotropic.obj");
+        //AutoRemesher::IsotropicRemesher isotropicRemesher(pickedVertices, pickedTriangles);
+        //isotropicRemesher.remesh();
+        //isotropicRemesher.debugExportObj("C:\\Users\\Jeremy\\Desktop\\test-isotropic.obj");
         
-        AutoRemesher::QuadRemesher quadRemesher(isotropicRemesher.remeshedVertices(), isotropicRemesher.remeshedTriangles());
+        //AutoRemesher::QuadRemesher quadRemesher(isotropicRemesher.remeshedVertices(), isotropicRemesher.remeshedTriangles());
+        AutoRemesher::QuadRemesher quadRemesher(pickedVertices, pickedTriangles);
         quadRemesher.setGradientSize(gradientSize);
         quadRemesher.setConstraintStength(constraintStength);
         //auto coutBuffer = std::cout.rdbuf();

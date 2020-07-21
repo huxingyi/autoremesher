@@ -33,6 +33,7 @@ struct Vertex
     uint32_t version = 0;
     uint8_t debugColor = 0;
     double heat = 0;
+    double heat2 = 0;
 };
 
 struct HalfEdge
@@ -136,7 +137,7 @@ private:
     size_t m_vertexCount = 0;
     size_t m_faceCount = 0;
     size_t m_halfEdgeCount = 0;
-    size_t m_targetVertexCount = 7000;
+    size_t m_targetVertexCount = 5000;
     
     struct VertexRemovalCost
     {
