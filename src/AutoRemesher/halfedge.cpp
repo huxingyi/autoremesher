@@ -26,9 +26,9 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
         const std::unordered_map<size_t, Vector3> &guidelineVertices) :
     m_vertexRemovalCostPriorityQueue(m_vertexRemovalCostComparer)
 {
-    MeshSegmenter meshSegmenter(&vertices, &triangles);
-    meshSegmenter.segment();
-    const std::vector<size_t> &segmentIds = meshSegmenter.triangleSegmentIds();
+    //MeshSegmenter meshSegmenter(&vertices, &triangles);
+    //meshSegmenter.segment();
+    //const std::vector<size_t> &segmentIds = meshSegmenter.triangleSegmentIds();
     
     std::vector<Vertex *> halfEdgeVertices(vertices.size());
     for (size_t i = 0; i < vertices.size(); ++i) {
@@ -47,7 +47,7 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
     for (size_t i = 0; i < triangles.size(); ++i) {
         auto &face = halfEdgeFaces[i];
         
-        face->segmentId = segmentIds[i];
+        //face->segmentId = segmentIds[i];
         
         const auto &triangleIndices = triangles[i];
         std::vector<HalfEdge *> halfEdges = {

@@ -56,6 +56,7 @@ target_include_directories(autoremesher PUBLIC
     thirdparty/libQEx/interfaces/c
     thirdparty/libigl/include
     thirdparty/eigen
+    thirdparty/directional/include
     ${BOOST_INCLUDEDIR}
     ${CGAL_DIR}/include
     ${CGAL_DIR}/auxiliary/gmp/include
