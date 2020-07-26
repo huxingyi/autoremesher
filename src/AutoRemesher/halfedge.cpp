@@ -94,11 +94,13 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
     }
     
     if (isWatertight()) {
-        calculateFaceNormals();
-        calculateVertexNormals();
-        calculateVertexAverageNormals();
-        calculateVertexRelativeHeights();
-        calculateAnglesBetweenFaces();
+        //calculateFaceNormals();
+        //calculateVertexNormals();
+        //calculateVertexAverageNormals();
+        //calculateVertexRelativeHeights();
+        //expandVertexRelativeHeights();
+        //normalizeVertexRelativeHeights();
+        //calculateAnglesBetweenFaces();
         
         for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {
             if (halfEdge->leftFace->segmentId != halfEdge->oppositeHalfEdge->leftFace->segmentId/* ||
@@ -869,6 +871,23 @@ void Mesh::calculateVertexRelativeHeights()
     }
 }
 
+void Mesh::expandVertexRelativeHeights()
+{
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        HalfEdge *halfEdge = vertex->anyHalfEdge;
+        do {
+            Vertex *neighborVertex = halfEdge->oppositeHalfEdge->startVertex;
+            if (vertex->relativeHeight > neighborVertex->relativeHeight)
+                neighborVertex->nextRelativeHeight = vertex->relativeHeight;
+            halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
+        } while (halfEdge != vertex->anyHalfEdge);
+    }
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        if (vertex->nextRelativeHeight > vertex->relativeHeight)
+            vertex->relativeHeight = vertex->nextRelativeHeight;
+    }
+}
+
 void Mesh::calculateAnglesBetweenFaces()
 {
     for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {
@@ -877,6 +896,20 @@ void Mesh::calculateAnglesBetweenFaces()
         halfEdge->degreesBetweenFaces = std::round(Radians::toDegrees(Vector3::angle(halfEdge->leftFace->normal, 
             halfEdge->oppositeHalfEdge->leftFace->normal)));
         halfEdge->oppositeHalfEdge->degreesBetweenFaces = halfEdge->degreesBetweenFaces;
+    }
+}
+
+void Mesh::normalizeVertexRelativeHeights()
+{
+    double maxHeight = 0;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        if (vertex->relativeHeight > maxHeight)
+            maxHeight = vertex->relativeHeight;
+    }
+    if (Double::isZero(maxHeight))
+        return;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        vertex->relativeHeight /= maxHeight;
     }
 }
 
@@ -977,7 +1010,7 @@ void Mesh::debugExportVertexRelativeHeightPly(const char *filename)
         float normalizedHeight = vertex->relativeHeight / maxHeight;
         if (normalizedHeight < 0.2)
             continue;
-        vertex->debugColor = 255 * normalizedHeight;
+        vertex->debugColor = 200 + 55 * normalizedHeight;
     }
     
     debugExportPly(filename);

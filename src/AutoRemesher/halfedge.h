@@ -36,7 +36,8 @@ struct Vertex
     double heat2 = 0;
     Vector3 normal;
     Vector3 averageNormal;
-    double relativeHeight;
+    double relativeHeight = 0.0;
+    double nextRelativeHeight = 0.0;
 };
 
 struct HalfEdge
@@ -117,6 +118,8 @@ public:
     void calculateVertexNormals();
     void calculateVertexAverageNormals();
     void calculateVertexRelativeHeights();
+    void expandVertexRelativeHeights();
+    void normalizeVertexRelativeHeights();
     bool isVertexMixed(Vertex *vertex) const;
     void debugResetColor();
     void debugExportGuidelinePly(const char *filename);

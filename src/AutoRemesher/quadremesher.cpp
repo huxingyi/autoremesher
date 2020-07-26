@@ -19,8 +19,6 @@ bool QuadRemesher::remesh()
     //guidelineGenerator.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-guideline.ply", guideline);
     
     AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles);
-    mesh.debugExportVertexRelativeHeightPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
-    exit(0);
 
     //mesh.markGuidelineEdgesAsFeatured();
     
@@ -28,6 +26,9 @@ bool QuadRemesher::remesh()
         std::cerr << "Mesh decimate failed" << std::endl;
         return false;
     }
+    
+    //mesh.debugExportVertexRelativeHeightPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
+    //exit(0);
     
     mesh.debugExportSegmentEdgesPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
     mesh.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
