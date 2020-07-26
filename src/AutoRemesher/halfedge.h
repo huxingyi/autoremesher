@@ -34,6 +34,9 @@ struct Vertex
     uint8_t debugColor = 0;
     double heat = 0;
     double heat2 = 0;
+    Vector3 normal;
+    Vector3 averageNormal;
+    double relativeHeight;
 };
 
 struct HalfEdge
@@ -111,6 +114,9 @@ public:
     void markGuidelineEdgesAsFeatured();
     void calculateAnglesBetweenFaces();
     void calculateFaceNormals();
+    void calculateVertexNormals();
+    void calculateVertexAverageNormals();
+    void calculateVertexRelativeHeights();
     bool isVertexMixed(Vertex *vertex) const;
     void debugResetColor();
     void debugExportGuidelinePly(const char *filename);
@@ -120,6 +126,7 @@ public:
     void debugExportEdgeAnglesPly(const char *filename);
     void debugExportSegmentEdgesPly(const char *filename);
     void debugExportVertexHeatMapPly(const char *filename);
+    void debugExportVertexRelativeHeightPly(const char *filename);
     
 private:
 

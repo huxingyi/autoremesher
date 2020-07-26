@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <queue>
+#include <set>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 #ifndef _WIN32
@@ -101,6 +102,51 @@ static void splitToIslands(const std::vector<std::vector<size_t>> &triangles, st
         if (island.empty())
             continue;
         islands.push_back(island);
+    }
+}
+
+static void normalizeVertices(std::vector<AutoRemesher::Vector3> &vertices)
+{
+    double minX = std::numeric_limits<double>::max();
+    double maxX = std::numeric_limits<double>::lowest();
+    double minY = std::numeric_limits<double>::max();
+    double maxY = std::numeric_limits<double>::lowest();
+    double minZ = std::numeric_limits<double>::max();
+    double maxZ = std::numeric_limits<double>::lowest();
+    for (const auto &v: vertices) {
+        if (v.x() < minX)
+            minX = v.x();
+        if (v.x() > maxX)
+            maxX = v.x();
+        if (v.y() < minY)
+            minY = v.y();
+        if (v.y() > maxX)
+            maxY = v.y();
+        if (v.z() < minZ)
+            minZ = v.z();
+        if (v.z() > maxZ)
+            maxZ = v.z();
+    }
+    AutoRemesher::Vector3 length = {
+        (maxX - minX) * 0.5,
+        (maxY - minY) * 0.5,
+        (maxZ - minZ) * 0.5,
+    };
+    auto maxLength = length[0];
+    if (length[1] > maxLength)
+        maxLength = length[1];
+    if (length[2] > maxLength)
+        maxLength = length[2];
+    AutoRemesher::Vector3 origin = {
+        (maxX + minX) * 0.5,
+        (maxY + minY) * 0.5,
+        (maxZ + minZ) * 0.5,
+    };
+    std::cerr << "origin:" << origin << std::endl;
+    std::cerr << "length:" << length << std::endl;
+    std::cerr << "maxLength:" << maxLength << std::endl;
+    for (auto &v: vertices) {
+        v = (v - origin) / maxLength;
     }
 }
 
@@ -218,12 +264,15 @@ int main(int argc, char *argv[])
             pickedTriangles.push_back(triangle);
         }
         std::cerr << "Remeshing surface #" << (islandIndex + 1) << "/" << inputTrianglesIslands.size() << "(vertices:" << pickedVertices.size() << " triangles:" << pickedTriangles.size() << ")..." << std::endl;
-        //AutoRemesher::IsotropicRemesher isotropicRemesher(pickedVertices, pickedTriangles);
-        //isotropicRemesher.remesh();
-        //isotropicRemesher.debugExportObj("C:\\Users\\Jeremy\\Desktop\\test-isotropic.obj");
         
-        //AutoRemesher::QuadRemesher quadRemesher(isotropicRemesher.remeshedVertices(), isotropicRemesher.remeshedTriangles());
-        AutoRemesher::QuadRemesher quadRemesher(pickedVertices, pickedTriangles);
+        normalizeVertices(pickedVertices);
+
+        AutoRemesher::IsotropicRemesher isotropicRemesher(pickedVertices, pickedTriangles);
+        isotropicRemesher.remesh();
+        isotropicRemesher.debugExportObj("C:\\Users\\Jeremy\\Desktop\\test-isotropic.obj");
+        
+        AutoRemesher::QuadRemesher quadRemesher(isotropicRemesher.remeshedVertices(), isotropicRemesher.remeshedTriangles());
+        //AutoRemesher::QuadRemesher quadRemesher(pickedVertices, pickedTriangles);
         quadRemesher.setGradientSize(gradientSize);
         quadRemesher.setConstraintStength(constraintStength);
         //auto coutBuffer = std::cout.rdbuf();

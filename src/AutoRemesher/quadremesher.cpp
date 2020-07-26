@@ -19,8 +19,8 @@ bool QuadRemesher::remesh()
     //guidelineGenerator.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-guideline.ply", guideline);
     
     AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles);
-    //mesh.debugExportVertexHeatMapPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
-    //exit(0);
+    mesh.debugExportVertexRelativeHeightPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
+    exit(0);
 
     //mesh.markGuidelineEdgesAsFeatured();
     

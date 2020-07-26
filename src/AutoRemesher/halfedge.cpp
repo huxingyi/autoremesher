@@ -95,6 +95,9 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
     
     if (isWatertight()) {
         calculateFaceNormals();
+        calculateVertexNormals();
+        calculateVertexAverageNormals();
+        calculateVertexRelativeHeights();
         calculateAnglesBetweenFaces();
         
         for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {
@@ -814,6 +817,58 @@ void Mesh::calculateFaceNormals()
     }
 }
 
+void Mesh::calculateVertexNormals()
+{
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        HalfEdge *halfEdge = vertex->anyHalfEdge;
+        do {
+            vertex->normal += halfEdge->leftFace->normal;
+            halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
+        } while (halfEdge != vertex->anyHalfEdge);
+        vertex->normal.normalize();
+    }
+}
+
+void Mesh::calculateVertexAverageNormals()
+{
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        HalfEdge *halfEdge = vertex->anyHalfEdge;
+        do {
+            vertex->averageNormal += halfEdge->oppositeHalfEdge->startVertex->normal;
+            halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
+        } while (halfEdge != vertex->anyHalfEdge);
+        vertex->averageNormal.normalize();
+    }
+}
+
+void Mesh::calculateVertexRelativeHeights()
+{
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        HalfEdge *halfEdge = vertex->anyHalfEdge;
+        double low = 0.0;
+        double high = 0.0;
+        auto project = [&](const Vector3 &position) {
+            double projectedTo = Vector3::dotProduct((position - vertex->position).normalized(), vertex->averageNormal);
+            if (projectedTo < low)
+                low = projectedTo;
+            if (projectedTo > high)
+                high = projectedTo;
+        };
+        do {
+            Vertex *neighborVertex = halfEdge->oppositeHalfEdge->startVertex;
+            project(neighborVertex->position);
+            HalfEdge *neighborHalfEdge = neighborVertex->anyHalfEdge;
+            do {
+                if (neighborHalfEdge->oppositeHalfEdge->startVertex != vertex)
+                    project(neighborHalfEdge->oppositeHalfEdge->startVertex->position);
+                neighborHalfEdge = neighborHalfEdge->oppositeHalfEdge->nextHalfEdge;
+            } while (neighborHalfEdge != neighborVertex->anyHalfEdge);
+            halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
+        } while (halfEdge != vertex->anyHalfEdge);
+        vertex->relativeHeight = high - low;
+    }
+}
+
 void Mesh::calculateAnglesBetweenFaces()
 {
     for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {
@@ -875,13 +930,11 @@ void Mesh::debugExportEdgeAnglesPly(const char *filename)
     }
     std::cerr << "maxDegrees:" << maxDegrees << std::endl;
     for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {
-        if (-1 == halfEdge->degreesBetweenFaces)
+        if (halfEdge->degreesBetweenFaces < 30)
             continue;
-        if (halfEdge->degreesBetweenFaces < 60)
-            continue;
-        //auto degrees = 255 * halfEdge->degreesBetweenFaces / maxDegrees;
-        halfEdge->startVertex->debugColor = 255;
-        halfEdge->oppositeHalfEdge->startVertex->debugColor = 255;
+        auto color = 255;
+        halfEdge->startVertex->debugColor = color;
+        halfEdge->oppositeHalfEdge->startVertex->debugColor = color;
     }
     
     debugExportPly(filename);
@@ -905,6 +958,26 @@ void Mesh::debugExportVertexHeatMapPly(const char *filename)
             vertex->debugColor = 0xff;
         else
             vertex->debugColor = 0xcc;
+    }
+    
+    debugExportPly(filename);
+}
+
+void Mesh::debugExportVertexRelativeHeightPly(const char *filename)
+{
+    debugResetColor();
+    
+    double maxHeight = 0;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        if (vertex->relativeHeight > maxHeight)
+            maxHeight = vertex->relativeHeight;
+    }
+    std::cerr << "maxHeight:" << maxHeight << std::endl;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        float normalizedHeight = vertex->relativeHeight / maxHeight;
+        if (normalizedHeight < 0.2)
+            continue;
+        vertex->debugColor = 255 * normalizedHeight;
     }
     
     debugExportPly(filename);

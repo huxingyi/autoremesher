@@ -270,6 +270,16 @@ inline Vector3 operator*(const Vector3 &v, double number)
     return Vector3(number * v.x(), number * v.y(), number * v.z());
 }
 
+inline Vector3 operator*(const Vector3 &a, const Vector3 &b)
+{
+    return Vector3(a.x() * b.x(), a.y() * b.y(), a.z() * b.z());
+}
+
+inline Vector3 operator/(const Vector3 &a, const Vector3 &b)
+{
+    return Vector3(a.x() / b.x(), a.y() / b.y(), a.z() / b.z());
+}
+
 inline Vector3 operator+(const Vector3 &a, const Vector3 &b)
 {
     return Vector3(a.x() + b.x(), a.y() + b.y(), a.z() + b.z());

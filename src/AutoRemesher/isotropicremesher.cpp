@@ -44,7 +44,7 @@ bool IsotropicRemesher::remesh()
         mesh.add_face(vertices[face[0]], vertices[face[1]], vertices[face[2]]);
     
     auto ecm = mesh.add_property_map<edge_descriptor, bool>("ecm").first;
-    CGAL::Polygon_mesh_processing::detect_sharp_edges(mesh, 60, ecm);
+    CGAL::Polygon_mesh_processing::detect_sharp_edges(mesh, m_sharpEdgeDegrees, ecm);
     
     std::vector<edge_descriptor> border;
     for (edge_descriptor e: edges(mesh)) {
