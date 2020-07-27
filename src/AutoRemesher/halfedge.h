@@ -120,6 +120,7 @@ public:
     void calculateVertexRelativeHeights();
     void expandVertexRelativeHeights();
     void normalizeVertexRelativeHeights();
+    void removeZeroAngleTriangles();
     bool isVertexMixed(Vertex *vertex) const;
     void debugResetColor();
     void debugExportGuidelinePly(const char *filename);

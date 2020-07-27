@@ -30,8 +30,8 @@ bool QuadRemesher::remesh()
     mesh.debugExportVertexRelativeHeightPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
     //exit(0);
     
-    mesh.debugExportSegmentEdgesPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
-    mesh.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
+    //mesh.debugExportSegmentEdgesPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
+    //mesh.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
 
     qex_TriMesh triMesh = {0};
     qex_QuadMesh quadMesh = {0};

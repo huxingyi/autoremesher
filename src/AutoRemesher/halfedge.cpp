@@ -94,73 +94,13 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
     }
     
     if (isWatertight()) {
+        removeZeroAngleTriangles();
         calculateFaceNormals();
         calculateVertexNormals();
         calculateVertexAverageNormals();
         calculateVertexRelativeHeights();
         expandVertexRelativeHeights();
         normalizeVertexRelativeHeights();
-        //calculateAnglesBetweenFaces();
-        
-        for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {
-            if (halfEdge->leftFace->segmentId != halfEdge->oppositeHalfEdge->leftFace->segmentId/* ||
-                    halfEdge->degreesBetweenFaces >= 80*/) {
-                halfEdge->featured = true;
-                halfEdge->oppositeHalfEdge->featured = true;
-            }
-        }
-        
-        //for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {
-        //    if (halfEdge->leftFace->segmentId != halfEdge->oppositeHalfEdge->leftFace->segmentId/* ||
-        //            halfEdge->degreesBetweenFaces >= 80*/) {
-        //        heatMapSources.insert(halfEdge->startVertex->index);
-        //        heatMapSources.insert(halfEdge->oppositeHalfEdge->startVertex->index);
-        //    }
-        //}
-        
-        /*
-        {
-            HeatMapGenerator heatMapGenerator(&vertices, &triangles);
-            std::unordered_set<size_t> heatMapSources;
-            size_t pickedIndex = m_firstVertex->index;
-            double pickedY = m_firstVertex->position.y();
-            for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
-                if (vertex->position.y() > pickedY) {
-                    pickedIndex = vertex->index;
-                    pickedY = vertex->position.y();
-                }
-            }
-            heatMapSources.insert(pickedIndex);
-            heatMapGenerator.generate(heatMapSources);
-            const std::vector<double> &vertexHeatMap = heatMapGenerator.vertexHeatMap();
-            for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next)
-                vertex->heat = vertexHeatMap[vertex->index];
-        }
-        {
-            HeatMapGenerator heatMapGenerator(&vertices, &triangles);
-            std::unordered_set<size_t> heatMapSources;
-            size_t pickedIndex = m_firstVertex->index;
-            double pickedX = m_firstVertex->position.x();
-            for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
-                if (vertex->position.x() > pickedX) {
-                    pickedIndex = vertex->index;
-                    pickedX = vertex->position.x();
-                }
-            }
-            heatMapSources.insert(pickedIndex);
-            heatMapGenerator.generate(heatMapSources);
-            const std::vector<double> &vertexHeatMap = heatMapGenerator.vertexHeatMap();
-            for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next)
-                vertex->heat2 = vertexHeatMap[vertex->index];
-        }
-        */
-        
-        for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next)
-            vertex->fineCurvature = calculateVertexCurvature(vertex);
-        for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
-            vertex->removalCost = calculateVertexRemovalCost(vertex);
-            m_vertexRemovalCostPriorityQueue.push({vertex, vertex->removalCost, vertex->version});
-        }
     }
 }
 
@@ -250,6 +190,7 @@ void Mesh::deferedFreeFace(Face *face)
 
 void Mesh::deferedFreeHalfEdge(HalfEdge *halfEdge)
 {
+    halfEdge->leftFace = nullptr;
     if (halfEdge == m_firstHalfEdge)
         m_firstHalfEdge = halfEdge->_next;
     if (halfEdge == m_lastHalfEdge)
@@ -913,6 +854,32 @@ void Mesh::normalizeVertexRelativeHeights()
     }
 }
 
+void Mesh::removeZeroAngleTriangles()
+{
+    std::vector<HalfEdge *> candidates;
+    for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {
+        auto v1 = halfEdge->nextHalfEdge->startVertex->position - halfEdge->startVertex->position;
+        auto v2 = halfEdge->previousHalfEdge->startVertex->position - halfEdge->startVertex->position;
+        auto degrees = Radians::toDegrees(Vector3::angle(v1, v2));
+        if (degrees <= 179.9)
+            continue;
+        candidates.push_back(halfEdge);
+    }
+    
+    for (auto &halfEdge: candidates) {
+        if (nullptr == halfEdge->leftFace)
+            continue;
+        
+        auto v1 = halfEdge->nextHalfEdge->startVertex->position - halfEdge->startVertex->position;
+        auto v2 = halfEdge->previousHalfEdge->startVertex->position - halfEdge->startVertex->position;
+        auto degrees = Radians::toDegrees(Vector3::angle(v1, v2));
+        if (degrees <= 179.9)
+            continue;
+        
+        flip(halfEdge->nextHalfEdge);
+    }
+}
+
 void Mesh::debugExportPly(const char *filename)
 {
     std::cerr << "debugExportPly:" << filename << std::endl;
@@ -1000,17 +967,10 @@ void Mesh::debugExportVertexRelativeHeightPly(const char *filename)
 {
     debugResetColor();
     
-    double maxHeight = 0;
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
-        if (vertex->relativeHeight > maxHeight)
-            maxHeight = vertex->relativeHeight;
-    }
-    std::cerr << "maxHeight:" << maxHeight << std::endl;
-    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
-        float normalizedHeight = vertex->relativeHeight / maxHeight;
-        if (normalizedHeight < 0.2)
+        if (vertex->relativeHeight < 0.5)
             continue;
-        vertex->debugColor = 200 + 55 * normalizedHeight;
+        vertex->debugColor = 200 * 55 * vertex->relativeHeight;
     }
     
     debugExportPly(filename);

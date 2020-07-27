@@ -182,7 +182,7 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
            X2_deformed,
            UV,
            FUV,
-           60.0,
+           parameters.gradientSize,
            5.0,
            false,
            2);

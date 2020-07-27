@@ -105,7 +105,7 @@ static void splitToIslands(const std::vector<std::vector<size_t>> &triangles, st
     }
 }
 
-static void normalizeVertices(std::vector<AutoRemesher::Vector3> &vertices)
+static void normalizeVertices(std::vector<AutoRemesher::Vector3> &vertices, double scale=1.0)
 {
     double minX = std::numeric_limits<double>::max();
     double maxX = std::numeric_limits<double>::lowest();
@@ -146,7 +146,7 @@ static void normalizeVertices(std::vector<AutoRemesher::Vector3> &vertices)
     std::cerr << "length:" << length << std::endl;
     std::cerr << "maxLength:" << maxLength << std::endl;
     for (auto &v: vertices) {
-        v = (v - origin) / maxLength;
+        v = scale * (v - origin) / maxLength;
     }
 }
 
