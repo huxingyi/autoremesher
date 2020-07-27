@@ -94,12 +94,12 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
     }
     
     if (isWatertight()) {
-        //calculateFaceNormals();
-        //calculateVertexNormals();
-        //calculateVertexAverageNormals();
-        //calculateVertexRelativeHeights();
-        //expandVertexRelativeHeights();
-        //normalizeVertexRelativeHeights();
+        calculateFaceNormals();
+        calculateVertexNormals();
+        calculateVertexAverageNormals();
+        calculateVertexRelativeHeights();
+        expandVertexRelativeHeights();
+        normalizeVertexRelativeHeights();
         //calculateAnglesBetweenFaces();
         
         for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {

@@ -27,7 +27,7 @@ bool QuadRemesher::remesh()
     //    return false;
     //}
     
-    //mesh.debugExportVertexRelativeHeightPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
+    mesh.debugExportVertexRelativeHeightPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
     //exit(0);
     
     mesh.debugExportSegmentEdgesPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");

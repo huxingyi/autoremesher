@@ -271,14 +271,14 @@ int main(int argc, char *argv[])
         std::vector<AutoRemesher::Vector3> &pickedVertices = inputVertices;
         std::vector<std::vector<size_t>> &pickedTriangles = inputTrianglesIslands[islandIndex];
         
-        //normalizeVertices(pickedVertices);
+        normalizeVertices(pickedVertices);
 
-        //AutoRemesher::IsotropicRemesher isotropicRemesher(pickedVertices, pickedTriangles);
-        //isotropicRemesher.remesh();
-        //isotropicRemesher.debugExportObj("C:\\Users\\Jeremy\\Desktop\\test-isotropic.obj");
+        AutoRemesher::IsotropicRemesher isotropicRemesher(pickedVertices, pickedTriangles);
+        isotropicRemesher.remesh();
+        isotropicRemesher.debugExportObj("C:\\Users\\Jeremy\\Desktop\\test-isotropic.obj");
         
-        //AutoRemesher::QuadRemesher quadRemesher(isotropicRemesher.remeshedVertices(), isotropicRemesher.remeshedTriangles());
-        AutoRemesher::QuadRemesher quadRemesher(pickedVertices, pickedTriangles);
+        AutoRemesher::QuadRemesher quadRemesher(isotropicRemesher.remeshedVertices(), isotropicRemesher.remeshedTriangles());
+        //AutoRemesher::QuadRemesher quadRemesher(pickedVertices, pickedTriangles);
         quadRemesher.setGradientSize(gradientSize);
         quadRemesher.setConstraintStength(constraintStength);
         //auto coutBuffer = std::cout.rdbuf();

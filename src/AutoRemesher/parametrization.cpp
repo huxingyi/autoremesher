@@ -33,9 +33,9 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     
     std::cerr << "miq preparing..." << std::endl;
     
-    Eigen::MatrixXd V_check;
-    Eigen::MatrixXi F_check;
-    igl::readOBJ("C:\\Users\\Jeremy\\Desktop\\bumpy-cube.obj", V_check, F_check);
+    //Eigen::MatrixXd V_check;
+    //Eigen::MatrixXi F_check;
+    //igl::readOBJ("C:\\Users\\Jeremy\\Desktop\\bumpy-cube.obj", V_check, F_check);
     
     size_t vertexNum = 0;
     for (HalfEdge::Vertex *vertex = mesh.firstVertex(); nullptr != vertex; vertex = vertex->_next) {
@@ -49,8 +49,8 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     size_t faceNum = 0;
     for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
         HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
-        while (h0->startVertex->outputIndex != F_check.row(faceNum)[0])
-            h0 = h0->nextHalfEdge;
+        //while (h0->startVertex->outputIndex != F_check.row(faceNum)[0])
+        //    h0 = h0->nextHalfEdge;
         HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
         HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
         F.row(faceNum) << 
@@ -65,30 +65,29 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     Eigen::MatrixXi FUV;
     
     // Input frame field constraints
-    Eigen::VectorXi b;
-    Eigen::MatrixXd bc1;
-    Eigen::MatrixXd bc2;
+    //Eigen::VectorXi b;
+    //Eigen::MatrixXd bc1;
+    //Eigen::MatrixXd bc2;
 
-    Eigen::MatrixXd temp;
-    igl::readDMAT("C:\\Users\\Jeremy\\Desktop\\bumpy-cube.dmat", temp);
+    //Eigen::MatrixXd temp;
+    //igl::readDMAT("C:\\Users\\Jeremy\\Desktop\\bumpy-cube.dmat", temp);
 
-    b   = temp.block(0,0,temp.rows(),1).cast<int>();
-    bc1 = temp.block(0,1,temp.rows(),3);
-    bc2 = temp.block(0,4,temp.rows(),3);
+    //b   = temp.block(0,0,temp.rows(),1).cast<int>();
+    //bc1 = temp.block(0,1,temp.rows(),3);
+    //bc2 = temp.block(0,4,temp.rows(),3);
     
-    //Eigen::VectorXi b(1);
-    //b << 0;
-    //Eigen::MatrixXd bc1(1, 3);
-    //bc1 << 1, 0, 0;
-    //Eigen::MatrixXd bc2(1, 3);
-    //bc2 << 0, 1, 0;
+    Eigen::VectorXi b(1);
+    b << 0;
+    Eigen::MatrixXd bc1(1, 3);
+    bc1 << 1, 0, 0;
+    Eigen::MatrixXd bc2(1, 3);
+    bc2 << 0, 1, 0;
     
     // Interpolated frame field
     Eigen::MatrixXd FF1, FF2;
 
     // Deformed mesh
     Eigen::MatrixXd V_deformed;
-    Eigen::MatrixXd B_deformed;
 
     // Frame field on deformed
     Eigen::MatrixXd FF1_deformed;
@@ -147,12 +146,9 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
         }
         printf("test-deformed.obj saved\n");
     }
-    
-    // Compute face barycenters deformed mesh
-    igl::barycenter(V_deformed, F, B_deformed);
 
     // Find the closest crossfield to the deformed frame field
-    igl::frame_to_cross_field(V_deformed,F,FF1_deformed,FF2_deformed,X1_deformed);
+    igl::frame_to_cross_field(V_deformed, F, FF1_deformed, FF2_deformed, X1_deformed);
 
     // Find a smooth crossfield that interpolates the deformed constraints
     Eigen::MatrixXd bc_x(b.size(),3);
