@@ -45,18 +45,30 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
             vertex->position.y(), 
             vertex->position.z();
     }
+    
+    Eigen::VectorXi b(1);
+    //b << 0;
+    Eigen::MatrixXd bc1(1, 3);
+    //bc1 << 1, 0, 0;
+    Eigen::MatrixXd bc2(1, 3);
+    //bc2 << 0, 1, 0;
 
     size_t faceNum = 0;
     for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
         HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
-        //while (h0->startVertex->outputIndex != F_check.row(faceNum)[0])
-        //    h0 = h0->nextHalfEdge;
         HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
         HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
         F.row(faceNum) << 
             h0->startVertex->outputIndex, 
             h1->startVertex->outputIndex, 
             h2->startVertex->outputIndex;
+        if (face->isGuideline) {
+            auto v1 = Vector3::crossProduct(face->guidelineDirection, face->normal);
+            auto v2 = Vector3::crossProduct(face->normal, v1);
+            b << faceNum;
+            bc1 << v1.x(), v1.y(), v1.z();
+            bc2 << v2.x(), v2.y(), v2.z();
+        }
         ++faceNum;
     }
 
@@ -75,13 +87,6 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     //b   = temp.block(0,0,temp.rows(),1).cast<int>();
     //bc1 = temp.block(0,1,temp.rows(),3);
     //bc2 = temp.block(0,4,temp.rows(),3);
-    
-    Eigen::VectorXi b(1);
-    b << 0;
-    Eigen::MatrixXd bc1(1, 3);
-    bc1 << 1, 0, 0;
-    Eigen::MatrixXd bc2(1, 3);
-    bc2 << 0, 1, 0;
     
     // Interpolated frame field
     Eigen::MatrixXd FF1, FF2;

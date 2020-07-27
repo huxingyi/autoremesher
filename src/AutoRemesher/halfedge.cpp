@@ -99,8 +99,15 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
         calculateVertexNormals();
         calculateVertexAverageNormals();
         calculateVertexRelativeHeights();
-        expandVertexRelativeHeights();
+        //expandVertexRelativeHeights();
         normalizeVertexRelativeHeights();
+        
+        for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next)
+            vertex->fineCurvature = calculateVertexCurvature(vertex);
+        for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+            vertex->removalCost = calculateVertexRemovalCost(vertex);
+            m_vertexRemovalCostPriorityQueue.push({vertex, vertex->removalCost, vertex->version});
+        }
     }
 }
 
@@ -340,6 +347,9 @@ bool Mesh::isWatertight()
 
 bool Mesh::isVertexConstrained(Vertex *vertex) const
 {
+    //if (vertex->relativeHeight >= m_featuredRelativeHeight)
+    //    return true;
+    
     HalfEdge *halfEdge = vertex->anyHalfEdge;
     do {
         if (0 != halfEdge->featured)
@@ -968,9 +978,9 @@ void Mesh::debugExportVertexRelativeHeightPly(const char *filename)
     debugResetColor();
     
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
-        if (vertex->relativeHeight < 0.5)
+        if (vertex->relativeHeight < m_featuredRelativeHeight)
             continue;
-        vertex->debugColor = 200 * 55 * vertex->relativeHeight;
+        vertex->debugColor = 127 + 120 * vertex->relativeHeight;
     }
     
     debugExportPly(filename);

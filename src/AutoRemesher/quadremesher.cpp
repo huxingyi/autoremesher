@@ -11,9 +11,13 @@ namespace AutoRemesher
 
 bool QuadRemesher::remesh()
 {
+    //std::cerr << "Generating guideline..." << std::endl;
+    
     //AutoRemesher::GuidelineGenerator guidelineGenerator(&m_vertices, &m_triangles);
     //guidelineGenerator.generate();
     
+    //std::cerr << "Generating guideline done" << std::endl;
+   
     //const auto &guideline = guidelineGenerator.guidelineVertices();
     
     //guidelineGenerator.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-guideline.ply", guideline);
@@ -26,9 +30,10 @@ bool QuadRemesher::remesh()
     //    std::cerr << "Mesh decimate failed" << std::endl;
     //    return false;
     //}
+    //mesh.removeZeroAngleTriangles();
     
     mesh.debugExportVertexRelativeHeightPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
-    //exit(0);
+    exit(0);
     
     //mesh.debugExportSegmentEdgesPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
     //mesh.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");
