@@ -147,7 +147,7 @@ private:
     size_t m_vertexCount = 0;
     size_t m_faceCount = 0;
     size_t m_halfEdgeCount = 0;
-    size_t m_targetVertexCount = 5000;
+    size_t m_targetVertexCount = 2000;
     
     struct VertexRemovalCost
     {

@@ -22,10 +22,10 @@ bool QuadRemesher::remesh()
 
     //mesh.markGuidelineEdgesAsFeatured();
     
-    if (!mesh.decimate()) {
-        std::cerr << "Mesh decimate failed" << std::endl;
-        return false;
-    }
+    //if (!mesh.decimate()) {
+    //    std::cerr << "Mesh decimate failed" << std::endl;
+    //    return false;
+    //}
     
     //mesh.debugExportVertexRelativeHeightPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
     //exit(0);

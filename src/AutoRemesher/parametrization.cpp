@@ -1,25 +1,22 @@
-#include <Eigen/Core>
-#include <igl/jet.h>
-#include <igl/per_face_normals.h>
-#include <igl/unproject_onto_mesh.h>
-#include <igl/edge_topology.h>
-#include <igl/cut_mesh.h>
-#include <directional/visualization_schemes.h>
-#include <directional/glyph_lines_raw.h>
-#include <directional/seam_lines.h>
-#include <directional/line_cylinders.h>
-#include <directional/read_raw_field.h>
-#include <directional/write_raw_field.h>
-#include <directional/curl_matching.h>
-#include <directional/effort_to_indices.h>
-#include <directional/singularity_spheres.h>
-#include <directional/combing.h>
-#include <directional/setup_parameterization.h>
-#include <directional/parameterize.h>
-#include <directional/cut_mesh_with_singularities.h>
-#include <directional/power_field.h>
-#include <directional/power_to_representative.h>
-#include <directional/power_to_raw.h>
+#include <igl/avg_edge_length.h>
+#include <igl/barycenter.h>
+#include <igl/comb_cross_field.h>
+#include <igl/comb_frame_field.h>
+#include <igl/compute_frame_field_bisectors.h>
+#include <igl/cross_field_mismatch.h>
+#include <igl/cut_mesh_from_singularities.h>
+#include <igl/find_cross_field_singularities.h>
+#include <igl/local_basis.h>
+#include <igl/rotate_vectors.h>
+#include <igl/copyleft/comiso/miq.h>
+#include <igl/copyleft/comiso/nrosy.h>
+#include <igl/copyleft/comiso/frame_field.h>
+#include <igl/readOBJ.h>
+#include <igl/writeOBJ.h>
+#include <igl/readDMAT.h>
+#include <igl/frame_field_deformer.h>
+#include <igl/frame_to_cross_field.h>
+#include <igl/PI.h>
 #include <AutoRemesher/Parametrization>
 #include <iostream>
 
@@ -33,7 +30,13 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
 {
     Eigen::MatrixXd V(mesh.vertexCount(), 3);
     Eigen::MatrixXi F(mesh.faceCount(), 3);
-
+    
+    std::cerr << "miq preparing..." << std::endl;
+    
+    Eigen::MatrixXd V_check;
+    Eigen::MatrixXi F_check;
+    igl::readOBJ("C:\\Users\\Jeremy\\Desktop\\bumpy-cube.obj", V_check, F_check);
+    
     size_t vertexNum = 0;
     for (HalfEdge::Vertex *vertex = mesh.firstVertex(); nullptr != vertex; vertex = vertex->_next) {
         vertex->outputIndex = vertexNum;
@@ -46,6 +49,8 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     size_t faceNum = 0;
     for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
         HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
+        while (h0->startVertex->outputIndex != F_check.row(faceNum)[0])
+            h0 = h0->nextHalfEdge;
         HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
         HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
         F.row(faceNum) << 
@@ -54,73 +59,139 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
             h2->startVertex->outputIndex;
         ++faceNum;
     }
+
+    // Global parametrization
+    Eigen::MatrixXd UV;
+    Eigen::MatrixXi FUV;
     
-    // Prepare the rawField
+    // Input frame field constraints
+    Eigen::VectorXi b;
+    Eigen::MatrixXd bc1;
+    Eigen::MatrixXd bc2;
+
+    Eigen::MatrixXd temp;
+    igl::readDMAT("C:\\Users\\Jeremy\\Desktop\\bumpy-cube.dmat", temp);
+
+    b   = temp.block(0,0,temp.rows(),1).cast<int>();
+    bc1 = temp.block(0,1,temp.rows(),3);
+    bc2 = temp.block(0,4,temp.rows(),3);
     
-    Eigen::MatrixXcd powerField;
-    int N = 4;
+    //Eigen::VectorXi b(1);
+    //b << 0;
+    //Eigen::MatrixXd bc1(1, 3);
+    //bc1 << 1, 0, 0;
+    //Eigen::MatrixXd bc2(1, 3);
+    //bc2 << 0, 1, 0;
     
+    // Interpolated frame field
+    Eigen::MatrixXd FF1, FF2;
+
+    // Deformed mesh
+    Eigen::MatrixXd V_deformed;
+    Eigen::MatrixXd B_deformed;
+
+    // Frame field on deformed
+    Eigen::MatrixXd FF1_deformed;
+    Eigen::MatrixXd FF2_deformed;
+
+    // Cross field on deformed
+    Eigen::MatrixXd X1_deformed;
+    Eigen::MatrixXd X2_deformed;
+    
+    // Interpolate the frame field
+    igl::copyleft::comiso::frame_field(V, F, b, bc1, bc2, FF1, FF2);
+
+    // Deform the mesh to transform the frame field in a cross field
+    igl::frame_field_deformer(
+        V,F,FF1,FF2,V_deformed,FF1_deformed,FF2_deformed);
+    
+    igl::writeOBJ("C:\\Users\\Jeremy\\Desktop\\test-deformed-F.obj", V_deformed, F);
     {
-        Eigen::VectorXi b;
-        Eigen::MatrixXd bc;
-        b.resize(0);
-        bc.resize(0, 3);
-        directional::power_field(V, F, b, bc, N, powerField);
+        {
+            FILE *fp = fopen("C:\\Users\\Jeremy\\Desktop\\test-deformed.obj", "wb");
+            size_t vertexNum = 0;
+            for (HalfEdge::Vertex *vertex = mesh.firstVertex(); nullptr != vertex; vertex = vertex->_next) {
+                vertex->outputIndex = vertexNum;
+                const auto &row = V_deformed.row(vertexNum++);
+                fprintf(fp, "v %f %f %f\n", row[0], row[1], row[2]);
+            }
+            for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
+                HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
+                HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
+                HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
+                fprintf(fp, "f %zu %zu %zu\n", 
+                    1 + h0->startVertex->outputIndex, 
+                    1 + h1->startVertex->outputIndex, 
+                    1 + h2->startVertex->outputIndex);
+            }
+            fclose(fp);
+        }
+        {
+            FILE *fp = fopen("C:\\Users\\Jeremy\\Desktop\\test-original.obj", "wb");
+            size_t vertexNum = 0;
+            for (HalfEdge::Vertex *vertex = mesh.firstVertex(); nullptr != vertex; vertex = vertex->_next) {
+                vertex->outputIndex = vertexNum;
+                const auto &row = V.row(vertexNum++);
+                fprintf(fp, "v %f %f %f\n", row[0], row[1], row[2]);
+            }
+            for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
+                HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
+                HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
+                HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
+                fprintf(fp, "f %zu %zu %zu\n", 
+                    1 + h0->startVertex->outputIndex, 
+                    1 + h1->startVertex->outputIndex, 
+                    1 + h2->startVertex->outputIndex);
+            }
+            fclose(fp);
+        }
+        printf("test-deformed.obj saved\n");
     }
     
-    Eigen::MatrixXd representative;
-    directional::power_to_representative(V, F, powerField, N, representative);
-    representative.rowwise().normalize();
-    
-    Eigen::MatrixXd rawField;
-    directional::representative_to_raw(V, F, representative, N, rawField);
-    
-    Eigen::MatrixXi EV, FE, EF;
-    Eigen::MatrixXd barycenters;
-    
-    igl::edge_topology(V, F, EV, FE, EF);
-    igl::barycenter(V, F, barycenters);
-    
-    //combing and cutting
-    Eigen::VectorXd curlNorm;
-    Eigen::VectorXi matching, combedMatching;
-    Eigen::VectorXd effort;
-    directional::curl_matching(V, F, EV, EF, FE, rawField, matching, effort, curlNorm);
-    
-    Eigen::VectorXi singIndices, singVertices;
-    directional::effort_to_indices(V, F, EV, EF, effort, matching, N, singVertices, singIndices);
+    // Compute face barycenters deformed mesh
+    igl::barycenter(V_deformed, F, B_deformed);
 
-    directional::ParameterizationData pd;
-    Eigen::MatrixXd combedField;
-    directional::cut_mesh_with_singularities(V, F, singVertices, pd.face2cut);
-    directional::combing(V, F, EV, EF, FE, pd.face2cut, rawField, matching, combedField, combedMatching);
-    //directional::principal_matching(V, F,EV, EF, FE, combedField, combedMatching, combedEffort);
-    std::cout << "curlNorm max: " << curlNorm.maxCoeff() << std::endl;
+    // Find the closest crossfield to the deformed frame field
+    igl::frame_to_cross_field(V_deformed,F,FF1_deformed,FF2_deformed,X1_deformed);
 
-    std::cout << "Setting up parameterization" << std::endl;
-    
-    Eigen::MatrixXd VMeshCut;
-    Eigen::MatrixXi FMeshCut;
-    directional::setup_parameterization(N, V, F, EV, EF, FE, combedMatching, singVertices, pd, VMeshCut, FMeshCut);
-    
-    Eigen::MatrixXd cutUVFull, cutUVRot;
-    double lengthRatio = 0.01;
-    bool isInteger = false;  //do not do translational seamless.
-    std::cout << "Solving rotationally-seamless parameterization" << std::endl;
-    directional::parameterize(V, F, FE, combedField, lengthRatio, pd, VMeshCut, FMeshCut, isInteger, cutUVRot);
-    std::cout << "Done!" << std::endl;
+    // Find a smooth crossfield that interpolates the deformed constraints
+    Eigen::MatrixXd bc_x(b.size(),3);
+    for (unsigned i=0; i<b.size();++i)
+        bc_x.row(i) = X1_deformed.row(b(i));
 
-    isInteger = true;  //do not do translational seamless.
-    std::cout << "Solving fully-seamless parameterization" << std::endl;
-    directional::parameterize(V, F, FE, combedField, lengthRatio, pd, VMeshCut, FMeshCut, isInteger,  cutUVFull);
-    std::cout << "Done!" << std::endl;
+    Eigen::VectorXd S;
+    igl::copyleft::comiso::nrosy(
+             V,
+             F,
+             b,
+             bc_x,
+             Eigen::VectorXi(),
+             Eigen::VectorXd(),
+             Eigen::MatrixXd(),
+             4,
+             0.5,
+             X1_deformed,
+             S);
+
+    // The other representative of the cross field is simply rotated by 90 degrees
+    Eigen::MatrixXd B1,B2,B3;
+    igl::local_basis(V_deformed,F,B1,B2,B3);
+    X2_deformed =
+    igl::rotate_vectors(X1_deformed, Eigen::VectorXd::Constant(1,igl::PI/2), B1, B2);
+
+    // Global seamless parametrization
+    igl::copyleft::comiso::miq(V_deformed,
+           F,
+           X1_deformed,
+           X2_deformed,
+           UV,
+           FUV,
+           60.0,
+           5.0,
+           false,
+           2);
     
-    std::cout << "mesh.faceCount():" << mesh.faceCount() << std::endl;
-    std::cout << "VMeshCut.rows():" << VMeshCut.rows() << std::endl;
-    std::cout << "FMeshCut.rows():" << FMeshCut.rows() << std::endl;
-    std::cout << "cutUVFull.rows():" << cutUVFull.rows() << std::endl;
-    
-    if (FMeshCut.rows() != mesh.faceCount()) {
+    if (FUV.rows() != mesh.faceCount()) {
         std::cerr << "miq failed" << std::endl;
         return false;
     }
@@ -130,10 +201,10 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
         HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
         HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
         HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
-        const auto &triangleVertexIndices = FMeshCut.row(faceNum++);
-        const auto &v0 = cutUVFull.row(triangleVertexIndices[0]);
-        const auto &v1 = cutUVFull.row(triangleVertexIndices[1]);
-        const auto &v2 = cutUVFull.row(triangleVertexIndices[2]);
+        const auto &triangleVertexIndices = FUV.row(faceNum++);
+        const auto &v0 = UV.row(triangleVertexIndices[0]);
+        const auto &v1 = UV.row(triangleVertexIndices[1]);
+        const auto &v2 = UV.row(triangleVertexIndices[2]);
         h0->startVertexUv[0] = v0[0];
         h0->startVertexUv[1] = v0[1];
         h1->startVertexUv[0] = v1[0];
