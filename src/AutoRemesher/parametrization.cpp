@@ -52,6 +52,8 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     //bc1 << 1, 0, 0;
     Eigen::MatrixXd bc2(1, 3);
     //bc2 << 0, 1, 0;
+    
+    std::vector<std::vector<AutoRemesher::Vector3>> debugConstraintQuads;
 
     size_t faceNum = 0;
     for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
@@ -67,16 +69,42 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
                 return false;
             if (h->startVertex->heightDirection.isZero())
                 return false;
-            auto v1 = Vector3::crossProduct(h->startVertex->heightDirection, face->normal);
-            auto v2 = Vector3::crossProduct(face->normal, v1);
+            auto v1 = Vector3::crossProduct(h->startVertex->heightDirection, h->startVertex->averageNormal);
+            auto v2 = Vector3::crossProduct(h->startVertex->averageNormal, v1);
             //std::cerr << "add constraint[" << faceNum << "]" << v1 << " " << v2 << std::endl;
             b << faceNum;
             bc1 << v1.x(), v1.y(), v1.z();
             bc2 << v2.x(), v2.y(), v2.z();
+            
+            debugConstraintQuads.push_back({
+                h->startVertex->position - v1 + v2,
+                h->startVertex->position + v1 + v2,
+                h->startVertex->position + v1 - v2,
+                h->startVertex->position - v1 - v2
+            });
+            
             return true;
         };
         addFeatured(h0) || addFeatured(h1) || addFeatured(h2);
         ++faceNum;
+    }
+    
+    {
+        FILE *fp = fopen("C:\\Users\\Jeremy\\Desktop\\test-constraint-quads.obj", "wb");
+        for (size_t i = 0; i < debugConstraintQuads.size(); ++i) {
+            const auto &it = debugConstraintQuads[i];
+            for (size_t j = 0; j < 4; ++j) {
+                fprintf(fp, "v %f %f %f\n", it[j][0], it[j][1], it[j][2]);
+            }
+        }
+        for (size_t i = 0, offset = 0; i < debugConstraintQuads.size(); ++i, offset += 4) {
+            fprintf(fp, "f %zu %zu %zu %zu\n", 
+                1 + offset,
+                2 + offset,
+                3 + offset,
+                4 + offset);
+        }
+        fclose(fp);
     }
 
     // Global parametrization
