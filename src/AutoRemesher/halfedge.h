@@ -38,6 +38,7 @@ struct Vertex
     Vector3 averageNormal;
     double relativeHeight = 0.0;
     double nextRelativeHeight = 0.0;
+    size_t heightId = 0;
 };
 
 struct HalfEdge
@@ -118,9 +119,9 @@ public:
     void calculateVertexNormals();
     void calculateVertexAverageNormals();
     void calculateVertexRelativeHeights();
-    void expandVertexRelativeHeights();
     void normalizeVertexRelativeHeights();
     void removeZeroAngleTriangles();
+    void markVertexHeightIds();
     bool isVertexMixed(Vertex *vertex) const;
     void debugResetColor();
     void debugExportGuidelinePly(const char *filename);
@@ -150,6 +151,7 @@ private:
     size_t m_halfEdgeCount = 0;
     size_t m_targetVertexCount = 8000;
     double m_featuredRelativeHeight = 0.34;
+    size_t m_minimalHeightGroupSize = 10;
     
     struct VertexRemovalCost
     {

@@ -99,8 +99,8 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
         calculateVertexNormals();
         calculateVertexAverageNormals();
         calculateVertexRelativeHeights();
-        //expandVertexRelativeHeights();
         normalizeVertexRelativeHeights();
+        markVertexHeightIds();
         
         for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next)
             vertex->fineCurvature = calculateVertexCurvature(vertex);
@@ -822,20 +822,40 @@ void Mesh::calculateVertexRelativeHeights()
     }
 }
 
-void Mesh::expandVertexRelativeHeights()
+void Mesh::markVertexHeightIds()
 {
+    size_t nextHeightId = 1;
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
-        HalfEdge *halfEdge = vertex->anyHalfEdge;
-        do {
-            Vertex *neighborVertex = halfEdge->oppositeHalfEdge->startVertex;
-            if (vertex->relativeHeight > neighborVertex->relativeHeight)
-                neighborVertex->nextRelativeHeight = vertex->relativeHeight;
-            halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
-        } while (halfEdge != vertex->anyHalfEdge);
-    }
-    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
-        if (vertex->nextRelativeHeight > vertex->relativeHeight)
-            vertex->relativeHeight = vertex->nextRelativeHeight;
+        if (vertex->relativeHeight < m_featuredRelativeHeight)
+            continue;
+        if (0 != vertex->heightId)
+            continue;
+        size_t currentHeightId = nextHeightId;
+        std::queue<Vertex *> candidates;
+        candidates.push(vertex);
+        std::vector<Vertex *> groupVertices;
+        while (!candidates.empty()) {
+            Vertex *current = candidates.front();
+            candidates.pop();
+            if (0 != current->heightId)
+                continue;
+            current->heightId = currentHeightId;
+            groupVertices.push_back(current);
+            HalfEdge *neighborHalfEdge = current->anyHalfEdge;
+            do {
+                if (0 == neighborHalfEdge->oppositeHalfEdge->startVertex->heightId && 
+                        neighborHalfEdge->oppositeHalfEdge->startVertex->relativeHeight >= m_featuredRelativeHeight) {
+                    candidates.push(neighborHalfEdge->oppositeHalfEdge->startVertex);
+                }
+                neighborHalfEdge = neighborHalfEdge->oppositeHalfEdge->nextHalfEdge;
+            } while (neighborHalfEdge != current->anyHalfEdge);
+        }
+        if (groupVertices.size() < m_minimalHeightGroupSize) {
+            for (auto &it: groupVertices)
+                it->heightId = std::numeric_limits<size_t>::max();
+            continue;
+        }
+        ++nextHeightId;
     }
 }
 
@@ -978,7 +998,9 @@ void Mesh::debugExportVertexRelativeHeightPly(const char *filename)
     debugResetColor();
     
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
-        if (vertex->relativeHeight < m_featuredRelativeHeight)
+        //if (vertex->relativeHeight < m_featuredRelativeHeight)
+        //    continue;
+        if (0 == vertex->heightId || std::numeric_limits<size_t>::max() == vertex->heightId)
             continue;
         vertex->debugColor = 127 + 120 * vertex->relativeHeight;
     }
