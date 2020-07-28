@@ -859,6 +859,7 @@ void Mesh::markVertexHeightIds()
                 it->heightId = std::numeric_limits<size_t>::max();
             continue;
         }
+        m_heightVertexGroup.insert({currentHeightId, groupVertices});
         ++nextHeightId;
     }
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
@@ -891,15 +892,30 @@ void Mesh::fetchVertexHeightDistantNeighbor(Vertex *vertex,
 void Mesh::calculateVertexHeightDirections()
 {
     size_t travelLength = m_minimalHeightGroupSize / 2;
-    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
-        if (0 == vertex->heightId)
-            continue;
-        Vertex *neighbor = nullptr;
-        std::unordered_set<Vertex *> visited;
-        fetchVertexHeightDistantNeighbor(vertex, &neighbor, travelLength, 0, &visited);
-        if (nullptr == neighbor)
-            continue;
-        vertex->heightDirection = (neighbor->position - vertex->position).normalized();
+    for (auto &it: m_heightVertexGroup) {
+        for (auto &vertex: it.second) {
+            Vertex *neighbor = nullptr;
+            std::unordered_set<Vertex *> visited;
+            fetchVertexHeightDistantNeighbor(vertex, &neighbor, travelLength, 0, &visited);
+            if (nullptr == neighbor)
+                continue;
+            vertex->heightDirection = (neighbor->position - vertex->position).normalized();
+        }
+    }
+    for (auto &it: m_heightVertexGroup) {
+        auto &vertex = it.first;
+        Vector3 referenceDirection;
+        for (auto &vertex: it.second) {
+            if (vertex->heightDirection.isZero())
+                continue;
+            if (referenceDirection.isZero()) {
+                referenceDirection = vertex->heightDirection;
+                continue;
+            }
+            if (Vector3::dotProduct(referenceDirection, vertex->heightDirection) > 0)
+                continue;
+            vertex->heightDirection = -vertex->heightDirection;
+        }
     }
 }
 

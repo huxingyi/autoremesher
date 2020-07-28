@@ -160,6 +160,7 @@ private:
     size_t m_targetVertexCount = 8000;
     double m_featuredRelativeHeight = 0.34;
     size_t m_minimalHeightGroupSize = 10;
+    std::unordered_map<size_t, std::vector<Vertex *>> m_heightVertexGroup;
     
     struct VertexRemovalCost
     {
