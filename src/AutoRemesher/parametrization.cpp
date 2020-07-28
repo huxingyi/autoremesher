@@ -62,13 +62,20 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
             h0->startVertex->outputIndex, 
             h1->startVertex->outputIndex, 
             h2->startVertex->outputIndex;
-        if (face->isGuideline) {
-            auto v1 = Vector3::crossProduct(face->guidelineDirection, face->normal);
+        auto addFeatured = [&](HalfEdge::HalfEdge *h) {
+            if (0 == h->startVertex->heightId)
+                return false;
+            if (h->startVertex->heightDirection.isZero())
+                return false;
+            auto v1 = Vector3::crossProduct(h->startVertex->heightDirection, face->normal);
             auto v2 = Vector3::crossProduct(face->normal, v1);
+            //std::cerr << "add constraint[" << faceNum << "]" << v1 << " " << v2 << std::endl;
             b << faceNum;
             bc1 << v1.x(), v1.y(), v1.z();
             bc2 << v2.x(), v2.y(), v2.z();
-        }
+            return true;
+        };
+        addFeatured(h0) || addFeatured(h1) || addFeatured(h2);
         ++faceNum;
     }
 

@@ -26,14 +26,14 @@ bool QuadRemesher::remesh()
 
     //mesh.markGuidelineEdgesAsFeatured();
     
-    //if (!mesh.decimate()) {
-    //    std::cerr << "Mesh decimate failed" << std::endl;
-    //    return false;
-    //}
-    //mesh.removeZeroAngleTriangles();
+    if (!mesh.decimate()) {
+        std::cerr << "Mesh decimate failed" << std::endl;
+        return false;
+    }
+    mesh.removeZeroAngleTriangles();
     
     mesh.debugExportVertexRelativeHeightPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
-    exit(0);
+    //exit(0);
     
     //mesh.debugExportSegmentEdgesPly("C:\\Users\\Jeremy\\Desktop\\test-debug.ply");
     //mesh.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-decimated.ply");

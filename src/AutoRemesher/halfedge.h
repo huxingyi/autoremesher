@@ -6,6 +6,7 @@
 #include <limits>
 #include <stack>
 #include <unordered_map>
+#include <unordered_set>
 #include <AutoRemesher/Vector3>
 #include <AutoRemesher/Vector2>
 
@@ -39,6 +40,7 @@ struct Vertex
     double relativeHeight = 0.0;
     double nextRelativeHeight = 0.0;
     size_t heightId = 0;
+    Vector3 heightDirection;
 };
 
 struct HalfEdge
@@ -122,6 +124,12 @@ public:
     void normalizeVertexRelativeHeights();
     void removeZeroAngleTriangles();
     void markVertexHeightIds();
+    void calculateVertexHeightDirections();
+    void fetchVertexHeightDistantNeighbor(Vertex *vertex, 
+        Vertex **neighbor, 
+        size_t target, 
+        size_t current,
+        std::unordered_set<Vertex *> *visited);
     bool isVertexMixed(Vertex *vertex) const;
     void debugResetColor();
     void debugExportGuidelinePly(const char *filename);

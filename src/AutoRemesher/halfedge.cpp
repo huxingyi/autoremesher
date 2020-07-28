@@ -101,6 +101,7 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
         calculateVertexRelativeHeights();
         normalizeVertexRelativeHeights();
         markVertexHeightIds();
+        calculateVertexHeightDirections();
         
         for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next)
             vertex->fineCurvature = calculateVertexCurvature(vertex);
@@ -349,6 +350,9 @@ bool Mesh::isVertexConstrained(Vertex *vertex) const
 {
     //if (vertex->relativeHeight >= m_featuredRelativeHeight)
     //    return true;
+
+    if (0 != vertex->heightId)
+        return true;
     
     HalfEdge *halfEdge = vertex->anyHalfEdge;
     do {
@@ -857,6 +861,46 @@ void Mesh::markVertexHeightIds()
         }
         ++nextHeightId;
     }
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        if (std::numeric_limits<size_t>::max() == vertex->heightId)
+            vertex->heightId = 0;
+    }
+}
+
+void Mesh::fetchVertexHeightDistantNeighbor(Vertex *vertex, 
+        Vertex **neighbor, 
+        size_t target, 
+        size_t current,
+        std::unordered_set<Vertex *> *visited)
+{
+    visited->insert(vertex);
+    if (current == target) {
+        *neighbor = vertex;
+        return;
+    }
+    HalfEdge *neighborHalfEdge = vertex->anyHalfEdge;
+    do {
+        if (vertex->heightId == neighborHalfEdge->oppositeHalfEdge->startVertex->heightId &&
+                visited->end() == visited->find(neighborHalfEdge->oppositeHalfEdge->startVertex)) {
+            fetchVertexHeightDistantNeighbor(neighborHalfEdge->oppositeHalfEdge->startVertex, neighbor, target, current + 1, visited);
+        }
+        neighborHalfEdge = neighborHalfEdge->oppositeHalfEdge->nextHalfEdge;
+    } while (neighborHalfEdge != vertex->anyHalfEdge);
+}
+
+void Mesh::calculateVertexHeightDirections()
+{
+    size_t travelLength = m_minimalHeightGroupSize / 2;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        if (0 == vertex->heightId)
+            continue;
+        Vertex *neighbor = nullptr;
+        std::unordered_set<Vertex *> visited;
+        fetchVertexHeightDistantNeighbor(vertex, &neighbor, travelLength, 0, &visited);
+        if (nullptr == neighbor)
+            continue;
+        vertex->heightDirection = (neighbor->position - vertex->position).normalized();
+    }
 }
 
 void Mesh::calculateAnglesBetweenFaces()
@@ -1000,9 +1044,9 @@ void Mesh::debugExportVertexRelativeHeightPly(const char *filename)
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
         //if (vertex->relativeHeight < m_featuredRelativeHeight)
         //    continue;
-        if (0 == vertex->heightId || std::numeric_limits<size_t>::max() == vertex->heightId)
+        if (0 == vertex->heightId)
             continue;
-        vertex->debugColor = 127 + 120 * vertex->relativeHeight;
+        vertex->debugColor = 127 + 5 * vertex->heightId;
     }
     
     debugExportPly(filename);
