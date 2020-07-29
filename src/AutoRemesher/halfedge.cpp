@@ -101,7 +101,7 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
         calculateVertexRelativeHeights();
         normalizeVertexRelativeHeights();
         markVertexHeightIds();
-        calculateVertexHeightDirections();
+        //calculateVertexHeightDirections();
         
         for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next)
             vertex->fineCurvature = calculateVertexCurvature(vertex);

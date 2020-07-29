@@ -17,8 +17,10 @@
 #include <igl/frame_field_deformer.h>
 #include <igl/frame_to_cross_field.h>
 #include <igl/PI.h>
+#include <igl/principal_curvature.h>
 #include <AutoRemesher/Parametrization>
 #include <iostream>
+#include <unordered_set>
 
 namespace AutoRemesher
 {
@@ -46,16 +48,10 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
             vertex->position.z();
     }
     
-    Eigen::VectorXi b(1);
-    //b << 0;
-    Eigen::MatrixXd bc1(1, 3);
-    //bc1 << 1, 0, 0;
-    Eigen::MatrixXd bc2(1, 3);
-    //bc2 << 0, 1, 0;
-    
     std::vector<std::vector<AutoRemesher::Vector3>> debugConstraintQuads;
 
     size_t faceNum = 0;
+    std::unordered_set<size_t> usedHeightIds;
     for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
         HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
         HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
@@ -64,30 +60,110 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
             h0->startVertex->outputIndex, 
             h1->startVertex->outputIndex, 
             h2->startVertex->outputIndex;
+        ++faceNum;
+    }
+    
+    Eigen::MatrixXd PD1, PD2;
+    Eigen::MatrixXd PV1, PV2;
+    igl::principal_curvature(V, F, PD1, PD2, PV1, PV2);
+    
+    std::vector<int> constraintFaces;
+    std::vector<Vector3> constaintDirections1;
+    std::vector<Vector3> constaintDirections2;
+    faceNum = 0;
+    for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
+        HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
+        HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
+        HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
+        
         auto addFeatured = [&](HalfEdge::HalfEdge *h) {
             if (0 == h->startVertex->heightId)
                 return false;
-            if (h->startVertex->heightDirection.isZero())
-                return false;
-            auto v1 = Vector3::crossProduct(h->startVertex->heightDirection, h->startVertex->averageNormal);
-            auto v2 = Vector3::crossProduct(h->startVertex->averageNormal, v1);
-            //std::cerr << "add constraint[" << faceNum << "]" << v1 << " " << v2 << std::endl;
-            b << faceNum;
-            bc1 << v1.x(), v1.y(), v1.z();
-            bc2 << v2.x(), v2.y(), v2.z();
+            //if (usedHeightIds.end() != usedHeightIds.find(h->startVertex->heightId))
+            //    return false;
+            //if (h->startVertex->heightDirection.isZero())
+            //    return false;
+            //usedHeightIds.insert(h->startVertex->heightId);
+            auto &r1 = PD1.row(h->startVertex->outputIndex);
+            auto &r2 = PD2.row(h->startVertex->outputIndex);
+            
+            auto v1 = AutoRemesher::Vector3(r1.x(), r1.y(), r1.z());
+            auto v2 = AutoRemesher::Vector3(r2.x(), r2.y(), r2.z());
+            
+            constraintFaces.push_back(faceNum);
+            constaintDirections1.push_back(v1);
+            constaintDirections2.push_back(v2);
+            
+            auto center = (h0->startVertex->position +
+                h1->startVertex->position +
+                h2->startVertex->position) / 3;
             
             debugConstraintQuads.push_back({
-                h->startVertex->position - v1 + v2,
-                h->startVertex->position + v1 + v2,
-                h->startVertex->position + v1 - v2,
-                h->startVertex->position - v1 - v2
+                center - (v1 * 0.5) + (v2 * 0.5),
+                center + (v1 * 0.5) + (v2 * 0.5),
+                center + (v1 * 0.5) - (v2 * 0.5),
+                center - (v1 * 0.5) - (v2 * 0.5)
             });
             
             return true;
         };
         addFeatured(h0) || addFeatured(h1) || addFeatured(h2);
+        
         ++faceNum;
     }
+    
+    Eigen::VectorXi b(constraintFaces.size());
+    Eigen::MatrixXd bc1(constaintDirections1.size(), 3);
+    Eigen::MatrixXd bc2(constaintDirections2.size(), 3);
+    
+    for (size_t i = 0; i < constraintFaces.size(); ++i) {
+        const auto &v1 = constaintDirections1[i];
+        const auto &v2 = constaintDirections2[i];
+        b.row(i) << constraintFaces[i];
+        bc1.row(i) << v1.x(), v1.y(), v1.z();
+        bc2.row(i) << v2.x(), v2.y(), v2.z();
+    }
+    
+    // Input frame field constraints
+    //Eigen::VectorXi b;
+    //Eigen::MatrixXd bc1;
+    //Eigen::MatrixXd bc2;
+
+    //Eigen::MatrixXd temp;
+    //igl::readDMAT("C:\\Users\\Jeremy\\Desktop\\bumpy-cube.dmat", temp);
+
+    //b   = temp.block(0,0,temp.rows(),1).cast<int>();
+    //bc1 = temp.block(0,1,temp.rows(),3);
+    //bc2 = temp.block(0,4,temp.rows(),3);
+    
+    /*
+    {
+        std::vector<HalfEdge::Face *> faces;
+        for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
+            faces.push_back(face);
+        }
+        for (int i = 0; i < b.size(); ++i) {
+            bb << b(i);
+            HalfEdge::Face *face = faces[b(i)];
+            HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
+            HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
+            HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
+            auto center = (h0->startVertex->position +
+                h1->startVertex->position +
+                h2->startVertex->position) / 3;
+            auto &r1 = bc1.row(i);
+            auto &r2 = bc2.row(i);
+            auto v1 = AutoRemesher::Vector3(r1.x(), r1.y(), r1.z()) * 0.01;
+            auto v2 = AutoRemesher::Vector3(r2.x(), r2.y(), r2.z()) * 0.01;
+            debugConstraintQuads.push_back({
+                center - v1 + v2,
+                center + v1 + v2,
+                center + v1 - v2,
+                center - v1 - v2
+            });
+        }
+    }
+    */
     
     {
         FILE *fp = fopen("C:\\Users\\Jeremy\\Desktop\\test-constraint-quads.obj", "wb");
@@ -110,19 +186,7 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     // Global parametrization
     Eigen::MatrixXd UV;
     Eigen::MatrixXi FUV;
-    
-    // Input frame field constraints
-    //Eigen::VectorXi b;
-    //Eigen::MatrixXd bc1;
-    //Eigen::MatrixXd bc2;
 
-    //Eigen::MatrixXd temp;
-    //igl::readDMAT("C:\\Users\\Jeremy\\Desktop\\bumpy-cube.dmat", temp);
-
-    //b   = temp.block(0,0,temp.rows(),1).cast<int>();
-    //bc1 = temp.block(0,1,temp.rows(),3);
-    //bc2 = temp.block(0,4,temp.rows(),3);
-    
     // Interpolated frame field
     Eigen::MatrixXd FF1, FF2;
 
