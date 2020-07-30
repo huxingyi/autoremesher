@@ -79,8 +79,8 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     //    if (constaintVertexCount >= targetConstraintVertexCount)
     //        break;
     //}
-    size_t limitConstraintVertexCount = mesh.vertexCount() * 0.5;
-    std::unordered_set<HalfEdge::Vertex *> usedConstraintVertices;
+    //size_t limitConstraintVertexCount = mesh.vertexCount() * 0.5;
+    //std::unordered_set<HalfEdge::Vertex *> usedConstraintVertices;
     
     std::vector<int> constraintFaces;
     std::vector<Vector3> constaintDirections1;
@@ -92,11 +92,11 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
         HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
         
         auto addFeatured = [&](HalfEdge::HalfEdge *h) {
-            if (usedConstraintVertices.size() >= limitConstraintVertexCount)
-                return false;
+            //if (usedConstraintVertices.size() >= limitConstraintVertexCount)
+            //    return false;
             if (h->startVertex->relativeHeight > 0.2)
                 return false;
-            usedConstraintVertices.insert(h->startVertex);
+            //usedConstraintVertices.insert(h->startVertex);
             //if (0 == h->startVertex->peakHeightId)
             //    return false;
             //if (h->oppositeHalfEdge->startVertex->heightId > 0 ||

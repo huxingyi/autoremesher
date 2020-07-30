@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <qex.h>
+#include <unordered_set>
 #include <AutoRemesher/QuadRemesher>
 #include <AutoRemesher/HalfEdge>
 #include <AutoRemesher/GuidelineGenerator>
@@ -100,10 +101,22 @@ bool QuadRemesher::remesh()
             const auto &src = quadMesh.vertices[i];
             m_remeshedVertices[i] = Vector3 {(double)src.x[0], (double)src.x[1], (double)src.x[2]};
         }
-        m_remeshedQuads.resize(quadMesh.quad_count);
+        m_remeshedQuads.reserve(quadMesh.quad_count);
         for (unsigned int i = 0; i < quadMesh.quad_count; ++i) {
             const auto &src = quadMesh.quads[i];
-            m_remeshedQuads[i] = std::vector<size_t> {src.indices[0], src.indices[1], src.indices[2], src.indices[3]};
+            if (0 == src.indices[0] ||
+                    0 == src.indices[1] ||
+                    0 == src.indices[2] ||
+                    0 == src.indices[3])
+                continue;
+            std::unordered_set<qex_Index> indices;
+            indices.insert(src.indices[0]);
+            indices.insert(src.indices[1]);
+            indices.insert(src.indices[2]);
+            indices.insert(src.indices[3]);
+            if (4 != indices.size())
+                continue;
+            m_remeshedQuads.push_back(std::vector<size_t> {src.indices[0], src.indices[1], src.indices[2], src.indices[3]});
         }
         
         remeshSucceed = true;
