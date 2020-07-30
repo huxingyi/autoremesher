@@ -40,6 +40,7 @@ struct Vertex
     double relativeHeight = 0.0;
     double nextRelativeHeight = 0.0;
     size_t heightId = 0;
+    size_t peakHeightId = 0;
     Vector3 heightDirection;
 };
 
@@ -157,9 +158,9 @@ private:
     size_t m_vertexCount = 0;
     size_t m_faceCount = 0;
     size_t m_halfEdgeCount = 0;
-    size_t m_targetVertexCount = 8000;
+    size_t m_targetVertexCount = 10000;
     double m_featuredRelativeHeight = 0.34;
-    size_t m_minimalHeightGroupSize = 10;
+    size_t m_minimalHeightGroupSize = 20;
     std::unordered_map<size_t, std::vector<Vertex *>> m_heightVertexGroup;
     
     struct VertexRemovalCost

@@ -38,7 +38,7 @@ public:
 private:
     std::vector<Vector3> m_vertices;
     std::vector<std::vector<size_t>> m_triangles;
-    double m_targetEdgeLength = 1.0;
+    double m_targetEdgeLength = 4.0;
     double m_sharpEdgeDegrees = 85;
     int m_iterations = 3;
     std::vector<Vector3> m_remeshedVertices;

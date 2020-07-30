@@ -859,6 +859,10 @@ void Mesh::markVertexHeightIds()
                 it->heightId = std::numeric_limits<size_t>::max();
             continue;
         }
+        (*std::max_element(groupVertices.begin(), groupVertices.end(), 
+                [](const Vertex *first, const Vertex *second) {
+            return first->relativeHeight < second->relativeHeight;
+        }))->peakHeightId = currentHeightId;
         m_heightVertexGroup.insert({currentHeightId, groupVertices});
         ++nextHeightId;
     }

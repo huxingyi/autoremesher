@@ -77,13 +77,21 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
         HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
         
         auto addFeatured = [&](HalfEdge::HalfEdge *h) {
-            if (0 == h->startVertex->heightId)
+            //if (0 == h->startVertex->peakHeightId)
+            //    return false;
+            if (h->oppositeHalfEdge->startVertex->heightId > 0 ||
+                    h->oppositeHalfEdge->startVertex->heightId == h->startVertex->heightId)
                 return false;
-            //if (usedHeightIds.end() != usedHeightIds.find(h->startVertex->heightId))
+            //if (usedHeightIds.end() != usedHeightIds.find(h->startVertex->peakHeightId))
             //    return false;
             //if (h->startVertex->heightDirection.isZero())
             //    return false;
-            //usedHeightIds.insert(h->startVertex->heightId);
+            //usedHeightIds.insert(h->startVertex->peakHeightId);
+            
+            auto center = (h0->startVertex->position +
+                h1->startVertex->position +
+                h2->startVertex->position) / 3;
+                
             auto &r1 = PD1.row(h->startVertex->outputIndex);
             auto &r2 = PD2.row(h->startVertex->outputIndex);
             
@@ -93,10 +101,6 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
             constraintFaces.push_back(faceNum);
             constaintDirections1.push_back(v1);
             constaintDirections2.push_back(v2);
-            
-            auto center = (h0->startVertex->position +
-                h1->startVertex->position +
-                h2->startVertex->position) / 3;
             
             debugConstraintQuads.push_back({
                 center - (v1 * 0.5) + (v2 * 0.5),
