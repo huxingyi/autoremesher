@@ -67,6 +67,21 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     Eigen::MatrixXd PV1, PV2;
     igl::principal_curvature(V, F, PD1, PD2, PV1, PV2);
     
+    //std::unordered_set<HalfEdge::Vertex *> pickedVertices;
+    //size_t targetConstraintVertexCount = mesh.vertexCount() * 0.1;
+    //size_t constaintVertexCount = 0;
+    //orderVertexByFlatness();
+    //for (const auto &it: mesh.vertexOrderedByFlatness()) {
+    //    if (it->relativeHeight > 0.2)
+    //        break;
+    //    pickedVertices.insert(it);
+    //    ++constaintVertexCount;
+    //    if (constaintVertexCount >= targetConstraintVertexCount)
+    //        break;
+    //}
+    size_t limitConstraintVertexCount = mesh.vertexCount() * 0.5;
+    std::unordered_set<HalfEdge::Vertex *> usedConstraintVertices;
+    
     std::vector<int> constraintFaces;
     std::vector<Vector3> constaintDirections1;
     std::vector<Vector3> constaintDirections2;
@@ -77,8 +92,11 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
         HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
         
         auto addFeatured = [&](HalfEdge::HalfEdge *h) {
+            if (usedConstraintVertices.size() >= limitConstraintVertexCount)
+                return false;
             if (h->startVertex->relativeHeight > 0.2)
                 return false;
+            usedConstraintVertices.insert(h->startVertex);
             //if (0 == h->startVertex->peakHeightId)
             //    return false;
             //if (h->oppositeHalfEdge->startVertex->heightId > 0 ||

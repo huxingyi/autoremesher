@@ -126,6 +126,8 @@ public:
     void removeZeroAngleTriangles();
     void markVertexHeightIds();
     void calculateVertexHeightDirections();
+    void orderVertexByFlatness();
+    const std::vector<Vertex *> &vertexOrderedByFlatness();
     void fetchVertexHeightDistantNeighbor(Vertex *vertex, 
         Vertex **neighbor, 
         size_t target, 
@@ -162,6 +164,7 @@ private:
     double m_featuredRelativeHeight = 0.34;
     size_t m_minimalHeightGroupSize = 20;
     std::unordered_map<size_t, std::vector<Vertex *>> m_heightVertexGroup;
+    std::vector<Vertex *> m_vertexOrderedByFlatness;
     
     struct VertexRemovalCost
     {

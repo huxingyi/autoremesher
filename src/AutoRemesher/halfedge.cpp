@@ -974,6 +974,25 @@ void Mesh::removeZeroAngleTriangles()
     }
 }
 
+void Mesh::orderVertexByFlatness()
+{
+    m_vertexOrderedByFlatness.resize(m_vertexCount);
+    size_t vertexIndex = 0;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        m_vertexOrderedByFlatness[vertexIndex] = vertex;
+        ++vertexIndex;
+    }
+    std::sort(m_vertexOrderedByFlatness.begin(), m_vertexOrderedByFlatness.end(), 
+            [](const Vertex *first, const Vertex *second) {
+        return first->relativeHeight < second->relativeHeight;
+    });
+}
+
+const std::vector<Vertex *> &Mesh::vertexOrderedByFlatness()
+{
+    return m_vertexOrderedByFlatness;
+}
+
 void Mesh::debugExportPly(const char *filename)
 {
     std::cerr << "debugExportPly:" << filename << std::endl;
