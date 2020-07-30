@@ -77,11 +77,13 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
         HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
         
         auto addFeatured = [&](HalfEdge::HalfEdge *h) {
+            if (h->startVertex->relativeHeight > 0.2)
+                return false;
             //if (0 == h->startVertex->peakHeightId)
             //    return false;
-            if (h->oppositeHalfEdge->startVertex->heightId > 0 ||
-                    h->oppositeHalfEdge->startVertex->heightId == h->startVertex->heightId)
-                return false;
+            //if (h->oppositeHalfEdge->startVertex->heightId > 0 ||
+            //        h->oppositeHalfEdge->startVertex->heightId == h->startVertex->heightId)
+            //    return false;
             //if (usedHeightIds.end() != usedHeightIds.find(h->startVertex->peakHeightId))
             //    return false;
             //if (h->startVertex->heightDirection.isZero())

@@ -1064,9 +1064,9 @@ void Mesh::debugExportVertexRelativeHeightPly(const char *filename)
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
         //if (vertex->relativeHeight < m_featuredRelativeHeight)
         //    continue;
-        if (0 == vertex->heightId)
-            continue;
-        vertex->debugColor = 127 + 5 * vertex->heightId;
+        //if (0 == vertex->heightId)
+        //    continue;
+        vertex->debugColor = 255 * vertex->relativeHeight;
     }
     
     debugExportPly(filename);
