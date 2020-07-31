@@ -68,7 +68,7 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     igl::principal_curvature(V, F, PD1, PD2, PV1, PV2);
     
     std::unordered_set<HalfEdge::Vertex *> pickedVertices;
-    size_t targetConstraintVertexCount = mesh.vertexCount() * 0.5;
+    size_t targetConstraintVertexCount = mesh.vertexCount() * 0.4;
     size_t constaintVertexCount = 0;
     float limitRelativeHeight = 0.2;
     mesh.orderVertexByFlatness();

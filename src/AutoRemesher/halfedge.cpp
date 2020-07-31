@@ -96,6 +96,7 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
     if (isWatertight()) {
         removeZeroAngleTriangles();
         calculateFaceNormals();
+        calculateAnglesBetweenFaces();
         calculateVertexNormals();
         calculateVertexAverageNormals();
         calculateVertexRelativeHeights();

@@ -310,6 +310,7 @@ void QuadRemesher::fixHoles()
                 std::reverse(edges[3].begin(), edges[3].end());
                 std::cerr << "createCoonsPatchFrom rows:" << rows << " columns:" << columns << " loops:" << loop.size() << std::endl;
                 createCoonsPatchFrom(edges[0], edges[2], edges[3], edges[1]);
+                std::cerr << "createCoonsPatchFrom done" << std::endl;
             } else {
                 std::cerr << "Found other corner failed" << std::endl;
             }

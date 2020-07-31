@@ -17,10 +17,6 @@ public:
     {
         m_targetEdgeLength = edgeLength;
     }
-    void setIterations(int iterations)
-    {
-        m_iterations = iterations;
-    }
     
     const std::vector<Vector3> &remeshedVertices()
     {
@@ -38,9 +34,9 @@ public:
 private:
     std::vector<Vector3> m_vertices;
     std::vector<std::vector<size_t>> m_triangles;
-    double m_targetEdgeLength = 3.9;
-    //double m_sharpEdgeDegrees = 60;
-    int m_iterations = 3;
+    double m_targetEdgeLength = 0;
+    double m_sharpEdgeDegrees = 60;
+    int m_remeshIterations = 3;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedTriangles;
 };

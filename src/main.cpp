@@ -234,8 +234,8 @@ int main(int argc, char *argv[])
     }
     
     std::vector<std::vector<std::vector<size_t>>> inputTrianglesIslands;
-    splitToIslands(inputTriangles, inputTrianglesIslands);
-    //inputTrianglesIslands = {inputTriangles};
+    //splitToIslands(inputTriangles, inputTrianglesIslands);
+    inputTrianglesIslands = {inputTriangles};
     
     if (inputTrianglesIslands.empty()) {
         std::cerr << "Input mesh is empty" << std::endl;
@@ -246,9 +246,10 @@ int main(int argc, char *argv[])
     
     std::vector<AutoRemesher::Vector3> resultVertices;
     std::vector<std::vector<size_t>> resultQuads;
+    
     for (size_t islandIndex = 0; islandIndex < inputTrianglesIslands.size(); ++islandIndex) {
+        /*
         const auto &island = inputTrianglesIslands[islandIndex];
-
         std::vector<AutoRemesher::Vector3> pickedVertices;
         std::vector<std::vector<size_t>> pickedTriangles;
         std::unordered_set<size_t> addedIndices;
@@ -266,18 +267,29 @@ int main(int argc, char *argv[])
             pickedTriangles.push_back(triangle);
         }
         std::cerr << "Remeshing surface #" << (islandIndex + 1) << "/" << inputTrianglesIslands.size() << "(vertices:" << pickedVertices.size() << " triangles:" << pickedTriangles.size() << ")..." << std::endl;
+        */
         
-        //std::vector<AutoRemesher::Vector3> &pickedVertices = inputVertices;
-        //std::vector<std::vector<size_t>> &pickedTriangles = inputTrianglesIslands[islandIndex];
+        std::vector<AutoRemesher::Vector3> &pickedVertices = inputVertices;
+        std::vector<std::vector<size_t>> &pickedTriangles = inputTrianglesIslands[islandIndex];
         
         AutoRemesher::Vector3 origin;
         normalizeVertices(pickedVertices, &origin);
 
-        AutoRemesher::IsotropicRemesher isotropicRemesher(pickedVertices, pickedTriangles);
-        isotropicRemesher.remesh();
-        isotropicRemesher.debugExportObj("C:\\Users\\Jeremy\\Desktop\\test-isotropic.obj");
+        AutoRemesher::IsotropicRemesher *isotropicRemesher = nullptr;
+        double targetEdgeLength = 2.9;
+        //do {
+        //    delete isotropicRemesher;
+            isotropicRemesher = new AutoRemesher::IsotropicRemesher(pickedVertices, pickedTriangles);
+            isotropicRemesher->setTargetEdgeLength(targetEdgeLength);
+            isotropicRemesher->remesh();
+            std::cerr << "isotropicRemesher->remeshedVertices().size():" << isotropicRemesher->remeshedVertices().size() << " targetEdgeLength:" << targetEdgeLength << std::endl;
+        //    targetEdgeLength /= 2;
+        //} while (isotropicRemesher->remeshedVertices().size() < 5000);
         
-        AutoRemesher::QuadRemesher quadRemesher(isotropicRemesher.remeshedVertices(), isotropicRemesher.remeshedTriangles());
+        isotropicRemesher->debugExportObj("C:\\Users\\Jeremy\\Desktop\\test-isotropic.obj");
+        
+        AutoRemesher::QuadRemesher quadRemesher(isotropicRemesher->remeshedVertices(), isotropicRemesher->remeshedTriangles());
+        delete isotropicRemesher;
         //AutoRemesher::QuadRemesher quadRemesher(pickedVertices, pickedTriangles);
         quadRemesher.setGradientSize(gradientSize);
         quadRemesher.setConstraintStength(constraintStength);
