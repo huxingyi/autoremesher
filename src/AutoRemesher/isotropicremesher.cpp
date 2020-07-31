@@ -43,23 +43,23 @@ bool IsotropicRemesher::remesh()
     for (const auto &face: m_triangles)
         mesh.add_face(vertices[face[0]], vertices[face[1]], vertices[face[2]]);
     
-    auto ecm = mesh.add_property_map<edge_descriptor, bool>("ecm").first;
-    CGAL::Polygon_mesh_processing::detect_sharp_edges(mesh, m_sharpEdgeDegrees, ecm);
+    //auto ecm = mesh.add_property_map<edge_descriptor, bool>("ecm").first;
+    //CGAL::Polygon_mesh_processing::detect_sharp_edges(mesh, m_sharpEdgeDegrees, ecm);
     
-    std::vector<edge_descriptor> border;
-    for (edge_descriptor e: edges(mesh)) {
-        if (ecm[e])
-            border.push_back(e);
-    }
-    CGAL::Polygon_mesh_processing::split_long_edges(border, 
-        m_targetEdgeLength, mesh, CGAL::Polygon_mesh_processing::parameters::edge_is_constrained_map(ecm));
+    //std::vector<edge_descriptor> border;
+    //for (edge_descriptor e: edges(mesh)) {
+    //    if (ecm[e])
+    //        border.push_back(e);
+    //}
+    //CGAL::Polygon_mesh_processing::split_long_edges(border, 
+    //    m_targetEdgeLength, mesh, CGAL::Polygon_mesh_processing::parameters::edge_is_constrained_map(ecm));
     
     CGAL::Polygon_mesh_processing::isotropic_remeshing(faces(mesh),
         m_targetEdgeLength,
         mesh,
-        CGAL::Polygon_mesh_processing::parameters::number_of_iterations(m_iterations)
-        .protect_constraints(true)
-        .edge_is_constrained_map(ecm));
+        CGAL::Polygon_mesh_processing::parameters::number_of_iterations(m_iterations));
+        //.protect_constraints(true)
+        //.edge_is_constrained_map(ecm));
     
     Mesh::Property_map<Mesh::Vertex_index, size_t> meshPropertyMap;
     bool created;
