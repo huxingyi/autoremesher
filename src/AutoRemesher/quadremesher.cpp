@@ -224,8 +224,11 @@ void QuadRemesher::fixHoles()
     };
     
     auto isCorner = [&](const std::vector<Vector2> &loop, size_t index) {
-        return std::abs(Radians::toDegrees(angle2d(loop[(index + 1) % loop.size()] - loop[index],
-                loop[(index + loop.size() - 1) % loop.size()] - loop[index])) - 90.0) <= 30;
+        auto degrees = Radians::toDegrees(angle2d(loop[(index + 1) % loop.size()] - loop[index],
+                loop[(index + loop.size() - 1) % loop.size()] - loop[index]));
+        bool isTrue = std::abs(degrees - 90.0) <= 30;
+        std::cerr << "isCorner degrees:" << degrees << " index:" << index << "/" << loop.size() << " is?" << isTrue << std::endl;
+        return isTrue;
     };
     
     std::vector<std::vector<int>> loops;
@@ -263,6 +266,8 @@ void QuadRemesher::fixHoles()
         } else if (loop.size() > 4 && loop.size() % 2 == 0) {
             size_t cornerIndex = findCorner(ringPointsIn2d);
             size_t nextCornerIndex = cornerIndex;
+            size_t previousCornerIndex = cornerIndex;
+            std::cerr << "Looking corners" << std::endl;
             if (isCorner(ringPointsIn2d, cornerIndex)) {
                 for (int i = 1; i < loop.size(); ++i) {
                     if (isCorner(ringPointsIn2d, (cornerIndex + i) % loop.size())) {
@@ -270,12 +275,24 @@ void QuadRemesher::fixHoles()
                         break;
                     }
                 }
+                for (int i = 1; i < loop.size(); ++i) {
+                    if (isCorner(ringPointsIn2d, (cornerIndex + loop.size() - i) % loop.size())) {
+                        previousCornerIndex = (cornerIndex + loop.size() - i) % loop.size();
+                        break;
+                    }
+                }
             } else {
                 std::cerr << "Found corner failed" << std::endl;
             }
-            if (nextCornerIndex != cornerIndex) {
-                int rows = std::abs((int)cornerIndex - (int)nextCornerIndex);
-                int columns = loop.size() / 2 - rows;
+            int rows = (nextCornerIndex + loop.size() - cornerIndex) % loop.size();
+            int columns = (cornerIndex + loop.size() - previousCornerIndex) % loop.size();
+            std::cerr << "Initial rows:" << rows << " columns:" << columns << std::endl;
+            std::cerr << "cornerIndex:" << cornerIndex << " nextCornerIndex:" << nextCornerIndex << " previousCornerIndex:" << previousCornerIndex << std::endl;
+            if (columns < rows) {
+                rows = loop.size() / 2 - columns;
+            }
+            columns = loop.size() / 2 - rows;
+            if (rows > 0 && columns > 0) {
                 std::vector<size_t> edges[4];
                 size_t offset = cornerIndex;
                 for (int i = 0; i <= rows; ++i)
