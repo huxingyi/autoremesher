@@ -45,6 +45,12 @@ private:
     double m_constraintStength = 0.5;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedQuads;
+    
+    void fixHoles();
+    void createCoonsPatchFrom(const std::vector<size_t> &c0,
+        const std::vector<size_t> &c1,
+        const std::vector<size_t> &d0,
+        const std::vector<size_t> &d1);
 };
 
 }

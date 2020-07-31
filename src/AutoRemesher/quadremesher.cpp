@@ -3,9 +3,11 @@
 #include <iostream>
 #include <qex.h>
 #include <unordered_set>
+#include <igl/boundary_loop.h>
 #include <AutoRemesher/QuadRemesher>
 #include <AutoRemesher/HalfEdge>
 #include <AutoRemesher/GuidelineGenerator>
+#include <AutoRemesher/Radians>
 
 namespace AutoRemesher
 {
@@ -119,6 +121,8 @@ bool QuadRemesher::remesh()
             m_remeshedQuads.push_back(std::vector<size_t> {src.indices[0], src.indices[1], src.indices[2], src.indices[3]});
         }
         
+        fixHoles();
+        
         remeshSucceed = true;
     }
     
@@ -130,6 +134,172 @@ bool QuadRemesher::remesh()
     free(quadMesh.quads);
     
     return remeshSucceed;
+}
+
+void QuadRemesher::createCoonsPatchFrom(const std::vector<size_t> &c0,
+        const std::vector<size_t> &c1,
+        const std::vector<size_t> &d0,
+        const std::vector<size_t> &d1)
+{
+    auto Lc_Position = [&](int s, int t) {
+        float factor = (float)t / d0.size();
+        return (1.0 - factor) * m_remeshedVertices[c0[s]] + factor * m_remeshedVertices[c1[s]];
+    };
+    auto Ld_Position = [&](int s, int t) {
+        float factor = (float)s / c0.size();
+        return (1.0 - factor) * m_remeshedVertices[d0[t]] + factor * m_remeshedVertices[d1[t]];
+    };
+    auto B_Position = [&](int s, int t) {
+        float tFactor = (float)t / d0.size();
+        float sFactor = (float)s / c0.size();
+        return m_remeshedVertices[c0[0]] * (1.0 - sFactor) * (1.0 - tFactor) +
+            m_remeshedVertices[c0[c0.size() - 1]] * sFactor * (1.0 - tFactor) +
+            m_remeshedVertices[c1[0]] * (1.0 - sFactor) * tFactor +
+            m_remeshedVertices[c1[c1.size() - 1]] * sFactor * tFactor;
+    };
+    auto C_Position = [&](int s, int t) {
+        return Lc_Position(s, t) + Ld_Position(s, t) - B_Position(s, t);
+    };
+    
+    std::vector<std::vector<size_t>> grid(c0.size());
+    for (int s = 1; s < (int)c0.size() - 1; ++s) {
+        grid[s].resize(d0.size());
+        for (int t = 1; t < (int)d0.size() - 1; ++t) {
+            grid[s][t] = m_remeshedVertices.size();
+            m_remeshedVertices.push_back(C_Position(s, t));
+        }
+    }
+    grid[0].resize(d0.size());
+    grid[c0.size() - 1].resize(d0.size());
+    for (size_t i = 0; i < c0.size(); ++i) {
+        grid[i][0] = c0[i];
+        grid[i][d0.size() - 1] = c1[i];
+    }
+    for (size_t i = 0; i < d0.size(); ++i) {
+        grid[0][i] = d0[i];
+        grid[c0.size() - 1][i] = d1[i];
+    }
+    for (int s = 1; s < (int)c0.size(); ++s) {
+        for (int t = 1; t < (int)d0.size(); ++t) {
+            std::vector<size_t> face = {
+                grid[s - 1][t - 1],
+                grid[s - 1][t],
+                grid[s][t],
+                grid[s][t - 1]
+            };
+            m_remeshedQuads.push_back(face);
+        }
+    }
+}
+
+void QuadRemesher::fixHoles()
+{
+    Eigen::MatrixXi F(m_remeshedQuads.size() * 2, 3);
+    for (size_t i = 0, j = 0; i < m_remeshedQuads.size(); ++i) {
+        const auto &quad = m_remeshedQuads[i];
+        F.row(j++) << quad[0], quad[1], quad[2];
+        F.row(j++) << quad[2], quad[3], quad[0];
+    }
+    
+    auto angle2d = [](const Vector2 &a, const Vector2 &b) {
+        Vector3 first(a.x(), a.y(), 0.0);
+        Vector3 second(b.x(), b.y(), 0.0);
+        return Vector3::angle(first, second);
+    };
+    
+    auto findCorner = [&](const std::vector<Vector2> &loop) {
+        std::vector<std::pair<size_t, double>> corners(loop.size());
+        for (size_t i = 0; i < loop.size(); ++i) {
+            size_t j = (i + 1) % loop.size();
+            size_t k = (i + 2) % loop.size();
+            auto &corner = corners[j];
+            corner.first = j;
+            corner.second = std::abs(Radians::toDegrees(angle2d(loop[i] - loop[j],
+                loop[k] - loop[j])) - 90.0);
+        }
+        return std::min_element(corners.begin(), corners.end(), [&](const std::pair<size_t, double> &firstCorner,
+                const std::pair<size_t, double> &secondCorner) {
+            return firstCorner.second < secondCorner.second;
+        })->first;
+    };
+    
+    auto isCorner = [&](const std::vector<Vector2> &loop, size_t index) {
+        return std::abs(Radians::toDegrees(angle2d(loop[(index + 1) % loop.size()] - loop[index],
+                loop[(index + loop.size() - 1) % loop.size()] - loop[index])) - 90.0) <= 30;
+    };
+    
+    std::vector<std::vector<int>> loops;
+    igl::boundary_loop(F, loops);
+    for (const auto &loop: loops) {
+        Vector3 origin;
+        for (const auto &it: loop) {
+            origin += m_remeshedVertices[it];
+        }
+        origin /= loop.size();
+        
+        Vector3 projectNormal;
+        for (size_t i = 0; i < loop.size(); ++i) {
+            size_t j = (i + 1) % loop.size();
+            projectNormal += Vector3::normal(m_remeshedVertices[loop[i]],
+                m_remeshedVertices[loop[j]],
+                origin);
+        }
+        projectNormal.normalize();
+        
+        Vector3 projectAxis = m_remeshedVertices[loop[0]] - origin;
+        
+        std::vector<Vector3> ringPoints;
+        ringPoints.reserve(loop.size());
+        for (const auto &it: loop) {
+            ringPoints.push_back(m_remeshedVertices[it]);
+        }
+        std::vector<Vector2> ringPointsIn2d;
+        Vector3::project(ringPoints, &ringPointsIn2d, projectNormal, projectAxis, origin);
+        
+        if (4 == loop.size()) {
+            m_remeshedQuads.push_back(std::vector<size_t> {
+                (size_t)loop[0], (size_t)loop[1], (size_t)loop[2], (size_t)loop[3]
+            });
+        } else if (loop.size() > 4 && loop.size() % 2 == 0) {
+            size_t cornerIndex = findCorner(ringPointsIn2d);
+            size_t nextCornerIndex = cornerIndex;
+            if (isCorner(ringPointsIn2d, cornerIndex)) {
+                for (int i = 1; i < loop.size(); ++i) {
+                    if (isCorner(ringPointsIn2d, (cornerIndex + i) % loop.size())) {
+                        nextCornerIndex = (cornerIndex + i) % loop.size();
+                        break;
+                    }
+                }
+            } else {
+                std::cerr << "Found corner failed" << std::endl;
+            }
+            if (nextCornerIndex != cornerIndex) {
+                int rows = std::abs((int)cornerIndex - (int)nextCornerIndex);
+                int columns = loop.size() / 2 - rows;
+                std::vector<size_t> edges[4];
+                size_t offset = cornerIndex;
+                for (int i = 0; i <= rows; ++i)
+                    edges[0].push_back(loop[(offset++) % loop.size()]);
+                --offset;
+                for (int i = 0; i <= columns; ++i)
+                    edges[1].push_back(loop[(offset++) % loop.size()]);
+                --offset;
+                for (int i = 0; i <= rows; ++i)
+                    edges[2].push_back(loop[(offset++) % loop.size()]);
+                --offset;
+                for (int i = 0; i <= columns; ++i)
+                    edges[3].push_back(loop[(offset++) % loop.size()]);
+                std::reverse(edges[2].begin(), edges[2].end());
+                std::reverse(edges[3].begin(), edges[3].end());
+                std::cerr << "createCoonsPatchFrom rows:" << rows << " columns:" << columns << " loops:" << loop.size() << std::endl;
+                createCoonsPatchFrom(edges[0], edges[2], edges[3], edges[1]);
+            } else {
+                std::cerr << "Found other corner failed" << std::endl;
+            }
+        } else {
+            std::cerr << "Found unfixable boundary loop, length:" << loop.size() << std::endl;
+        }
+    }
 }
 
 #if 1
