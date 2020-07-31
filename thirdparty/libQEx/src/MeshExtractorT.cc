@@ -1404,7 +1404,7 @@ try_connect_incomplete_gvertices() {
                     {
                         Point_2 transformed_uv_from = next_incoming_lei->uv_from;
                         new_outgoing_lei_tf.transform_point(transformed_uv_from);
-                        assert(start_gv_it->position_uv == transformed_uv_from);
+                        //assert(start_gv_it->position_uv == transformed_uv_from);
                     }
 #endif
 
@@ -2407,7 +2407,7 @@ find_local_connection_at_vertex(const Point_2& _uv_from, const Point_2& _uv_orig
     std::cerr << "Warning: find_local_connections_at_vertex((" << _uv_from << "), (" << _uv_to << "), ...) to tri vertex #"
             << vh.idx() << " found vertex but not a grid-vertex to connect to. Checked "
             << vertex_gvertices_[vh.idx()].size() << " candidates." << std::endl;
-    abort();
+    //abort();
 #endif
 
   // return error

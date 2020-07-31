@@ -105,7 +105,7 @@ static void splitToIslands(const std::vector<std::vector<size_t>> &triangles, st
     }
 }
 
-static void normalizeVertices(std::vector<AutoRemesher::Vector3> &vertices, double scale=100.0)
+static void normalizeVertices(std::vector<AutoRemesher::Vector3> &vertices, AutoRemesher::Vector3 *origin, double scale=100.0)
 {
     double minX = std::numeric_limits<double>::max();
     double maxX = std::numeric_limits<double>::lowest();
@@ -137,16 +137,16 @@ static void normalizeVertices(std::vector<AutoRemesher::Vector3> &vertices, doub
         maxLength = length[1];
     if (length[2] > maxLength)
         maxLength = length[2];
-    AutoRemesher::Vector3 origin = {
+    *origin = {
         (maxX + minX) * 0.5,
         (maxY + minY) * 0.5,
         (maxZ + minZ) * 0.5,
     };
-    std::cerr << "origin:" << origin << std::endl;
+    std::cerr << "origin:" << *origin << std::endl;
     std::cerr << "length:" << length << std::endl;
     std::cerr << "maxLength:" << maxLength << std::endl;
     for (auto &v: vertices) {
-        v = scale * (v - origin) / maxLength;
+        v = scale * (v - *origin) / maxLength;
     }
 }
 
@@ -234,8 +234,8 @@ int main(int argc, char *argv[])
     }
     
     std::vector<std::vector<std::vector<size_t>>> inputTrianglesIslands;
-    //splitToIslands(inputTriangles, inputTrianglesIslands);
-    inputTrianglesIslands = {inputTriangles};
+    splitToIslands(inputTriangles, inputTrianglesIslands);
+    //inputTrianglesIslands = {inputTriangles};
     
     if (inputTrianglesIslands.empty()) {
         std::cerr << "Input mesh is empty" << std::endl;
@@ -248,7 +248,7 @@ int main(int argc, char *argv[])
     std::vector<std::vector<size_t>> resultQuads;
     for (size_t islandIndex = 0; islandIndex < inputTrianglesIslands.size(); ++islandIndex) {
         const auto &island = inputTrianglesIslands[islandIndex];
-        /*
+
         std::vector<AutoRemesher::Vector3> pickedVertices;
         std::vector<std::vector<size_t>> pickedTriangles;
         std::unordered_set<size_t> addedIndices;
@@ -266,12 +266,12 @@ int main(int argc, char *argv[])
             pickedTriangles.push_back(triangle);
         }
         std::cerr << "Remeshing surface #" << (islandIndex + 1) << "/" << inputTrianglesIslands.size() << "(vertices:" << pickedVertices.size() << " triangles:" << pickedTriangles.size() << ")..." << std::endl;
-        */
         
-        std::vector<AutoRemesher::Vector3> &pickedVertices = inputVertices;
-        std::vector<std::vector<size_t>> &pickedTriangles = inputTrianglesIslands[islandIndex];
+        //std::vector<AutoRemesher::Vector3> &pickedVertices = inputVertices;
+        //std::vector<std::vector<size_t>> &pickedTriangles = inputTrianglesIslands[islandIndex];
         
-        normalizeVertices(pickedVertices);
+        AutoRemesher::Vector3 origin;
+        normalizeVertices(pickedVertices, &origin);
 
         AutoRemesher::IsotropicRemesher isotropicRemesher(pickedVertices, pickedTriangles);
         isotropicRemesher.remesh();
@@ -298,7 +298,11 @@ int main(int argc, char *argv[])
         const auto &vertices = quadRemesher.remeshedVertices();
         std::cerr << "Surface #" << (islandIndex + 1) << "/" << inputTrianglesIslands.size() << " remesh succeed(vertices:" << vertices.size() << " quads:" << quads.size() << ")" << std::endl;
         size_t vertexStartIndex = resultVertices.size();
-        resultVertices.insert(resultVertices.end(), vertices.begin(), vertices.end());
+        //resultVertices.insert(resultVertices.end(), vertices.begin(), vertices.end());
+        resultVertices.reserve(resultVertices.size() + vertices.size());
+        for (const auto &it: vertices) {
+            resultVertices.push_back(it + origin);
+        }
         for (const auto &it: quads) {
             resultQuads.push_back({
                 vertexStartIndex + it[0], 
