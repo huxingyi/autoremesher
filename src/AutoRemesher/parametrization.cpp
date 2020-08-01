@@ -110,20 +110,23 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
             //if (h->startVertex->heightDirection.isZero())
             //    return false;
             //usedHeightIds.insert(h->startVertex->peakHeightId);
-            
-            auto center = (h0->startVertex->position +
-                h1->startVertex->position +
-                h2->startVertex->position) / 3;
-                
+  
             auto &r1 = PD1.row(h->startVertex->outputIndex);
             auto &r2 = PD2.row(h->startVertex->outputIndex);
             
             auto v1 = AutoRemesher::Vector3(r1.x(), r1.y(), r1.z());
             auto v2 = AutoRemesher::Vector3(r2.x(), r2.y(), r2.z());
             
+            if (v1.isZero() || v2.isZero())
+                return false;
+            
+            auto center = (h0->startVertex->position +
+                h1->startVertex->position +
+                h2->startVertex->position) / 3;
+            
             constraintFaces.push_back(faceNum);
-            constaintDirections1.push_back(v1 * 0.2);
-            constaintDirections2.push_back(v2 * 0.2);
+            constaintDirections1.push_back(v1);
+            constaintDirections2.push_back(v2);
             
             debugConstraintQuads.push_back({
                 center - (v1 * 0.5) + (v2 * 0.5),
