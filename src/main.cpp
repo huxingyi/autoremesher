@@ -105,7 +105,7 @@ static void splitToIslands(const std::vector<std::vector<size_t>> &triangles, st
     }
 }
 
-static void normalizeVertices(std::vector<AutoRemesher::Vector3> &vertices, AutoRemesher::Vector3 *origin, double *recoverScale, double scale=100.0)
+static void calculateNormalizedFactors(const std::vector<AutoRemesher::Vector3> &vertices, AutoRemesher::Vector3 *origin, double *maxLength)
 {
     double minX = std::numeric_limits<double>::max();
     double maxX = std::numeric_limits<double>::lowest();
@@ -132,27 +132,16 @@ static void normalizeVertices(std::vector<AutoRemesher::Vector3> &vertices, Auto
         (maxY - minY) * 0.5,
         (maxZ - minZ) * 0.5,
     };
-    auto maxLength = length[0];
-    if (length[1] > maxLength)
-        maxLength = length[1];
-    if (length[2] > maxLength)
-        maxLength = length[2];
+    *maxLength = length[0];
+    if (length[1] > *maxLength)
+        *maxLength = length[1];
+    if (length[2] > *maxLength)
+        *maxLength = length[2];
     *origin = {
         (maxX + minX) * 0.5,
         (maxY + minY) * 0.5,
         (maxZ + minZ) * 0.5,
     };
-    std::cerr << "origin:" << *origin << std::endl;
-    std::cerr << "length:" << length << std::endl;
-    std::cerr << "maxLength:" << maxLength << std::endl;
-    *recoverScale = maxLength / scale;
-    for (auto &v: vertices) {
-        if (std::isinf(v.x()) || std::isinf(v.y()) || std::isinf(v.z()))
-            std::cerr << "Found inf raw vertex:" << v << std::endl;
-        v = scale * (v - *origin) / maxLength;
-        if (std::isinf(v.x()) || std::isinf(v.y()) || std::isinf(v.z()))
-            std::cerr << "Found inf normalized vertex:" << v << std::endl;
-    }
 }
 
 int main(int argc, char *argv[]) 
@@ -165,7 +154,7 @@ int main(int argc, char *argv[])
     
     const char *inputFilename = nullptr;
     const char *outputFilename = nullptr;
-    double gradientSize = 100;
+    double gradientSize = 200;
     double constraintStength = 0.5;
     for (int i = 1; i < argc; ++i) {
         if ('-' == argv[i][0]) {
@@ -238,6 +227,20 @@ int main(int argc, char *argv[])
         }
     }
     
+    AutoRemesher::Vector3 origin;
+    double recoverScale = 1.0;
+    double scale = 100;    
+    double maxLength = 1.0;
+    calculateNormalizedFactors(inputVertices, &origin, &maxLength);
+    recoverScale = maxLength / scale;
+    for (auto &v: inputVertices) {
+        if (std::isinf(v.x()) || std::isinf(v.y()) || std::isinf(v.z()))
+            std::cerr << "Found inf raw vertex:" << v << std::endl;
+        v = scale * (v - origin) / maxLength;
+        if (std::isinf(v.x()) || std::isinf(v.y()) || std::isinf(v.z()))
+            std::cerr << "Found inf normalized vertex:" << v << std::endl;
+    }
+    
     std::vector<std::vector<std::vector<size_t>>> inputTrianglesIslands;
     splitToIslands(inputTriangles, inputTrianglesIslands);
     //inputTrianglesIslands = {inputTriangles};
@@ -275,9 +278,12 @@ int main(int argc, char *argv[])
         //std::vector<AutoRemesher::Vector3> &pickedVertices = inputVertices;
         //std::vector<std::vector<size_t>> &pickedTriangles = inputTrianglesIslands[islandIndex];
         
-        AutoRemesher::Vector3 origin;
-        double recoverScale = 1.0;
-        normalizeVertices(pickedVertices, &origin, &recoverScale);
+        double localMaxLength = 1.0;
+        AutoRemesher::Vector3 localOrigin;
+        calculateNormalizedFactors(pickedVertices, &localOrigin, &localMaxLength);
+        localMaxLength *= recoverScale;
+        
+        std::cerr << "localMaxLength:" << localMaxLength << " maxLength:" << maxLength << std::endl;
 
         AutoRemesher::IsotropicRemesher *isotropicRemesher = nullptr;
         double targetEdgeLength = 3.9;
@@ -295,7 +301,7 @@ int main(int argc, char *argv[])
         AutoRemesher::QuadRemesher quadRemesher(isotropicRemesher->remeshedVertices(), isotropicRemesher->remeshedTriangles());
         delete isotropicRemesher;
         //AutoRemesher::QuadRemesher quadRemesher(pickedVertices, pickedTriangles);
-        quadRemesher.setGradientSize(gradientSize);
+        quadRemesher.setGradientSize(gradientSize * (localMaxLength / maxLength));
         quadRemesher.setConstraintStength(constraintStength);
         //auto coutBuffer = std::cout.rdbuf();
         //auto cerrBuffer = std::cerr.rdbuf();

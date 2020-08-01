@@ -231,7 +231,7 @@ void QuadRemesher::fixHoles()
     auto isCorner = [&](const std::vector<Vector2> &loop, size_t index) {
         auto degrees = Radians::toDegrees(angle2d(loop[(index + 1) % loop.size()] - loop[index],
                 loop[(index + loop.size() - 1) % loop.size()] - loop[index]));
-        bool isTrue = std::abs(degrees - 90.0) <= 30;
+        bool isTrue = std::abs(degrees - 90.0) <= 45;
         std::cerr << "isCorner degrees:" << degrees << " index:" << index << "/" << loop.size() << " is?" << isTrue << std::endl;
         return isTrue;
     };
