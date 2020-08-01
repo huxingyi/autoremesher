@@ -105,7 +105,7 @@ static void splitToIslands(const std::vector<std::vector<size_t>> &triangles, st
     }
 }
 
-static void normalizeVertices(std::vector<AutoRemesher::Vector3> &vertices, AutoRemesher::Vector3 *origin, double scale=100.0)
+static void normalizeVertices(std::vector<AutoRemesher::Vector3> &vertices, AutoRemesher::Vector3 *origin, double *recoverScale, double scale=100.0)
 {
     double minX = std::numeric_limits<double>::max();
     double maxX = std::numeric_limits<double>::lowest();
@@ -145,6 +145,7 @@ static void normalizeVertices(std::vector<AutoRemesher::Vector3> &vertices, Auto
     std::cerr << "origin:" << *origin << std::endl;
     std::cerr << "length:" << length << std::endl;
     std::cerr << "maxLength:" << maxLength << std::endl;
+    *recoverScale = maxLength / scale;
     for (auto &v: vertices) {
         if (std::isinf(v.x()) || std::isinf(v.y()) || std::isinf(v.z()))
             std::cerr << "Found inf raw vertex:" << v << std::endl;
@@ -275,10 +276,11 @@ int main(int argc, char *argv[])
         //std::vector<std::vector<size_t>> &pickedTriangles = inputTrianglesIslands[islandIndex];
         
         AutoRemesher::Vector3 origin;
-        normalizeVertices(pickedVertices, &origin);
+        double recoverScale = 1.0;
+        normalizeVertices(pickedVertices, &origin, &recoverScale);
 
         AutoRemesher::IsotropicRemesher *isotropicRemesher = nullptr;
-        double targetEdgeLength = 0.9;
+        double targetEdgeLength = 3.9;
         //do {
         //    delete isotropicRemesher;
             isotropicRemesher = new AutoRemesher::IsotropicRemesher(pickedVertices, pickedTriangles);
@@ -315,7 +317,7 @@ int main(int argc, char *argv[])
         //resultVertices.insert(resultVertices.end(), vertices.begin(), vertices.end());
         resultVertices.reserve(resultVertices.size() + vertices.size());
         for (const auto &it: vertices) {
-            resultVertices.push_back(it + origin);
+            resultVertices.push_back(it * recoverScale + origin);
         }
         for (const auto &it: quads) {
             resultQuads.push_back({
