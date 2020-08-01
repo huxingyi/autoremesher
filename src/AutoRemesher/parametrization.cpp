@@ -122,8 +122,8 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
             auto v2 = AutoRemesher::Vector3(r2.x(), r2.y(), r2.z());
             
             constraintFaces.push_back(faceNum);
-            constaintDirections1.push_back(v1);
-            constaintDirections2.push_back(v2);
+            constaintDirections1.push_back(v1 * 0.2);
+            constaintDirections2.push_back(v2 * 0.2);
             
             debugConstraintQuads.push_back({
                 center - (v1 * 0.5) + (v2 * 0.5),

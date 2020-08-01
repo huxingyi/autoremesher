@@ -120,7 +120,7 @@ static void normalizeVertices(std::vector<AutoRemesher::Vector3> &vertices, Auto
             maxX = v.x();
         if (v.y() < minY)
             minY = v.y();
-        if (v.y() > maxX)
+        if (v.y() > maxY)
             maxY = v.y();
         if (v.z() < minZ)
             minZ = v.z();
@@ -146,7 +146,11 @@ static void normalizeVertices(std::vector<AutoRemesher::Vector3> &vertices, Auto
     std::cerr << "length:" << length << std::endl;
     std::cerr << "maxLength:" << maxLength << std::endl;
     for (auto &v: vertices) {
+        if (std::isinf(v.x()) || std::isinf(v.y()) || std::isinf(v.z()))
+            std::cerr << "Found inf raw vertex:" << v << std::endl;
         v = scale * (v - *origin) / maxLength;
+        if (std::isinf(v.x()) || std::isinf(v.y()) || std::isinf(v.z()))
+            std::cerr << "Found inf normalized vertex:" << v << std::endl;
     }
 }
 
@@ -248,7 +252,6 @@ int main(int argc, char *argv[])
     std::vector<std::vector<size_t>> resultQuads;
     
     for (size_t islandIndex = 0; islandIndex < inputTrianglesIslands.size(); ++islandIndex) {
-        /*
         const auto &island = inputTrianglesIslands[islandIndex];
         std::vector<AutoRemesher::Vector3> pickedVertices;
         std::vector<std::vector<size_t>> pickedTriangles;
@@ -267,16 +270,15 @@ int main(int argc, char *argv[])
             pickedTriangles.push_back(triangle);
         }
         std::cerr << "Remeshing surface #" << (islandIndex + 1) << "/" << inputTrianglesIslands.size() << "(vertices:" << pickedVertices.size() << " triangles:" << pickedTriangles.size() << ")..." << std::endl;
-        */
         
-        std::vector<AutoRemesher::Vector3> &pickedVertices = inputVertices;
-        std::vector<std::vector<size_t>> &pickedTriangles = inputTrianglesIslands[islandIndex];
+        //std::vector<AutoRemesher::Vector3> &pickedVertices = inputVertices;
+        //std::vector<std::vector<size_t>> &pickedTriangles = inputTrianglesIslands[islandIndex];
         
         AutoRemesher::Vector3 origin;
         normalizeVertices(pickedVertices, &origin);
 
         AutoRemesher::IsotropicRemesher *isotropicRemesher = nullptr;
-        double targetEdgeLength = 2.9;
+        double targetEdgeLength = 3.9;
         //do {
         //    delete isotropicRemesher;
             isotropicRemesher = new AutoRemesher::IsotropicRemesher(pickedVertices, pickedTriangles);
