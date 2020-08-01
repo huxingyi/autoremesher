@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
     
     const char *inputFilename = nullptr;
     const char *outputFilename = nullptr;
-    double gradientSize = 200;
+    double gradientSize = 170;
     double constraintStength = 0.5;
     for (int i = 1; i < argc; ++i) {
         if ('-' == argv[i][0]) {
