@@ -6,6 +6,7 @@
 #include <CGAL/boost/graph/graph_traits_Surface_mesh.h>
 #include <CGAL/Polygon_mesh_processing/remesh.h>
 #include <CGAL/Polygon_mesh_processing/border.h>
+#include <CGAL/Polygon_mesh_processing/repair.h>
 #include <boost/function_output_iterator.hpp>
 #include <AutoRemesher/Vector3>
 #include <AutoRemesher/IsotropicRemesher>
@@ -42,6 +43,8 @@ bool IsotropicRemesher::remesh()
         vertices.push_back(mesh.add_vertex(Point(position.x(), position.y(), position.z())));
     for (const auto &face: m_triangles)
         mesh.add_face(vertices[face[0]], vertices[face[1]], vertices[face[2]]);
+    
+    CGAL::Polygon_mesh_processing::remove_degenerate_faces(mesh);
     
     auto ecm = mesh.add_property_map<edge_descriptor, bool>("ecm").first;
     CGAL::Polygon_mesh_processing::detect_sharp_edges(mesh, m_sharpEdgeDegrees, ecm);

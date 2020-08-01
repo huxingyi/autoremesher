@@ -238,8 +238,8 @@ int main(int argc, char *argv[])
     }
     
     std::vector<std::vector<std::vector<size_t>>> inputTrianglesIslands;
-    //splitToIslands(inputTriangles, inputTrianglesIslands);
-    inputTrianglesIslands = {inputTriangles};
+    splitToIslands(inputTriangles, inputTrianglesIslands);
+    //inputTrianglesIslands = {inputTriangles};
     
     if (inputTrianglesIslands.empty()) {
         std::cerr << "Input mesh is empty" << std::endl;
@@ -278,7 +278,7 @@ int main(int argc, char *argv[])
         normalizeVertices(pickedVertices, &origin);
 
         AutoRemesher::IsotropicRemesher *isotropicRemesher = nullptr;
-        double targetEdgeLength = 3.9;
+        double targetEdgeLength = 0.9;
         //do {
         //    delete isotropicRemesher;
             isotropicRemesher = new AutoRemesher::IsotropicRemesher(pickedVertices, pickedTriangles);

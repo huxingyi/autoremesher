@@ -26,6 +26,11 @@ bool QuadRemesher::remesh()
     //guidelineGenerator.debugExportPly("C:\\Users\\Jeremy\\Desktop\\test-guideline.ply", guideline);
     
     AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles);
+    
+    if (!mesh.isWatertight()) {
+        std::cerr << "Mesh is not watertight" << std::endl;
+        return false;
+    }
 
     //mesh.markGuidelineEdgesAsFeatured();
     
