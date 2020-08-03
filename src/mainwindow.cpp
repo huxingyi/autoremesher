@@ -36,6 +36,8 @@
 #include <QApplication>
 #include <QThread>
 #include <QDebug>
+#include <QTextStream>
+#include <QFile>
 #include "mainwindow.h"
 #include "graphicscontainerwidget.h"
 #include "aboutwidget.h"
@@ -289,7 +291,34 @@ void MainWindow::setCurrentFilename(const QString &filename)
 
 void MainWindow::saveMesh()
 {
-    // TODO:
+    if (nullptr == m_remeshedVertices || nullptr == m_remeshedQuads)
+        return;
+    
+    QString filename = QFileDialog::getSaveFileName(this, QString(), QString(),
+       tr("Wavefront (*.obj)"));
+    if (filename.isEmpty()) {
+        return;
+    }
+    
+    if (!filename.endsWith(".obj"))
+        filename += ".obj";
+    
+    QFile file(filename);
+    if (file.open(QIODevice::WriteOnly)) {
+        QTextStream stream(&file);
+        stream << "# " << APP_NAME << " " << APP_HUMAN_VER << endl;
+        stream << "# " << APP_HOMEPAGE_URL << endl;
+        for (std::vector<AutoRemesher::Vector3>::const_iterator it = m_remeshedVertices->begin() ; it != m_remeshedVertices->end(); ++it) {
+            stream << "v " << (*it).x() << " " << (*it).y() << " " << (*it).z() << endl;
+        }
+        for (std::vector<std::vector<size_t>>::const_iterator it = m_remeshedQuads->begin() ; it != m_remeshedQuads->end(); ++it) {
+            stream << "f";
+            for (std::vector<size_t>::const_iterator subIt = (*it).begin() ; subIt != (*it).end(); ++subIt) {
+                stream << " " << (1 + *subIt);
+            }
+            stream << endl;
+        }
+    }
 }
 
 void MainWindow::updateTitle()
@@ -460,6 +489,8 @@ void MainWindow::generateQuadMesh()
     }
     
     m_quadMeshResultIsDirty = false;
+    m_saved = true;
+    m_inProgress = true;
 
     qDebug() << "Generate render mesh...";
     
@@ -474,6 +505,7 @@ void MainWindow::generateQuadMesh()
     thread->start();
     
     updateButtonStates();
+    updateTitle();
 }
 
 void MainWindow::quadMeshReady()
@@ -483,6 +515,9 @@ void MainWindow::quadMeshReady()
     
     delete m_remeshedQuads;
     m_remeshedQuads = m_quadMeshGenerator->takeRemeshedQuads();
+    
+    m_saved = false;
+    m_inProgress = false;
     
     delete m_quadMeshGenerator;
     m_quadMeshGenerator = nullptr;
@@ -505,4 +540,5 @@ void MainWindow::quadMeshReady()
         generateQuadMesh();
     
     updateButtonStates();
+    updateTitle();
 }

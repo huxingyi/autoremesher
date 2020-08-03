@@ -44,6 +44,11 @@ public:
         m_gradientSize = gradientSize;
     }
     
+    void setConstraintRatio(double constraintRatio)
+    {
+        m_constraintRatio = constraintRatio;
+    }
+    
     const std::vector<Vector3> &remeshedVertices()
     {
         return m_remeshedVertices;
@@ -57,10 +62,12 @@ public:
     bool remesh();
     
     static const double m_defaultGradientSize;
+    static const double m_defaultConstraintRatio;
 private:
     std::vector<Vector3> m_vertices;
     std::vector<std::vector<size_t>> m_triangles;
     double m_gradientSize = m_defaultGradientSize;
+    double m_constraintRatio = m_defaultConstraintRatio;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedQuads;
     

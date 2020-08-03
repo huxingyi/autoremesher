@@ -45,6 +45,11 @@ public:
         m_gradientSize = gradientSize;
     }
     
+    void setConstraintRatio(double constraintRatio)
+    {
+        m_constraintRatio = constraintRatio;
+    }
+    
     const std::vector<Vector3> &remeshedVertices()
     {
         return m_remeshedVertices;
@@ -73,6 +78,7 @@ private:
     std::vector<std::vector<size_t>> m_remeshedQuads;
     double m_targetEdgeLength = m_defaultTargetEdgeLength;
     double m_gradientSize = QuadRemesher::m_defaultGradientSize;
+    double m_constraintRatio = QuadRemesher::m_defaultConstraintRatio;
     
     void buildEdgeToFaceMap(const std::vector<std::vector<size_t>> &triangles, 
         std::map<std::pair<size_t, size_t>, size_t> &edgeToFaceMap);

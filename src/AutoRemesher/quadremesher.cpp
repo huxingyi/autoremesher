@@ -34,6 +34,7 @@ namespace AutoRemesher
 {
     
 const double QuadRemesher::m_defaultGradientSize = 170.0;
+const double QuadRemesher::m_defaultConstraintRatio = 0.4;
 
 bool QuadRemesher::remesh()
 {
@@ -86,6 +87,7 @@ bool QuadRemesher::remesh()
     bool remeshSucceed = false;
     Parametrization::Parameters parameters;
     parameters.gradientSize = m_gradientSize;
+    parameters.constraintRatio = m_constraintRatio;
     if (Parametrization::miq(mesh, parameters)) {
 
         faceNum = 0;

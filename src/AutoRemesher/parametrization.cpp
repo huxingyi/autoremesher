@@ -53,13 +53,7 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
 {
     Eigen::MatrixXd V(mesh.vertexCount(), 3);
     Eigen::MatrixXi F(mesh.faceCount(), 3);
-    
-    std::cerr << "miq preparing..." << std::endl;
-    
-    //Eigen::MatrixXd V_check;
-    //Eigen::MatrixXi F_check;
-    //igl::readOBJ("C:\\Users\\Jeremy\\Desktop\\bumpy-cube.obj", V_check, F_check);
-    
+
     size_t vertexNum = 0;
     for (HalfEdge::Vertex *vertex = mesh.firstVertex(); nullptr != vertex; vertex = vertex->_next) {
         vertex->outputIndex = vertexNum;
@@ -69,8 +63,6 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
             vertex->position.z();
     }
     
-    std::vector<std::vector<AutoRemesher::Vector3>> debugConstraintQuads;
-
     size_t faceNum = 0;
     std::unordered_set<size_t> usedHeightIds;
     for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
@@ -89,22 +81,17 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     igl::principal_curvature(V, F, PD1, PD2, PV1, PV2);
     
     std::unordered_set<HalfEdge::Vertex *> pickedVertices;
-    size_t targetConstraintVertexCount = mesh.vertexCount() * 0.4;
+    size_t targetConstraintVertexCount = mesh.vertexCount() * parameters.constraintRatio;
     size_t constaintVertexCount = 0;
     float limitRelativeHeight = 0.2;
     mesh.orderVertexByFlatness();
     for (const auto &it: mesh.vertexOrderedByFlatness()) {
-        //if (it->relativeHeight > 0.2)
-        //    break;
-        //pickedVertices.insert(it);
         limitRelativeHeight = it->relativeHeight;
         ++constaintVertexCount;
         if (constaintVertexCount >= targetConstraintVertexCount)
             break;
     }
     std::cerr << "limitRelativeHeight:" << limitRelativeHeight << std::endl;
-    //size_t limitConstraintVertexCount = mesh.vertexCount() * 0.5;
-    //std::unordered_set<HalfEdge::Vertex *> usedConstraintVertices;
     
     std::vector<int> constraintFaces;
     std::vector<Vector3> constaintDirections1;
@@ -116,21 +103,8 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
         HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
         
         auto addFeatured = [&](HalfEdge::HalfEdge *h) {
-            //if (usedConstraintVertices.size() >= limitConstraintVertexCount)
-            //    return false;
             if (h->startVertex->relativeHeight > limitRelativeHeight)
                 return false;
-            //usedConstraintVertices.insert(h->startVertex);
-            //if (0 == h->startVertex->peakHeightId)
-            //    return false;
-            //if (h->oppositeHalfEdge->startVertex->heightId > 0 ||
-            //        h->oppositeHalfEdge->startVertex->heightId == h->startVertex->heightId)
-            //    return false;
-            //if (usedHeightIds.end() != usedHeightIds.find(h->startVertex->peakHeightId))
-            //    return false;
-            //if (h->startVertex->heightDirection.isZero())
-            //    return false;
-            //usedHeightIds.insert(h->startVertex->peakHeightId);
   
             auto r1 = PD1.row(h->startVertex->outputIndex);
             auto r2 = PD2.row(h->startVertex->outputIndex);
@@ -141,20 +115,9 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
             if (v1.isZero() || v2.isZero())
                 return false;
             
-            auto center = (h0->startVertex->position +
-                h1->startVertex->position +
-                h2->startVertex->position) / 3;
-            
             constraintFaces.push_back(faceNum);
             constaintDirections1.push_back(v1);
             constaintDirections2.push_back(v2);
-            
-            debugConstraintQuads.push_back({
-                center - (v1 * 0.5) + (v2 * 0.5),
-                center + (v1 * 0.5) + (v2 * 0.5),
-                center + (v1 * 0.5) - (v2 * 0.5),
-                center - (v1 * 0.5) - (v2 * 0.5)
-            });
             
             return true;
         };
@@ -173,65 +136,6 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
         b.row(i) << constraintFaces[i];
         bc1.row(i) << v1.x(), v1.y(), v1.z();
         bc2.row(i) << v2.x(), v2.y(), v2.z();
-    }
-    
-    // Input frame field constraints
-    //Eigen::VectorXi b;
-    //Eigen::MatrixXd bc1;
-    //Eigen::MatrixXd bc2;
-
-    //Eigen::MatrixXd temp;
-    //igl::readDMAT("C:\\Users\\Jeremy\\Desktop\\bumpy-cube.dmat", temp);
-
-    //b   = temp.block(0,0,temp.rows(),1).cast<int>();
-    //bc1 = temp.block(0,1,temp.rows(),3);
-    //bc2 = temp.block(0,4,temp.rows(),3);
-    
-    /*
-    {
-        std::vector<HalfEdge::Face *> faces;
-        for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
-            faces.push_back(face);
-        }
-        for (int i = 0; i < b.size(); ++i) {
-            bb << b(i);
-            HalfEdge::Face *face = faces[b(i)];
-            HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
-            HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
-            HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
-            auto center = (h0->startVertex->position +
-                h1->startVertex->position +
-                h2->startVertex->position) / 3;
-            auto &r1 = bc1.row(i);
-            auto &r2 = bc2.row(i);
-            auto v1 = AutoRemesher::Vector3(r1.x(), r1.y(), r1.z()) * 0.01;
-            auto v2 = AutoRemesher::Vector3(r2.x(), r2.y(), r2.z()) * 0.01;
-            debugConstraintQuads.push_back({
-                center - v1 + v2,
-                center + v1 + v2,
-                center + v1 - v2,
-                center - v1 - v2
-            });
-        }
-    }
-    */
-    
-    {
-        FILE *fp = fopen("C:\\Users\\Jeremy\\Desktop\\test-constraint-quads.obj", "wb");
-        for (size_t i = 0; i < debugConstraintQuads.size(); ++i) {
-            const auto &it = debugConstraintQuads[i];
-            for (size_t j = 0; j < 4; ++j) {
-                fprintf(fp, "v %f %f %f\n", it[j][0], it[j][1], it[j][2]);
-            }
-        }
-        for (size_t i = 0, offset = 0; i < debugConstraintQuads.size(); ++i, offset += 4) {
-            fprintf(fp, "f %zu %zu %zu %zu\n", 
-                1 + offset,
-                2 + offset,
-                3 + offset,
-                4 + offset);
-        }
-        fclose(fp);
     }
 
     // Global parametrization
@@ -257,57 +161,14 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
 
     // Deform the mesh to transform the frame field in a cross field
     igl::frame_field_deformer(
-        V,F,FF1,FF2,V_deformed,FF1_deformed,FF2_deformed);
-    
-    igl::writeOBJ("C:\\Users\\Jeremy\\Desktop\\test-deformed-F.obj", V_deformed, F);
-    {
-        {
-            FILE *fp = fopen("C:\\Users\\Jeremy\\Desktop\\test-deformed.obj", "wb");
-            size_t vertexNum = 0;
-            for (HalfEdge::Vertex *vertex = mesh.firstVertex(); nullptr != vertex; vertex = vertex->_next) {
-                vertex->outputIndex = vertexNum;
-                const auto &row = V_deformed.row(vertexNum++);
-                fprintf(fp, "v %f %f %f\n", row[0], row[1], row[2]);
-            }
-            for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
-                HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
-                HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
-                HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
-                fprintf(fp, "f %zu %zu %zu\n", 
-                    1 + h0->startVertex->outputIndex, 
-                    1 + h1->startVertex->outputIndex, 
-                    1 + h2->startVertex->outputIndex);
-            }
-            fclose(fp);
-        }
-        {
-            FILE *fp = fopen("C:\\Users\\Jeremy\\Desktop\\test-original.obj", "wb");
-            size_t vertexNum = 0;
-            for (HalfEdge::Vertex *vertex = mesh.firstVertex(); nullptr != vertex; vertex = vertex->_next) {
-                vertex->outputIndex = vertexNum;
-                const auto &row = V.row(vertexNum++);
-                fprintf(fp, "v %f %f %f\n", row[0], row[1], row[2]);
-            }
-            for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
-                HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
-                HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
-                HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
-                fprintf(fp, "f %zu %zu %zu\n", 
-                    1 + h0->startVertex->outputIndex, 
-                    1 + h1->startVertex->outputIndex, 
-                    1 + h2->startVertex->outputIndex);
-            }
-            fclose(fp);
-        }
-        printf("test-deformed.obj saved\n");
-    }
+        V, F, FF1, FF2, V_deformed, FF1_deformed, FF2_deformed);
 
     // Find the closest crossfield to the deformed frame field
     igl::frame_to_cross_field(V_deformed, F, FF1_deformed, FF2_deformed, X1_deformed);
 
     // Find a smooth crossfield that interpolates the deformed constraints
-    Eigen::MatrixXd bc_x(b.size(),3);
-    for (unsigned i=0; i<b.size();++i)
+    Eigen::MatrixXd bc_x(b.size(), 3);
+    for (unsigned i = 0; i < b.size(); ++i)
         bc_x.row(i) = X1_deformed.row(b(i));
 
     Eigen::VectorXd S;

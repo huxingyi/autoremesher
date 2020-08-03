@@ -122,16 +122,11 @@ bool AutoRemesher::remesh()
     calculateNormalizedFactors(m_vertices, &origin, &maxLength);
     recoverScale = maxLength / scale;
     for (auto &v: m_vertices) {
-        if (std::isinf(v.x()) || std::isinf(v.y()) || std::isinf(v.z()))
-            std::cerr << "Found inf raw vertex:" << v << std::endl;
         v = scale * (v - origin) / maxLength;
-        if (std::isinf(v.x()) || std::isinf(v.y()) || std::isinf(v.z()))
-            std::cerr << "Found inf normalized vertex:" << v << std::endl;
     }
     
     std::vector<std::vector<std::vector<size_t>>> m_trianglesIslands;
     splitToIslands(m_triangles, m_trianglesIslands);
-    //m_trianglesIslands = {m_triangles};
     
     if (m_trianglesIslands.empty()) {
         std::cerr << "Input mesh is empty" << std::endl;
@@ -159,16 +154,11 @@ bool AutoRemesher::remesh()
             pickedTriangles.push_back(triangle);
         }
         std::cerr << "Remeshing surface #" << (islandIndex + 1) << "/" << m_trianglesIslands.size() << "(vertices:" << pickedVertices.size() << " triangles:" << pickedTriangles.size() << ")..." << std::endl;
-        
-        //std::vector<Vector3> &pickedVertices = m_vertices;
-        //std::vector<std::vector<size_t>> &pickedTriangles = m_trianglesIslands[islandIndex];
-        
+
         double localMaxLength = 1.0;
         Vector3 localOrigin;
         calculateNormalizedFactors(pickedVertices, &localOrigin, &localMaxLength);
         localMaxLength *= recoverScale;
-        
-        std::cerr << "localMaxLength:" << localMaxLength << " maxLength:" << maxLength << std::endl;
 
         IsotropicRemesher isotropicRemesher(pickedVertices, pickedTriangles);
         isotropicRemesher.setTargetEdgeLength(m_targetEdgeLength);
@@ -176,15 +166,9 @@ bool AutoRemesher::remesh()
         
         QuadRemesher quadRemesher(isotropicRemesher.remeshedVertices(), isotropicRemesher.remeshedTriangles());
 
-        //AutoRemesher::QuadRemesher quadRemesher(pickedVertices, pickedTriangles);
         quadRemesher.setGradientSize(m_gradientSize * (localMaxLength / maxLength));
-        //auto coutBuffer = std::cout.rdbuf();
-        //auto cerrBuffer = std::cerr.rdbuf();
-        //std::cout.rdbuf(nullptr);
-        //std::cerr.rdbuf(nullptr);
+        quadRemesher.setConstraintRatio(m_constraintRatio);
         bool remeshSucceed = quadRemesher.remesh();
-        //std::cout.rdbuf(coutBuffer);
-        //std::cerr.rdbuf(cerrBuffer);
         if (!remeshSucceed) {
             std::cerr << "Surface #" << (islandIndex + 1) << "/" << m_trianglesIslands.size() << " failed to remesh" << std::endl;
             continue;
@@ -195,7 +179,6 @@ bool AutoRemesher::remesh()
         const auto &vertices = quadRemesher.remeshedVertices();
         std::cerr << "Surface #" << (islandIndex + 1) << "/" << m_trianglesIslands.size() << " remesh succeed(vertices:" << vertices.size() << " quads:" << quads.size() << ")" << std::endl;
         size_t vertexStartIndex = m_remeshedVertices.size();
-        //m_remeshedVertices.insert(m_remeshedVertices.end(), vertices.begin(), vertices.end());
         m_remeshedVertices.reserve(m_remeshedVertices.size() + vertices.size());
         for (const auto &it: vertices) {
             m_remeshedVertices.push_back(it * recoverScale + origin);
