@@ -64,7 +64,6 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     }
     
     size_t faceNum = 0;
-    std::unordered_set<size_t> usedHeightIds;
     for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
         HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
         HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
