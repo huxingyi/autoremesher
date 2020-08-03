@@ -1,0 +1,77 @@
+// Copyright (c) 2008  GeometryFactory Sarl (France).
+// All rights reserved.
+//
+// This file is part of CGAL (www.cgal.org).
+//
+// $URL: https://github.com/CGAL/cgal/blob/releases/CGAL-5.1-beta1/GraphicsView/include/CGAL/Qt/debug.h $
+// $Id: debug.h 0779373 2020-03-26T13:31:46+01:00 Sébastien Loriot
+// SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial
+//
+//
+// Author(s)     : Andreas Fabri <Andreas.Fabri@geometryfactory.com>
+//                 Laurent Rineau <Laurent.Rineau@geometryfactory.com>
+
+#ifndef CGAL_QT_DEBUG_H
+#define CGAL_QT_DEBUG_H
+
+#include <CGAL/license/GraphicsView.h>
+
+
+#include <CGAL/auto_link/Qt.h>
+#include <CGAL/export/Qt.h>
+
+#include <QString>
+
+namespace CGAL {
+namespace Qt {
+
+/**
+ *  Must be used like that:
+ *     CGAL::Qt:traverse_resources(":/cgal"); // view CGAL resources
+ *  or
+ *     CGAL::Qt:traverse_resources(":"); // view all resources
+ *  and displays the resources tree on std::cerr.
+ */
+CGAL_QT_EXPORT void traverse_resources(const QString& name,
+                                        const QString& dirname = QString(),
+                                        int indent = 0);
+
+/**
+ * Call this in the end of an OpenGL implementation to check if it returns errors.
+ */
+template <typename QtOpenGLFunctions>
+void opengl_check_errors(QtOpenGLFunctions* gl,
+                         unsigned int line) {
+  GLenum error = gl->glGetError();
+  while (error != GL_NO_ERROR)
+  {
+    if(error == GL_INVALID_ENUM)
+      std::cerr << "An unacceptable value is specified for an enumerated argument." << "@" << line << std::endl;
+    if(error == GL_INVALID_VALUE)
+      std::cerr << "A numeric argument is out of range." << "@" << line << std::endl;
+    if(error == GL_INVALID_OPERATION)
+      std::cerr << "The specified operation is not allowed in the current state." << "@" << line << std::endl;
+    if(error == GL_INVALID_FRAMEBUFFER_OPERATION)
+      std::cerr << "The framebuffer object is not complete." << "@" << line << std::endl;
+    if(error == GL_OUT_OF_MEMORY)
+      std::cerr << "There is not enough memory left to execute the command." << "@" << line << std::endl;
+#ifdef GL_STACK_UNDERFLOW
+    if(error == GL_STACK_UNDERFLOW)
+      std::cerr << "An attempt has been made to perform an operation that would cause an internal stack to underflow." << "@" << line << std::endl;
+#endif
+#ifdef GL_STACK_OVERFLOW
+    if(error == GL_STACK_OVERFLOW)
+      std::cerr << "An attempt has been made to perform an operation that would cause an internal stack to overflow." << "@" << line << std::endl;
+#endif
+    error = gl->glGetError();
+  }
+}
+
+} // namespace Qt
+} // namespace CGAL
+
+#ifdef CGAL_HEADER_ONLY
+#include <CGAL/Qt/debug_impl.h>
+#endif // CGAL_HEADER_ONLY
+
+#endif // CGAL_QT_DEBUG_H

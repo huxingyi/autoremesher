@@ -4,11 +4,16 @@ environment:
   matrix:
     - platform: x64
       target: x86_64-pc-windows-msvc
+      qtdir: C:\Qt\5.13.2\msvc2017_64
       sysdirname: SysWOW64
 
     - platform: x86
       target: i686-pc-windows-msvc
+      qtdir: C:\Qt\5.13.2\msvc2017
       sysdirname: system32
+
+cache:
+  CGAL-5.1-beta1-Setup.exe -> appveyor.yml
 
 install:
   - if "%PLATFORM%" == "x64"
@@ -25,17 +30,22 @@ install:
     cmake -G "Visual Studio 15 2017" -D "BUILD_APPS=OFF" ../
   - cmake --build . --config Release
   - cd %APPVEYOR_BUILD_FOLDER%
+  
+  - if not exist CGAL-5.1-beta1-Setup.exe
+    appveyor DownloadFile https://github.com/CGAL/cgal/releases/download/releases/CGAL-5.1-beta1/CGAL-5.1-beta1-Setup.exe -FileName CGAL-5.1-beta1-Setup.exe
+  - if "%PLATFORM%" == "x86"
+    CGAL-5.1-beta1-Setup.exe /S /D=%APPVEYOR_BUILD_FOLDER%\CGAL-5.1-beta1
 
 build: false
 
 test_script:
-  - mkdir build
-  - cd build
+  - set PATH=%PATH%;%QTDIR%\bin
+  
   - if "%PLATFORM%" == "x64"
-    cmake -G "Visual Studio 15 2017" -A %PLATFORM% ../
+    qmake "BOOST_INCLUDEDIR=C:\Libraries\boost_1_66_0" "CGAL_DIR=%APPVEYOR_BUILD_FOLDER%\thirdparty\cgal\CGAL-5.1-beta1"
   - if "%PLATFORM%" == "x86"
-    cmake -G "Visual Studio 15 2017" ../
-  - cmake --build . --config Release
+    qmake "BOOST_INCLUDEDIR=C:\Libraries\boost_1_66_0" "CGAL_DIR=%APPVEYOR_BUILD_FOLDER%\CGAL-5.1-beta1"
+  - nmake -f Makefile.Release
   - cd %APPVEYOR_BUILD_FOLDER%
 
 after_test:
@@ -50,9 +60,36 @@ after_test:
     set RELEASE_FILENAME=autoremesher-%TAG%.zip
   - if "%PLATFORM%" == "x86"
     set RELEASE_FILENAME=autoremesher-%TAG%-x86.zip
-  - 7z a %RELEASE_FILENAME% %APPVEYOR_BUILD_FOLDER%\build\Release\autoremesher.exe
+  - 7z a %RELEASE_FILENAME% %APPVEYOR_BUILD_FOLDER%\release\autoremesher.exe
+  - if "%PLATFORM%" == "x64"
+    7z a %RELEASE_FILENAME% %APPVEYOR_BUILD_FOLDER%\thirdparty\cgal\CGAL-5.1-beta1\auxiliary\gmp\lib\libgmp-10.dll
+  - if "%PLATFORM%" == "x86"
+    7z a %RELEASE_FILENAME% %APPVEYOR_BUILD_FOLDER%\CGAL-5.1-beta1\auxiliary\gmp\lib\libgmp-10.dll
+  - if "%PLATFORM%" == "x64"
+    7z a %RELEASE_FILENAME% %APPVEYOR_BUILD_FOLDER%\thirdparty\cgal\CGAL-5.1-beta1\auxiliary\gmp\lib\libmpfr-4.dll
+  - if "%PLATFORM%" == "x86"
+    7z a %RELEASE_FILENAME% %APPVEYOR_BUILD_FOLDER%\CGAL-5.1-beta1\auxiliary\gmp\lib\libmpfr-4.dll
+  - if "%PLATFORM%" == "x64"
+    7z a %RELEASE_FILENAME% C:\OpenSSL-v111-Win64\bin\libcrypto-1_1-x64.dll
+  - if "%PLATFORM%" == "x86"
+    7z a %RELEASE_FILENAME% C:\OpenSSL-v111-Win32\bin\libcrypto-1_1.dll
+  - if "%PLATFORM%" == "x64"
+    7z a %RELEASE_FILENAME% C:\OpenSSL-v111-Win64\bin\libssl-1_1-x64.dll
+  - if "%PLATFORM%" == "x86"
+    7z a %RELEASE_FILENAME% C:\OpenSSL-v111-Win32\bin\libssl-1_1.dll
+  - 7z a %RELEASE_FILENAME% %QTDIR%\bin\Qt5Widgets.dll
+  - 7z a %RELEASE_FILENAME% %QTDIR%\bin\Qt5Gui.dll
+  - 7z a %RELEASE_FILENAME% %QTDIR%\bin\Qt5Core.dll
+  - 7z a %RELEASE_FILENAME% %QTDIR%\bin\Qt5Network.dll
+  - 7z a %RELEASE_FILENAME% %QTDIR%\bin\opengl32sw.dll
   - 7z a %RELEASE_FILENAME% "%VCREDIST_CRT_DIR%\msvcp140.dll"
   - 7z a %RELEASE_FILENAME% "%VCREDIST_CRT_DIR%\vcruntime140.dll"
+  - mkdir platforms
+  - copy %QTDIR%\plugins\platforms\qwindows.dll %APPVEYOR_BUILD_FOLDER%\platforms\qwindows.dll
+  - 7z a %RELEASE_FILENAME% -r %APPVEYOR_BUILD_FOLDER%\platforms\
+  - mkdir imageformats
+  - copy %QTDIR%\plugins\imageformats\qjpeg.dll %APPVEYOR_BUILD_FOLDER%\imageformats\qjpeg.dll
+  - 7z a %RELEASE_FILENAME% -r %APPVEYOR_BUILD_FOLDER%\imageformats\
 
 artifacts:
   - path: '*.zip'

@@ -1,0 +1,53 @@
+// Copyright (c) 2005,2006,2007,2009,2010,2011 Tel-Aviv University (Israel).
+// All rights reserved.
+//
+// This file is part of CGAL (www.cgal.org).
+//
+// $URL: https://github.com/CGAL/cgal/blob/releases/CGAL-5.1-beta1/Arrangement_on_surface_2/include/CGAL/Arr_point_location/Td_ninetuple.h $
+// $Id: Td_ninetuple.h 0779373 2020-03-26T13:31:46+01:00 Sébastien Loriot
+// SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial
+//
+//
+// Author(s)     : Oren Nechushtan <theoren@math.tau.ac.il>
+//                 Iddo Hanniel <hanniel@math.tau.ac.il>
+#ifndef CGAL_TD_NINETUPLE_H
+#define CGAL_TD_NINETUPLE_H
+
+#include <CGAL/license/Arrangement_on_surface_2.h>
+
+
+namespace CGAL {
+
+template <class F0,class F1,class F2,class F3,class F4,class F5,class F6,
+  class F7,class F8>
+class Td_ninetuple : public Rep
+{
+public:
+  F0 e0;
+  F1 e1;
+  F2 e2;
+  F3 e3;
+  F4 e4;
+  F5 e5;
+  F6 e6;
+  F7 e7;
+  F8 e8;
+
+  Td_ninetuple()
+  {}
+  Td_ninetuple(const F0 & a0, const F1 & a1, const F2 & a2, const F3 & a3,
+               const F4 & a4, const F5 & a5, const F6 & a6, const F7 & a7,
+               const F8 & a8)
+    : e0(a0),e1(a1),e2(a2),e3(a3),e4(a4),e5(a5),e6(a6),e7(a7),e8(a8)
+  {}
+  Td_ninetuple(const Td_ninetuple<F0,F1,F2,F3,F4,F5,F6,F7,F8> & a)
+    : e0(a.e0),e1(a.e1),e2(a.e2),e3(a.e3),e4(a.e4),e5(a.e5),e6(a.e6),e7(a.e7),
+      e8(a.e8)
+  {}
+  ~Td_ninetuple()
+  {}
+};
+
+} //namespace CGAL
+
+#endif

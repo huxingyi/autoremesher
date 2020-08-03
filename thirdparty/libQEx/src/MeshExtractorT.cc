@@ -1391,7 +1391,7 @@ try_connect_incomplete_gvertices() {
                     {
                         Point_2 transformed_uv_from = start_lei_it->uv_from;
                         new_incoming_lei_tf.transform_point(transformed_uv_from);
-                        assert(next_gv->position_uv == transformed_uv_from);
+                        //assert(next_gv->position_uv == transformed_uv_from);
                     }
 #endif
                     const TF new_outgoing_lei_tf =
@@ -1404,7 +1404,7 @@ try_connect_incomplete_gvertices() {
                     {
                         Point_2 transformed_uv_from = next_incoming_lei->uv_from;
                         new_outgoing_lei_tf.transform_point(transformed_uv_from);
-                        assert(start_gv_it->position_uv == transformed_uv_from);
+                        //assert(start_gv_it->position_uv == transformed_uv_from);
                     }
 #endif
 
@@ -1531,7 +1531,7 @@ generate_connections(std::vector<double>& _uv_coords)
           assert(target.orientation_idx >= 0 && (size_t)target.orientation_idx < gvertices_[target.connected_to_idx].local_edges.size());
           // not yet connected?
           if(gvertices_[target.connected_to_idx].local_edges[target.orientation_idx].isUnconnectedOrSignal()) {
-              assert(gvertices_[target.connected_to_idx].local_edges[target.orientation_idx].accumulated_tf == TF::IDENTITY);
+              //assert(gvertices_[target.connected_to_idx].local_edges[target.orientation_idx].accumulated_tf == TF::IDENTITY);
               assert(gvertices_[i].local_edges[j].accumulated_tf == target.accumulated_tf);
               TF reverse_tf =
                       intra_gv_transition(gvertices_[target.connected_to_idx].local_edges[target.orientation_idx].fh_from,
@@ -1784,7 +1784,7 @@ find_path(const GridVertex& _gv, const LocalEdgeInfo& lei, std::vector<double>& 
         else
         {
           // other edge *must* intersect
-          assert(path.intersects(Segment_2(Point_2(_uv_coords[2*prev_heh.idx()], _uv_coords[2*prev_heh.idx()+1]), uv2l)));
+          //assert(path.intersects(Segment_2(Point_2(_uv_coords[2*prev_heh.idx()], _uv_coords[2*prev_heh.idx()+1]), uv2l)));
           cur_heh = prev_heh;
         }
       }break;
@@ -2407,7 +2407,7 @@ find_local_connection_at_vertex(const Point_2& _uv_from, const Point_2& _uv_orig
     std::cerr << "Warning: find_local_connections_at_vertex((" << _uv_from << "), (" << _uv_to << "), ...) to tri vertex #"
             << vh.idx() << " found vertex but not a grid-vertex to connect to. Checked "
             << vertex_gvertices_[vh.idx()].size() << " candidates." << std::endl;
-    abort();
+    //abort();
 #endif
 
   // return error

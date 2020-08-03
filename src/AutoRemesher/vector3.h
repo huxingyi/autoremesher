@@ -1,9 +1,31 @@
+/*
+ *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved. 
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ */
 #ifndef AUTO_REMESHER_VECTOR3_H
 #define AUTO_REMESHER_VECTOR3_H
 #include <AutoRemesher/Double>
 #include <AutoRemesher/Vector2>
 #include <string>
 #include <iostream>
+#include <vector>
 
 namespace AutoRemesher
 {
@@ -154,7 +176,13 @@ public:
     
     inline static double angle(const Vector3 &a, const Vector3 &b)
     {
-        return std::acos(Vector3::dotProduct(a.normalized(), b.normalized()));
+        double dot = Vector3::dotProduct(a.normalized(), b.normalized());
+        if (dot <= -1.0)
+            return M_PI;
+        else if (dot >= 1.0)
+            return 0;
+        else
+            return std::acos(dot);
     }
     
     inline bool isZero() const
@@ -261,6 +289,16 @@ inline Vector3 operator*(double number, const Vector3 &v)
 inline Vector3 operator*(const Vector3 &v, double number)
 {
     return Vector3(number * v.x(), number * v.y(), number * v.z());
+}
+
+inline Vector3 operator*(const Vector3 &a, const Vector3 &b)
+{
+    return Vector3(a.x() * b.x(), a.y() * b.y(), a.z() * b.z());
+}
+
+inline Vector3 operator/(const Vector3 &a, const Vector3 &b)
+{
+    return Vector3(a.x() / b.x(), a.y() / b.y(), a.z() / b.z());
 }
 
 inline Vector3 operator+(const Vector3 &a, const Vector3 &b)

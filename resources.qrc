@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resources/dust3d-vertical.png</file>
+        <file>shaders/pbr.vert</file>
+        <file>shaders/pbr.frag</file>
+        <file>shaders/pbr.core.vert</file>
+        <file>shaders/pbr.core.frag</file>
+        <file>ACKNOWLEDGEMENTS.html</file>
+        <file>SUPPORTERS</file>
+    </qresource>
+</RCC>

@@ -1,9 +1,31 @@
+/*
+ *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved. 
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ */
 #include <map>
 #include <cassert>
 #include <iostream>
 #include <set>
 #include <AutoRemesher/HalfEdge>
 #include <AutoRemesher/Parametrization>
+#include <AutoRemesher/Radians>
 
 namespace AutoRemesher
 {
@@ -18,8 +40,7 @@ inline void makeLinkedHalfEdges(HalfEdge *previous, HalfEdge *next)
 }
 
 Mesh::Mesh(const std::vector<Vector3> &vertices,
-        std::vector<std::vector<size_t>> &triangles) :
-    m_vertexRemovalCostPriorityQueue(m_vertexRemovalCostComparer)
+        const std::vector<std::vector<size_t>> &triangles)
 {
     std::vector<Vertex *> halfEdgeVertices(vertices.size());
     for (size_t i = 0; i < vertices.size(); ++i) {
@@ -37,7 +58,7 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
     std::map<std::pair<size_t, size_t>, HalfEdge *> halfEdgeIndexMap;
     for (size_t i = 0; i < triangles.size(); ++i) {
         auto &face = halfEdgeFaces[i];
-        
+
         const auto &triangleIndices = triangles[i];
         std::vector<HalfEdge *> halfEdges = {
             allocHalfEdge(),
@@ -59,7 +80,6 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
             halfEdge->previousHalfEdge = halfEdges[h];
             halfEdge->nextHalfEdge = halfEdges[k];
             halfEdge->leftFace = face;
-            halfEdge->length2 = (vertex->position - nextVertex->position).lengthSquared();
             auto insertResult = halfEdgeIndexMap.insert({{vertexIndex, nextVertexIndex}, halfEdge});
             if (!insertResult.second) {
                 std::cerr << "Found repeated halfedge" << std::endl;
@@ -78,12 +98,12 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
     }
     
     if (isWatertight()) {
-        for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next)
-            vertex->fineCurvature = calculateVertexCurvature(vertex);
-        for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
-            vertex->removalCost = calculateVertexRemovalCost(vertex);
-            m_vertexRemovalCostPriorityQueue.push({vertex, vertex->removalCost, vertex->version});
-        }
+        removeZeroAngleTriangles();
+        calculateFaceNormals();
+        calculateVertexNormals();
+        calculateVertexAverageNormals();
+        calculateVertexRelativeHeights();
+        normalizeVertexRelativeHeights();
     }
 }
 
@@ -123,7 +143,6 @@ void Mesh::deferedFreeVertex(Vertex *vertex)
     if (nullptr != vertex->_previous)
         vertex->_previous->_next = vertex->_next;
     --m_vertexCount;
-    vertex->version = std::numeric_limits<uint32_t>::max();
     vertex->_next = m_firstDeferedRemovalVertex;
     m_firstDeferedRemovalVertex = vertex;
 }
@@ -173,6 +192,7 @@ void Mesh::deferedFreeFace(Face *face)
 
 void Mesh::deferedFreeHalfEdge(HalfEdge *halfEdge)
 {
+    halfEdge->leftFace = nullptr;
     if (halfEdge == m_firstHalfEdge)
         m_firstHalfEdge = halfEdge->_next;
     if (halfEdge == m_lastHalfEdge)
@@ -258,48 +278,6 @@ Face *Mesh::firstFace() const
     return m_firstFace;
 }
 
-HalfEdge *Mesh::findShortestHalfEdgeAroundVertex(Vertex *vertex) const
-{
-    HalfEdge *halfEdge = vertex->anyHalfEdge;
-    double shortestLength2 = std::numeric_limits<double>::max();
-    HalfEdge *shortest = halfEdge;
-    do {
-        if (halfEdge->length2 < shortestLength2) {
-            shortest = halfEdge;
-            shortestLength2 = halfEdge->length2;
-        }
-        halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
-    } while (halfEdge != vertex->anyHalfEdge);
-    return shortest;
-}
-
-double Mesh::calculateVertexCurvature(Vertex *vertex) const
-{
-    double sumOfAngle = 0.0;
-    HalfEdge *halfEdge = vertex->anyHalfEdge;
-    do {
-        sumOfAngle += Vector3::angle(halfEdge->nextHalfEdge->startVertex->position - vertex->position,
-            halfEdge->previousHalfEdge->startVertex->position - vertex->position);
-        halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
-    } while (halfEdge != vertex->anyHalfEdge);
-    return std::abs(2.0 * M_PI - sumOfAngle);
-}
-
-std::vector<std::pair<Vertex *, Vertex *>> Mesh::collectConesAroundVertexExclude(Vertex *vertex, Vertex *exclude) const
-{
-    std::vector<std::pair<Vertex *, Vertex *>> cones;
-    HalfEdge *halfEdge = vertex->anyHalfEdge;
-    do {
-        if (halfEdge->nextHalfEdge->startVertex != exclude &&
-                halfEdge->nextHalfEdge->nextHalfEdge->startVertex != exclude) {
-            cones.push_back({halfEdge->nextHalfEdge->startVertex,
-                halfEdge->nextHalfEdge->nextHalfEdge->startVertex});
-        }
-        halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
-    } while (halfEdge != vertex->anyHalfEdge);
-    return cones;
-}
-
 Vector3 Mesh::calculateVertexNormal(Vertex *vertex) const
 {
     HalfEdge *halfEdge = vertex->anyHalfEdge;
@@ -318,181 +296,6 @@ bool Mesh::isWatertight()
     return m_faceCount >= 4 && 
         0 == m_repeatedHalfEdges && 
         0 == m_aloneHalfEdges;
-}
-
-double Mesh::calculateVertexRemovalCost(Vertex *vertex) const
-{
-    HalfEdge *shortestHalfEdge = findShortestHalfEdgeAroundVertex(vertex);
-    
-    // The following two checks are necessary, unless non-manifold vertex will be created because of collapse 
-    if (shortestHalfEdge->nextHalfEdge->nextHalfEdge->startVertex->halfEdgeCount < 4)
-        return std::numeric_limits<double>::max();
-    if (shortestHalfEdge->oppositeHalfEdge->previousHalfEdge->startVertex->halfEdgeCount < 4)
-        return std::numeric_limits<double>::max();
-    
-    if (vertex->halfEdgeCount < 4)
-        return std::numeric_limits<double>::max();
-    
-    std::vector<Vertex *> ringVertices;
-    std::set<Vertex *> verticesAroundTarget;
-    std::map<Vertex *, std::vector<std::pair<Vertex *, Vertex *>>> vertexCones;
-    std::set<std::pair<Vertex *, Vertex *>> halfEdges;
-    HalfEdge *halfEdge = shortestHalfEdge;
-    do {
-        auto insertVertexResult = verticesAroundTarget.insert(halfEdge->oppositeHalfEdge->startVertex);
-        if (!insertVertexResult.second) {
-            return std::numeric_limits<double>::max();
-        }
-        auto insertEdgeResult = halfEdges.insert({halfEdge->nextHalfEdge->nextHalfEdge->startVertex,
-            halfEdge->nextHalfEdge->startVertex});
-        if (!insertEdgeResult.second) {
-            return std::numeric_limits<double>::max();
-        }
-        ringVertices.push_back(halfEdge->oppositeHalfEdge->startVertex);
-        vertexCones.insert({halfEdge->oppositeHalfEdge->startVertex,
-            collectConesAroundVertexExclude(halfEdge->oppositeHalfEdge->startVertex, vertex)});
-        halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
-    } while (halfEdge != shortestHalfEdge);
-    
-    if (vertex->halfEdgeCount != verticesAroundTarget.size())
-        return std::numeric_limits<double>::max();
-    
-    std::vector<std::vector<Vertex *>> triangles;
-    Vector3 projectNormal = calculateVertexNormal(vertex);
-    Vector3 projectAxis = (shortestHalfEdge->nextHalfEdge->startVertex->position - vertex->position).normalized();
-    if (!delaunayTriangulate(ringVertices, projectNormal, projectAxis, &triangles, vertex->position))
-        return std::numeric_limits<double>::max();
-    
-    for (const auto &it: triangles) {
-        for (size_t i = 0; i < 3; ++i) {
-            size_t j = (i + 1) % 3;
-            size_t k = (i + 2) % 3;
-            auto insertEdgeResult = halfEdges.insert({it[i], it[j]});
-            if (!insertEdgeResult.second)
-                return std::numeric_limits<double>::max();
-            vertexCones[it[j]].push_back({it[i], it[k]});
-        }
-    }
-    for (const auto &it: halfEdges) {
-        if (halfEdges.end() == halfEdges.find({it.second, it.first}))
-            return std::numeric_limits<double>::max();
-    }
-    double oneRingCurvature = 0.0;
-    for (const auto &it: vertexCones) {
-        double sumOfAngle = 0.0;
-        for (const auto &cone: it.second) {
-            sumOfAngle += Vector3::angle(cone.first->position - it.first->position, 
-                cone.second->position - it.first->position);
-        }
-        oneRingCurvature += std::abs(std::abs(2.0 * M_PI - sumOfAngle) - it.first->fineCurvature);
-    }
-
-    return vertex->fineCurvature + oneRingCurvature;
-}
-
-bool Mesh::delaunayTriangulate(std::vector<Vertex *> &ringVertices,
-        const Vector3 &projectNormal, const Vector3 &projectAxis,
-        std::vector<std::vector<Vertex *>> *triangles,
-        const Vector3 &origin) const
-{
-    // cf. https://dl.acm.org/doi/pdf/10.1145/2980179.2982413 
-    // <Interactively Controlled Quad Remeshing of High Resolution 3D Models> Figure 4
-    
-    if (ringVertices.size() < 4)
-        return false;
-    
-    std::vector<Vector3> ringPoints(ringVertices.size());
-    for (size_t i = 0; i < ringVertices.size(); ++i) {
-        ringPoints[i] = ringVertices[i]->position;
-    }
-    
-    // Project to 2D plane
-    std::vector<Vector2> ringPointsIn2d;
-    Vector3::project(ringPoints, &ringPointsIn2d, projectNormal, projectAxis, origin);
-    
-    size_t a = 0;
-    size_t i = 1;
-    for (; i + 2 < ringPointsIn2d.size(); i += 2) {
-        size_t b = i;
-        size_t c = i + 1;
-        size_t d = i + 2;
-        if (ringPointsIn2d[d].isInCircle(ringPointsIn2d[a], ringPointsIn2d[c], ringPointsIn2d[b])) {
-            triangles->push_back({ringVertices[a], ringVertices[d], ringVertices[b]});
-            triangles->push_back({ringVertices[c], ringVertices[b], ringVertices[d]});
-        } else {
-            triangles->push_back({ringVertices[a], ringVertices[c], ringVertices[b]});
-            triangles->push_back({ringVertices[a], ringVertices[d], ringVertices[c]});
-        }
-    }
-    // Add the last triangle if there is
-    if (i + 1 < ringPointsIn2d.size()) {
-        size_t b = i;
-        size_t c = i + 1;
-        triangles->push_back({ringVertices[a], ringVertices[c], ringVertices[b]});
-    }
-    
-    return true;
-}
-
-bool Mesh::decimate(Vertex *vertex)
-{
-    // cf. <Interactively Controlled Quad Remeshing of High Resolution 3D Models> Figure 7
-    
-    HalfEdge *shortestHalfEdge = findShortestHalfEdgeAroundVertex(vertex);
-    
-    std::vector<HalfEdge *> halfEdgesPointToTarget;
-    std::set<Vertex *> ringVertices;
-    std::vector<Vector3> ringPoints;
-    HalfEdge *halfEdge = shortestHalfEdge;
-    do {
-        auto insertResult = ringVertices.insert(halfEdge->oppositeHalfEdge->startVertex);
-        if (!insertResult.second) {
-            return false;
-        }
-        ringPoints.push_back(halfEdge->oppositeHalfEdge->startVertex->position);
-        halfEdgesPointToTarget.push_back(halfEdge->oppositeHalfEdge);
-        halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
-    } while (halfEdge != shortestHalfEdge);
-
-    if (halfEdgesPointToTarget.size() < 4)
-        return false;
-    
-    auto k = halfEdgesPointToTarget.size();
-    
-    Vector3 projectNormal = calculateVertexNormal(vertex);
-    Vector3 projectAxis = (shortestHalfEdge->nextHalfEdge->startVertex->position - vertex->position).normalized();
-    std::vector<Vector2> ringPointsIn2d;
-    Vector3::project(ringPoints, &ringPointsIn2d, projectNormal, projectAxis, vertex->position);
-
-    if (!collapse(vertex, halfEdgesPointToTarget))
-        return false;
-    vertex = nullptr;
-    
-    {
-        size_t a = 0;
-        size_t i = 1;
-        for (; i + 2 < k; i += 2) {
-            size_t b = i;
-            size_t c = i + 1;
-            size_t d = i + 2;
-            if (ringPointsIn2d[d].isInCircle(ringPointsIn2d[a], ringPointsIn2d[c], ringPointsIn2d[b])) {
-                const auto &hflip_x = halfEdgesPointToTarget[i + 1];
-                const auto &hflip = hflip_x->oppositeHalfEdge;
-                if (!flip(hflip))
-                    return false;
-            }
-        }
-    }
-    
-    for (auto &it: ringVertices) {
-        it->removalCost = calculateVertexRemovalCost(it);
-        ++it->version;
-        m_vertexRemovalCostPriorityQueue.push({it, 
-            it->removalCost, 
-            it->version});
-    }
-    
-    return true;
 }
 
 bool Mesh::flip(HalfEdge *halfEdge)
@@ -539,104 +342,130 @@ bool Mesh::flip(HalfEdge *halfEdge)
     makeLinkedHalfEdges(ha, hd);
     makeLinkedHalfEdges(hd, hflip);
     
-    hflip->length2 = (hflip->startVertex->position - hflip_x->startVertex->position).lengthSquared();
-    hflip_x->length2 = hflip->length2;
-    
     return true;
 }
 
-bool Mesh::collapse(Vertex *vertex, std::vector<HalfEdge *> &h)
+void Mesh::calculateFaceNormals()
 {
-    // cf. <Interactively Controlled Quad Remeshing of High Resolution 3D Models> Figure 7
-    
-    auto &h0 = h[0];
-    auto k = h.size();
-    
-    auto &h1 = h[1];
-    auto &hk_1 = h[k - 1];
-    
-    auto &a = h0->previousHalfEdge;
-    auto &b = h1->previousHalfEdge;
-    auto &c = h0->oppositeHalfEdge->nextHalfEdge;
-    
-    auto &collapseToVertex = h0->startVertex;
-    for (size_t i = 2; i + 1 < k; ++i) {
-        h[i]->oppositeHalfEdge->startVertex = collapseToVertex;
+    for (Face *face = m_firstFace; nullptr != face; face = face->_next) {
+        HalfEdge *h0 = face->anyHalfEdge;
+        HalfEdge *h1 = h0->nextHalfEdge;
+        HalfEdge *h2 = h1->nextHalfEdge;
+        face->normal = Vector3::normal(h0->startVertex->position,
+            h1->startVertex->position,
+            h2->startVertex->position);
     }
-    
-    collapseToVertex->halfEdgeCount += k - 4;
-    if (collapseToVertex->anyHalfEdge == h0)
-        collapseToVertex->anyHalfEdge = c;
-    
-    --hk_1->startVertex->halfEdgeCount;
-    if (hk_1->startVertex->anyHalfEdge == hk_1)
-        hk_1->startVertex->anyHalfEdge = hk_1->oppositeHalfEdge->nextHalfEdge;
-    
-    --h1->startVertex->halfEdgeCount;
-    if (h1->startVertex->anyHalfEdge == h1)
-        h1->startVertex->anyHalfEdge = h1->oppositeHalfEdge->nextHalfEdge;
-    
-    a->leftFace = h1->leftFace;
-    c->leftFace = hk_1->oppositeHalfEdge->leftFace;
-    
-    if (hk_1->oppositeHalfEdge->leftFace->anyHalfEdge == hk_1->oppositeHalfEdge)
-        hk_1->oppositeHalfEdge->leftFace->anyHalfEdge = hk_1->oppositeHalfEdge->nextHalfEdge;
-    if (h1->leftFace->anyHalfEdge == h1)
-        h1->leftFace->anyHalfEdge = b;
-    
-    deferedFreeFace(hk_1->leftFace);
-    deferedFreeFace(h1->oppositeHalfEdge->leftFace);
-    
-    makeLinkedHalfEdges(h[k-2], c);
-    makeLinkedHalfEdges(c, hk_1->oppositeHalfEdge->nextHalfEdge);
-    
-    makeLinkedHalfEdges(a, h[2]->oppositeHalfEdge);
-    makeLinkedHalfEdges(b, a);
-    
-    deferedFreeHalfEdge(hk_1->oppositeHalfEdge);
-    deferedFreeHalfEdge(hk_1);
-    deferedFreeHalfEdge(h1->oppositeHalfEdge);
-    deferedFreeHalfEdge(h1);
-    deferedFreeHalfEdge(h0->oppositeHalfEdge);
-    deferedFreeHalfEdge(h0);
-    
-    deferedFreeVertex(vertex);
-    
-    return true;
 }
 
-void Mesh::setTargetVertexCount(size_t targetVertexCount)
+void Mesh::calculateVertexNormals()
 {
-    m_targetVertexCount = targetVertexCount;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        HalfEdge *halfEdge = vertex->anyHalfEdge;
+        do {
+            vertex->normal += halfEdge->leftFace->normal;
+            halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
+        } while (halfEdge != vertex->anyHalfEdge);
+        vertex->normal.normalize();
+    }
 }
 
-bool Mesh::decimate()
+void Mesh::calculateVertexAverageNormals()
 {
-    if (!isWatertight()) {
-        std::cerr << "Mesh is not watertight, cannot continue to decimate" << std::endl;
-        return false;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        HalfEdge *halfEdge = vertex->anyHalfEdge;
+        do {
+            vertex->averageNormal += halfEdge->oppositeHalfEdge->startVertex->normal;
+            halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
+        } while (halfEdge != vertex->anyHalfEdge);
+        vertex->averageNormal.normalize();
     }
-    auto vertexCountBeforeDecimation = m_vertexCount;
-    while (m_vertexCount > m_targetVertexCount && !m_vertexRemovalCostPriorityQueue.empty()) {
-        const auto &item = m_vertexRemovalCostPriorityQueue.top();
-        Vertex *vertex = item.vertex;
-        if (item.version != vertex->version) {
-            m_vertexRemovalCostPriorityQueue.pop();
+}
+
+void Mesh::calculateVertexRelativeHeights()
+{
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        HalfEdge *halfEdge = vertex->anyHalfEdge;
+        double low = 0.0;
+        double high = 0.0;
+        auto project = [&](const Vector3 &position) {
+            double projectedTo = Vector3::dotProduct((position - vertex->position).normalized(), vertex->averageNormal);
+            if (projectedTo < low)
+                low = projectedTo;
+            if (projectedTo > high)
+                high = projectedTo;
+        };
+        do {
+            Vertex *neighborVertex = halfEdge->oppositeHalfEdge->startVertex;
+            project(neighborVertex->position);
+            HalfEdge *neighborHalfEdge = neighborVertex->anyHalfEdge;
+            do {
+                if (neighborHalfEdge->oppositeHalfEdge->startVertex != vertex)
+                    project(neighborHalfEdge->oppositeHalfEdge->startVertex->position);
+                neighborHalfEdge = neighborHalfEdge->oppositeHalfEdge->nextHalfEdge;
+            } while (neighborHalfEdge != neighborVertex->anyHalfEdge);
+            halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
+        } while (halfEdge != vertex->anyHalfEdge);
+        vertex->relativeHeight = high - low;
+    }
+}
+
+void Mesh::normalizeVertexRelativeHeights()
+{
+    double maxHeight = 0;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        if (vertex->relativeHeight > maxHeight)
+            maxHeight = vertex->relativeHeight;
+    }
+    if (Double::isZero(maxHeight))
+        return;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        vertex->relativeHeight /= maxHeight;
+    }
+}
+
+void Mesh::removeZeroAngleTriangles()
+{
+    std::vector<HalfEdge *> candidates;
+    for (HalfEdge *halfEdge = m_firstHalfEdge; nullptr != halfEdge; halfEdge = halfEdge->_next) {
+        auto v1 = halfEdge->nextHalfEdge->startVertex->position - halfEdge->startVertex->position;
+        auto v2 = halfEdge->previousHalfEdge->startVertex->position - halfEdge->startVertex->position;
+        auto degrees = Radians::toDegrees(Vector3::angle(v1, v2));
+        if (degrees <= 179.9)
             continue;
-        }
-        m_vertexRemovalCostPriorityQueue.pop();
-        decimate(vertex);
+        candidates.push_back(halfEdge);
     }
-    return true;
+    
+    for (auto &halfEdge: candidates) {
+        if (nullptr == halfEdge->leftFace)
+            continue;
+        
+        auto v1 = halfEdge->nextHalfEdge->startVertex->position - halfEdge->startVertex->position;
+        auto v2 = halfEdge->previousHalfEdge->startVertex->position - halfEdge->startVertex->position;
+        auto degrees = Radians::toDegrees(Vector3::angle(v1, v2));
+        if (degrees <= 179.9)
+            continue;
+        
+        flip(halfEdge->nextHalfEdge);
+    }
 }
 
-bool Mesh::parametrize(double gradientSize)
+void Mesh::orderVertexByFlatness()
 {
-    Parametrization::Parameters parameters;
-    parameters.gradientSize = gradientSize;
-    if (!Parametrization::miq(*this, parameters))
-        return false;
-    return true;
+    m_vertexOrderedByFlatness.resize(m_vertexCount);
+    size_t vertexIndex = 0;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        m_vertexOrderedByFlatness[vertexIndex] = vertex;
+        ++vertexIndex;
+    }
+    std::sort(m_vertexOrderedByFlatness.begin(), m_vertexOrderedByFlatness.end(), 
+            [](const Vertex *first, const Vertex *second) {
+        return first->relativeHeight < second->relativeHeight;
+    });
+}
+
+const std::vector<Vertex *> &Mesh::vertexOrderedByFlatness()
+{
+    return m_vertexOrderedByFlatness;
 }
  
 }

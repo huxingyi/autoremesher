@@ -488,7 +488,7 @@ IGL_INLINE std::vector<std::vector<typename igl::copyleft::comiso::VertexIndexin
 
     // explore every seam to which this vertex is a start vertex
     // note: a vertex can never be a start vertex and a regular vertex simultaneously
-    for (size_t j = 0; j < neighborSize; j++)
+    for (size_t j = 0; j < neighborSize && !startVertexNeighbors->empty(); j++)
     {
       std::vector<VertexInfo> thisSeam; // temporary container
 

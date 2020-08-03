@@ -1,10 +1,30 @@
+/*
+ *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved. 
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ */
 #ifndef AUTO_REMESHER_HALF_EDGE_H
 #define AUTO_REMESHER_HALF_EDGE_H
 #include <vector>
 #include <cstddef>
 #include <queue>
 #include <limits>
-#include <stack>
 #include <AutoRemesher/Vector3>
 #include <AutoRemesher/Vector2>
 
@@ -27,9 +47,9 @@ struct Vertex
     Vector3 position;
     HalfEdge *anyHalfEdge = nullptr;
     size_t halfEdgeCount = 0;
-    double fineCurvature = 0.0;
-    double removalCost = 0.0;
-    uint32_t version = 0;
+    Vector3 normal;
+    Vector3 averageNormal;
+    double relativeHeight = 0.0;
 };
 
 struct HalfEdge
@@ -42,7 +62,6 @@ struct HalfEdge
     HalfEdge *previousHalfEdge = nullptr;
     HalfEdge *nextHalfEdge = nullptr;
     HalfEdge *oppositeHalfEdge = nullptr;
-    double length2 = 0.0;
     Vector2 startVertexUv;
 };
 
@@ -51,13 +70,14 @@ struct Face
     Face *_previous = nullptr;
     Face *_next = nullptr;
     HalfEdge *anyHalfEdge = nullptr;
+    Vector3 normal;
 };
 
 class Mesh
 {
 public:
     Mesh(const std::vector<Vector3> &vertices,
-        std::vector<std::vector<size_t>> &triangles);
+        const std::vector<std::vector<size_t>> &triangles);
     ~Mesh();
     Vertex *allocVertex();
     Face *allocFace();
@@ -68,33 +88,21 @@ public:
     void freeHalfEdge(HalfEdge *halfEdge);
     void deferedFreeHalfEdge(HalfEdge *halfEdge);
     void deferedFreeFace(Face *face);
-    double calculateVertexCurvature(Vertex *vertex) const;
-    double calculateVertexRemovalCost(Vertex *vertex) const;
-    bool collapse(Vertex *vertex, std::vector<HalfEdge *> &halfEdgesAroundVertex);
     bool flip(HalfEdge *halfEdge);
-    void unFlip(HalfEdge *hflip, HalfEdge *hflip_x, 
-        HalfEdge *ha, HalfEdge *hb, HalfEdge *hc, HalfEdge *hd);
-    void unCollapse(int k,
-        std::vector<HalfEdge *> &h, std::vector<HalfEdge *> &h_x,
-        std::vector<HalfEdge *> &ring, 
-        double alpha, double beta, double gamma,
-        int alpha_i, int gamma_i);
     Vector3 calculateVertexNormal(Vertex *vertex) const;
-    HalfEdge *findShortestHalfEdgeAroundVertex(Vertex *vertex) const;
-    std::vector<std::pair<Vertex *, Vertex *>> collectConesAroundVertexExclude(Vertex *vertex, Vertex *exclude) const;
-    void setTargetVertexCount(size_t targetVertexCount);
-    bool decimate();
-    bool decimate(Vertex *vertex);
-    bool parametrize(double gradientSize);
     bool isWatertight();
-    bool delaunayTriangulate(std::vector<Vertex *> &ringVertices,
-        const Vector3 &projectNormal, const Vector3 &projectAxis,
-        std::vector<std::vector<Vertex *>> *triangles,
-        const Vector3 &origin) const;
     const size_t &vertexCount() const;
     const size_t &faceCount() const;
     Vertex *firstVertex() const;
     Face *firstFace() const;
+    void calculateFaceNormals();
+    void calculateVertexNormals();
+    void calculateVertexAverageNormals();
+    void calculateVertexRelativeHeights();
+    void normalizeVertexRelativeHeights();
+    void removeZeroAngleTriangles();
+    void orderVertexByFlatness();
+    const std::vector<Vertex *> &vertexOrderedByFlatness();
     
 private:
 
@@ -112,25 +120,7 @@ private:
     size_t m_vertexCount = 0;
     size_t m_faceCount = 0;
     size_t m_halfEdgeCount = 0;
-    size_t m_targetVertexCount = 5000;
-    
-    struct VertexRemovalCost
-    {
-        Vertex *vertex;
-        double cost;
-        uint32_t version;
-    };
-    
-    struct vertexRemovalCostComparer
-    {
-        bool operator()(const VertexRemovalCost &lhs, const VertexRemovalCost &rhs) const
-        {
-            return lhs.cost > rhs.cost;
-        }
-    };
-    vertexRemovalCostComparer m_vertexRemovalCostComparer;
-    
-    std::priority_queue<VertexRemovalCost, std::vector<VertexRemovalCost>, vertexRemovalCostComparer> m_vertexRemovalCostPriorityQueue;
+    std::vector<Vertex *> m_vertexOrderedByFlatness;
 };
 
 }

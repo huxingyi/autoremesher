@@ -20,11 +20,35 @@ matrix:
       osx_image: xcode9.3
 
 install:
+  # (Mac) Install CGAL
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then HOMEBREW_VERBOSE_USING_DOTS=1 brew reinstall --verbose boost; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then HOMEBREW_VERBOSE_USING_DOTS=1 brew reinstall --verbose cgal; fi
+
   # (Linux) Prepare build environment
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo add-apt-repository --yes ppa:beineri/opt-qt591-trusty; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo add-apt-repository --yes ppa:mhier/libboost-latest; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get update; fi
   #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install gcc-4.9 g++-4.9; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt install cmake; fi
+  
+  # (Linux) Install CGAL
+  # (Linux) First install a maybe old version CGAL to resolve dependencies
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install libcgal-dev; fi
+  
+  # (Linux) Install Boost
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install libboost; fi
+  
+  # (Linux) Build CGAL from source
+  - wget https://github.com/CGAL/cgal/releases/download/releases/CGAL-5.1-beta1/CGAL-5.1-beta1.zip
+  - unzip CGAL-5.1-beta1.zip
+  - cd CGAL-5.1-beta1
+  - mkdir build
+  - cd build
+  - cmake ../
+  - make
+  - sudo make install
+  - cd ../../
 
   # Build OpenMesh from source
   - cd thirdparty/OpenMesh/OpenMesh-8.1
@@ -91,7 +115,7 @@ script:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then chmod a+x appdir/AppRun || travis_terminate 1; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./ci/linuxdeployqt.AppImage --appimage-extract || travis_terminate 1; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export PATH=$(readlink -f ./squashfs-root/usr/bin):$PATH || travis_terminate 1; fi
-  #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then rm -v "./appdir/usr/lib/libxcb-dri2.so"* "./appdir/usr/lib/libxcb-dri3.so"*; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then rm -v "./appdir/usr/lib/libxcb-dri2.so"* "./appdir/usr/lib/libxcb-dri3.so"*; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./squashfs-root/usr/bin/appimagetool -g ./appdir/ autoremesher-$TAG.AppImage || travis_terminate 1; fi
 
   # Distribute
