@@ -1,0 +1,76 @@
+// Copyright (c) 2001
+// Utrecht University (The Netherlands),
+// ETH Zurich (Switzerland),
+// INRIA Sophia-Antipolis (France),
+// Max-Planck-Institute Saarbruecken (Germany),
+// and Tel-Aviv University (Israel).  All rights reserved.
+//
+// This file is part of CGAL (www.cgal.org)
+//
+// $URL: https://github.com/CGAL/cgal/blob/releases/CGAL-5.1-beta1/Kernel_d/include/CGAL/Kernel_d/DirectionHd_impl.h $
+// $Id: DirectionHd_impl.h 0779373 2020-03-26T13:31:46+01:00 Sébastien Loriot
+// SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-Commercial
+//
+//
+// Author(s)     : Michael Seel <seel@mpi-sb.mpg.de>
+
+#ifndef CGAL_DIRECTIONHD_C
+#define CGAL_DIRECTIONHD_C
+namespace CGAL {
+
+template <class RT, class LA>
+DirectionHd<RT,LA>::DirectionHd(const VectorHd<RT,LA>& v) : Base(v) {}
+
+template <class RT, class LA>
+VectorHd<RT,LA>  DirectionHd<RT,LA>::vector() const
+{ return VectorHd<RT,LA>(*this); }
+
+template <class RT, class LA>
+DirectionHd<RT,LA>  DirectionHd<RT,LA>::
+transform(const Aff_transformationHd<RT,LA>& t) const
+{ return vector().transform(t).direction(); }
+
+template <class RT, class LA>
+Comparison_result DirectionHd<RT,LA>::
+cmp(const DirectionHd<RT,LA>& h1,
+    const DirectionHd<RT,LA>& h2)
+{
+  if (h1.identical(h2)) return EQUAL;
+  int i, d = h1.dimension();
+  for (i = 0; i < d && h1.delta(i)==0 &&
+              h2.delta(i)==0; i++) {}
+  int c1 = CGAL_NTS sign(h1.delta(i));
+  int c2 = CGAL_NTS sign(h2.delta(i));
+  if (c1 != c2) return CGAL_NTS compare(c1,c2);
+
+  RT s1 = (RT) (int) CGAL_NTS sign(h2.delta(i)) * h2.delta(i);
+  RT s2 = (RT) (int) CGAL_NTS sign(h1.delta(i)) * h1.delta(i);
+
+  i++;
+  Comparison_result c;
+  while (i < d) {
+    c = CGAL_NTS compare(s1 * h1.delta(i), s2 * h2.delta(i));
+    if (c != EQUAL) return c;
+    i++;
+  }
+  return EQUAL;
+}
+
+template <class RT, class LA>
+std::istream& operator>>(std::istream& I, DirectionHd<RT,LA>& dir)
+{ dir.copy_on_write(); dir.ptr()->read(I);
+  CGAL_assertion_msg((dir.D()>=0),
+  "operator>>: denominator of direction must be nonnegative.");
+  return I;
+}
+
+template <class RT, class LA>
+std::ostream& operator<<(std::ostream& O, const DirectionHd<RT,LA>& dir)
+{ dir.ptr()->print(O,"DirectionHd"); return O; }
+
+
+//----------------------- end of file ----------------------------------
+
+
+} //namespace CGAL
+#endif // CGAL_DIRECTIONHD_C

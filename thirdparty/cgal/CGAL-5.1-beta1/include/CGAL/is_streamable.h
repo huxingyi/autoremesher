@@ -1,0 +1,76 @@
+// Copyright (c) 2012  GeometryFactory Sarl (France)
+// All rights reserved.
+//
+// $URL: https://github.com/CGAL/cgal/blob/releases/CGAL-5.1-beta1/STL_Extension/include/CGAL/is_streamable.h $
+// $Id: is_streamable.h 0779373 2020-03-26T13:31:46+01:00 Sébastien Loriot
+// SPDX-License-Identifier: BSL-1.0
+//
+// Author(s)     : Laurent Rineau, Philipp Moeller
+
+#ifndef CGAL_IS_STREAMABLE_H
+#define CGAL_IS_STREAMABLE_H
+
+#include <boost/type_traits/remove_reference.hpp>
+#include <boost/type_traits/remove_cv.hpp>
+#include <boost/static_assert.hpp>
+#include <iostream>
+
+namespace CGAL {
+namespace internal {
+namespace is_streamable
+{
+  // A tag type returned by operator == for the any struct in this namespace
+  // when T does not support ==.
+  struct tag {};
+
+  // This type soaks up any implicit conversions and makes the following operator ==
+  // less preferred than any other such operator found via ADL.
+  struct any
+  {
+      // Conversion constructor for any type.
+      template <class T>
+      any(T const&);
+  };
+
+  tag operator<<(any const&, any const&);
+  tag operator>>(any const&, any const&);
+
+  // Two overloads to distinguish whether T supports a certain operator expression.
+  // The first overload returns a reference to a two-element character array and is chosen if
+  // T does not support the expression, such as ==, whereas the second overload returns a char
+  // directly and is chosen if T supports the expression. So using sizeof(check(<expression>))
+  // returns 2 for the first overload and 1 for the second overload.
+  typedef char yes;
+  typedef char (&no)[2];
+
+  no check(tag);
+
+  template <class T>
+  yes check(T const&);
+
+  template <class T>
+  struct is_streamable_impl
+  {
+    static typename boost::remove_cv<typename boost::remove_reference<T>::type>::type const & x;
+    static typename boost::remove_cv<typename boost::remove_reference<T>::type>::type  & y;
+
+    static const bool value =
+      sizeof(is_streamable::check(std::cout << x)) == sizeof(is_streamable::yes) &&
+      sizeof(is_streamable::check(std::cin >> y)) == sizeof(is_streamable::yes);
+  };
+
+} // end namespace internal::is_streamable
+} // end namespace internal
+
+
+/// is_streamable is a meta-function that checks if a type is streamable
+///
+/// is_streamable<T>::value is true iff the type T has stream operators <<
+/// and >>. Otherwise it is false.
+template <class T>
+struct is_streamable
+  : internal::is_streamable::is_streamable_impl<T> {};
+
+} // end namespace CGAL
+
+#endif // CGAL_IS_STREAMABLE_H

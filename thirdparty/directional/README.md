@@ -1,1 +1,0 @@
-See full source here: https://github.com/avaxman/Directional

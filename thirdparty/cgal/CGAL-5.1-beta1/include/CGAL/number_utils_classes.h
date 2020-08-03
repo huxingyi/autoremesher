@@ -1,0 +1,116 @@
+// Copyright (c) 1997
+// Utrecht University (The Netherlands),
+// ETH Zurich (Switzerland),
+// INRIA Sophia-Antipolis (France),
+// Max-Planck-Institute Saarbruecken (Germany),
+// and Tel-Aviv University (Israel).  All rights reserved.
+//
+// This file is part of CGAL (www.cgal.org)
+//
+// $URL: https://github.com/CGAL/cgal/blob/releases/CGAL-5.1-beta1/Algebraic_foundations/include/CGAL/number_utils_classes.h $
+// $Id: number_utils_classes.h 0779373 2020-03-26T13:31:46+01:00 Sébastien Loriot
+// SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-Commercial
+//
+//
+// Author(s)     : Michael Hoffmann <hoffmann@inf.ethz.ch>
+//               : Michael Hemmer <hemmer@mpi-inf.mpg.de>
+
+// to be included by number_utils.h
+
+#ifndef CGAL_NUMBER_UTILS_CLASSES_H
+#define CGAL_NUMBER_UTILS_CLASSES_H 1
+
+#include <CGAL/Real_embeddable_traits.h>
+#include <CGAL/Algebraic_structure_traits.h>
+#include <algorithm>
+#include <utility>
+
+namespace CGAL {
+
+/* Defines functors:
+   - Is_zero
+   - Is_one
+   - Is_negative
+   - Is_positive
+   - Sgn
+   - Abs
+   - Compare
+   - Square
+   - Sqrt
+   - Div
+   - Gcd
+   - To_double
+   - To_interval
+*/
+
+template < class NT >
+struct Is_negative : Real_embeddable_traits<NT>::Is_negative {};
+template < class NT >
+struct Is_positive : Real_embeddable_traits<NT>::Is_positive {};
+template < class NT >
+struct Abs : Real_embeddable_traits<NT>::Abs{};
+template < class NT >
+struct To_double : Real_embeddable_traits<NT>::To_double{};
+template < class NT >
+struct To_interval : Real_embeddable_traits<NT>::To_interval{};
+
+// Sign would result in a name clash with enum.h
+template < class NT >
+struct Sgn : Real_embeddable_traits<NT>::Sgn {};
+
+
+template < class NT >
+struct Square : Algebraic_structure_traits<NT>::Square{};
+template < class NT >
+struct Sqrt : Algebraic_structure_traits<NT>::Sqrt {};
+template < class NT >
+struct Div : Algebraic_structure_traits<NT>::Div{};
+template < class NT >
+struct Gcd : Algebraic_structure_traits<NT>::Gcd{};
+template < class NT >
+struct Is_one : Algebraic_structure_traits<NT>::Is_one {};
+
+// This is due to the fact that Is_zero may be provided by
+// Algebraic_structure_traits as well as Real_embeddable_traits
+// Of course it is not possible to derive from both since this
+// would cause an ambiguity.
+namespace internal{
+template <class AST_Is_zero, class RET_Is_zero>
+struct Is_zero_base : AST_Is_zero {} ;
+template <class RET_Is_zero>
+struct Is_zero_base <CGAL::Null_functor, RET_Is_zero >: RET_Is_zero {} ;
+} // namespace internal
+template < class NT >
+struct Is_zero :
+  internal::Is_zero_base
+  <typename Algebraic_structure_traits<NT>::Is_zero,
+   typename Real_embeddable_traits<NT>::Is_zero>{};
+
+
+// This is due to the fact that CGAL::Compare is used for other
+// non-realembeddable types as well.
+// In this case we try to provide a default implementation
+namespace internal {
+template <class NT, class Compare> struct Compare_base: public Compare {};
+template <class NT> struct Compare_base<NT,Null_functor>
+  :public CGAL::cpp98::binary_function< NT, NT, Comparison_result > {
+  Comparison_result operator()( const NT& x, const NT& y) const
+  {
+    if (x < y) return SMALLER;
+    if (x > y) return LARGER;
+    CGAL_postcondition(x == y);
+    return EQUAL;
+  }
+};
+} // namespace internal
+
+template < class NT >
+struct Compare
+  :public internal::Compare_base
+  <NT,typename Real_embeddable_traits<NT>::Compare>{};
+
+
+
+} //namespace CGAL
+
+#endif // CGAL_NUMBER_UTILS_CLASSES_H

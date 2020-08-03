@@ -1,0 +1,26 @@
+# C++ objects and libs
+
+*.slo
+*.lo
+*.o
+*.a
+*.la
+*.lai
+*.so
+*.dll
+*.dylib
+
+# Qt-es
+
+*.pro.user
+*.pro.user.*
+moc_*.cpp
+qrc_*.cpp
+Makefile
+*-build-*
+
+QtWaitingSpinner
+QtWaitingSpinner.exe
+build-QtWaitingSpinnerTest-Desktop-Debug*
+build-QtWaitingSpinnerTest-GCC-Debug*
+build-QtWaitingSpinnerTest-Desktop_Qt_5_3_GCC_64bit-Debug*

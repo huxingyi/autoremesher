@@ -1,3 +1,24 @@
+/*
+ *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved. 
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ */
 #include <map>
 #include <cassert>
 #include <iostream>
@@ -6,8 +27,6 @@
 #include <AutoRemesher/HalfEdge>
 #include <AutoRemesher/Parametrization>
 #include <AutoRemesher/Radians>
-#include <AutoRemesher/MeshSegmenter>
-#include <AutoRemesher/HeatMapGenerator>
 
 namespace AutoRemesher
 {
@@ -26,10 +45,6 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
         const std::unordered_map<size_t, Vector3> &guidelineVertices) :
     m_vertexRemovalCostPriorityQueue(m_vertexRemovalCostComparer)
 {
-    //MeshSegmenter meshSegmenter(&vertices, &triangles);
-    //meshSegmenter.segment();
-    //const std::vector<size_t> &segmentIds = meshSegmenter.triangleSegmentIds();
-    
     std::vector<Vertex *> halfEdgeVertices(vertices.size());
     for (size_t i = 0; i < vertices.size(); ++i) {
         Vertex *vertex = allocVertex();
@@ -46,9 +61,7 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
     std::map<std::pair<size_t, size_t>, HalfEdge *> halfEdgeIndexMap;
     for (size_t i = 0; i < triangles.size(); ++i) {
         auto &face = halfEdgeFaces[i];
-        
-        //face->segmentId = segmentIds[i];
-        
+
         const auto &triangleIndices = triangles[i];
         std::vector<HalfEdge *> halfEdges = {
             allocHalfEdge(),
@@ -102,7 +115,6 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
         calculateVertexRelativeHeights();
         normalizeVertexRelativeHeights();
         markVertexHeightIds();
-        //calculateVertexHeightDirections();
         
         for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next)
             vertex->fineCurvature = calculateVertexCurvature(vertex);
@@ -751,16 +763,6 @@ void Mesh::markGuidelineEdgesAsFeatured()
             }
         }
     }
-}
-
-bool Mesh::parametrize(double gradientSize, double constraintStength)
-{
-    Parametrization::Parameters parameters;
-    parameters.gradientSize = gradientSize;
-    parameters.constraintStength = constraintStength;
-    if (!Parametrization::miq(*this, parameters))
-        return false;
-    return true;
 }
 
 void Mesh::calculateFaceNormals()
