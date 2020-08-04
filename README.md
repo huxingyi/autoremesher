@@ -27,5 +27,8 @@ $ chmod a+x ./autoremesher-unstable.AppImage
 $ ./autoremesher-unstable.AppImage
 ```
 
+## Media
+- [Check out open-source auto-retopology tool AutoRemesher](http://www.cgchannel.com/2020/08/check-out-open-source-auto-retopology-tool-autoremesher/) **cgchannel.com**  
+
 ## Acknowledgements
 https://github.com/huxingyi/autoremesher/blob/master/ACKNOWLEDGEMENTS.html
