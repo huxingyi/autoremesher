@@ -29,6 +29,7 @@ $ ./autoremesher-unstable.AppImage
 
 ## Media
 - [Check out open-source auto-retopology tool AutoRemesher](http://www.cgchannel.com/2020/08/check-out-open-source-auto-retopology-tool-autoremesher/) **cgchannel.com**  
+- [A New Open-Source Auto-Retopology Tool](https://80.lv/articles/a-new-open-source-auto-retopology-tool/) **80.lv**  
 
 ## Acknowledgements
 https://github.com/huxingyi/autoremesher/blob/master/ACKNOWLEDGEMENTS.html
