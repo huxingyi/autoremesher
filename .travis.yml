@@ -8,7 +8,7 @@ language: cpp
 matrix:
   include:
     - os: linux
-      dist: trusty
+      dist: xenial
       sudo: required
       compiler: gcc
       addons:
@@ -20,24 +20,23 @@ matrix:
       osx_image: xcode9.3
 
 install:
-  # (Mac) Install CGAL
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then HOMEBREW_VERBOSE_USING_DOTS=1 brew reinstall --verbose boost; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then HOMEBREW_VERBOSE_USING_DOTS=1 brew reinstall --verbose cgal; fi
-
   # (Linux) Prepare build environment
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo add-apt-repository --yes ppa:beineri/opt-qt591-trusty; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo add-apt-repository --yes ppa:mhier/libboost-latest; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo add-apt-repository --yes ppa:beineri/opt-qt591-xenial; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get update; fi
-  #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install gcc-4.9 g++-4.9; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt install cmake; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install libgl-dev; fi
   
   # (Linux) Install CGAL
   # (Linux) First install a maybe old version CGAL to resolve dependencies
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install libcgal-dev; fi
   
   # (Linux) Install Boost
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install libboost; fi
+  #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then wget https://dl.bintray.com/boostorg/release/1.66.0/source/boost_1_66_0.tar.gz; fi
+  #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then tar -xzf boost_1_66_0.tar.gz; fi
+  #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cd boost_1_66_0; fi
+  #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./bootstrap.sh; fi
+  #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo ./b2 install; fi
+  #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cd ../; fi
   
   # (Linux) Build CGAL from source
   - wget https://github.com/CGAL/cgal/releases/download/releases/CGAL-5.1-beta1/CGAL-5.1-beta1.zip
