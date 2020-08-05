@@ -28,6 +28,11 @@ class QuadMeshGenerator: public QObject
 {
     Q_OBJECT
 public:
+    struct Parameters
+    {
+        double gradientSize = 0.0;
+    };
+
     QuadMeshGenerator(const std::vector<AutoRemesher::Vector3> &vertices,
             const std::vector<std::vector<size_t>> &triangles) :
         m_vertices(vertices),
@@ -40,6 +45,11 @@ public:
         delete m_remeshedVertices;
         delete m_remeshedQuads;
         delete m_autoRemesher;
+    }
+    
+    void setParameters(const Parameters &parameters)
+    {
+        m_parameters = parameters;
     }
     
     std::vector<AutoRemesher::Vector3> *takeRemeshedVertices()
@@ -69,6 +79,7 @@ private:
     std::vector<AutoRemesher::Vector3> *m_remeshedVertices = nullptr;
     std::vector<std::vector<size_t>> *m_remeshedQuads = nullptr;
     AutoRemesher::AutoRemesher *m_autoRemesher = nullptr;
+    Parameters m_parameters;
 };
 
 #endif
