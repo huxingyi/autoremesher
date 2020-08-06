@@ -46,6 +46,7 @@ public:
     MainWindow();
     ~MainWindow();
     PbrShaderWidget *modelRenderWidget() const;
+    static size_t total();
 protected:
     void closeEvent(QCloseEvent *event);
 private slots:

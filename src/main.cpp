@@ -33,16 +33,8 @@
 #include "version.h"
 #include "preferences.h"
 
-//void outputMessage(QtMsgType type, const QMessageLogContext &context, const QString &msg)
-//{
-//    static FILE *s_file = fopen("autoremesher.log", "w");
-//    fprintf(s_file, "[%s:%u]: %s\n", context.file, context.line, msg.toUtf8().constData());
-//    fflush(s_file);
-//}
-
 int main(int argc, char ** argv)
 {
-    //qInstallMessageHandler(outputMessage);
     QApplication app(argc, argv);
 
     QSurfaceFormat format = QSurfaceFormat::defaultFormat();

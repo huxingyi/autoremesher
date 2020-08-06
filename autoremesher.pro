@@ -1,6 +1,6 @@
 QT += core widgets opengl network
 CONFIG += release
-DEFINES += NDEBUG
+DEFINES += NDEBUG AUTO_REMESHER_DEBUG
 DEFINES += QT_MESSAGELOGCONTEXT
 RESOURCES += resources.qrc
 
@@ -94,6 +94,12 @@ HEADERS += thirdparty/QtWaitingSpinner/waitingspinnerwidget.h
 INCLUDEPATH += include
 
 SOURCES += src/main.cpp
+
+SOURCES += src/logbrowser.cpp
+HEADERS += src/logbrowser.h
+
+SOURCES += src/logbrowserdialog.cpp
+HEADERS += src/logbrowserdialog.h
 
 SOURCES += src/spinnableawesomebutton.cpp
 HEADERS += src/spinnableawesomebutton.h

@@ -24,6 +24,9 @@
 #include <AutoRemesher/AutoRemesher>
 #include <AutoRemesher/IsotropicRemesher>
 #include <AutoRemesher/HalfEdge>
+#if AUTO_REMESHER_DEBUG
+#include <QDebug>
+#endif
 
 namespace AutoRemesher
 {
@@ -165,6 +168,10 @@ bool AutoRemesher::remesh()
         IsotropicRemesher isotropicRemesher(pickedVertices, pickedTriangles);
         isotropicRemesher.setTargetEdgeLength(m_targetEdgeLength);
         isotropicRemesher.remesh();
+        
+#if AUTO_REMESHER_DEBUG
+        qDebug() << "isotropicRemesher from vertices " << pickedVertices.size() << " to " << isotropicRemesher.remeshedVertices().size();
+#endif
         
         QuadRemesher quadRemesher(isotropicRemesher.remeshedVertices(), isotropicRemesher.remeshedTriangles());
 

@@ -40,6 +40,7 @@
 #include <QFile>
 #include <QComboBox>
 #include <QLabel>
+#include <QUuid>
 #include "mainwindow.h"
 #include "graphicscontainerwidget.h"
 #include "aboutwidget.h"
@@ -51,16 +52,37 @@
 #include "rendermeshgenerator.h"
 #include "quadmeshgenerator.h"
 #include "spinnableawesomebutton.h"
+#include "logbrowser.h"
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
+LogBrowser *g_logBrowser = nullptr;
 QTextBrowser *g_acknowlegementsWidget = nullptr;
 QTextBrowser *g_supportersWidget = nullptr;
 AboutWidget *g_aboutWidget = nullptr;
 UpdatesCheckWidget *g_updatesCheckWidget = nullptr;
+std::map<MainWindow *, QUuid> g_windows;
+
+void outputMessage(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+{
+    if (g_logBrowser)
+        g_logBrowser->outputMessage(type, msg, context.file, context.line);
+}
+
+size_t MainWindow::total()
+{
+    return g_windows.size();
+}
 
 MainWindow::MainWindow()
 {
+    if (!g_logBrowser) {
+        g_logBrowser = new LogBrowser;
+        qInstallMessageHandler(&outputMessage);
+    }
+
+    g_windows.insert({this, QUuid::createUuid()});
+    
     GraphicsWidget *graphicsWidget = new GraphicsWidget;
     
     GraphicsContainerWidget *containerWidget = new GraphicsContainerWidget;
@@ -95,6 +117,10 @@ MainWindow::MainWindow()
     QAction *reportIssuesAction = new QAction(tr("Report Issues"), this);
     connect(reportIssuesAction, &QAction::triggered, this, &MainWindow::reportIssues);
     helpMenu->addAction(reportIssuesAction);
+    
+    QAction *showDebugDialogAction = new QAction(tr("Debug"), this);
+    connect(showDebugDialogAction, &QAction::triggered, g_logBrowser, &LogBrowser::showDialog);
+    helpMenu->addAction(showDebugDialogAction);
     
     helpMenu->addSeparator();
     
@@ -346,6 +372,7 @@ void MainWindow::updateTitle()
 
 MainWindow::~MainWindow()
 {
+    g_windows.erase(this);
 }
 
 PbrShaderWidget *MainWindow::modelRenderWidget() const
@@ -358,7 +385,7 @@ void MainWindow::showSupporters()
     if (!g_supportersWidget) {
         g_supportersWidget = new QTextBrowser;
         g_supportersWidget->setWindowTitle(unifiedWindowTitle(tr("Supporters")));
-        g_supportersWidget->setMinimumSize(QSize(320, 190));
+        g_supportersWidget->setMinimumSize(QSize(320, 250));
         QFile supporters(":/SUPPORTERS");
         supporters.open(QFile::ReadOnly | QFile::Text);
         g_supportersWidget->setHtml("<h1>SUPPORTERS</h1><pre>" + supporters.readAll() + "</pre>");

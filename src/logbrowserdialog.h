@@ -19,35 +19,33 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#include <QElapsedTimer>
-#include <QDebug>
-#include "quadmeshgenerator.h"
+#ifndef AUTO_REMESHER_LOG_BROWSER_DIALOG_H
+#define AUTO_REMESHER_LOG_BROWSER_DIALOG_H
+#include <QDialog>
 
-void QuadMeshGenerator::process()
-{
-    QElapsedTimer timer;
-    timer.start();
-    
-    generate();
-    
-    auto timeUsed = timer.elapsed();
-    qDebug() << "Quad mesh generation took" << timeUsed << "milliseconds";
-    
-    emit finished();
-}
+class QTextBrowser;
+class QPushButton;
 
-void QuadMeshGenerator::generate()
+class LogBrowserDialog : public QDialog
 {
-    delete m_autoRemesher;
-    m_autoRemesher = new AutoRemesher::AutoRemesher(m_vertices, m_triangles);
-    if (m_parameters.gradientSize > 0)
-        m_autoRemesher->setGradientSize(m_parameters.gradientSize);
-    if (!m_autoRemesher->remesh())
-        return;
-    
-    delete m_remeshedVertices;
-    m_remeshedVertices = new std::vector<AutoRemesher::Vector3>(m_autoRemesher->remeshedVertices());
-    
-    delete m_remeshedQuads;
-    m_remeshedQuads = new std::vector<std::vector<size_t>>(m_autoRemesher->remeshedQuads());
-}
+    Q_OBJECT
+public:
+    LogBrowserDialog(QWidget *parent = 0);
+    ~LogBrowserDialog();
+
+public slots:
+    void outputMessage(QtMsgType type, const QString &msg, const QString &source, int line);
+
+protected slots:
+    void save();
+
+protected:
+    virtual void keyPressEvent(QKeyEvent *e);
+    virtual void closeEvent(QCloseEvent *e);
+
+    QTextBrowser *m_browser;
+    QPushButton *m_clearButton;
+    QPushButton *m_saveButton;
+};
+
+#endif
