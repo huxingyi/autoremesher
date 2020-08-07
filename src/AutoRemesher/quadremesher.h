@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <map>
 #include <AutoRemesher/Vector3>
+#include <AutoRemesher/HalfEdge>
 
 namespace AutoRemesher
 {
@@ -32,21 +33,9 @@ namespace AutoRemesher
 class QuadRemesher
 {
 public:
-    QuadRemesher(const std::vector<Vector3> &vertices,
-            const std::vector<std::vector<size_t>> &triangles) :
-        m_vertices(vertices),
-        m_triangles(triangles)
+    QuadRemesher(HalfEdge::Mesh *mesh) :
+        m_mesh(mesh)
     {
-    }
-    
-    void setGradientSize(double gradientSize)
-    {
-        m_gradientSize = gradientSize;
-    }
-    
-    void setConstraintRatio(double constraintRatio)
-    {
-        m_constraintRatio = constraintRatio;
     }
     
     const std::vector<Vector3> &remeshedVertices()
@@ -60,14 +49,8 @@ public:
     }
     
     bool remesh();
-    
-    static const double m_defaultGradientSize;
-    static const double m_defaultConstraintRatio;
 private:
-    std::vector<Vector3> m_vertices;
-    std::vector<std::vector<size_t>> m_triangles;
-    double m_gradientSize = m_defaultGradientSize;
-    double m_constraintRatio = m_defaultConstraintRatio;
+    HalfEdge::Mesh *m_mesh = nullptr;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedQuads;
     

@@ -19,84 +19,77 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#include <igl/avg_edge_length.h>
-#include <igl/barycenter.h>
-#include <igl/comb_cross_field.h>
-#include <igl/comb_frame_field.h>
-#include <igl/compute_frame_field_bisectors.h>
-#include <igl/cross_field_mismatch.h>
-#include <igl/cut_mesh_from_singularities.h>
-#include <igl/find_cross_field_singularities.h>
-#include <igl/local_basis.h>
-#include <igl/rotate_vectors.h>
-#include <igl/copyleft/comiso/miq.h>
-#include <igl/copyleft/comiso/nrosy.h>
-#include <igl/copyleft/comiso/frame_field.h>
-#include <igl/readOBJ.h>
-#include <igl/writeOBJ.h>
-#include <igl/readDMAT.h>
-#include <igl/frame_field_deformer.h>
-#include <igl/frame_to_cross_field.h>
-#include <igl/PI.h>
-#include <igl/principal_curvature.h>
-#include <AutoRemesher/Parametrization>
+#include <AutoRemesher/Parameterizer>
 #include <iostream>
 #include <unordered_set>
+#if AUTO_REMESHER_DEBUG
+#include <QDebug>
+#endif
 
 namespace AutoRemesher
 {
+
+Parameterizer::Parameterizer(HalfEdge::Mesh *mesh, const Parameters &parameters) :
+    m_parameters(parameters)
+{
+    m_mesh = mesh;
     
-namespace Parametrization
-{
-
-bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
-{
-    Eigen::MatrixXd V(mesh.vertexCount(), 3);
-    Eigen::MatrixXi F(mesh.faceCount(), 3);
-
+    m_V = new Eigen::MatrixXd(m_mesh->vertexCount(), 3);
+    m_F = new Eigen::MatrixXi(m_mesh->faceCount(), 3);
+    
     size_t vertexNum = 0;
-    for (HalfEdge::Vertex *vertex = mesh.firstVertex(); nullptr != vertex; vertex = vertex->_next) {
+    for (HalfEdge::Vertex *vertex = m_mesh->firstVertex(); nullptr != vertex; vertex = vertex->_next) {
         vertex->outputIndex = vertexNum;
-        V.row(vertexNum++) << 
+        m_V->row(vertexNum++) << 
             vertex->position.x(), 
             vertex->position.y(), 
             vertex->position.z();
     }
     
     size_t faceNum = 0;
-    for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
+    for (HalfEdge::Face *face = m_mesh->firstFace(); nullptr != face; face = face->_next) {
         HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
         HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
         HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
-        F.row(faceNum) << 
+        m_F->row(faceNum) << 
             h0->startVertex->outputIndex, 
             h1->startVertex->outputIndex, 
             h2->startVertex->outputIndex;
         ++faceNum;
     }
     
-    Eigen::MatrixXd PD1, PD2;
+    m_PD1 = new Eigen::MatrixXd;
+    m_PD2 = new Eigen::MatrixXd;
     Eigen::MatrixXd PV1, PV2;
-    igl::principal_curvature(V, F, PD1, PD2, PV1, PV2);
+    igl::principal_curvature(*m_V, *m_F, *m_PD1, *m_PD2, PV1, PV2);
     
-    std::unordered_set<HalfEdge::Vertex *> pickedVertices;
-    size_t targetConstraintVertexCount = mesh.vertexCount() * parameters.constraintRatio;
+    m_mesh->orderVertexByFlatness();
+}
+
+double Parameterizer::calculateLimitRelativeHeight(double constraintRatio)
+{
+    size_t targetConstraintVertexCount = m_mesh->vertexCount() * constraintRatio;
     size_t constaintVertexCount = 0;
-    float limitRelativeHeight = 0.2;
-    mesh.orderVertexByFlatness();
-    for (const auto &it: mesh.vertexOrderedByFlatness()) {
-        limitRelativeHeight = it->relativeHeight;
-        ++constaintVertexCount;
-        if (constaintVertexCount >= targetConstraintVertexCount)
-            break;
+    double limitRelativeHeight = 0.2;
+    if (targetConstraintVertexCount > 0) {
+        for (const auto &it: m_mesh->vertexOrderedByFlatness()) {
+            limitRelativeHeight = it->relativeHeight;
+            ++constaintVertexCount;
+            if (constaintVertexCount >= targetConstraintVertexCount)
+                break;
+        }
     }
-    std::cerr << "limitRelativeHeight:" << limitRelativeHeight << std::endl;
-    
+    return limitRelativeHeight;
+}
+
+void Parameterizer::prepareConstraints(double limitRelativeHeight)
+{
     std::vector<int> constraintFaces;
     std::vector<Vector3> constaintDirections1;
     std::vector<Vector3> constaintDirections2;
-    faceNum = 0;
-    for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
+    
+    size_t faceNum = 0;
+    for (HalfEdge::Face *face = m_mesh->firstFace(); nullptr != face; face = face->_next) {
         HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
         HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
         HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
@@ -105,8 +98,8 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
             if (h->startVertex->relativeHeight > limitRelativeHeight)
                 return false;
   
-            auto r1 = PD1.row(h->startVertex->outputIndex);
-            auto r2 = PD2.row(h->startVertex->outputIndex);
+            auto r1 = m_PD1->row(h->startVertex->outputIndex);
+            auto r2 = m_PD2->row(h->startVertex->outputIndex);
             
             auto v1 = AutoRemesher::Vector3(r1.x(), r1.y(), r1.z());
             auto v2 = AutoRemesher::Vector3(r2.x(), r2.y(), r2.z());
@@ -120,23 +113,31 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
             
             return true;
         };
+        
         addFeatured(h0) || addFeatured(h1) || addFeatured(h2);
         
         ++faceNum;
     }
     
-    Eigen::VectorXi b(constraintFaces.size());
-    Eigen::MatrixXd bc1(constaintDirections1.size(), 3);
-    Eigen::MatrixXd bc2(constaintDirections2.size(), 3);
+    delete m_b;
+    delete m_bc1;
+    delete m_bc2;
+    
+    m_b = new Eigen::VectorXi(constraintFaces.size());
+    m_bc1 = new Eigen::MatrixXd(constaintDirections1.size(), 3);
+    m_bc2 = new Eigen::MatrixXd(constaintDirections2.size(), 3);
     
     for (size_t i = 0; i < constraintFaces.size(); ++i) {
         const auto &v1 = constaintDirections1[i];
         const auto &v2 = constaintDirections2[i];
-        b.row(i) << constraintFaces[i];
-        bc1.row(i) << v1.x(), v1.y(), v1.z();
-        bc2.row(i) << v2.x(), v2.y(), v2.z();
+        m_b->row(i) << constraintFaces[i];
+        m_bc1->row(i) << v1.x(), v1.y(), v1.z();
+        m_bc2->row(i) << v2.x(), v2.y(), v2.z();
     }
+}
 
+bool Parameterizer::miq(size_t *singularityCount, bool calculateSingularityOnly)
+{
     // Global parametrization
     Eigen::MatrixXd UV;
     Eigen::MatrixXi FUV;
@@ -156,59 +157,103 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     Eigen::MatrixXd X2_deformed;
     
     // Interpolate the frame field
-    igl::copyleft::comiso::frame_field(V, F, b, bc1, bc2, FF1, FF2);
+    igl::copyleft::comiso::frame_field(*m_V, *m_F, *m_b, *m_bc1, *m_bc2, FF1, FF2);
 
     // Deform the mesh to transform the frame field in a cross field
     igl::frame_field_deformer(
-        V, F, FF1, FF2, V_deformed, FF1_deformed, FF2_deformed);
+        *m_V, *m_F, FF1, FF2, V_deformed, FF1_deformed, FF2_deformed);
 
     // Find the closest crossfield to the deformed frame field
-    igl::frame_to_cross_field(V_deformed, F, FF1_deformed, FF2_deformed, X1_deformed);
+    igl::frame_to_cross_field(V_deformed, *m_F, FF1_deformed, FF2_deformed, X1_deformed);
 
     // Find a smooth crossfield that interpolates the deformed constraints
-    Eigen::MatrixXd bc_x(b.size(), 3);
-    for (unsigned i = 0; i < b.size(); ++i)
-        bc_x.row(i) = X1_deformed.row(b(i));
+    Eigen::MatrixXd bc_x(m_b->size(), 3);
+    for (unsigned i = 0; i < m_b->size(); ++i)
+        bc_x.row(i) = X1_deformed.row((*m_b)(i));
 
     Eigen::VectorXd S;
     igl::copyleft::comiso::nrosy(
-             V,
-             F,
-             b,
-             bc_x,
-             Eigen::VectorXi(),
-             Eigen::VectorXd(),
-             Eigen::MatrixXd(),
-             4,
-             0.5,
-             X1_deformed,
-             S);
+        *m_V,
+        *m_F,
+        *m_b,
+        bc_x,
+        Eigen::VectorXi(),
+        Eigen::VectorXd(),
+        Eigen::MatrixXd(),
+        4,
+        0.5,
+        X1_deformed,
+        S);
 
     // The other representative of the cross field is simply rotated by 90 degrees
-    Eigen::MatrixXd B1,B2,B3;
-    igl::local_basis(V_deformed,F,B1,B2,B3);
+    Eigen::MatrixXd B1, B2, B3;
+    igl::local_basis(V_deformed, *m_F, B1, B2, B3);
     X2_deformed =
-    igl::rotate_vectors(X1_deformed, Eigen::VectorXd::Constant(1,igl::PI/2), B1, B2);
+    igl::rotate_vectors(X1_deformed, Eigen::VectorXd::Constant(1, igl::PI / 2), B1, B2);
 
     // Global seamless parametrization
-    igl::copyleft::comiso::miq(V_deformed,
-           F,
-           X1_deformed,
-           X2_deformed,
-           UV,
-           FUV,
-           parameters.gradientSize,
-           5.0,
-           false,
-           2);
+    {
+        Eigen::MatrixXd BIS1, BIS2;
+        igl::compute_frame_field_bisectors(V_deformed, *m_F, X1_deformed, X2_deformed, BIS1, BIS2);
+
+        Eigen::MatrixXd BIS1_combed, BIS2_combed;
+        igl::comb_cross_field(V_deformed, *m_F, BIS1, BIS2, BIS1_combed, BIS2_combed);
+
+        Eigen::MatrixXi Handle_MMatch;
+        igl::cross_field_mismatch(V_deformed, *m_F, BIS1_combed, BIS2_combed, true, Handle_MMatch);
+
+        Eigen::Matrix<int, Eigen::Dynamic, 1> isSingularity, singularityIndex;
+        igl::find_cross_field_singularities(V_deformed, *m_F, Handle_MMatch, isSingularity, singularityIndex);
+        
+        *singularityCount = 0;
+        for (int i = 0; i < isSingularity.rows(); ++i) {
+            if (isSingularity(i))
+                ++(*singularityCount);
+        }
+        if (calculateSingularityOnly)
+            return true;
+
+        Eigen::Matrix<int, Eigen::Dynamic, 3> Handle_Seams;
+        igl::cut_mesh_from_singularities(V_deformed, *m_F, Handle_MMatch, Handle_Seams);
+
+        Eigen::MatrixXd PD1_combed, PD2_combed;
+        igl::comb_frame_field(V_deformed, *m_F, X1_deformed, X2_deformed, BIS1_combed, BIS2_combed, PD1_combed, PD2_combed);
+        
+        double stiffness = 5.0;
+        bool directRound = false;
+        unsigned int iter = 2;
+        unsigned int localIter = 5;
+        bool doRound = true;
+        bool singularityRound = true;
+        const std::vector<int> roundVertices = std::vector<int>();
+        const std::vector<std::vector<int>> hardFeatures = std::vector<std::vector<int>>();
+        igl::copyleft::comiso::miq(V_deformed,
+            *m_F,
+            PD1_combed,
+            PD2_combed,
+            Handle_MMatch,
+            isSingularity,
+            Handle_Seams,
+            UV,
+            FUV,
+            m_parameters.gradientSize,
+            stiffness,
+            directRound,
+            iter,
+            localIter,
+            doRound,
+            singularityRound,
+            roundVertices,
+            hardFeatures);
+    }
     
-    if (FUV.rows() != mesh.faceCount()) {
+    if (FUV.rows() != m_mesh->faceCount()) {
         std::cerr << "miq failed" << std::endl;
         return false;
     }
     
-    faceNum = 0;
-    for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
+    size_t faceNum = 0;
+    for (HalfEdge::Face *face = m_mesh->firstFace(); nullptr != face; face = face->_next) {
         HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
         HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
         HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
@@ -225,8 +270,6 @@ bool miq(HalfEdge::Mesh &mesh, const Parameters &parameters)
     }
     
     return true;
-}
-
 }
 
 }

@@ -62,7 +62,7 @@ LogBrowserDialog::LogBrowserDialog(QWidget *parent) :
     buttonLayout->addWidget(m_saveButton);
     connect(m_saveButton, SIGNAL(clicked()), this, SLOT(save()));
 
-    resize(400, 300);
+    resize(640, 480);
     
     setWindowTitle(unifiedWindowTitle(tr("Debug")));
     

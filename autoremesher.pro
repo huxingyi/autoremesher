@@ -22,10 +22,10 @@ macx {
 }
 
 isEmpty(HUMAN_VERSION) {
-	HUMAN_VERSION = "1.0.0-alpha.2"
+	HUMAN_VERSION = "1.0.0-alpha.3"
 }
 isEmpty(VERSION) {
-	VERSION = 1.0.0.2
+	VERSION = 1.0.0.3
 }
 
 HOMEPAGE_URL = "https://autoremesher.dust3d.org/"
@@ -166,8 +166,8 @@ HEADERS += src/AutoRemesher/isotropicremesher.h
 SOURCES += src/AutoRemesher/halfedge.cpp
 HEADERS += src/AutoRemesher/halfedge.h
 
-SOURCES += src/AutoRemesher/parametrization.cpp
-HEADERS += src/AutoRemesher/parametrization.h
+SOURCES += src/AutoRemesher/parameterizer.cpp
+HEADERS += src/AutoRemesher/parameterizer.h
 
 INCLUDEPATH += thirdparty/comiso
 INCLUDEPATH += thirdparty/comiso/Solver

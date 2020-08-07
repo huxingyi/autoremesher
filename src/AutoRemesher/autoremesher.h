@@ -29,6 +29,8 @@
 
 namespace AutoRemesher
 {
+    
+class IsotropicRemesher;
 
 class AutoRemesher
 {
@@ -45,11 +47,6 @@ public:
         m_gradientSize = gradientSize;
     }
     
-    void setConstraintRatio(double constraintRatio)
-    {
-        m_constraintRatio = constraintRatio;
-    }
-    
     const std::vector<Vector3> &remeshedVertices()
     {
         return m_remeshedVertices;
@@ -60,30 +57,33 @@ public:
         return m_remeshedQuads;
     }
     
-    void setTargetEdgeLength(double targetEdgeLength)
-    {
-        m_targetEdgeLength = targetEdgeLength;
-    }
-    
     bool remesh();
     static void calculateNormalizedFactors(const std::vector<Vector3> &vertices, 
         Vector3 *origin, 
         double *maxLength);
     
     static const double m_defaultTargetEdgeLength;
+    static const double m_defaultConstraintRatio;
+    static const size_t m_defaultMaxSingularityCount;
+    static const size_t m_defaultMaxVertexCount;
+    static const double m_defaultSharpEdgeDegrees;
+    static const double m_defaultGradientSize;
 private:
     std::vector<Vector3> m_vertices;
     std::vector<std::vector<size_t>> m_triangles;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedQuads;
-    double m_targetEdgeLength = m_defaultTargetEdgeLength;
-    double m_gradientSize = QuadRemesher::m_defaultGradientSize;
-    double m_constraintRatio = QuadRemesher::m_defaultConstraintRatio;
+    double m_gradientSize = m_defaultGradientSize;
     
     void buildEdgeToFaceMap(const std::vector<std::vector<size_t>> &triangles, 
         std::map<std::pair<size_t, size_t>, size_t> &edgeToFaceMap);
     void splitToIslands(const std::vector<std::vector<size_t>> &triangles, 
         std::vector<std::vector<std::vector<size_t>>> &islands);
+    IsotropicRemesher *createIsotropicRemesh(std::vector<Vector3> sourceVertices,
+        std::vector<std::vector<size_t>> sourceTriangles,
+        double sharpEdgeDegrees, 
+        size_t targetVertexCount,
+        double *targetEdgeLength);
 };
     
 }

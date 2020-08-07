@@ -38,19 +38,6 @@ typedef CGAL::Surface_mesh<Kernel::Point_3>                     Mesh;
 typedef boost::graph_traits<Mesh>::halfedge_descriptor          halfedge_descriptor;
 typedef boost::graph_traits<Mesh>::edge_descriptor              edge_descriptor;
 
-struct halfedge2edge
-{
-    halfedge2edge(const Mesh &m, std::vector<edge_descriptor> &edges)
-        : m_mesh(m), m_edges(edges)
-    {}
-    void operator()(const halfedge_descriptor &h) const
-    {
-        m_edges.push_back(edge(h, m_mesh));
-    }
-    const Mesh &m_mesh;
-    std::vector<edge_descriptor> &m_edges;
-};
-
 namespace AutoRemesher
 {
 

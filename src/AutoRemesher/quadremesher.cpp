@@ -28,36 +28,24 @@
 #include <AutoRemesher/QuadRemesher>
 #include <AutoRemesher/HalfEdge>
 #include <AutoRemesher/Radians>
-#include <AutoRemesher/Parametrization>
 
 namespace AutoRemesher
 {
-    
-const double QuadRemesher::m_defaultGradientSize = 170.0;
-const double QuadRemesher::m_defaultConstraintRatio = 0.4;
 
 bool QuadRemesher::remesh()
 {
-    AutoRemesher::HalfEdge::Mesh mesh(m_vertices, m_triangles);
-    
-    if (!mesh.isWatertight()) {
-        std::cerr << "Mesh is not watertight" << std::endl;
-        return false;
-    }
-    mesh.removeZeroAngleTriangles();
-
     qex_TriMesh triMesh = {0};
     qex_QuadMesh quadMesh = {0};
     
-    triMesh.vertex_count = mesh.vertexCount();
-    triMesh.tri_count = mesh.faceCount();
+    triMesh.vertex_count = m_mesh->vertexCount();
+    triMesh.tri_count = m_mesh->faceCount();
     
     triMesh.vertices = (qex_Point3*)malloc(sizeof(qex_Point3) * triMesh.vertex_count);
     triMesh.tris = (qex_Tri*)malloc(sizeof(qex_Tri) * triMesh.tri_count);
     triMesh.uvTris = (qex_UVTri*)malloc(sizeof(qex_UVTri) * triMesh.tri_count);
     
     size_t vertexNum = 0;
-    for (HalfEdge::Vertex *vertex = mesh.firstVertex(); nullptr != vertex; vertex = vertex->_next) {
+    for (HalfEdge::Vertex *vertex = m_mesh->firstVertex(); nullptr != vertex; vertex = vertex->_next) {
         vertex->outputIndex = vertexNum;
         triMesh.vertices[vertexNum++] = qex_Point3 {{
             (double)vertex->position.x(), 
@@ -69,7 +57,7 @@ bool QuadRemesher::remesh()
     std::vector<HalfEdge::HalfEdge *> triangleHalfEdges;
     triangleHalfEdges.reserve(triMesh.tri_count * 3);
     size_t faceNum = 0;
-    for (HalfEdge::Face *face = mesh.firstFace(); nullptr != face; face = face->_next) {
+    for (HalfEdge::Face *face = m_mesh->firstFace(); nullptr != face; face = face->_next) {
         HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
         HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
         HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
@@ -84,54 +72,45 @@ bool QuadRemesher::remesh()
         ++faceNum;
     }
     
-    bool remeshSucceed = false;
-    Parametrization::Parameters parameters;
-    parameters.gradientSize = m_gradientSize;
-    parameters.constraintRatio = m_constraintRatio;
-    if (Parametrization::miq(mesh, parameters)) {
+    faceNum = 0;
+    for (size_t i = 0; i < triangleHalfEdges.size(); ) {
+        auto &h0 = triangleHalfEdges[i++];
+        auto &h1 = triangleHalfEdges[i++];
+        auto &h2 = triangleHalfEdges[i++];
+        triMesh.uvTris[faceNum++] = qex_UVTri {{
+            qex_Point2 {{h0->startVertexUv[0], h0->startVertexUv[1]}}, 
+            qex_Point2 {{h1->startVertexUv[0], h1->startVertexUv[1]}}, 
+            qex_Point2 {{h2->startVertexUv[0], h2->startVertexUv[1]}}
+        }};
+    }
 
-        faceNum = 0;
-        for (size_t i = 0; i < triangleHalfEdges.size(); ) {
-            auto &h0 = triangleHalfEdges[i++];
-            auto &h1 = triangleHalfEdges[i++];
-            auto &h2 = triangleHalfEdges[i++];
-            triMesh.uvTris[faceNum++] = qex_UVTri {{
-                qex_Point2 {{h0->startVertexUv[0], h0->startVertexUv[1]}}, 
-                qex_Point2 {{h1->startVertexUv[0], h1->startVertexUv[1]}}, 
-                qex_Point2 {{h2->startVertexUv[0], h2->startVertexUv[1]}}
-            }};
-        }
-
-        qex_extractQuadMesh(&triMesh, nullptr, &quadMesh);
-        
-        m_remeshedVertices.resize(quadMesh.vertex_count);
-        for (unsigned int i = 0; i < quadMesh.vertex_count; ++i) {
-            const auto &src = quadMesh.vertices[i];
-            m_remeshedVertices[i] = Vector3 {(double)src.x[0], (double)src.x[1], (double)src.x[2]};
-        }
-        m_remeshedQuads.reserve(quadMesh.quad_count);
-        for (unsigned int i = 0; i < quadMesh.quad_count; ++i) {
-            const auto &src = quadMesh.quads[i];
-            if (0 == src.indices[0] ||
-                    0 == src.indices[1] ||
-                    0 == src.indices[2] ||
-                    0 == src.indices[3])
-                continue;
-            std::unordered_set<qex_Index> indices;
-            indices.insert(src.indices[0]);
-            indices.insert(src.indices[1]);
-            indices.insert(src.indices[2]);
-            indices.insert(src.indices[3]);
-            if (4 != indices.size())
-                continue;
-            m_remeshedQuads.push_back(std::vector<size_t> {src.indices[0], src.indices[1], src.indices[2], src.indices[3]});
-        }
-        
-        fixHoles();
-        
-        remeshSucceed = true;
+    qex_extractQuadMesh(&triMesh, nullptr, &quadMesh);
+    
+    m_remeshedVertices.resize(quadMesh.vertex_count);
+    for (unsigned int i = 0; i < quadMesh.vertex_count; ++i) {
+        const auto &src = quadMesh.vertices[i];
+        m_remeshedVertices[i] = Vector3 {(double)src.x[0], (double)src.x[1], (double)src.x[2]};
+    }
+    m_remeshedQuads.reserve(quadMesh.quad_count);
+    for (unsigned int i = 0; i < quadMesh.quad_count; ++i) {
+        const auto &src = quadMesh.quads[i];
+        if (0 == src.indices[0] ||
+                0 == src.indices[1] ||
+                0 == src.indices[2] ||
+                0 == src.indices[3])
+            continue;
+        std::unordered_set<qex_Index> indices;
+        indices.insert(src.indices[0]);
+        indices.insert(src.indices[1]);
+        indices.insert(src.indices[2]);
+        indices.insert(src.indices[3]);
+        if (4 != indices.size())
+            continue;
+        m_remeshedQuads.push_back(std::vector<size_t> {src.indices[0], src.indices[1], src.indices[2], src.indices[3]});
     }
     
+    fixHoles();
+
     free(triMesh.vertices);
     free(triMesh.tris);
     free(triMesh.uvTris);
@@ -139,7 +118,7 @@ bool QuadRemesher::remesh()
     free(quadMesh.vertices);
     free(quadMesh.quads);
     
-    return remeshSucceed;
+    return true;
 }
 
 void QuadRemesher::createCoonsPatchFrom(const std::vector<size_t> &c0,
@@ -240,6 +219,8 @@ void QuadRemesher::fixHoles()
     std::vector<std::vector<int>> loops;
     igl::boundary_loop(F, loops);
     for (const auto &loop: loops) {
+        if (loop.size() > 14)
+            continue;
         Vector3 origin;
         for (const auto &it: loop) {
             origin += m_remeshedVertices[it];

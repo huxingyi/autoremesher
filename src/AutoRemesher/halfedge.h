@@ -49,6 +49,7 @@ struct Vertex
     size_t halfEdgeCount = 0;
     Vector3 normal;
     Vector3 averageNormal;
+    bool hasRelativeHeight = false;
     double relativeHeight = 0.0;
 };
 
@@ -89,7 +90,6 @@ public:
     void deferedFreeHalfEdge(HalfEdge *halfEdge);
     void deferedFreeFace(Face *face);
     bool flip(HalfEdge *halfEdge);
-    Vector3 calculateVertexNormal(Vertex *vertex) const;
     bool isWatertight();
     const size_t &vertexCount() const;
     const size_t &faceCount() const;

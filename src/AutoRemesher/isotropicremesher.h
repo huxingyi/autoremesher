@@ -34,9 +34,15 @@ public:
         m_triangles(triangles)
     {
     }
+    
     void setTargetEdgeLength(double edgeLength)
     {
         m_targetEdgeLength = edgeLength;
+    }
+    
+    void setSharpEdgeDegrees(double degrees)
+    {
+        m_sharpEdgeDegrees = degrees;
     }
     
     const std::vector<Vector3> &remeshedVertices()

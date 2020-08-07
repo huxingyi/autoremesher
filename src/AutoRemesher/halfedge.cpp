@@ -24,8 +24,10 @@
 #include <iostream>
 #include <set>
 #include <AutoRemesher/HalfEdge>
-#include <AutoRemesher/Parametrization>
 #include <AutoRemesher/Radians>
+#if AUTO_REMESHER_DEBUG
+#include <QDebug>
+#endif
 
 namespace AutoRemesher
 {
@@ -73,7 +75,6 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
             const auto &vertexIndex = triangleIndices[j];
             const auto &nextVertexIndex = triangleIndices[k];
             auto &vertex = halfEdgeVertices[vertexIndex];
-            const auto &nextVertex = halfEdgeVertices[nextVertexIndex];
             vertex->anyHalfEdge = halfEdge;
             ++vertex->halfEdgeCount;
             halfEdge->startVertex = vertex;
@@ -99,12 +100,31 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
     
     if (isWatertight()) {
         removeZeroAngleTriangles();
-        calculateFaceNormals();
-        calculateVertexNormals();
-        calculateVertexAverageNormals();
-        calculateVertexRelativeHeights();
-        normalizeVertexRelativeHeights();
     }
+    
+#if AUTO_REMESHER_DEBUG
+    qDebug() << "calculateFaceNormals";
+#endif
+    calculateFaceNormals();
+#if AUTO_REMESHER_DEBUG
+    qDebug() << "calculateVertexNormals";
+#endif
+    calculateVertexNormals();
+#if AUTO_REMESHER_DEBUG
+    qDebug() << "calculateVertexAverageNormals";
+#endif
+    calculateVertexAverageNormals();
+#if AUTO_REMESHER_DEBUG
+    qDebug() << "calculateVertexRelativeHeights";
+#endif
+    calculateVertexRelativeHeights();
+#if AUTO_REMESHER_DEBUG
+    qDebug() << "normalizeVertexRelativeHeights";
+#endif
+    normalizeVertexRelativeHeights();
+#if AUTO_REMESHER_DEBUG
+    qDebug() << "HalfEdge created";
+#endif
 }
 
 Mesh::~Mesh()
@@ -278,19 +298,6 @@ Face *Mesh::firstFace() const
     return m_firstFace;
 }
 
-Vector3 Mesh::calculateVertexNormal(Vertex *vertex) const
-{
-    HalfEdge *halfEdge = vertex->anyHalfEdge;
-    Vector3 sumOfNormal;
-    do {
-        sumOfNormal += Vector3::normal(vertex->position,
-            halfEdge->nextHalfEdge->startVertex->position,
-            halfEdge->nextHalfEdge->nextHalfEdge->startVertex->position);
-        halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
-    } while (halfEdge != vertex->anyHalfEdge);
-    return sumOfNormal.normalized();
-}
-
 bool Mesh::isWatertight()
 {
     return m_faceCount >= 4 && 
@@ -363,8 +370,10 @@ void Mesh::calculateVertexNormals()
         HalfEdge *halfEdge = vertex->anyHalfEdge;
         do {
             vertex->normal += halfEdge->leftFace->normal;
+            if (nullptr == halfEdge->oppositeHalfEdge)
+                break;
             halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
-        } while (halfEdge != vertex->anyHalfEdge);
+        } while (halfEdge && halfEdge != vertex->anyHalfEdge);
         vertex->normal.normalize();
     }
 }
@@ -374,10 +383,14 @@ void Mesh::calculateVertexAverageNormals()
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
         HalfEdge *halfEdge = vertex->anyHalfEdge;
         do {
+            if (nullptr == halfEdge->oppositeHalfEdge)
+                break;
             vertex->averageNormal += halfEdge->oppositeHalfEdge->startVertex->normal;
             halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
-        } while (halfEdge != vertex->anyHalfEdge);
+        } while (halfEdge && halfEdge != vertex->anyHalfEdge);
         vertex->averageNormal.normalize();
+        if (vertex->averageNormal.isZero())
+            vertex->averageNormal = vertex->normal;
     }
 }
 
@@ -387,6 +400,7 @@ void Mesh::calculateVertexRelativeHeights()
         HalfEdge *halfEdge = vertex->anyHalfEdge;
         double low = 0.0;
         double high = 0.0;
+        bool isBoundary = false;
         auto project = [&](const Vector3 &position) {
             double projectedTo = Vector3::dotProduct((position - vertex->position).normalized(), vertex->averageNormal);
             if (projectedTo < low)
@@ -395,17 +409,30 @@ void Mesh::calculateVertexRelativeHeights()
                 high = projectedTo;
         };
         do {
+            if (nullptr == halfEdge->oppositeHalfEdge) {
+                isBoundary = true;
+                break;
+            }
             Vertex *neighborVertex = halfEdge->oppositeHalfEdge->startVertex;
             project(neighborVertex->position);
             HalfEdge *neighborHalfEdge = neighborVertex->anyHalfEdge;
             do {
+                if (nullptr == neighborHalfEdge->oppositeHalfEdge) {
+                    isBoundary = true;
+                    break;
+                }
                 if (neighborHalfEdge->oppositeHalfEdge->startVertex != vertex)
                     project(neighborHalfEdge->oppositeHalfEdge->startVertex->position);
                 neighborHalfEdge = neighborHalfEdge->oppositeHalfEdge->nextHalfEdge;
-            } while (neighborHalfEdge != neighborVertex->anyHalfEdge);
+            } while (neighborHalfEdge && neighborHalfEdge != neighborVertex->anyHalfEdge);
             halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
-        } while (halfEdge != vertex->anyHalfEdge);
-        vertex->relativeHeight = high - low;
+        } while (halfEdge && halfEdge != vertex->anyHalfEdge);
+        if (!isBoundary) {
+            vertex->relativeHeight = high - low;
+            vertex->hasRelativeHeight = true;
+        } else {
+            vertex->relativeHeight = std::numeric_limits<double>::max();
+        }
     }
 }
 
@@ -413,13 +440,14 @@ void Mesh::normalizeVertexRelativeHeights()
 {
     double maxHeight = 0;
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
-        if (vertex->relativeHeight > maxHeight)
+        if (vertex->hasRelativeHeight && vertex->relativeHeight > maxHeight)
             maxHeight = vertex->relativeHeight;
     }
     if (Double::isZero(maxHeight))
         return;
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
-        vertex->relativeHeight /= maxHeight;
+        if (vertex->hasRelativeHeight)
+            vertex->relativeHeight /= maxHeight;
     }
 }
 

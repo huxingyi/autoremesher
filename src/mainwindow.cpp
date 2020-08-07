@@ -534,8 +534,6 @@ void MainWindow::generateQuadMesh()
     m_quadMeshResultIsDirty = false;
     m_saved = true;
     m_inProgress = true;
-
-    qDebug() << "Generate render mesh...";
     
     QThread *thread = new QThread;
     
