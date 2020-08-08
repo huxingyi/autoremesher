@@ -169,6 +169,17 @@ HEADERS += src/AutoRemesher/halfedge.h
 SOURCES += src/AutoRemesher/parameterizer.cpp
 HEADERS += src/AutoRemesher/parameterizer.h
 
+INCLUDEPATH += thirdparty/tbb/include
+unix {
+	LIBS += -Lthirdparty/tbb/build2 -ltbb_static -ltbbmalloc_static -ltbbmalloc_proxy_static
+	unix:!macx {
+		LIBS += -ldl
+	}
+}
+win32 {
+	LIBS += -Lthirdparty/tbb/build2/Release -ltbb_static -ltbbmalloc_static -ltbbmalloc_proxy_static
+}
+
 INCLUDEPATH += thirdparty/comiso
 INCLUDEPATH += thirdparty/comiso/Solver
 DEFINES += _SCL_SECURE_NO_DEPRECATE     #for comiso\ext\gmm-4.2\include\gmm\gmm_std.h

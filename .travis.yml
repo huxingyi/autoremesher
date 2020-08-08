@@ -30,14 +30,6 @@ install:
   # (Linux) First install a maybe old version CGAL to resolve dependencies
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install libcgal-dev; fi
   
-  # (Linux) Install Boost
-  #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then wget https://dl.bintray.com/boostorg/release/1.66.0/source/boost_1_66_0.tar.gz; fi
-  #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then tar -xzf boost_1_66_0.tar.gz; fi
-  #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cd boost_1_66_0; fi
-  #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./bootstrap.sh; fi
-  #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo ./b2 install; fi
-  #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cd ../; fi
-  
   # (Linux) Build CGAL from source
   - wget https://github.com/CGAL/cgal/releases/download/releases/CGAL-5.1-beta1/CGAL-5.1-beta1.zip
   - unzip CGAL-5.1-beta1.zip
@@ -58,6 +50,14 @@ install:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then rm -rf Build/lib/libOpenMeshCore.so; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then rm -rf Build/lib/libOpenMeshCore.dylib; fi
   - cd ../../../../
+  
+  # Build tbb
+  - cd thirdparty/tbb
+  - mkdir build2
+  - cd build2
+  - cmake ../
+  - cmake --build . --config Release
+  - cd ../../../
 
   # (Mac) Install Qt5
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then HOMEBREW_VERBOSE_USING_DOTS=1 brew reinstall --verbose qt; fi

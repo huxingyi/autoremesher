@@ -31,6 +31,16 @@ install:
   - cmake --build . --config Release
   - cd %APPVEYOR_BUILD_FOLDER%
   
+  - cd thirdparty/tbb
+  - mkdir build2
+  - cd build2
+  - if "%PLATFORM%" == "x64"
+    cmake -G "Visual Studio 15 2017" -A %PLATFORM% ../
+  - if "%PLATFORM%" == "x86"
+    cmake -G "Visual Studio 15 2017" ../
+  - cmake --build . --config Release
+  - cd %APPVEYOR_BUILD_FOLDER%
+  
   - if not exist CGAL-5.1-beta1-Setup.exe
     appveyor DownloadFile https://github.com/CGAL/cgal/releases/download/releases/CGAL-5.1-beta1/CGAL-5.1-beta1-Setup.exe -FileName CGAL-5.1-beta1-Setup.exe
   - if "%PLATFORM%" == "x86"

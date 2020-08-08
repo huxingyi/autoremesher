@@ -61,6 +61,11 @@ public:
     static void calculateNormalizedFactors(const std::vector<Vector3> &vertices, 
         Vector3 *origin, 
         double *maxLength);
+    static IsotropicRemesher *createIsotropicRemesh(std::vector<Vector3> sourceVertices,
+        std::vector<std::vector<size_t>> sourceTriangles,
+        double sharpEdgeDegrees, 
+        size_t targetVertexCount,
+        double *targetEdgeLength);
     
     static const double m_defaultTargetEdgeLength;
     static const double m_defaultConstraintRatio;
@@ -79,11 +84,6 @@ private:
         std::map<std::pair<size_t, size_t>, size_t> &edgeToFaceMap);
     void splitToIslands(const std::vector<std::vector<size_t>> &triangles, 
         std::vector<std::vector<std::vector<size_t>>> &islands);
-    IsotropicRemesher *createIsotropicRemesh(std::vector<Vector3> sourceVertices,
-        std::vector<std::vector<size_t>> sourceTriangles,
-        double sharpEdgeDegrees, 
-        size_t targetVertexCount,
-        double *targetEdgeLength);
 };
     
 }
