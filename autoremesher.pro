@@ -171,7 +171,7 @@ HEADERS += src/AutoRemesher/parameterizer.h
 
 INCLUDEPATH += thirdparty/tbb/include
 unix {
-	LIBS += -Lthirdparty/tbb/build2 -ltbb_static -ltbbmalloc_static -ltbbmalloc_proxy_static
+	LIBS += -Lthirdparty/tbb/build2 -ltbbmalloc_proxy_static -ltbbmalloc_static -ltbb_static
 	unix:!macx {
 		LIBS += -ldl
 	}
