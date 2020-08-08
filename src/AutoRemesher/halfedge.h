@@ -51,6 +51,9 @@ struct Vertex
     Vector3 averageNormal;
     bool hasRelativeHeight = false;
     double relativeHeight = 0.0;
+#if AUTO_REMESHER_DEV
+    unsigned char debugColor = 0;
+#endif
 };
 
 struct HalfEdge
@@ -103,6 +106,11 @@ public:
     void removeZeroAngleTriangles();
     void orderVertexByFlatness();
     const std::vector<Vertex *> &vertexOrderedByFlatness();
+#if AUTO_REMESHER_DEV
+    void debugExportRelativeHeightPly(const char *filename);
+    void debugExportLimitRelativeHeightPly(const char *filename, float limitRelativeHeight);
+    void debugExportPly(const char *filename);
+#endif
     
 private:
 

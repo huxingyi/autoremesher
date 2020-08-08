@@ -131,9 +131,10 @@ IsotropicRemesher *AutoRemesher::createIsotropicRemesh(std::vector<Vector3> sour
     double *targetEdgeLength)
 {
     IsotropicRemesher *isotropicRemesher = nullptr;
-    double referenceTargetEdgeLength = Double::isZero(*targetEdgeLength) ? m_defaultTargetEdgeLength : *targetEdgeLength;
     double minTargetVertexCount = targetVertexCount * 0.8;
-    *targetEdgeLength = referenceTargetEdgeLength;
+    
+    if (Double::isZero(*targetEdgeLength))
+        *targetEdgeLength = m_defaultTargetEdgeLength;
     
     while (nullptr == isotropicRemesher || isotropicRemesher->remeshedVertices().size() < minTargetVertexCount) {
         delete isotropicRemesher;
@@ -144,11 +145,14 @@ IsotropicRemesher *AutoRemesher::createIsotropicRemesh(std::vector<Vector3> sour
 #if AUTO_REMESHER_DEBUG
         qDebug() << "isotropicRemesher from vertices " << sourceVertices.size() << " to " << isotropicRemesher->remeshedVertices().size() << " targetEdgeLength:" << *targetEdgeLength;
 #endif
-        *targetEdgeLength -= referenceTargetEdgeLength * 0.1;
+        *targetEdgeLength *= 0.9;
     }
     
     while (nullptr == isotropicRemesher || isotropicRemesher->remeshedVertices().size() > targetVertexCount) {
         delete isotropicRemesher;
+#if AUTO_REMESHER_DEBUG
+        qDebug() << "isotropicRemesher remeshing targetEdgeLength:" << *targetEdgeLength;
+#endif
         isotropicRemesher = new IsotropicRemesher(sourceVertices, sourceTriangles);
         isotropicRemesher->setSharpEdgeDegrees(sharpEdgeDegrees);
         isotropicRemesher->setTargetEdgeLength(*targetEdgeLength);
@@ -156,7 +160,7 @@ IsotropicRemesher *AutoRemesher::createIsotropicRemesh(std::vector<Vector3> sour
 #if AUTO_REMESHER_DEBUG
         qDebug() << "isotropicRemesher from vertices " << sourceVertices.size() << " to " << isotropicRemesher->remeshedVertices().size() << " targetEdgeLength:" << *targetEdgeLength;
 #endif
-        *targetEdgeLength += referenceTargetEdgeLength * 0.1;
+        *targetEdgeLength *= 1.1;
     }
 
     return isotropicRemesher;

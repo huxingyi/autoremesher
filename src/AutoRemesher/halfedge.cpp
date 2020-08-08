@@ -495,6 +495,63 @@ const std::vector<Vertex *> &Mesh::vertexOrderedByFlatness()
 {
     return m_vertexOrderedByFlatness;
 }
+
+#if AUTO_REMESHER_DEV
+
+void Mesh::debugExportRelativeHeightPly(const char *filename)
+{
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        vertex->debugColor = (1.0 - vertex->relativeHeight) * 255;
+    }
+    debugExportPly(filename);
+}
+
+void Mesh::debugExportLimitRelativeHeightPly(const char *filename, float limitRelativeHeight)
+{
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        vertex->debugColor = vertex->relativeHeight > limitRelativeHeight ? 0 : 127 + (1.0 - limitRelativeHeight * vertex->relativeHeight) * 100;
+    }
+    debugExportPly(filename);
+}
+
+void Mesh::debugExportPly(const char *filename)
+{
+    std::cerr << "debugExportPly:" << filename << std::endl;
+    
+    FILE *fp = fopen(filename, "wb");
+    fprintf(fp, "ply\n");
+    fprintf(fp, "format ascii 1.0\n");
+    fprintf(fp, "element vertex %zu\n", m_vertexCount);
+    fprintf(fp, "property float x\n");
+    fprintf(fp, "property float y\n");
+    fprintf(fp, "property float z\n");
+    fprintf(fp, "property uchar red\n");
+    fprintf(fp, "property uchar green\n");
+    fprintf(fp, "property uchar blue\n");
+    fprintf(fp, "element face %zu\n", m_faceCount);
+    fprintf(fp, "property list uchar uint vertex_indices\n");
+    fprintf(fp, "end_header\n");
+    size_t index = 0;
+    for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
+        vertex->outputIndex = index++;
+        int c = vertex->debugColor > 255 ? 255 : vertex->debugColor;
+        fprintf(fp, "%f %f %f %d %d %d\n", 
+            vertex->position.x(), vertex->position.y(), vertex->position.z(),
+            c, c, c);
+    }
+    for (Face *face = m_firstFace; nullptr != face; face = face->_next) {
+        HalfEdge *h0 = face->anyHalfEdge;
+        HalfEdge *h1 = h0->nextHalfEdge;
+        HalfEdge *h2 = h1->nextHalfEdge;
+        fprintf(fp, "3 %zu %zu %zu\n",
+            h0->startVertex->outputIndex, 
+            h1->startVertex->outputIndex, 
+            h2->startVertex->outputIndex);
+    }
+    fclose(fp);
+}
+
+#endif
  
 }
     

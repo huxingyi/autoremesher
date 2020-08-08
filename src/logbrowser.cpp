@@ -24,7 +24,11 @@
 #include "logbrowser.h"
 #include "logbrowserdialog.h"
 
+#if AUTO_REMESHER_DEV
+bool LogBrowser::m_enableOutputToFile = true;
+#else
 bool LogBrowser::m_enableOutputToFile = false;
+#endif
 
 LogBrowser::LogBrowser(QObject *parent) :
     QObject(parent)
