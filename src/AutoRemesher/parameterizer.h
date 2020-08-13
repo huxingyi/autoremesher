@@ -56,7 +56,7 @@ public:
     };
     
     Parameterizer(HalfEdge::Mesh *mesh, const Parameters &parameters);
-    std::pair<double, double> Parameterizer::calculateLimitRelativeHeight(const std::pair<double, double> &limitRelativeHeight);
+    std::pair<double, double> calculateLimitRelativeHeight(const std::pair<double, double> &limitRelativeHeight);
     void prepareConstraints(const std::pair<double, double> &limitRelativeHeight,
         Eigen::VectorXi **b,
         Eigen::MatrixXd **bc1,
