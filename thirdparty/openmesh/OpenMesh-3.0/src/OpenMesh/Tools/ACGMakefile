@@ -1,0 +1,19 @@
+#==  SYSTEM PART -- DON'T TOUCH  ==============================================
+include $(ACGMAKE)/Config
+#==============================================================================
+
+
+SUBDIRS = Utils Decimater Subdivider VDPM Smoother
+
+PACKAGES := math
+
+PROJ_LIBS := OpenMesh/Core
+
+CXXLIB_BUILD_LIB := yes
+
+MODULES := cxxlib
+
+
+#==  SYSTEM PART -- DON'T TOUCH  ==============================================
+include $(ACGMAKE)/Rules
+#==============================================================================

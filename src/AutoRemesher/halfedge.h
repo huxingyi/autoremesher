@@ -108,7 +108,7 @@ public:
     const std::vector<Vertex *> &vertexOrderedByFlatness();
 #if AUTO_REMESHER_DEV
     void debugExportRelativeHeightPly(const char *filename);
-    void debugExportLimitRelativeHeightPly(const char *filename, float limitRelativeHeight);
+    void debugExportLimitRelativeHeightPly(const char *filename, const std::pair<double, double> &limitRelativeHeight);
     void debugExportPly(const char *filename);
 #endif
     

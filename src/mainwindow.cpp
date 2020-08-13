@@ -147,10 +147,18 @@ MainWindow::MainWindow()
     graphicsWidget->setModelWidget(m_modelRenderWidget);
     containerWidget->setModelWidget(m_modelRenderWidget);
     
-    QWidget *toolWidget = new QWidget;
-    toolWidget->setMaximumWidth(250);
-    
     QHBoxLayout *toolLayout = new QHBoxLayout;
+    
+    QComboBox *constrainedAreaSelectBox = new QComboBox;
+    constrainedAreaSelectBox->addItem(tr("Better Edge Flow"));
+    constrainedAreaSelectBox->addItem(tr("Less Distortion"));
+    connect(constrainedAreaSelectBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, [&](int index) {
+        m_constrainedArea = 0 == index ? 
+            AutoRemesher::ConstrainedArea::ConstrainedAreaBumpy : 
+            AutoRemesher::ConstrainedArea::ConstrainedAreaFlat;
+    });
+    
+    constrainedAreaSelectBox->setCurrentIndex(AutoRemesher::ConstrainedArea::ConstrainedAreaBumpy == m_constrainedArea ? 0 : 1);
     
     QLabel *polyBugetLabel = new QLabel(tr("Poly budget:"));
     
@@ -177,17 +185,13 @@ MainWindow::MainWindow()
     m_saveMeshButton = saveMeshButton;
     
     toolLayout->addStretch();
+    toolLayout->addWidget(constrainedAreaSelectBox);
+    toolLayout->addSpacing(10);
     toolLayout->addWidget(polyBugetLabel);
     toolLayout->addWidget(polyBudgetSelectBox);
     toolLayout->addSpacing(10);
     toolLayout->addWidget(loadModelButton);
     toolLayout->addWidget(saveMeshButton);
-    
-    toolWidget->setLayout(toolLayout);
-    
-    QVBoxLayout *rightLayout = new QVBoxLayout;
-    rightLayout->addWidget(toolWidget);
-    rightLayout->addStretch();
     
     QLabel *verticalLogoLabel = new QLabel;
     QImage verticalLogoImage;
@@ -205,13 +209,16 @@ MainWindow::MainWindow()
     mainLeftLayout->addLayout(logoLayout);
     mainLeftLayout->addSpacing(10);
     
-    QHBoxLayout *mainLayout = new QHBoxLayout;
-    mainLayout->setSpacing(0);
-    mainLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->addLayout(mainLeftLayout);
-    mainLayout->addWidget(containerWidget);
-    mainLayout->addLayout(rightLayout);
-    mainLayout->addSpacing(3);
+    QHBoxLayout *canvasLayout = new QHBoxLayout;
+    canvasLayout->setSpacing(0);
+    canvasLayout->setContentsMargins(0, 0, 0, 0);
+    canvasLayout->addLayout(mainLeftLayout);
+    canvasLayout->addWidget(containerWidget);
+    canvasLayout->addSpacing(3);
+    
+    QVBoxLayout *mainLayout = new QVBoxLayout;
+    mainLayout->addLayout(toolLayout);
+    mainLayout->addLayout(canvasLayout);
 
     QWidget *centralWidget = new QWidget;
     centralWidget->setLayout(mainLayout);
@@ -540,6 +547,7 @@ void MainWindow::generateQuadMesh()
     QuadMeshGenerator::Parameters parameters;
     if (!m_highPoly)
         parameters.gradientSize = 100.0;
+    parameters.constrainedArea = m_constrainedArea;
     
     m_quadMeshGenerator = new QuadMeshGenerator(m_originalVertices, m_originalTriangles);
     m_quadMeshGenerator->setParameters(parameters);

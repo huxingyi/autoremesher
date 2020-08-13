@@ -1,0 +1,17 @@
+#==  SYSTEM PART -- DON'T TOUCH  ==============================================
+include $(ACGMAKE)/Config
+#==============================================================================
+
+
+SUBDIRS = $(call find-subdirs)
+
+PACKAGES := opensg boost
+
+PROJ_LIBS := OpenMesh/Core
+
+MODULES := cxxlib
+
+
+#==  SYSTEM PART -- DON'T TOUCH  ==============================================
+include $(ACGMAKE)/Rules
+#==============================================================================

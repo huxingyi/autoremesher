@@ -19,8 +19,8 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#ifndef AUTO_REMESHER_PARAMETRIZATION_H
-#define AUTO_REMESHER_PARAMETRIZATION_H
+#ifndef AUTO_REMESHER_PARAMETERIZER_H
+#define AUTO_REMESHER_PARAMETERIZER_H
 #include <AutoRemesher/HalfEdge>
 #include <igl/avg_edge_length.h>
 #include <igl/barycenter.h>
@@ -52,22 +52,33 @@ public:
     struct Parameters
     {
         double gradientSize;
+        bool constrainOnFlatArea;
     };
     
     Parameterizer(HalfEdge::Mesh *mesh, const Parameters &parameters);
-    double calculateLimitRelativeHeight(double constraintRatio);
-    void prepareConstraints(double limitRelativeHeight);
-    bool miq(size_t *singularityCount, bool calculateSingularityOnly);
+    std::pair<double, double> Parameterizer::calculateLimitRelativeHeight(const std::pair<double, double> &limitRelativeHeight);
+    void prepareConstraints(const std::pair<double, double> &limitRelativeHeight,
+        Eigen::VectorXi **b,
+        Eigen::MatrixXd **bc1,
+        Eigen::MatrixXd **bc2);
+    bool miq(size_t *singularityCount, 
+        const Eigen::VectorXi &b,
+        const Eigen::MatrixXd &bc1,
+        const Eigen::MatrixXd &bc2,
+        bool calculateSingularityOnly);
+        
+    const std::vector<size_t> &getVertexValences()
+    {
+        return m_vertexValences;
+    }
 private:
     Eigen::MatrixXd *m_V = nullptr;
     Eigen::MatrixXi *m_F = nullptr;
     Eigen::MatrixXd *m_PD1 = nullptr;
     Eigen::MatrixXd *m_PD2 = nullptr;
     HalfEdge::Mesh *m_mesh = nullptr;
-    Eigen::VectorXi *m_b = nullptr;
-    Eigen::MatrixXd *m_bc1 = nullptr;
-    Eigen::MatrixXd *m_bc2 = nullptr;
     Parameters m_parameters;
+    std::vector<size_t> m_vertexValences;
 };
     
 }

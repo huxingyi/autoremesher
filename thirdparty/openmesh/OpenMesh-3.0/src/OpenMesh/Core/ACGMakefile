@@ -1,0 +1,19 @@
+#==  SYSTEM PART -- DON'T TOUCH  ==============================================
+include $(ACGMAKE)/Config
+#==============================================================================
+
+
+SUBDIRS = Geometry Utils Mesh IO Tools System
+
+PACKAGES :=
+
+PROJ_LIBS := 
+
+CXXLIB_BUILD_LIB := yes
+
+MODULES := cxxlib
+
+
+#==  SYSTEM PART -- DON'T TOUCH  ==============================================
+include $(ACGMAKE)/Rules
+#==============================================================================

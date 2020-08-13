@@ -1,0 +1,12 @@
+Subdirs()
+
+addSubdirs( Tutorial01 )
+addSubdirs( Tutorial02 )
+addSubdirs( Tutorial03 )
+addSubdirs( Tutorial04 )
+addSubdirs( Tutorial05 )
+addSubdirs( Tutorial06 )
+addSubdirs( Tutorial07 )
+addSubdirs( Tutorial08 )
+addSubdirs( Tutorial09 )
+addSubdirs( Tutorial10 )

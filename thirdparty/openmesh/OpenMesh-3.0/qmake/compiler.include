@@ -1,0 +1,18 @@
+################################################################################
+# Custom settings for compiler flags and similar
+################################################################################
+
+unix {
+	QMAKE_CC  = gcc-4.3
+	QMAKE_CXX = g++-4.3
+	macx {
+		QMAKE_CC  = gcc-4.0
+		QMAKE_CXX = g++-4.0
+	}
+
+	QMAKE_CFLAGS_RELEASE = -O3 -DINCLUDE_TEMPLATES -W -Wall -Wno-unused -DNDEBUG
+	QMAKE_CXXFLAGS_RELEASE = -O3 -DINCLUDE_TEMPLATES -ftemplate-depth-100 -W -Wall -Wno-unused -DNDEBUG
+	QMAKE_CFLAGS_DEBUG = -g -DINCLUDE_TEMPLATES -W -Wall -Wno-unused -DDEBUG
+	QMAKE_CXXFLAGS_DEBUG = -g -DINCLUDE_TEMPLATES -ftemplate-depth-100 -W -Wall -Wno-unused -DDEBUG
+}
+

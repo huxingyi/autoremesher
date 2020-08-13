@@ -20,6 +20,7 @@
  *  SOFTWARE.
  */
 #include <AutoRemesher/Parameterizer>
+#include <AutoRemesher/Radians>
 #include <iostream>
 #include <unordered_set>
 #if AUTO_REMESHER_DEBUG
@@ -66,23 +67,26 @@ Parameterizer::Parameterizer(HalfEdge::Mesh *mesh, const Parameters &parameters)
     m_mesh->orderVertexByFlatness();
 }
 
-double Parameterizer::calculateLimitRelativeHeight(double constraintRatio)
+std::pair<double, double> Parameterizer::calculateLimitRelativeHeight(const std::pair<double, double> &limitRelativeHeight)
 {
-    size_t targetConstraintVertexCount = m_mesh->vertexCount() * constraintRatio;
-    size_t constaintVertexCount = 0;
-    double limitRelativeHeight = 0.2;
-    if (targetConstraintVertexCount > 0) {
-        for (const auto &it: m_mesh->vertexOrderedByFlatness()) {
-            limitRelativeHeight = it->relativeHeight;
-            ++constaintVertexCount;
-            if (constaintVertexCount >= targetConstraintVertexCount)
-                break;
-        }
-    }
-    return limitRelativeHeight;
+    size_t targetLowVertexCount = m_mesh->vertexCount() * limitRelativeHeight.first;
+    size_t targetHighVertexCount = m_mesh->vertexCount() * limitRelativeHeight.second;
+    size_t lowCount = 0;
+    size_t highCount = 0;
+    double limitLow = 0.0;
+    double limitHigh = 1.0;
+    const auto &vertices = m_mesh->vertexOrderedByFlatness();
+    if (targetLowVertexCount < vertices.size())
+        limitLow = vertices[targetLowVertexCount]->relativeHeight;
+    if (targetHighVertexCount < vertices.size())
+        limitHigh = vertices[targetHighVertexCount]->relativeHeight;
+    return {limitLow, limitHigh};
 }
 
-void Parameterizer::prepareConstraints(double limitRelativeHeight)
+void Parameterizer::prepareConstraints(const std::pair<double, double> &limitRelativeHeight,
+    Eigen::VectorXi **b,
+    Eigen::MatrixXd **bc1,
+    Eigen::MatrixXd **bc2)
 {
     std::vector<int> constraintFaces;
     std::vector<Vector3> constaintDirections1;
@@ -95,9 +99,16 @@ void Parameterizer::prepareConstraints(double limitRelativeHeight)
         HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
         
         auto addFeatured = [&](HalfEdge::HalfEdge *h) {
-            if (h->startVertex->relativeHeight > limitRelativeHeight)
-                return false;
-  
+            if (m_parameters.constrainOnFlatArea) {
+                if (h->startVertex->relativeHeight >= limitRelativeHeight.first && 
+                        h->startVertex->relativeHeight <= limitRelativeHeight.second)
+                    return false;
+            } else {
+                if (h->startVertex->relativeHeight < limitRelativeHeight.first || 
+                        h->startVertex->relativeHeight > limitRelativeHeight.second)
+                    return false;
+            }
+            
             auto r1 = m_PD1->row(h->startVertex->outputIndex);
             auto r2 = m_PD2->row(h->startVertex->outputIndex);
             
@@ -119,24 +130,28 @@ void Parameterizer::prepareConstraints(double limitRelativeHeight)
         ++faceNum;
     }
     
-    delete m_b;
-    delete m_bc1;
-    delete m_bc2;
+    delete *b;
+    delete *bc1;
+    delete *bc2;
     
-    m_b = new Eigen::VectorXi(constraintFaces.size());
-    m_bc1 = new Eigen::MatrixXd(constaintDirections1.size(), 3);
-    m_bc2 = new Eigen::MatrixXd(constaintDirections2.size(), 3);
+    *b = new Eigen::VectorXi(constraintFaces.size());
+    *bc1 = new Eigen::MatrixXd(constaintDirections1.size(), 3);
+    *bc2 = new Eigen::MatrixXd(constaintDirections2.size(), 3);
     
     for (size_t i = 0; i < constraintFaces.size(); ++i) {
         const auto &v1 = constaintDirections1[i];
         const auto &v2 = constaintDirections2[i];
-        m_b->row(i) << constraintFaces[i];
-        m_bc1->row(i) << v1.x(), v1.y(), v1.z();
-        m_bc2->row(i) << v2.x(), v2.y(), v2.z();
+        (*b)->row(i) << constraintFaces[i];
+        (*bc1)->row(i) << v1.x(), v1.y(), v1.z();
+        (*bc2)->row(i) << v2.x(), v2.y(), v2.z();
     }
 }
 
-bool Parameterizer::miq(size_t *singularityCount, bool calculateSingularityOnly)
+bool Parameterizer::miq(size_t *singularityCount, 
+    const Eigen::VectorXi &b,
+    const Eigen::MatrixXd &bc1,
+    const Eigen::MatrixXd &bc2,
+    bool calculateSingularityOnly)
 {
     // Global parametrization
     Eigen::MatrixXd UV;
@@ -157,25 +172,30 @@ bool Parameterizer::miq(size_t *singularityCount, bool calculateSingularityOnly)
     Eigen::MatrixXd X2_deformed;
     
     // Interpolate the frame field
-    igl::copyleft::comiso::frame_field(*m_V, *m_F, *m_b, *m_bc1, *m_bc2, FF1, FF2);
+    igl::copyleft::comiso::frame_field(*m_V, *m_F, b, bc1, bc2, FF1, FF2);
 
     // Deform the mesh to transform the frame field in a cross field
     igl::frame_field_deformer(
         *m_V, *m_F, FF1, FF2, V_deformed, FF1_deformed, FF2_deformed);
+        
+#if AUTO_REMESHER_DEV
+    igl::writeOBJ("debug-origin.obj", *m_V, *m_F);
+    igl::writeOBJ("debug-deformed.obj", V_deformed, *m_F);
+#endif
 
     // Find the closest crossfield to the deformed frame field
     igl::frame_to_cross_field(V_deformed, *m_F, FF1_deformed, FF2_deformed, X1_deformed);
 
     // Find a smooth crossfield that interpolates the deformed constraints
-    Eigen::MatrixXd bc_x(m_b->size(), 3);
-    for (unsigned i = 0; i < m_b->size(); ++i)
-        bc_x.row(i) = X1_deformed.row((*m_b)(i));
+    Eigen::MatrixXd bc_x(b.size(), 3);
+    for (unsigned i = 0; i < b.size(); ++i)
+        bc_x.row(i) = X1_deformed.row(b(i));
 
     Eigen::VectorXd S;
     igl::copyleft::comiso::nrosy(
         *m_V,
         *m_F,
-        *m_b,
+        b,
         bc_x,
         Eigen::VectorXi(),
         Eigen::VectorXd(),
@@ -212,6 +232,12 @@ bool Parameterizer::miq(size_t *singularityCount, bool calculateSingularityOnly)
         }
         if (calculateSingularityOnly)
             return true;
+        
+        m_vertexValences.clear();
+        m_vertexValences.reserve(singularityIndex.rows());
+        for (int i = 0; i < singularityIndex.rows(); ++i) {
+            m_vertexValences.push_back(4 + singularityIndex(i));
+        }
 
         Eigen::Matrix<int, Eigen::Dynamic, 3> Handle_Seams;
         igl::cut_mesh_from_singularities(V_deformed, *m_F, Handle_MMatch, Handle_Seams);

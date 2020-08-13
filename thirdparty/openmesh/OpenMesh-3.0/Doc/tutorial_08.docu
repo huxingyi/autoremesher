@@ -1,0 +1,125 @@
+/** \page tutorial_08 Using IO::Options
+
+This example shows:
+
+- How to control the behaviour of \c Mesh::IO::read_mesh(),
+- How to control the behaviour of \c Mesh::IO::write_mesh().
+
+The class \c OpenMesh::IO::Options can be used when reading/writing a
+mesh. It controls the behaviour of the reader/writer modules by means
+of enabled/disabled bits in a bitset. The class provides an interface
+for enabling, disabling and verifying the bits in the set. We
+distinguish between
+
+-# mode bits - control binary reading/writing
+ - Options::Binary
+ - Options::MSB
+ - Options::LSB
+ - Options::Swap (MSB|LSB)
+-# property bits - controls which standard properties to read/write
+ - Options::VertexNormal
+ - Options::VertexTexCoord
+ - Options::VertexColor
+ - Options::FaceNormal
+ - Options::FaceColor
+ - Options::ColorAlpha
+ - Options::ColorFloat
+
+These bits have different effects when reading or writing. The file
+format itself is selected by the extension of the filename. The IO
+subsystem of the %OpenMesh library supports currently four
+formats. The following table list all formats and indicates whether
+the format supports ASCII/binary storage with the apropiate extension.
+
+<table border=0>
+  <tr>
+    <td>Format</td><td colspan=2>Ascii</td><td>Binary</td>
+  </tr><tr>
+    <td>OFF</td><td>.off</td><td>.off</td>
+  </tr><tr>
+    <td>OBJ</td><td>.obj</td><td></td>
+  </tr><tr>
+    <td>STL</td><td>.stla, .stl</td><td>.stlb, .stl</td>
+  </tr><tr>
+    <td>OM</td><td></td><td>.om</td>
+  </tr>
+</table>
+
+The program does not more than providing a command line based
+interface to select the option bits for reading/writing and to request
+mesh properties. Hence illegal combinations are possible and will
+result in a failure of the program. (The input file won't be damaged
+in this case, but be careful where you put the ouput file!)
+Please note that the Options::ColorFloat is currently only implemented for PLY
+and OFF files.
+
+<h5>Reading meshes</h5>
+
+When reading a file the mode bits are used to give the reader an
+advice or hint. Depending on the format we can help the reader to
+interpret the data correctly. First of all we can tell it that the
+file contains binary data.
+
+\dontinclude 08-io_options/io_options.cc
+\skipline ropt += IO::Options::Binary
+
+Further on we can ask the reader two swap the byte-order.
+
+\skipline ropt += IO::Options::Swap
+
+(Both can be done via the command line with the options -b and -s,
+respectively.)
+
+By default the geometry and the topology is restored from the
+file. The file might contain more, especially it could provide normals
+or texture coordinates.  We can examine the property bits after
+reading to find out what else is available:
+
+\dontinclude 08-io_options/io_options.cc
+\skipline ropt.check(IO::Options::VertexNormal)
+
+If a property bit is set it does not mean, that it has been restored
+as well.  The property must have been requested prior reading the
+file. (The demo program offers the command line option \c -Xv[nct] and
+\c -Xf[nc] to request vertex and face properties.)
+
+<h5>Writing meshes</h5>
+
+When writing the mesh the mode bits apparently control whether to use
+the binary variant and the desired byte-ordering. For example, if we
+choose binary mode and want to swap the byte order, we set
+
+\skipline wopt += IO::Options::Binary
+\skipline wopt += IO::Options::Swap
+
+If the format does not specify the byte order the system byte order is
+used. If the format does not support binary storage, the mode bits are
+ignored.
+
+If the format supports storing additional information, which are
+conform with the standard properties, we can use the property bits to
+tell the writer what we would like to have stored. If we would like to
+store the vertex normals we simply set
+
+\skipline wopt += IO::Options::VertexNormal
+
+Finally we can write the data to the file
+
+\dontinclude 08-io_options/io_options.cc
+\skipline write_mesh
+
+The method returns false on error, which might have three different reasons:
+
+-# the option is not supported by the choosen format
+-# a selected standard property is not available
+-# a 'system' error like
+   - could not open the file due to access rights
+   - disk space exhausted during write
+   - ...
+
+
+The complete source looks like this:
+
+\include 08-io_options/io_options.cc
+
+*/

@@ -21,6 +21,7 @@
  */
 #include <QMetaType>
 #include <QDir>
+#include <stdio.h>
 #include "logbrowser.h"
 #include "logbrowserdialog.h"
 
@@ -40,6 +41,9 @@ LogBrowser::LogBrowser(QObject *parent) :
     if (m_enableOutputToFile) {
         QString filePath = "autoremesher.log";
         m_outputTo = fopen(filePath.toUtf8().constData(), "w");
+        
+        freopen("autoremesher-stderr.log", "w", stderr);
+        freopen("autoremesher-stdout.log", "w", stdout);
     }
 }
 

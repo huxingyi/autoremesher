@@ -1,0 +1,21 @@
+#==  SYSTEM PART -- DON'T TOUCH  ==============================================
+include $(ACGMAKE)/Config
+#==============================================================================
+
+#CXX_SRC_EXT := .cc
+#CXX_HDR_EXT := .h
+
+CXX_CFLAGS += -DOM_USE_OSG=1
+
+SUBDIRS     = 
+
+PACKAGES   := osg qt glut opengl x11 math
+
+PROJ_LIBS   = OpenMesh/Apps/QtViewer OpenMesh/Tools OpenMesh/Core 
+
+MODULES    := moc cxx
+
+
+#==  SYSTEM PART -- DON'T TOUCH  ==============================================
+include $(ACGMAKE)/Rules
+#==============================================================================

@@ -21,7 +21,7 @@ install:
   - if "%PLATFORM%" == "x86"
     call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars32.bat"
 
-  - cd thirdparty/OpenMesh/OpenMesh-8.1
+  - cd thirdparty/openmesh/OpenMesh-3.0
   - mkdir build
   - cd build
   - if "%PLATFORM%" == "x64"

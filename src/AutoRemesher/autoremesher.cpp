@@ -25,6 +25,7 @@
 #include <AutoRemesher/IsotropicRemesher>
 #include <AutoRemesher/HalfEdge>
 #include <AutoRemesher/Parameterizer>
+#include <AutoRemesher/MeshCutter>
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
 #include <tbb/tbb_thread.h>
@@ -36,9 +37,9 @@ namespace AutoRemesher
 {
     
 const double AutoRemesher::m_defaultTargetEdgeLength = 3.9;
-const double AutoRemesher::m_defaultConstraintRatio = 0.5;
-const size_t AutoRemesher::m_defaultMaxSingularityCount = 500;
-const size_t AutoRemesher::m_defaultMaxVertexCount = 8000;
+const std::pair<double, double> AutoRemesher::m_defaultConstraintRatio = {0.55, 1.0};
+const size_t AutoRemesher::m_defaultMaxSingularityCount = 320;
+const size_t AutoRemesher::m_defaultMaxVertexCount = 7000;
 const double AutoRemesher::m_defaultSharpEdgeDegrees = 60;
 const double AutoRemesher::m_defaultGradientSize = 170;
     
@@ -82,7 +83,7 @@ void AutoRemesher::splitToIslands(const std::vector<std::vector<size_t>> &triang
             island.push_back(triangles[index]);
             processedFaces.insert(index);
         }
-        if (island.empty())
+        if (island.size() < 4)
             continue;
         islands.push_back(island);
     }
@@ -127,14 +128,14 @@ void AutoRemesher::calculateNormalizedFactors(const std::vector<Vector3> &vertic
     };
 }
 
-IsotropicRemesher *AutoRemesher::createIsotropicRemesh(std::vector<Vector3> sourceVertices,
-    std::vector<std::vector<size_t>> sourceTriangles,
+IsotropicRemesher *AutoRemesher::createIsotropicRemesh(const std::vector<Vector3> sourceVertices,
+    const std::vector<std::vector<size_t>> sourceTriangles,
     double sharpEdgeDegrees, 
     size_t targetVertexCount,
     double *targetEdgeLength)
 {
     IsotropicRemesher *isotropicRemesher = nullptr;
-    double minTargetVertexCount = targetVertexCount * 0.8;
+    double minTargetVertexCount = targetVertexCount * 0.9;
     
     if (Double::isZero(*targetEdgeLength))
         *targetEdgeLength = m_defaultTargetEdgeLength;
@@ -259,9 +260,11 @@ bool AutoRemesher::remesh()
         HalfEdge::Mesh *mesh = nullptr;
         double sharpEdgeDegrees = m_defaultSharpEdgeDegrees;
         double targetEdgeLength = m_defaultTargetEdgeLength;
-        double limitRelativeHeight = 0.0;
+        std::pair<double, double> limitRelativeHeight = {0.0, 1.0};
         size_t singularityCount = 0;
+        bool singularityCountCalculated = false;
         QuadRemesher *remesher = nullptr;
+        bool miqSucceed = false;
     };
 
     std::vector<ParameterizationThread> parameterizationThreads(islandContexes.size());
@@ -275,8 +278,9 @@ bool AutoRemesher::remesh()
     class UniformRemesher
     {
     public:
-        UniformRemesher(std::vector<ParameterizationThread> *parameterizationThreads) :
-            m_parameterizationThreads(parameterizationThreads)
+        UniformRemesher(std::vector<ParameterizationThread> *parameterizationThreads, ConstrainedArea constrainedArea) :
+            m_parameterizationThreads(parameterizationThreads),
+            m_constrainedArea(constrainedArea)
         {   
         }
         void operator()(const tbb::blocked_range<size_t> &range) const
@@ -295,117 +299,58 @@ bool AutoRemesher::remesh()
                 
                 Parameterizer::Parameters parameters;
                 parameters.gradientSize = thread.island->gradientSize;
+                parameters.constrainOnFlatArea = ConstrainedArea::ConstrainedAreaFlat == m_constrainedArea;
 
                 thread.parameterizer = new Parameterizer(thread.mesh, parameters);
-                thread.limitRelativeHeight = thread.parameterizer->calculateLimitRelativeHeight(m_defaultConstraintRatio);
-                thread.parameterizer->prepareConstraints(thread.limitRelativeHeight);
-                thread.parameterizer->miq(&thread.singularityCount, true);
-            }
-        }
-    private:
-        std::vector<ParameterizationThread> *m_parameterizationThreads = nullptr;
-    };
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, parameterizationThreads.size()),
-        UniformRemesher(&parameterizationThreads));
-    std::vector<ParameterizationThread *> validParameterizationThreads;
-    std::vector<ParameterizationThread *> candidates;
-    for (size_t i = 0; i < parameterizationThreads.size(); ++i) {
-        auto &thread = parameterizationThreads[i];
-        if (thread.singularityCount <= m_defaultMaxSingularityCount) {
-#if AUTO_REMESHER_DEBUG
-            qDebug() << "Island[" << thread.islandIndex << "/" << islandContexes.size() << "]: has valid initial singularity count:" << thread.singularityCount;
-#endif
-            validParameterizationThreads.push_back(&thread);
-            continue;
-        }
-        
-        const double stepDegrees = 10.0;
-        for (double degrees = m_defaultSharpEdgeDegrees + stepDegrees; degrees <= 90.0; degrees += stepDegrees) {
-            ParameterizationThread *candidateThread = new ParameterizationThread;
-            candidateThread->sharpEdgeDegrees = degrees;
-            candidateThread->islandIndex = thread.islandIndex;
-            candidateThread->island = thread.island;
-            candidateThread->targetEdgeLength = thread.targetEdgeLength;
-            candidates.push_back(candidateThread);
-#if AUTO_REMESHER_DEBUG
-            qDebug() << "Island[" << thread.islandIndex << "/" << islandContexes.size() << "]: added candidate based on sharp edge degrees:" << degrees;
-#endif
-        }
-    }
-    
-    class CandidateRemesher
-    {
-    public:
-        CandidateRemesher(std::vector<ParameterizationThread *> *candidates) :
-            m_candidates(candidates)
-        {   
-        }
-        void operator()(const tbb::blocked_range<size_t> &range) const
-        {
-            for (size_t i = range.begin(); i != range.end(); ++i) {
-                auto &thread = *(*m_candidates)[i];
-                thread.targetEdgeLength = 0.0;
-                thread.isotropicRemesher = AutoRemesher::createIsotropicRemesh(thread.island->vertices,
-                    thread.island->triangles,
-                    thread.sharpEdgeDegrees, 
-                    m_defaultMaxVertexCount,
-                    &thread.targetEdgeLength);
-                    
-                thread.mesh = new HalfEdge::Mesh(thread.isotropicRemesher->remeshedVertices(), 
-                    thread.isotropicRemesher->remeshedTriangles());
                 
-                Parameterizer::Parameters parameters;
-                parameters.gradientSize = thread.island->gradientSize;
-                thread.parameterizer = new Parameterizer(thread.mesh, parameters);
-                
-                const double stepConstraintRatio = m_defaultConstraintRatio * 0.05;
-                for (double constraintRadio = m_defaultConstraintRatio - stepConstraintRatio; 
-                        constraintRadio >= stepConstraintRatio; 
-                        constraintRadio -= stepConstraintRatio) {
-                    thread.limitRelativeHeight = thread.parameterizer->calculateLimitRelativeHeight(constraintRadio);
-                    thread.parameterizer->prepareConstraints(thread.limitRelativeHeight);
-                    thread.parameterizer->miq(&thread.singularityCount, true);
+                auto constraintRatio = m_defaultConstraintRatio;
+                const double positiveStep = 0.01;
+                const double step = parameters.constrainOnFlatArea ? -positiveStep : positiveStep;
+                for (; constraintRatio.first < m_defaultConstraintRatio.second && constraintRatio.first >= positiveStep; constraintRatio.first += step) {
+                    thread.limitRelativeHeight = thread.parameterizer->calculateLimitRelativeHeight(constraintRatio);
 #if AUTO_REMESHER_DEBUG
-                    qDebug() << "Island[" << thread.islandIndex << "]: candidate(" << thread.sharpEdgeDegrees << ") calculated singularity count:" << thread.singularityCount << " on constraint ratio:" << constraintRadio;
+                    qDebug() << "Island[" << thread.islandIndex << "]: test limitRelativeHeight:" << thread.limitRelativeHeight << " ratio:" << constraintRatio;
+#endif
+                    Eigen::VectorXi *b = nullptr;
+                    Eigen::MatrixXd *bc1 = nullptr;
+                    Eigen::MatrixXd *bc2 = nullptr;
+                    thread.parameterizer->prepareConstraints(thread.limitRelativeHeight,
+                        &b, &bc1, &bc2);
+                    thread.parameterizer->miq(&thread.singularityCount, *b, *bc1, *bc2, true);
+                    delete b;
+                    delete bc1;
+                    delete bc2;
+#if AUTO_REMESHER_DEBUG
+                    qDebug() << "Island[" << thread.islandIndex << "]: test singularityCount:" << thread.singularityCount << " on ratio:" << constraintRatio.first;
 #endif
                     if (thread.singularityCount <= m_defaultMaxSingularityCount) {
-#if AUTO_REMESHER_DEBUG
-                        qDebug() << "Island[" << thread.islandIndex << "]: candidate(" << thread.sharpEdgeDegrees << ") found valid initial singularity count:" << thread.singularityCount;
-#endif
+                        thread.singularityCountCalculated = true;
                         break;
                     }
                 }
             }
         }
     private:
-        std::vector<ParameterizationThread *> *m_candidates = nullptr;
+        std::vector<ParameterizationThread> *m_parameterizationThreads = nullptr;
+        ConstrainedArea m_constrainedArea;
     };
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, candidates.size()),
-        CandidateRemesher(&candidates));
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, parameterizationThreads.size()),
+        UniformRemesher(&parameterizationThreads, m_constrainedArea));
     
-    std::unordered_map<size_t, ParameterizationThread *> candidateMap;
-    for (size_t i = 0; i < candidates.size(); ++i) {
-        auto &thread = *candidates[i];
-        //if (thread.singularityCount > m_defaultMaxSingularityCount)
-        //    continue;
-        auto findCandidate = candidateMap.find(thread.islandIndex);
-        if (findCandidate == candidateMap.end()) {
+    std::vector<ParameterizationThread *> validParameterizationThreads;
+    for (size_t i = 0; i < parameterizationThreads.size(); ++i) {
+        auto &thread = parameterizationThreads[i];
+        if (thread.singularityCountCalculated) {
 #if AUTO_REMESHER_DEBUG
-            qDebug() << "Island[" << thread.islandIndex << "/" << islandContexes.size() << "]: candidate(" << thread.sharpEdgeDegrees << ") chosen singularity count:" << thread.singularityCount;
+            qDebug() << "Island[" << thread.islandIndex << "/" << islandContexes.size() << "]: has valid singularity count:" << thread.singularityCount;
 #endif
-            candidateMap.insert({thread.islandIndex, &thread});
-        } else {
-            if (thread.singularityCount < findCandidate->second->singularityCount) {
-#if AUTO_REMESHER_DEBUG
-                qDebug() << "Island[" << thread.islandIndex << "/" << islandContexes.size() << "]: candidate(" << thread.sharpEdgeDegrees << ") update singularity count to:" << thread.singularityCount;
-#endif
-                candidateMap[thread.islandIndex] = &thread;
-            }
+            validParameterizationThreads.push_back(&thread);
+            continue;
         }
+#if AUTO_REMESHER_DEBUG
+        qDebug() << "Island[" << thread.islandIndex << "/" << islandContexes.size() << "]: has invalid singularity count:" << thread.singularityCount << "IGNORED";
+#endif
     }
-    
-    for (const auto &it: candidateMap)
-        validParameterizationThreads.push_back(it.second);
     
     class Miqer
     {
@@ -419,21 +364,30 @@ bool AutoRemesher::remesh()
         {
             for (size_t i = range.begin(); i != range.end(); ++i) {
                 auto &thread = *(*m_validParameterizationThreads)[i];
-                thread.parameterizer->prepareConstraints(thread.limitRelativeHeight);
+                Eigen::VectorXi *b = nullptr;
+                Eigen::MatrixXd *bc1 = nullptr;
+                Eigen::MatrixXd *bc2 = nullptr;
+                thread.parameterizer->prepareConstraints(thread.limitRelativeHeight, &b, &bc1, &bc2);
 #if AUTO_REMESHER_DEBUG
-                qDebug() << "Island[" << thread.islandIndex << "]: candidate(" << thread.sharpEdgeDegrees << ") parameterizing... on singularity count:" << thread.singularityCount;
+                qDebug() << "Island[" << thread.islandIndex << "]: parameterizing... on singularity count:" << thread.singularityCount;
 #endif
-                if (!thread.parameterizer->miq(&thread.singularityCount, false)) {
+#if AUTO_REMESHER_DEV
+                thread.mesh->debugExportRelativeHeightPly("debug-height.ply");
+                thread.mesh->debugExportLimitRelativeHeightPly("debug-limit.ply", thread.limitRelativeHeight);
+#endif
+                thread.miqSucceed = thread.parameterizer->miq(&thread.singularityCount, *b, *bc1, *bc2, false);
+                delete b;
+                delete bc1;
+                delete bc2;
+                if (!thread.miqSucceed) {
 #if AUTO_REMESHER_DEBUG
-                    qDebug() << "Island[" << thread.islandIndex << "]: candidate(" << thread.sharpEdgeDegrees << ") parameterize failed on singularity count:" << thread.singularityCount;
+                    qDebug() << "Island[" << thread.islandIndex << "]: parameterize failed on singularity count:" << thread.singularityCount;
 #endif
                     continue;
                 }
 #if AUTO_REMESHER_DEBUG
-                qDebug() << "Island[" << thread.islandIndex << "]: candidate(" << thread.sharpEdgeDegrees << ") parameterize succeed on singularity count:" << thread.singularityCount;
+                qDebug() << "Island[" << thread.islandIndex << "]: parameterize succeed on singularity count:" << thread.singularityCount;
 #endif
-                thread.remesher = new QuadRemesher(thread.mesh);
-                thread.remesher->remesh();
             }
         }
     private:
@@ -444,6 +398,23 @@ bool AutoRemesher::remesh()
         
     for (size_t i = 0; i < validParameterizationThreads.size(); ++i) {
         auto &thread = *validParameterizationThreads[i];
+        if (!thread.miqSucceed)
+            continue;
+#if AUTO_REMESHER_DEBUG
+        qDebug() << "Island[" << thread.islandIndex << "]: remeshing...";
+#endif
+        thread.remesher = new QuadRemesher(thread.mesh, &thread.parameterizer->getVertexValences());
+        if (!thread.remesher->remesh()) {
+            delete thread.remesher;
+            thread.remesher = nullptr;
+        }
+#if AUTO_REMESHER_DEBUG
+        if (nullptr != thread.remesher) {
+            qDebug() << "Island[" << thread.islandIndex << "]: remesh done, quads:" << thread.remesher->remeshedQuads().size();
+        } else {
+            qDebug() << "Island[" << thread.islandIndex << "]: remesh failed";
+        }
+#endif
         if (nullptr == thread.remesher)
             continue;
         const auto &quads = thread.remesher->remeshedQuads();
@@ -464,12 +435,30 @@ bool AutoRemesher::remesh()
             });
         }
     }
-    
-    for (auto &it: candidates)
-        delete it;
-    
+
 #if AUTO_REMESHER_DEBUG
-     qDebug() << "Remesh done";
+    qDebug() << "Remesh done";
+#endif
+#if AUTO_REMESHER_DEV
+    {
+        FILE *fp = fopen("autoremesher-debug.obj", "wb");
+        for (size_t i = 0; i < m_remeshedVertices.size(); ++i) {
+            const auto &v = m_remeshedVertices[i];
+            fprintf(fp, "v %f %f %f\n", v.x(), v.y(), v.z());
+        }
+        for (size_t i = 0; i < m_remeshedQuads.size(); ++i) {
+            const auto &f = m_remeshedQuads[i];
+            fprintf(fp, "f %zu %zu %zu %zu\n", 
+                1 + f[0],
+                1 + f[1],
+                1 + f[2],
+                1 + f[3]);
+        }
+        fclose(fp);
+    }
+#endif
+#if AUTO_REMESHER_DEBUG
+    qDebug() << "Remesh debug result saved";
 #endif
 
     return true;

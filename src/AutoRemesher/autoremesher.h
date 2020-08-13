@@ -30,6 +30,12 @@
 namespace AutoRemesher
 {
     
+enum class ConstrainedArea
+{
+    ConstrainedAreaBumpy = 0,
+    ConstrainedAreaFlat
+};
+    
 class IsotropicRemesher;
 
 class AutoRemesher
@@ -45,6 +51,11 @@ public:
     void setGradientSize(double gradientSize)
     {
         m_gradientSize = gradientSize;
+    }
+    
+    void setConstrainedArea(ConstrainedArea constrainedArea)
+    {
+        m_constrainedArea = constrainedArea;
     }
     
     const std::vector<Vector3> &remeshedVertices()
@@ -68,7 +79,7 @@ public:
         double *targetEdgeLength);
     
     static const double m_defaultTargetEdgeLength;
-    static const double m_defaultConstraintRatio;
+    static const std::pair<double, double> m_defaultConstraintRatio;
     static const size_t m_defaultMaxSingularityCount;
     static const size_t m_defaultMaxVertexCount;
     static const double m_defaultSharpEdgeDegrees;
@@ -79,6 +90,7 @@ private:
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedQuads;
     double m_gradientSize = m_defaultGradientSize;
+    ConstrainedArea m_constrainedArea = ConstrainedArea::ConstrainedAreaBumpy;
     
     void buildEdgeToFaceMap(const std::vector<std::vector<size_t>> &triangles, 
         std::map<std::pair<size_t, size_t>, size_t> &edgeToFaceMap);

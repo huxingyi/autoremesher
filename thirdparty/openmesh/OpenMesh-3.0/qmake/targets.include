@@ -1,0 +1,126 @@
+################################################################################
+# Custom targets
+################################################################################
+
+defineTest( defineTargets ) {
+
+	# internal target ... Use allclean instead!
+	# cleanDirs target called by subAllclean.
+	# removes all lib tmp and Builddirectories created by these qmake scripts
+	!contains( QMAKE_EXTRA_TARGETS , cleanDirs) {
+	 	# Remove temp dirs when doing allclean
+		cleanDirs.target    = cleanDirs
+		cleanDirs.commands = rm -rf tmp 
+
+		contains( TEMPLATE, app ) {
+			cleanDirs.commands += ; rm -rf $${BUILDDIRECTORY} 
+		}
+
+
+		contains( TEMPLATE, lib ) {
+			cleanDirs.commands += ; rm -rf lib
+		}
+
+		export(cleanDirs.target)
+		export(cleanDirs.commands)
+		export(cleanDirs.depends)
+		export(cleanDirs.CONFIG)
+
+		QMAKE_EXTRA_TARGETS += cleanDirs
+		export(QMAKE_EXTRA_TARGETS)
+	}
+
+	# internal target ... Use allclean instead!
+	# main local subAllclean target called by allclean (see below)
+	# this one calls 
+	# 1. clean to remove temporary files created
+	# 2. cleanDirs to remove all tmp and lib directories created by qmake
+	# 3. distclean to remove the rest
+	!contains( QMAKE_EXTRA_TARGETS , subAllclean) {
+	 	# Remove temp dirs when doing allclean
+		subAllclean.target    = subAllclean
+		subAllclean.depends = clean cleanDirs distclean
+
+		export(subAllclean.target)
+		export(subAllclean.depends)
+
+		QMAKE_EXTRA_TARGETS += subAllclean
+		export(QMAKE_EXTRA_TARGETS)
+	}
+
+
+	# basic allclean target, will cleate a recursive target calling subAllclean in the subdirectories makefiles
+	!contains( QMAKE_EXTRA_TARGETS , allclean) {
+		allclean.target    = allclean
+		allclean.CONFIG = recursive
+		allclean.recurse_target = subAllclean
+
+		export(allclean.target)
+		export(allclean.CONFIG)
+		export(allclean.recurse_target)
+
+		QMAKE_EXTRA_TARGETS += allclean
+		export(QMAKE_EXTRA_TARGETS)
+	}
+
+	!contains( QMAKE_EXTRA_TARGETS , plugindoc ) {
+		exists ( Documentation ) {
+			plugindoc.target   = plugindoc
+			PLUGINNAME = $$getCurrentDir()
+			PLUGINNAME = $$section( PLUGINNAME, "/" ,-1, -1)  			
+	
+			unix {
+				plugindoc.commands += rm -rf $${TOPDIR}/OpenFlipper/Docs/User/$$PLUGINNAME ;
+				plugindoc.commands += mkdir $${TOPDIR}/OpenFlipper/Docs/User/$$PLUGINNAME ; 
+				plugindoc.commands += cp Documentation/*.html $${TOPDIR}/OpenFlipper/Docs/User/$$PLUGINNAME ; 
+				exists ( Documentation/pics ) {
+					plugindoc.commands += cp -r Documentation/pics $${TOPDIR}/OpenFlipper/Docs/User/$$PLUGINNAME ;
+				}
+			}
+	
+			win32 {
+				message(Documentaion copy not supported on windows platform)
+				#plugindoc.commands += rmdir /s  $${TOPDIR}/OpenFlipper/Docs/User/$$PLUGINNAME ;
+				#plugindoc.commands += mkdir $${TOPDIR}/OpenFlipper/Docs/User/$$PLUGINNAME ; 
+				#plugindoc.commands += xcopy /f Documentation/*.html $${TOPDIR}/OpenFlipper/Docs/User/$$PLUGINNAME ; 
+				#exists ( Documentation/pics ) {
+				#	plugindoc.commands += xcopy /f /s Documentation/pics $${TOPDIR}/OpenFlipper/Docs/User/$$PLUGINNAME ;
+				#}
+			}
+	
+			export(plugindoc.target)
+			export(plugindoc.commands)
+			export(plugindoc.depends)
+	
+			QMAKE_EXTRA_TARGETS += plugindoc
+			export(QMAKE_EXTRA_TARGETS)
+		}
+	}
+
+
+}
+
+# target for libraries
+# this target will copy all headers to an include subdirectory
+# You have to call this after you defined evertything else for your library.
+# Otherwise this target doesnt know about the required headers.
+
+defineTest( installs ) {
+	
+	!contains( INSTALLS , includes ) {
+		contains( TEMPLATE, lib ) {
+
+			includes.path = include/
+			includes.extra = cp -f --parents $${HEADERS} include/
+
+			export(includes.path)
+			export(includes.extra)
+
+			INSTALLS *= includes
+			export(INSTALLS)
+		}
+	}
+}
+
+
+

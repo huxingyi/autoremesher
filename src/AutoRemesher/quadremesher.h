@@ -33,8 +33,9 @@ namespace AutoRemesher
 class QuadRemesher
 {
 public:
-    QuadRemesher(HalfEdge::Mesh *mesh) :
-        m_mesh(mesh)
+    QuadRemesher(HalfEdge::Mesh *mesh, const std::vector<size_t> *vertexValences=nullptr) :
+        m_mesh(mesh),
+        m_vertexValences(vertexValences)
     {
     }
     
@@ -51,6 +52,7 @@ public:
     bool remesh();
 private:
     HalfEdge::Mesh *m_mesh = nullptr;
+    const std::vector<size_t> *m_vertexValences = nullptr;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedQuads;
     

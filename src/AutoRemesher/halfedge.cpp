@@ -23,6 +23,7 @@
 #include <cassert>
 #include <iostream>
 #include <set>
+#include <unordered_map>
 #include <AutoRemesher/HalfEdge>
 #include <AutoRemesher/Radians>
 #if AUTO_REMESHER_DEBUG
@@ -44,24 +45,36 @@ inline void makeLinkedHalfEdges(HalfEdge *previous, HalfEdge *next)
 Mesh::Mesh(const std::vector<Vector3> &vertices,
         const std::vector<std::vector<size_t>> &triangles)
 {
-    std::vector<Vertex *> halfEdgeVertices(vertices.size());
-    for (size_t i = 0; i < vertices.size(); ++i) {
+    std::unordered_map<size_t, Vertex *> vertexMap;
+    auto createVertex = [&](size_t index) {
+        auto findVertex = vertexMap.find(index);
+        if (findVertex != vertexMap.end())
+            return findVertex->second;
         Vertex *vertex = allocVertex();
-        vertex->index = i;
-        vertex->position = vertices[i];
-        halfEdgeVertices[i] = vertex;
-    }
-    
-    std::vector<Face *> halfEdgeFaces(triangles.size());
-    for (size_t i = 0; i < triangles.size(); ++i) {
-        halfEdgeFaces[i] = allocFace();
-    }
+        vertex->index = vertexMap.size();
+        vertex->position = vertices[index];
+        vertexMap.insert({index, vertex});
+        return vertex;
+    };
     
     std::map<std::pair<size_t, size_t>, HalfEdge *> halfEdgeIndexMap;
     for (size_t i = 0; i < triangles.size(); ++i) {
-        auto &face = halfEdgeFaces[i];
-
         const auto &triangleIndices = triangles[i];
+        bool foundRepeatedHalfEdge = false;
+        for (size_t j = 0; j < 3; ++j) {
+            size_t k = (j + 1) % 3;
+            const auto &vertexIndex = triangleIndices[j];
+            const auto &nextVertexIndex = triangleIndices[k];
+            if (halfEdgeIndexMap.end() != halfEdgeIndexMap.find({vertexIndex, nextVertexIndex})) {
+                std::cerr << "Found repeated halfedge" << std::endl;
+                foundRepeatedHalfEdge = true;
+                break;
+            }
+        }
+        if (foundRepeatedHalfEdge)
+            continue;
+        
+        auto face = allocFace();
         std::vector<HalfEdge *> halfEdges = {
             allocHalfEdge(),
             allocHalfEdge(),
@@ -74,7 +87,7 @@ Mesh::Mesh(const std::vector<Vector3> &vertices,
             auto &halfEdge = halfEdges[j];
             const auto &vertexIndex = triangleIndices[j];
             const auto &nextVertexIndex = triangleIndices[k];
-            auto &vertex = halfEdgeVertices[vertexIndex];
+            Vertex *vertex = createVertex(vertexIndex);
             vertex->anyHalfEdge = halfEdge;
             ++vertex->halfEdgeCount;
             halfEdge->startVertex = vertex;
@@ -368,6 +381,8 @@ void Mesh::calculateVertexNormals()
 {
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
         HalfEdge *halfEdge = vertex->anyHalfEdge;
+        if (nullptr == halfEdge)
+            continue;
         do {
             vertex->normal += halfEdge->leftFace->normal;
             if (nullptr == halfEdge->oppositeHalfEdge)
@@ -382,6 +397,8 @@ void Mesh::calculateVertexAverageNormals()
 {
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
         HalfEdge *halfEdge = vertex->anyHalfEdge;
+        if (nullptr == halfEdge)
+            continue;
         do {
             if (nullptr == halfEdge->oppositeHalfEdge)
                 break;
@@ -398,6 +415,8 @@ void Mesh::calculateVertexRelativeHeights()
 {
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
         HalfEdge *halfEdge = vertex->anyHalfEdge;
+        if (nullptr == halfEdge)
+            continue;
         double low = 0.0;
         double high = 0.0;
         bool isBoundary = false;
@@ -416,15 +435,17 @@ void Mesh::calculateVertexRelativeHeights()
             Vertex *neighborVertex = halfEdge->oppositeHalfEdge->startVertex;
             project(neighborVertex->position);
             HalfEdge *neighborHalfEdge = neighborVertex->anyHalfEdge;
-            do {
-                if (nullptr == neighborHalfEdge->oppositeHalfEdge) {
-                    isBoundary = true;
-                    break;
-                }
-                if (neighborHalfEdge->oppositeHalfEdge->startVertex != vertex)
-                    project(neighborHalfEdge->oppositeHalfEdge->startVertex->position);
-                neighborHalfEdge = neighborHalfEdge->oppositeHalfEdge->nextHalfEdge;
-            } while (neighborHalfEdge && neighborHalfEdge != neighborVertex->anyHalfEdge);
+            if (nullptr != neighborHalfEdge) {
+                do {
+                    if (nullptr == neighborHalfEdge->oppositeHalfEdge) {
+                        isBoundary = true;
+                        break;
+                    }
+                    if (neighborHalfEdge->oppositeHalfEdge->startVertex != vertex)
+                        project(neighborHalfEdge->oppositeHalfEdge->startVertex->position);
+                    neighborHalfEdge = neighborHalfEdge->oppositeHalfEdge->nextHalfEdge;
+                } while (neighborHalfEdge && neighborHalfEdge != neighborVertex->anyHalfEdge);
+            }
             halfEdge = halfEdge->oppositeHalfEdge->nextHalfEdge;
         } while (halfEdge && halfEdge != vertex->anyHalfEdge);
         if (!isBoundary) {
@@ -506,10 +527,11 @@ void Mesh::debugExportRelativeHeightPly(const char *filename)
     debugExportPly(filename);
 }
 
-void Mesh::debugExportLimitRelativeHeightPly(const char *filename, float limitRelativeHeight)
+void Mesh::debugExportLimitRelativeHeightPly(const char *filename, const std::pair<double, double> &limitRelativeHeight)
 {
     for (Vertex *vertex = m_firstVertex; nullptr != vertex; vertex = vertex->_next) {
-        vertex->debugColor = vertex->relativeHeight > limitRelativeHeight ? 0 : 127 + (1.0 - limitRelativeHeight * vertex->relativeHeight) * 100;
+        vertex->debugColor = (vertex->relativeHeight < limitRelativeHeight.first ||
+                vertex->relativeHeight > limitRelativeHeight.second) ? 0 : 127 + vertex->relativeHeight * 100;
     }
     debugExportPly(filename);
 }

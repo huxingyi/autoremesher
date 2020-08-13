@@ -21,6 +21,7 @@
  */
 #ifndef AUTO_REMESHER_ISOTROPIC_REMESHER_H
 #define AUTO_REMESHER_ISOTROPIC_REMESHER_H
+#include <unordered_set>
 
 namespace AutoRemesher
 {
@@ -29,10 +30,15 @@ class IsotropicRemesher
 {
 public:
     IsotropicRemesher(const std::vector<Vector3> &vertices,
-            std::vector<std::vector<size_t>> &triangles) :
+            const std::vector<std::vector<size_t>> &triangles) :
         m_vertices(vertices),
         m_triangles(triangles)
     {
+    }
+    
+    void setConstraintVertices(const std::unordered_set<size_t> *constraintVertices)
+    {
+        m_constraintVertices = constraintVertices;
     }
     
     void setTargetEdgeLength(double edgeLength)
@@ -61,6 +67,7 @@ public:
 private:
     std::vector<Vector3> m_vertices;
     std::vector<std::vector<size_t>> m_triangles;
+    const std::unordered_set<size_t> *m_constraintVertices = nullptr;
     double m_targetEdgeLength = 0;
     double m_sharpEdgeDegrees = 60;
     int m_remeshIterations = 3;

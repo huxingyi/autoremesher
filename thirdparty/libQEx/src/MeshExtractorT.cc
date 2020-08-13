@@ -1391,7 +1391,7 @@ try_connect_incomplete_gvertices() {
                     {
                         Point_2 transformed_uv_from = start_lei_it->uv_from;
                         new_incoming_lei_tf.transform_point(transformed_uv_from);
-                        //assert(next_gv->position_uv == transformed_uv_from);
+                        assert(next_gv->position_uv == transformed_uv_from);
                     }
 #endif
                     const TF new_outgoing_lei_tf =
@@ -1404,7 +1404,7 @@ try_connect_incomplete_gvertices() {
                     {
                         Point_2 transformed_uv_from = next_incoming_lei->uv_from;
                         new_outgoing_lei_tf.transform_point(transformed_uv_from);
-                        //assert(start_gv_it->position_uv == transformed_uv_from);
+                        assert(start_gv_it->position_uv == transformed_uv_from);
                     }
 #endif
 
@@ -1531,7 +1531,7 @@ generate_connections(std::vector<double>& _uv_coords)
           assert(target.orientation_idx >= 0 && (size_t)target.orientation_idx < gvertices_[target.connected_to_idx].local_edges.size());
           // not yet connected?
           if(gvertices_[target.connected_to_idx].local_edges[target.orientation_idx].isUnconnectedOrSignal()) {
-              //assert(gvertices_[target.connected_to_idx].local_edges[target.orientation_idx].accumulated_tf == TF::IDENTITY);
+              assert(gvertices_[target.connected_to_idx].local_edges[target.orientation_idx].accumulated_tf == TF::IDENTITY);
               assert(gvertices_[i].local_edges[j].accumulated_tf == target.accumulated_tf);
               TF reverse_tf =
                       intra_gv_transition(gvertices_[target.connected_to_idx].local_edges[target.orientation_idx].fh_from,
@@ -1784,7 +1784,7 @@ find_path(const GridVertex& _gv, const LocalEdgeInfo& lei, std::vector<double>& 
         else
         {
           // other edge *must* intersect
-          //assert(path.intersects(Segment_2(Point_2(_uv_coords[2*prev_heh.idx()], _uv_coords[2*prev_heh.idx()+1]), uv2l)));
+          assert(path.intersects(Segment_2(Point_2(_uv_coords[2*prev_heh.idx()], _uv_coords[2*prev_heh.idx()+1]), uv2l)));
           cur_heh = prev_heh;
         }
       }break;
@@ -2407,7 +2407,7 @@ find_local_connection_at_vertex(const Point_2& _uv_from, const Point_2& _uv_orig
     std::cerr << "Warning: find_local_connections_at_vertex((" << _uv_from << "), (" << _uv_to << "), ...) to tri vertex #"
             << vh.idx() << " found vertex but not a grid-vertex to connect to. Checked "
             << vertex_gvertices_[vh.idx()].size() << " candidates." << std::endl;
-    //abort();
+    abort();
 #endif
 
   // return error
@@ -2540,53 +2540,6 @@ generate_faces_and_store_quadmesh(PolyMeshT& _quad_mesh,
                               ;
                       break;
                   }
-#ifndef NDEBUG
-                  assert(face_vhs.size() == outgoing_he_info.size());
-                  size_t validity_signature = 0;
-                  size_t opp_validity_signature = 0;
-                  for (typename std::vector<LocalEdgeInfo*>::const_iterator it = outgoing_he_info.begin(); it != outgoing_he_info.end(); ++it) {
-                      assert((*it)->halfedgeIndex >= 0);
-                      typename PolyMeshT::HalfedgeHandle heh = _quad_mesh.halfedge_handle((*it)->halfedgeIndex);
-                      typename PolyMeshT::HalfedgeHandle opp_heh = _quad_mesh.opposite_halfedge_handle(heh);
-                      //assert(_quad_mesh.next_halfedge_handle(heh).is_valid());
-                      //assert(_quad_mesh.prev_halfedge_handle(heh).is_valid());
-                      validity_signature <<= 2;
-                      validity_signature |= (_quad_mesh.prev_halfedge_handle(heh).is_valid() ? 0 : 2) | (_quad_mesh.next_halfedge_handle(heh).is_valid() ? 0 : 1);
-                      assert(opp_heh.is_valid());
-                      //assert(_quad_mesh.next_halfedge_handle(opp_heh).is_valid());
-                      //assert(_quad_mesh.prev_halfedge_handle(opp_heh).is_valid());
-                      opp_validity_signature <<= 2;
-                      opp_validity_signature |= (_quad_mesh.prev_halfedge_handle(opp_heh).is_valid() ? 0 : 2) | (_quad_mesh.next_halfedge_handle(opp_heh).is_valid() ? 0 : 1);
-                  }
-                  if (validity_signature != 0 || opp_validity_signature != 0) {
-                      std::cout << "Some halfedge next- or prev-handles are invalid." << std::endl
-                              << "  heh validity signature:     " << toBinStr(validity_signature, face_vhs.size() * 2) << std::endl
-                              << "  opp heh validity signature: " << toBinStr(opp_validity_signature, face_vhs.size() * 2) << std::endl;
-                      abort();
-                  }
-                  bool do_abort = false;
-                  for (typename std::vector<LocalEdgeInfo*>::const_iterator it = outgoing_he_info.begin(); it != outgoing_he_info.end(); ++it) {
-                      if (_quad_mesh.valence(_quad_mesh.vertex_handle((*it)->connected_to_idx)) <= 0) {
-                          std::cout << "Logic error: GV " << (*it)->connected_to_idx << ", one of the " << outgoing_he_info.size()
-                                  << " vertices I just connected to the " << _quad_mesh.n_faces() << "th face has valence "
-                                  << _quad_mesh.valence(_quad_mesh.vertex_handle((*it)->connected_to_idx)) << "." << std::endl;
-                          std::cout << "Does this vertex have a valid outgoing halfedge handle? "
-                                  << _quad_mesh.halfedge_handle(_quad_mesh.vertex_handle((*it)->connected_to_idx)).is_valid() << std::endl;
-                          std::cout << "I'll abort once I'm done with this loop." << std::endl;
-                          do_abort = true;
-                      }
-                      //assert(_quad_mesh.valence(_quad_mesh.vertex_handle((*it)->connected_to_idx)) > 0);
-                  }
-                  if (do_abort) {
-                      std::cout << "Before I abort, let me hook you up with the face stats." << std::endl;
-                      std::cout << faceStats.str() << std::endl;
-                      std::cout << "That's it. I'm aborting now. Bye." << std::endl;
-                      abort();
-                  }
-                  for (typename std::vector<typename PolyMeshT::VertexHandle>::const_iterator it = face_vhs.begin(); it != face_vhs.end(); ++it) {
-                      assert(_quad_mesh.valence(*it) > 0);
-                  }
-#endif
 
                   /*
                    * Advance iterator to first vertex in list.
@@ -3250,7 +3203,7 @@ typename PolyMeshT::FaceHandle MeshExtractorT<TMeshT>::add_face(PolyMeshT &qmesh
             }
             //if (opposite_prev_lei->halfedgeIndex != -1) {
             if (opposite_prev_lei) {
-                assert(!qmesh.face_handle(qmesh.halfedge_handle(opposite_prev_lei->halfedgeIndex)).is_valid());
+                //assert(!qmesh.face_handle(qmesh.halfedge_handle(opposite_prev_lei->halfedgeIndex)).is_valid());
 #if !defined(NDEBUG) && DEBUG_VERBOSITY >= 3
                 std::cout << "    opp_prev available. set_next_halfedge_handle " << opposite_prev_lei->halfedgeIndex << " -> " << heh1.idx() << std::endl;
                 std::cout << "    opp_prev available. Connecting." << std::endl;

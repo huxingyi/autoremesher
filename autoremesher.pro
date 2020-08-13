@@ -1,15 +1,20 @@
 QT += core widgets opengl network
 CONFIG += release
-DEFINES += NDEBUG AUTO_REMESHER_DEBUG
+#DEFINES += AUTO_REMESHER_DEV
+CONFIG(release, debug|release) DEFINES += NDEBUG
+DEFINES += AUTO_REMESHER_DEBUG
 DEFINES += QT_MESSAGELOGCONTEXT
 RESOURCES += resources.qrc
 
 #dumpbin release\autoremesher.exe /DEPENDENTS
 
-OBJECTS_DIR=obj
-MOC_DIR=moc
+CONFIG(debug, debug|release) OBJECTS_DIR=obj-debug
+CONFIG(release, debug|release) OBJECTS_DIR=obj
+CONFIG(debug, debug|release) MOC_DIR=moc-debug
+CONFIG(release, debug|release) MOC_DIR=moc
 
 win32 {
+    CONFIG(debug, debug|release) CONFIG += force_debug_info
 	RC_FILE = autoremesher.rc
 }
 
@@ -78,7 +83,8 @@ unix:!macx {
 }
 
 win32 {
-	QMAKE_CXXFLAGS += /O2
+	CONFIG(debug, debug|release) QMAKE_CXXFLAGS += /Od
+    CONFIG(release, debug|release) QMAKE_CXXFLAGS += /O2
 	QMAKE_CXXFLAGS += /bigobj
 }
 
@@ -163,6 +169,9 @@ HEADERS += src/AutoRemesher/quadremesher.h
 SOURCES += src/AutoRemesher/isotropicremesher.cpp
 HEADERS += src/AutoRemesher/isotropicremesher.h
 
+SOURCES += src/AutoRemesher/meshcutter.cpp
+HEADERS += src/AutoRemesher/meshcutter.h
+
 SOURCES += src/AutoRemesher/halfedge.cpp
 HEADERS += src/AutoRemesher/halfedge.h
 
@@ -177,7 +186,8 @@ unix {
 	}
 }
 win32 {
-	LIBS += -Lthirdparty/tbb/build2/Release -ltbb_static -ltbbmalloc_static -ltbbmalloc_proxy_static
+	CONFIG(debug, debug|release) LIBS += -Lthirdparty/tbb/build2-debug/Debug -ltbb_static_debug -ltbbmalloc_static_debug -ltbbmalloc_proxy_static_debug
+    CONFIG(release, debug|release) LIBS += -Lthirdparty/tbb/build2/Release -ltbb_static -ltbbmalloc_static -ltbbmalloc_proxy_static
 }
 
 INCLUDEPATH += thirdparty/comiso
@@ -203,7 +213,7 @@ HEADERS += thirdparty/comiso/CoMISo/Solver/IterativeSolverT.hh
 SOURCES += thirdparty/comiso/CoMISo/Solver/GMM_Tools.cc
 HEADERS += thirdparty/comiso/CoMISo/Solver/GMM_Tools.hh
 
-INCLUDEPATH += thirdparty/OpenMesh/OpenMesh-8.1/src
+INCLUDEPATH += thirdparty/openmesh/OpenMesh-3.0/src
 
 INCLUDEPATH += thirdparty/libQEx/src
 
@@ -234,7 +244,8 @@ HEADERS += thirdparty/libQEx/src/Vector.hh
 SOURCES += thirdparty/libQEx/interfaces/c/qex.cc
 HEADERS += thirdparty/libQEx/interfaces/c/qex.h
 
-LIBS += -Lthirdparty/OpenMesh/OpenMesh-8.1/build/Build/lib -lOpenMeshCore
+CONFIG(debug, debug|release) LIBS += -Lthirdparty/openmesh/OpenMesh-3.0/build-debug/Build/lib -lOpenMeshCored
+CONFIG(release, debug|release) LIBS += -Lthirdparty/openmesh/OpenMesh-3.0/build/Build/lib -lOpenMeshCore
 
 win32 {
     LIBS += -luser32

@@ -687,6 +687,12 @@ IGL_INLINE void CurvatureCalculator::computeCurvature()
 
     if (vv.size()<6)
     {
+      //https://github.com/libigl/libigl/issues/1024
+      std::vector<Eigen::Vector3d> ref(3);
+      computeReferenceFrame(i, normal, ref);
+      Quadric q;
+      fitQuadric(me, ref, vv, &q);
+      finalEigenStuff(i, ref, q);
       //std::cerr << "Could not compute curvature of radius " << scaledRadius << std::endl;
       continue;
     }
@@ -715,6 +721,12 @@ IGL_INLINE void CurvatureCalculator::computeCurvature()
     }
     if (vv.size()<6)
     {
+      //https://github.com/libigl/libigl/issues/1024
+      std::vector<Eigen::Vector3d> ref(3);
+      computeReferenceFrame(i, normal, ref);
+      Quadric q;
+      fitQuadric(me, ref, vv, &q);
+      finalEigenStuff(i, ref, q);
       //std::cerr << "Could not compute curvature of radius " << scaledRadius << std::endl;
       continue;
     }

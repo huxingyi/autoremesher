@@ -1,0 +1,76 @@
+
+################################################################################
+# functions collecting all headers in the directory
+################################################################################
+
+# getFilesFromDir( directory, pattern )
+# returns a list of all files matching pattern in directory
+defineReplace(getFilesFromDir) {
+	dirs       = $$1
+  	pattern = $$2
+
+	files =
+
+	for(dir, dirs) {
+		found = $$files( $${dir}/$${pattern} ) 
+        	 files += $$found
+         }
+
+     return( $$files )
+}
+
+# addSubdirs(subdirs,deps): Adds directories to the project that depend on
+# other directories
+defineTest( addSubdirs ) {
+    for(subdirs, 1) {
+        entries = $$files($$subdirs)
+        for(entry, entries) {
+            name = $$replace(entry, [/\\\\], _)
+            name = $$replace(name, - , _)
+            SUBDIRS += $$name
+            eval ($${name}.subdir = $$entry)
+            for(dep, 2): {
+			tempval = $$replace(dep, [/\\\\], _)
+			eval ($${name}.depends += $$replace(tempval, - , _) )
+		}
+            export ($${name}.subdir)
+            export ($${name}.depends)
+        }
+    }
+    export (SUBDIRS)
+}
+
+# given a list of paths and a libname this function checks if the lib is there
+# adds the path and returns true if found otherwise false
+defineTest( addLib ) {
+    dirs = $$1
+    name = $$2
+
+    # check for the library
+    for(dir , dirs) {
+        check = $${dir}/lib$${name}.so
+
+        # Found, so use it
+	      exists( $$check ) {
+           LIBS *= -L$${dir} -l$$name
+      	   export(LIBS)
+           return(true)
+        }
+    }
+
+    return(false)
+}
+
+
+defineReplace( getCurrentDir ) {
+	DIR = ''
+	unix {
+		DIR = $$system( pwd )
+	}
+
+	win32 {
+		DIR = $$system( cd )
+	}
+
+	return( $$DIR )    
+}

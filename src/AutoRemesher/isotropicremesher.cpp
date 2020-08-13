@@ -37,6 +37,8 @@ typedef Kernel::Point_3                                         Point;
 typedef CGAL::Surface_mesh<Kernel::Point_3>                     Mesh;
 typedef boost::graph_traits<Mesh>::halfedge_descriptor          halfedge_descriptor;
 typedef boost::graph_traits<Mesh>::edge_descriptor              edge_descriptor;
+typedef boost::graph_traits<Mesh>::vertex_iterator              vertex_iterator;
+typedef boost::graph_traits<Mesh>::vertex_descriptor            vertex_descriptor;
 
 namespace AutoRemesher
 {
@@ -45,22 +47,35 @@ bool IsotropicRemesher::remesh()
 {
     Mesh mesh;
     
-    std::vector<Mesh::Vertex_index> vertices;
-    vertices.reserve(m_vertices.size());
+    std::vector<Mesh::Vertex_index> newVertices;
+    newVertices.reserve(m_vertices.size());
     for (const auto &position: m_vertices)
-        vertices.push_back(mesh.add_vertex(Point(position.x(), position.y(), position.z())));
+        newVertices.push_back(mesh.add_vertex(Point(position.x(), position.y(), position.z())));
     for (const auto &face: m_triangles)
-        mesh.add_face(vertices[face[0]], vertices[face[1]], vertices[face[2]]);
+        mesh.add_face(newVertices[face[0]], newVertices[face[1]], newVertices[face[2]]);
     
     CGAL::Polygon_mesh_processing::remove_degenerate_faces(mesh);
+    
+    std::map<vertex_descriptor, int> vertexDescriptorToIndexMap;
+    size_t vertexIndex = 0;
+    vertex_iterator vb, ve;
+    for (boost::tie(vb, ve) = vertices(mesh); vb != ve; ++ vb){
+        vertexDescriptorToIndexMap[*vb] = vertexIndex++;
+    }
     
     auto ecm = mesh.add_property_map<edge_descriptor, bool>("ecm").first;
     CGAL::Polygon_mesh_processing::detect_sharp_edges(mesh, m_sharpEdgeDegrees, ecm);
     
     std::vector<edge_descriptor> border;
     for (edge_descriptor e: edges(mesh)) {
-        if (ecm[e])
+        if (ecm[e]) {
             border.push_back(e);
+        } else if (nullptr != m_constraintVertices) {
+            if (m_constraintVertices->end() != m_constraintVertices->find(vertexDescriptorToIndexMap[source(e, mesh)]) ||
+                    m_constraintVertices->end() != m_constraintVertices->find(vertexDescriptorToIndexMap[target(e, mesh)])) {
+                ecm[e] = true;
+            }
+        }
     }
     CGAL::Polygon_mesh_processing::split_long_edges(border, 
         m_targetEdgeLength, mesh, CGAL::Polygon_mesh_processing::parameters::edge_is_constrained_map(ecm));

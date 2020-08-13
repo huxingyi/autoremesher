@@ -1,0 +1,18 @@
+#==  SYSTEM PART -- DON'T TOUCH  ==============================================
+include $(ACGMAKE)/Config
+#==============================================================================
+
+CXX_CFLAGS += -DQT_THREAD_SUPPORT
+
+SUBDIRS     = $(call find-subdirs)
+
+PACKAGES   := qt glut opengl x11 math
+
+PROJ_LIBS   = OpenMesh/Core
+
+MODULES    := cxxlib
+
+
+#==  SYSTEM PART -- DON'T TOUCH  ==============================================
+include $(ACGMAKE)/Rules
+#==============================================================================

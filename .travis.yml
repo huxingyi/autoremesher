@@ -42,7 +42,7 @@ install:
   - cd ../../
 
   # Build OpenMesh from source
-  - cd thirdparty/OpenMesh/OpenMesh-8.1
+  - cd thirdparty/openmesh/OpenMesh-3.0
   - mkdir build
   - cd build
   - cmake -D "BUILD_APPS=OFF" -D "OPENMESH_BUILD_SHARED=OFF" ../

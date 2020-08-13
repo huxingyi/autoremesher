@@ -81,6 +81,7 @@ private:
     std::queue<ResultMesh> m_renderQueue;
     bool m_quadMeshResultIsDirty = false;
     bool m_highPoly = false;
+    AutoRemesher::ConstrainedArea m_constrainedArea = AutoRemesher::ConstrainedArea::ConstrainedAreaBumpy;
     QuadMeshGenerator *m_quadMeshGenerator = nullptr;
     SpinnableAwesomeButton *m_loadModelButton = nullptr;
     SpinnableAwesomeButton *m_saveMeshButton = nullptr;

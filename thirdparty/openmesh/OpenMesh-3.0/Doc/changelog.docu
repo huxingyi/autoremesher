@@ -1,0 +1,1218 @@
+/** \page om_changelog Changelog
+
+\htmlonly
+
+<table border=1 cellpadding=4 cellspacing=2>
+
+
+<!-- --------------------------------------------------------------------- -->
+
+<tr valign=top><td><b>3.0</b> (2014/02/05,Rev.990)</td><td>
+
+<b>Core</b>
+<ul>
+<li>Rewrote all circulators (STL compliant, removed redundant code)</li>
+<li>Added stream operator for FVIter.</li>
+<li>Added mesh cast for meshes with different but identical traits.</li>
+<li>Fixed segfault of copy_all_properties if one property has been removed before. (Thanks to Simon Flöry for the patch)</li>
+<li>Added more convenient versions of calc_edge_vector to PolyMeshT.</li>
+<li>Added HalfedgeLoop iterator to iterate over loops of halfedges (faces, hoes)</li>
+<li>OpenMesh: Added convenience method for face centroid computation.</li>
+</ul>
+
+<b>IO</b>
+<ul>
+<li>close stl files with endsolid</li>
+<li>fix om writer writing colors</li>
+<li>Fixed regression and Problem in OM writer</li>
+<li>Fixed bug in OM Writer when bool property is written which contains 0x20. (Thanks to Simon Flöry for the patch)</li>
+<li>The OpenMesh STLReader now also reads face normals if requested</li>
+</ul>
+
+<b>Utils</b>
+<ul>
+<li>PropertyManager: Added ability to get property name</li>
+<li>PropertyManager: Added getMesh property to PropertyManager.</li>
+<li>Improved C++11-branch of PropertyManager and at the same time fixed compile error with gcc 4.7</li>
+<li>Put mesh_cast methods into surrounding namespace so clang finds them.</li>
+<li>Build fix for getopt.h on Apple. (Thanks to Adam Vandenberg for the fix)</li>
+</ul>
+
+<b>Documentation</b>
+<ul>
+<li>Adapt to new iterators</li>
+<li>Updated the OpenMesh tutorials to be OM 3 compliant</li>
+<li>Use short names in Doxygen to prevent windows build failure due to excessive name length</li>
+<li>Updated doxygen files</li>
+<li>Use different DOT_FONTNAME</li>
+<li>Added hint that collapse needs status attrributes on the mesh</li>
+<li>Raised Documentation to Doxyfile 1.8.5</li>
+</ul>
+
+<b>Unittests</b>
+<ul>
+<li>Added more om reader/writer unittests</li>
+<li>Mesh Dual test</li>
+<li>Stripifier test</li>
+<li>Split unittests into seperate compile units</li>
+<li>Added mesh_cast unit test</li>
+<li>STL normal reader unit tests</li>
+</ul>
+
+<b>Build system</b>
+<ul>
+<li>Build unittests with variadic max of 10 on VS 2012</li>
+<li>enable deprecated warning for msvc</li>
+<li>Added flag to activate largeaddressaware option on WIN</li>
+<li>Removed obsolete ftemplate-depth, as the defaults should be fine</li>
+<li>Removed outdated VS2008 project file</li>
+<li>Use cmake generator targetnames for copying files</li>
+</ul>
+
+</tr>
+
+<tr valign=top><td><b>2.4</b> (2013/08/07,Rev.882)</td><td>
+
+<b>Significant interface changes</b>
+<ul>
+<li>The functions n_vertices(),n_edges().n_faces() return size_t now.</li>
+<li>reserve and resize of the property vectors now take size_t</li>
+<li>Fixed various other size_t conversions</li>
+</ul>
+
+<b>Vector Type</b>
+<ul>
+<li>vector_type min(const vector_type& _rhs) and vector_type max(const vector_type& _rhs) are declared const now. (Thanks to Vladimir Chalupecky for the hint)</li>
+<li>minimize and maximize return vector_type& (reference) instead of vector_type (value) to allow chaining p.minimize(p1).minimize(p2). (Thanks to Vladimir Chalupecky for the hint)</li>
+</ul>
+
+<b>Core</b>
+<ul>
+<li>Allow PolyConnectivity::delete_edge to mark an edge as deleted, if there are no faces incident.</li>
+<li>Don't use c headers in c++ files anymore</li>
+</ul>
+
+
+<b>IO</b>
+<ul>
+<li>Try to get rid of memory leak in IOManager(Changes the pointer used for IOManager to a static IOManager in the getter function)</li>
+<li>Fixed writing face indices in different configurations regarding vertex texture coordinates and vertex normals (Thanks to Robert Luo for the patch)</li>
+<li>Fixed a bug with OBJReader that prevented the material color to be loaded correctlyi(Thanks to Karthik Nathan for the patch)</li>
+<li>Made STL Reader work, with the clear = false flag and Redundant lookup removed. ( Thanks to Peter Newman for the patch)</li>
+<li>Missing include, preventing build on VS2012 (Thanks to Mageri Filali Maltouf for the patch)</li>
+<li>Fixed various warnings reported by cppcheck</li>
+<li>read_mesh now throws a compile error if an Options::Flag enum is passed as an argument instead of an Options object</li>
+<li>Make OpenMesh PLY writer work as expected (Thanks to Chin-chia Wu for the patch)</li>
+<li>Added colori and colorAi functions to BaseExporter which return Vec3i and Vec4i respectively</li>
+<li>Adjusted the PLYWriter to use colori and colorAi for writing ascii files</li>
+<li>Added a ColorFloat flag to Options, which can be set to write and read RGBA values as float instead of unsigned char</li>
+<li>PLY writer and reader can now also handle color floats</li>
+<li>OFF support for floats. Note that for reading binary OFF files with color floats, the user has to set the flag, that floats are expected</li>
+</ul>
+
+
+<b>Utils</b>
+<ul>
+<li>PropertyManager: Added PropertyManager::propertyExists() method.</li>
+<li>PropertyManager: Enabled initialization of invalid PropertyManager.</li>
+<li>Added color_cast from Vec3f and Vec4f to Vec3i and Vec3ui</li>
+<li>Added color_cast from Vec4f to Vec4i and Vec4ui</li>
+
+</ul>
+
+<b>Decimater</b>
+<ul>
+<li>Make Hausdorff module thread safe. Removed static point vector. (Thanks to Falko Löffler for the fix)</li>
+</ul>
+
+<b>Tools</b>
+<ul>
+<li>Command Line Decimater: Added an explanation on how to use multiple modules to the commandlineDecimater help output</li>
+<li>Command Line Decimater: The normal deviation module now also is a priority module in the commandlineDecimater tool</li>
+<li>Gui Decimater: Added decimater related help output to DecimaterGui when 'h' is pressed as the application is running</li>
+</ul>
+
+<b>Unittests</b>
+<ul>
+<li>Added unittest for skipping iterators</li>
+<li>Added unittest for collapse and is_collapse_ok</li>
+<li>Added unittests for delete_face</li>
+<li>Added unittests for circulators</li>
+<li>Added test for writing and reading vertex colors to and from an OFF file. The default color type Vec3uc from DefaultTraits in Traits.hh is used.</li>
+<li>Added a ply file written with MeshLab and a corresponding unittest</li>
+<li>Added a unittest that writes and reads a binary PLY file with vertex colors</li>
+</ul>
+
+<b>Documentation</b>
+<ul>
+<li>Adjusted the documation for the decimation tutorial so that the priority module is correctly initialized</li>
+</ul>
+
+</tr>
+
+<tr valign=top><td><b>2.3.1</b> (2012/12/20,Rev.778)</td><td>
+
+<b>Core</b>
+<ul>
+<li>Return vertex handles of newly added vertices in split and split_copy for faces when passing points instead of handles</li>
+<li>Fixed copy and paste typo in split_copy for face handle</li>
+<li>Replaced fabs by the std methods to fix errors when using norms with double vectors</li>
+</ul>
+
+<b>IO</b>
+<ul>
+<li>Fixed missing cast in importer which lead to problems when using different vector type. (Thanks to Mario Deuss for the fix)</li>
+<li>Fixed bug in OBJ reader, where some faces could be missing(Thanks to Ian Kerr for the Fix)</li>
+</ul>
+
+<b>Documentation</b>
+<ul>
+<li>Fixed Decimater example</li>
+<li>Improved Docs for is_boundary() functions</li>
+</ul>
+
+<b>Unittests</b>
+<ul>
+<li>Added unittest for vertexOHalfedge Iterator</li>
+<li>Added unittests for boundary vertices and faces</li>
+<li>Added test for VectorT abs function</li>
+</ul>
+
+
+</tr>
+
+
+<tr valign=top><td><b>2.3</b> (2012/11/12,Rev.758)</td><td>
+
+<b>Core</b>
+<ul>
+<li>New garbage collection function with possibility to update existing handles</li>
+<li>Fixed crash in garbage collection, if certain status flags are not available (warns in debug mode!)</li>
+<li>Fixed some gcc-4.7 incompatibilities</li>
+<li>TriMesh::split now returns the handle of the new vertex</li>
+<li>Fixed delete_face function, not mariking halfedges as deleted, if the edge gets deleted.(Thanks to Maxime Quiblier for the bug report)</li>
+<li>Added range based for loops compatible ranges to PolyConnectivity.</li>
+<li>Added a function to copy single properties between entities of same type. (Thanks to Duncan Paterson for the patch)</li>
+<li>Added functions to copy all properties between entities. (Thanks to Duncan Paterson for the patch)</li>
+<li>Added split copy operations, which copy properties of splitted elements to the newly created ones. ( Thanks to Duncan Paterson for the patch )</li>
+<li>Added flag to the property copy functions, if the standard properties should be copied along with the user defined ones</li>
+<li>Added function to remove all primitives from the mesh, but leaving properties attached (mesh.clean() ) </li>
+<li>Avoid double next_halfedge_handle call in collapse_ok</li>
+<li>Fixed the usage of vector traits such that the traits are used and not the vector types value_type. (Thanks to Mario Deuss for the patch)</li>
+<li>Fixed bug in halfedge normal computation, where a boundary halfedge was not correctly handled and caused a segfault.</li>
+<li>Fixed missing this pointer in PolyMeshT.hh at calc_dihedral_angle </li>
+</ul>
+
+<b>Decimater</b>
+<ul>
+<li>Changed template parameters of the modules from Decimater type to Mesh type</li>
+<li>Added multiple choice decimater (~4 times faster than the heap one, but no guarantee on accuracy)</li>
+<li>Added mixed decimater, switching between mc decimater and standard decimater</li>
+<li>Decimater modules don't need a decimater type as template argument anymore</li>
+<li>Module parameters renamed</li>
+<li>Added Decimater base class</li>
+<li>Added the set_error_tolerance_factor function to ModBaseT and implemented it in inherited classes as necessary</li>
+<li>Removed redundant tests in is_collapse_legal that where already performed in is_collapse_ok</li>
+<li>ModHausdorff: Removed unused parameter</li>
+<li>Added set_error_tolerance_factor to the modules, which can be used to scale the tolerance by a factor, allowing multiple decimation stages with increasing error tollerance</li>
+</ul>
+
+
+<b>Subdivider</b>
+<ul>
+<li>Fixed typedef problems causing compiler errors</li>
+<li>Removed a wrong assertion in the refine method for vector handles</li>
+</ul>
+
+<b>IO</b>
+<ul>
+<li>Added precision option to openmesh writers</li>
+<li>Fixed OBJ Reader not correctly setting per halfedge normals. (Thanks to Patrick Rauber for the report)</li>
+<li>OM  Reader: Reader used different types on 32/64-bit systems. (Thanks to Martin Bayer for the patch)</li>
+<li>OM  Reader: Also checks user options</li>
+<li>STL Reader: Added the functionality to read meshes from istreams</li>
+<li>STL Reader: Added the functionality to write meshes to ostreams</li>
+<li>OBJ Reader: Follow of user requests (Warning! Old default behaviour was wrong, because the reader read everything, without checking for the user options!)</li>
+<li>PLY Reader: Reader now checks the options set by the user and will skip components that are not requested
+</ul>
+
+<b>Utils</b>
+<ul>
+<li>Core/Utils: Added PropertyManager class.</li>
+<li>Core/Utils: Added a Random Number generator with larger resolution (Windows supports only ~32k which is extended by this generator </li>
+</ul>
+
+<b>Apps</b>
+<ul>
+<li>QtViewer App tries to load textures for PLY (and other formats) too, if possible</li>
+</ul>
+
+<b>Unittests</b>
+<ul>
+<li>Added unittest for OBJ texture coordinates.</li>
+<li>Added unittests for add_face.</li>
+<li>Added unittest for getting handles and faces from the iterator.</li>
+<li>Added unittest for creating a cube with 6 quads in a poly mesh.</li>
+<li>Added unittest adding a cube with 12 faces triangulated to a trimesh.</li>
+<li>Added unittest for MCDecimater</li>
+<li>Added unittest for obj crash when colors are requested but not available</li>
+<li>Added unittests (trimesh and polymesh) for split_copy</li>
+<li>Added unittest for vector cross product</li>
+<li>Added unittests for the adaptive composite subdivider</li>
+<li>Added unittest for dihedral angle function</li>
+<li>Added some more unittests for the PLY loader with different user options</li>
+<li>Fixed gcc-4.7 warnings.</li>
+</ul>
+
+<b>Tools</b>
+<ul>
+<li>Added catmull clark subdivider. Thanks to Leon Kos for the code.</li>
+</ul>
+
+
+<b>Documentation</b>
+<ul>
+<li>More documentation for the add_face functions (and some code cleanup)</li>
+<li>Updated doxyfile.config.in version</li>
+<li>Updated documentation for garbage collection</li>
+<li>Updated documentation for the vertex_split operation</li>
+<li>Fixed typo on main page</li>
+</ul>
+
+<b>Build system</b>
+<ul>
+<li>Updated the Compiler flags construction to remove some unnecessary warnings with clang</li>
+<li>Don't add the largeaddressaware flag when building with mingw</li>
+<li>Readded missing DOXY_IGNORE_THIS definition to doxygen file</li>
+<li>Output OpenMesh Build type in cmake header printout</li>
+<li>Windows: Extended min max warning to allow undefs</li>
+<li>Windows: Support DLL build of OpenMesh</li>
+</ul>
+
+
+
+
+</tr>
+
+<tr valign=top><td><b>2.2</b> (2012/06/14,Rev.587)</td><td>
+
+<b>Core</b>
+<ul>
+<li>Simplified iterators and made them integrate better with the STL. Specifically, value_type has changed from {Vertex,Edge,...} to {Vertex,Edge,...}Handle so that dereferenced iterators can actually be put to use, now.</li>
+<li>Consolidated iterator code. Functionally equivalent but way cleaner than before.</li>
+<li>Improved block in update_normals(), if there are no face normals (could cause a crash)</li>
+<li>Fixed usage of operator | instead of dot</li>
+<li>Added a check to is_collapse_ok in TriConnectivity if the edge is already deleted or not (Could cause crashes and non-manifold configs before).</li>
+</ul>
+
+<b>IO</b>
+<ul>
+<li>Made Binary IO readers multi-thread safe. (Thanks to Dominic Genest for the patch)</li>
+<li>Fixed debug build crash on mac, reading from stringstream into emtpy string crashed when compiling with clang</li>
+<li>Fixed stl reader by porting it to std string. It had serious problems in utf8 environments</li>
+</ul>
+
+<b>Geometry</b>
+<ul>
+<li>Added normalized function to VectorT which returns a normalized vector whithout modifying the current one.</li>
+</ul>
+
+<b>Utilities</b>
+<ul>
+<li>Fixed multiple connections of the omlog streams. (Thanks to Steffen Sauer for the patch)</li>
+</ul>
+
+<b>Unittests</b>
+<ul>
+<li>Added unittest for calling the normal computations.</li>
+<li>Added unittests for ascii and binary stl files.</li>
+</ul>
+
+
+<b>Documentation</b>
+<ul>
+<li>Fixed doxygen warnings</li>
+<li>Updated collapse function documentation</li>
+<li>Updated triangulation function documentation</li>
+<li>Updated normal computation documentations</li>
+</ul>
+
+
+<b>General</b>
+<ul>
+<li>Xcode 4.3 compatibility (Fixed issues that caused build errors with XCode 4.3)</li>
+<li>Fixed some size_t uint conversion warnings</li>
+</ul>
+
+</tr>
+
+
+<tr valign=top><td><b>2.1.1</b> (2012/03/01,Rev.544)</td><td>
+
+<b>Tools</b>
+<ul>
+<li>Fixed wrong INCLUDE_TEMPLATE include definition headers for NormalCone, and some decimater modules.</li>
+</ul>
+
+<b>Unittests</b>
+<ul>
+<li>Only build the unit tests if google test has been found</li>
+<li>Added flag to enable/disable building of unit tests</li>
+</ul>
+
+<b>Build system</b>
+<ul>
+<li>Drop Template only cc files (they produce no code and trigger some warnings)</li>
+</ul>
+
+</tr>
+
+<tr valign=top><td><b>2.1</b> (2012/01/24,Rev.531)</td><td>
+
+<b>Core</b>
+<ul>
+<li>Implemented is_collapse_ok for polymeshes</li>
+<li>Implemented split_edge ( split(edgehandle,vertexhandle) ) for poly meshes</li>
+<li>Bugfix for #248 (broken end definition for vertexFaceIter). Thanks to Patrik Rauber for reporting this bug.</li>
+<li>Fixed compiler error because of extra ','</li>
+<li>Fixed some compiler warnings</li>
+<li>Added patch to speed up add_face function(Thanks to Stephen Webb).</li>
+<li>Avoid some compiler warnings</li>
+<li>Added color caster from vec3f to vec4f setting alpha to 1.0 as default</li>
+<li>Added color caster from vec4i to vec4f converting alpha from 0..255 range to 0..1.0</li>
+<li>Replaced (v0|v1) by dot(v0,v1) in calc_sector_angle as it fails to build otherwise (Thanks to Zhang Juyong for the fix)</li>
+<li>Fixed some cppcheck warnings</li>
+<li>Added support for halfedge normals(allows per vertex per face normals)</li>
+</ul>
+
+<b>Geometry</b>
+<ul>
+<li>Added normal cone datatype</li>
+</ul>
+
+<b>IO</b>
+<ul>
+<li>OFF Reader: Fixed crash on some files containing empty lines(Thanks to R.Schneider for the fix)).</li>
+<li>STL Reader: Add empty mesh when reading empty stl file (don't fail as this is still a valid file)</li>
+<li>PLY Reader: Support vertex normals (Thanks to Bruno Dutailly)</li>
+<li>PlY Writer: vertex normal support (Thanks to Bruno Dutailly)</li>
+<li>PLY Writer: Fixed output of colors</li>
+<li>OBJ Reader: support for vertex colors after vertices or Vertex colors as separate lines. (Thanks to Bruno Dutailly)</li>
+<li>OBJ Reader: Handle objs without faces(Thanks to Bruno Dutailly)</li>
+<li>Added trim functions to BaseReader</li>
+</ul>
+
+<b>Decimater</b>
+<ul>
+<li>Added preprocess collapse function</li>
+<li>Added decimate_to_faces function (Decimating to a target face count)</li>
+<li>Added Hausdorff Distance module</li>
+<li>Added edge length module</li>
+<li>Added aspect ratio module</li>
+</ul>
+
+<b>Subdivider</b>
+<ul>
+<li>Modified base class to support fixed positions on already existing vertices</li>
+<li>Added LongestEdge subdivider (Always split the currently longest edge, until a maximal edge length on the mesh is reached)</li>
+<li>Updated Loop subdivider for the fixed vertex positions</li>
+</ul>
+
+<b>Unittests</b>
+<ul>
+<li>Enabled unittests for windows</li>
+<li>Added test for VertexIter</li>
+<li>Added test for EdgeIter</li>
+<li>Added test for VertexFaceiter (with and without holes)</li>
+<li>Added test for VertexOHalfedgeiter</li>
+<li>Added test for FaceFaceiter (with and without holes)</li>
+<li>Added test for collapse and is_collapse_ok operations</li>
+<li>Added test for ply reader(points only)</li>
+<li>Added tests for vertex colors in obj files</li>
+<li>Added tests for ply reader with and without normals, ascii mode</li>
+</ul>
+
+<b>Doc</b>
+<ul>
+<li>Document that if OpenMesh is linked statically OM_STATIC_BUILD has to be defined on the executable to make readers work correctly</li>
+<li>Improved MeshIO Documentation</li>
+<li>Added doc about Skipping Iterators</li>
+<li>Document behaviour of circulators on deleted elements</li>
+<li>Get rid of most doxygen warnings</li>
+<li>Improved documentation of the decimater and its modules</li>
+</ul>
+
+<b>Build System</b>
+<ul>
+<li>Append a 'd' to the lib name if in debug mode and not in release mode</li>
+<li>Changed build directory contents on Mac (Build all binaries in Build dir only)</li>
+<li>Disable Fixbundle on Mac (not required at the moment and hangs forever)</li>
+<li>Added unittest directory and Build system (build explicitly with make unittests)</li>
+<li>Skip fixbundle when building without apps on windows</li>
+<li>On windows: If release and debug libs are build in same directory, install them both</li>
+<li>On windows: Make sure that all dlls are copied</li>
+<li>On windows: create start menu shortcut to Documentation</li>
+<li>On windows: MinGW support</li>
+</ul>
+
+</tr>
+
+<tr valign=top><td><b>2.0.1</b> (2011/05/20,Rev.389)</td><td>
+
+<b>Apps</b>
+<ul>
+<li>Get rid of glew dependencies</li>
+<li>Remove a lot of unused qt libraries which were linked before</li>
+<li>Do not link libXi and Xmu as we don't need it</li>
+<li>Added two new subdivision schemes (Interpolating Sqrt3 Labsik-Greiner and Modified Butterfly) to subdivider applications</li>
+</ul>
+
+<b>Core</b>
+<ul>
+<li>Work with gcc 4.6: ptrdiff_t not correctly included from std, Thanks to Ville Heiskanen for the patch)</li>
+</ul>
+
+<b>Tools</b>
+<ul>
+<li>Fixed bug in decimater where boundary check was using the wrong halfege(Thanks to Michal Nociar for the patch)</li>
+</ul>
+
+<b>Build System</b>
+<ul>
+<li>Updated debian dir (thanks to Jean Pierre Charalambos)</li>
+<li>Removed glew depedency</li>
+<li>Only one fixbundle on mac and windows</li>
+<li>Run fixbundle only in standalone mode</li>
+<li>Run fixbundle only once</li>
+<li>Change debian control to reduce dependencies (glew,some qt libs)</li>
+<li> Fixed BUILD_APPS macro</li>
+</ul>
+
+<b>Documentation</b>
+<ul>
+<li>Fixed error in image about edge collapses</li>
+<li>Fixed wrong strip path in doxygen settings</li>
+<li>Fixed compilation instructions for mac</li>
+<li>Switched to white background with black text</li>
+<li>Removed glew from docs</li>
+</ul>
+
+</tr>
+
+<tr valign=top><td><b>2.0</b> (2010/12/21,Rev.356)</td><td>
+
+<b>Core</b>
+<ul>
+<li>Improve computation of normals for poly meshes ( now the average normal is taken not the normal of one triangle)</li>
+<li>Avoid % Operator in normal calculation (triggers compiler error on vectors of size other than 3)</li>
+<li>Added status flag indicating that mesh reader duplicated primitives to avoid non-manifold configurations</li>
+<li>Setting associated handles of iterator types invalid if reference mesh contains none of the respective entities.</li>
+<li>Added halfedge colors</li>
+</ul>
+
+
+<b>IO</b>
+<ul>
+<li>PLY Reader: Avoid failure of file writing if face colors or face normals are requested for PLY files.</li>
+</ul>
+
+<b>Math</b>
+<ul>
+<li>Added missing include of string.h to VectorT.hh (Thanks to Justin Bronder for reporting this)</li>
+<li>Added some vector norm functions for L1 norm, and absolute mean,max,min(Thanks to Michal Nociar)</li>
+</ul>
+
+
+<b>Tools</b>
+<ul>
+<li>OpenMesh mesh dual generator added (Thanks to Clement Courbet for providing the code)</li>
+<li>Added Sqrt3InterpolatingSubdividerLabsikGreinerT and ModifiedButterFlyT (Thanks to Clément Courbet for providing the code)</li>
+</ul>
+
+<b>Apps</b>
+<ul>
+<li>OpenMesh mesh dual generator application added (Thanks to Clement Courbet for providing the code)</li>
+</ul>
+
+<b>Documentation</b>
+<ul>
+<li>Added search engine</li>
+<li>Added treeview on the left</li>
+<li>Generate subpage structure to make treeview more organized</li>
+<li>Enabled Doxygen stl support</li>
+<li>Fixed documentation for add_face and some other typos (Thanks to Yamauchi Hitoshi)</li>
+<li>Added preprocessor directives such that doxigen parses vectorT correctly</li>
+</ul>
+
+<b>Build System</b>
+<ul>
+<li>Copy Doc directories to installers</li>
+<li>Copy shared Qt Libs to build dir on windows</li>
+<li>Updated glew and glut finders</li>
+<li>Respect seperate settings for build types (release,debug,relwithdebinfo)</li>
+<li>Extend macros acg_append_files_recursive acg_append_files to not include files starting with a dot</li>
+</ul>
+
+</tr>
+
+<tr valign=top><td><b>2.0-RC5</b> (2010/03/08,Rev.305)</td><td>
+
+<b>Core</b>
+<ul>
+<li>Fixed build error in function calc_dihedral_angle_fast</li>
+<li>Made iterators/circulators stl compliant</li>
+<li>Provide begin/end functions for circulators</li>
+<li>mostream crash fixed (Thanks to Adrian Secord for providing the patch)</li>
+<li>added colors to status flags for edges ( request_edge_color ... )</li>
+<li>Fixed issue with wrong normal scalar type when using integer points and float normals ( Thanks to Clement Courbet for reporting this bug)</li>
+</ul>
+
+<b>Readers/Writers</b>
+<ul>
+<li>Fixed build error in STL writer</li>
+<li>Fixed and enhanced PLY reader to improve handling of unknown properties (Thanks to Michal Nociar for the patch)</li>
+<li>Fixed crash in Offreader with DOS line endings. (Thanks to Adrian Secord for the patch)</li>
+<li>Fixed obj readers for some files containing tabs</li>
+</ul>
+
+<b>Apps</b>
+<ul>
+<li>OpenMesh progressive mesh generator readded</li>
+<li>OpenMesh progressive mesh viewer readded</li>
+<li>OpenMesh progressive mesh analyzer readded</li>
+<li>OpenMesh progressive mesh synthesizer readded</li>
+</ul>
+
+<b>Documentation</b>
+<ul>
+<li>Updated Documentation front page</li>
+<li>Added mesh navigation tutorial</li>
+<li>Added iterator tutorial</li>
+<li>Updated tutorial and docu for mesh circulators</li>
+<li>Updated tutorial on deleting geometry</li>
+<li>Examples for flipping and collapsing edges</li>
+<li>Fixed a lot of doxygen warnings</li>
+<li>Fixed some spellings</li>
+</ul>
+
+<b>Build System</b>
+<ul>
+<li>Fixed rpath issue when building and installing on MacOS</li>
+<li>Fixed install target for MacOS (headers where not copied due to bug in cmake)</li>
+</ul>
+
+</tr>
+
+
+<tr valign=top><td><b>2.0-RC4</b> (2009/11/18,Rev.227)</td><td>
+<b>Core</b>
+<ul>
+<li> Added function for direct access to property vectors</li>
+<li> Fixed clear functions to swap vectors. This frees OpenMesh memory when clear is invoked.</li>
+<li> Fixed bug in handle() function when getting handle from given Halfedge (Reported by Rob Patro)</li>
+<li> Memory leak in assignment Operator (Reported by Meng Luan, Thanks to Ilya A. Kriveshko for the patch)</li>
+</ul>
+
+<b>Readers/Writers</b>
+<ul>
+<li> Fixed reading ply files with unknown properties</li>
+<li> Added support for texture coordinates in ply files</li>
+<li> Add additional interface to readers/writers to use streams directly (allows direct writing to a streams)</li>
+<li> OMFromat -> Fixed empty template parameter issue under msvc</li>
+<li> OBJReader -> fixed loading multiple objs with material files</li>
+<li> OBJWriter -> Fixed writing of normals, Missing / when skipping texture coordinates</li>
+</ul>
+
+<b>Build system</b>
+<ul>
+<li> Added missing c files</li>
+<li> Build shared and static version under linux (cmake)</li>
+<li> Added -DBUILD_APPS=OFF cmake flag to skip building of apps (cmake)</li>
+<li> Added install target (cmake)</li>
+<li> Added doc target (cmake)</li>
+<li> Added doc-install target (cmake)</li>
+<li> Generate sonames under linux (cmake)</li>
+<li> Debian build dir for building Debian packages (Thanks to Jean Pierre Charalambos)</li>
+<li> Package generator for windows. Builds an setup file containing precompiled static libs and includes for windows.</li>
+<li> Throw warning if a min or max macro is defined under windows and suggest NOMINMAX (Thanks to Ingo Esser)</li>
+</ul>
+
+<b>Documentation</b>
+<ul>
+<li> Updated Documentation Mainpage</li>
+<li> Updated properties tutorial to include all request_... functions</li>
+<li> Updates for build instructions</li>
+<li> Added Tutorial on deleting geometry</li>
+<li> Fixed Traits example</li>
+<li> Other minor fixes</li>
+<li> Added tutorials as compileable source code</li>
+</ul>
+
+<b>Misc</b>
+<ul>
+<li> Updated debian dir to build debs (Thanks to Jean Pierre Charalambos)</li>
+</ul>
+
+
+</tr>
+
+<!-- --------------------------------------------------------------------- -->
+
+<tr valign=top><td><b>2.0-RC3</b> (2009/06/04)</td><td>
+<b>License</b>
+<ul>
+<li>Relicense under LGPL v3 with additional exception for template inclusion</li>
+</ul>
+
+<b>Readers/Writers</b>
+<ul>
+<li> PLY writer fix ( thanks to Marc Hugi )</li>
+<li> PLY reader fix ( wrong parsing of uchar binary data )</li>
+<li> PLY reader warnings fix ( thanks to Ilya A. Kriveshko )</li>
+<li> OBJ Reader now stores texture information in additional Mesh properties</li>
+<li> OBJ reader/writer fixes</li>
+</ul>
+
+
+<b>Tools</b>
+<ul>
+<li> Smother now respects feature primitives </li>
+<li> Decimater improvements and fixes ( thanks to Ilya A. Kriveshko ) </li>
+</ul>
+
+<b>Build system</b>
+<ul>
+<li> Updated directory structure </li>
+<li> Changed libnames to libOpenMesh and libOpenMeshTools </li>
+<li> cmake support </li>
+<li> bugfixes to qmake build system </li>
+<li> Keep some basic ACGMake files around ( acgmake is deprecated!! We will not provide support for it! Please use cmake or qmake instead. ) </li>
+</ul>
+
+<b>Other</b>
+<ul>
+<li> Fixed some warnings with latest gcc </li>
+<li> Per halfedge texture coordinates added </li>
+<li> Extended functions to get available properties </li>
+</ul>
+
+</tr>
+
+
+
+
+
+<!-- --------------------------------------------------------------------- -->
+
+<tr valign=top><td><b>2.0-RC2</b> (2009/02/17)</td><td> 
+<ul>
+<li>Fix for OBJ reader not reading texture coordinates correctly ( Thanks to Kamalneet Singh )</li>
+<li>Fixed included Visual Studio files</li>
+</ul>
+</tr>
+
+<!-- --------------------------------------------------------------------- -->
+
+<tr valign=top><td><b>2.0-RC1</b> (2009/01/28)</td><td> 
+<ul>
+<li>Reader / writer have been updated</li>
+<li>Some general bugfixes</li>
+<li>The usage of acgmake has become deprecated since the last release. It has been replaced by qmake</li>
+<li>Improved Documentation</li>
+<li>Dropped support for acgmake which has been entirely replaced by qmake</li>
+<li>Credits to Simon Floery, Canjiang Ren, Johannes Totz, Leon Kos, Jean Pierre Charalambos, Mathieu Gauthier </li>
+</ul>
+</tr>
+
+<!-- --------------------------------------------------------------------- -->
+
+<tr valign=top><td><b>1.9.7</b> (2008/10/13)</td><td> 
+<ul>
+<li>Ported applications to qt4</li>
+<li>Bugfixes in Decimater</li>
+<li>Improved Documentation</li>
+<li>Dropped support for gcc 3.x compilers (This does not mean that it does not work anymore)</li>
+<li>Dropped support for Versions of Visual Studio older than 2008</li>
+</ul>
+</tr>
+
+<!-- --------------------------------------------------------------------- -->
+
+<tr valign=top><td><b>1.1.0</b> (2007/02/26)</td><td> 
+<ul>
+<li>Fixed a VS 2005 compilation issue regarding the Sqrt3 subdivision class.</li>
+<li>Fixed GCC-4.1 compilation problems.</li>
+<li>The STL writer routine now correctly closes the <tt>"solid"</tt> block with <tt>"endsolid"</tt>.</li>
+<li>The API of the vector class has been changed slightly due to problems with some versions of GCC:<br/>
+The cast operator to the scalar type has been removed and replaced by
+the function <tt>data()</tt>. Hence, existing code like
+<blockquote>
+<tt>Vec3f vertex;</tt><br/>
+<tt>...</tt><br/>
+<tt>glVertex3fv( vertex );</tt>
+</blockquote>
+has to be changed to
+<blockquote>
+<tt>Vec3f vertex;</tt><br/>
+<tt>...</tt><br/>
+<tt>glVertex3fv( vertex.data() );</tt>
+</blockquote>
+</li>
+</ul>
+</tr>
+
+<!-- --------------------------------------------------------------------- -->
+
+<tr valign=top><td><b>1.0.0</b> (2005/09/20)</td><td> 
+<ul>
+<li>Mainly fixed the bugs collected in beta4.</li>
+<li>Slightly changed module handling in the Decimater.</li>
+<li>Removed some parts to keep the project maintainable.</li>
+<li>Fixed MacOS compilation problems.</li>
+<li>Compatibility for latest gcc4 compilers.</li>
+</ul>
+</tr>
+
+<!-- --------------------------------------------------------------------- -->
+
+<tr valign=top><td><b>1.0.0-beta4</b> (2004/01/20)</td><td> 
+<ul>
+<li>Bugs fixed: 1.0.0-beta3:001</li>
+<li>Documentation of module Core completed.</li>
+<li>Documentation of module Tools::Decimater and 
+    Tools::Subdivider completed.</li>
+<li>Revised class structure for uniform subdivision.</li>
+<li>Revised rule handling for composite adaptive subdivision.</li>
+</ul>
+</tr>
+
+<!-- --------------------------------------------------------------------- -->
+
+<tr valign=top><td><b>1.0.0-beta3</b> (2003/12/04)</td><td> 
+The beta3 fixes only the known bugs in beta2.
+<ul>
+<li>Bugs fixed: 1.0.0-beta2:{001, 002, 003, 004}</li>
+<li><b>Known Bugs</b>:
+  <ul>
+    <li>001: OFFReader: Option bit not cleared before analyzing .off header.
+      <br>Symptoms: If a previously read .off file had normals/texcoords,
+          a second read of another file w/o normals or texcoords, will return
+          with option bits normals/texcoords enabled.          
+    </li>
+  </ul>
+</li>
+</ul>
+</tr>
+
+<!-- --------------------------------------------------------------------- -->
+
+<tr valign=top><td><b>1.0.0-beta2</b> (2003/11/05)</td><td> 
+
+<ul>
+
+<li>Change of directory structure
+    <pre>
++- %OpenMesh/
+   +- Core/     # previously %OpenMesh
+   +- Tools/    # previously OpenMeshTools
+   +- Apps/     # previously OpenMeshApps
+   +- Win/      # contains all solutions files and projects for MS VC++
+   +- Doc/      # contains all documentation
+    </pre>
+    Note! The supplied script \c %OpenMesh/migrate.sh can be used to
+    adjust include paths and ACGMakefiles. (It's not guarantied the
+    script handles every case, but so far it did not missed a file to
+    adjust.)
+</li>
+
+<li><b>Porting issues</b>: Due to a number of major changes in the
+    structure of %OpenMesh a few incompatibilities have been
+    introduced. Have look in <b>\c %OpenMesh/porting.txt </b> for hints how to
+    treat your source when updating from 0.11.x to
+     1.0.0.<br>Hint! The supplied script \c %OpenMesh/migrate.sh does a
+    few of the necessary modifications. 
+</li>
+
+<li><b>The list kernel has been removed</b>
+</li>
+
+<li>Improved IO support:
+  <ul>
+  <li>Read/write ascii and binary STL </li>
+  <li>Read/write ascii and binary OFF </li>
+  <li>Support for vertex normals and vertex texcoords in OFF and OBJ</li>
+  <li>Support importing diffuse material into face color property from
+      OBJ files.
+  </li>
+  <li>Properietary binary format OM, supporting read/write of custom properties
+  </li>
+  </ul>
+</li>
+
+<li>Improved coordinate class OpenMesh::VectorT:
+  <ul>
+    <li> <tt>VectorT::vectorize(Scalar)</tt> is no longer static, now 
+          it changes the vector. Use it e.g. to clear vector values. 
+    </li>
+    <li> Casts between two vector classes of the same dimension are now
+         explicit. This avoids unwanted and expensive casts. 
+    </li>
+    <li> Optimized performance by manual loop-unrolling. These optimizations
+	 are partial specializations for vectors of dimension 2, 3 and 4. 
+         Since Microsoft's VC++ still does not support partial specialization
+         and also provides rather poor loop-unrolling, users of this compiler
+         are stuck to lower performance.
+    </li>
+  </ul>
+</li>
+
+<li>OpenSG Support:
+  <ul>
+    <li>New kernel type \c class TriMesh_OSGArrayKernelT<>.
+      <ul>
+        <li>Uses OpenSG geometry types!</li>
+        <li>PolyMesh not supported, yet!</li>
+      </ul>
+    <li>Use \c OpenMesh::Kernel_OSG::bind<> to link a mesh obj with an
+        \c osg::Geometry and vice versa.<br>Please note that both objects
+        share the same data!
+      <ul>
+       <li>Binding a mesh to an \c osg::Geometry changes the content
+           of the \c osg::Geometry!
+       <li>Triangulates non-triangular faces!</li>
+       <li>Multi-indexed geometry not supported!</li>
+       <li>Transfer of vertex normals</li>
+       <li>Limited capability to transfer colors: 
+           So far, only \c osg::Color3f <-> \c OpenMesh::Vec3ub
+      </ul>
+    </li>
+  </ul>
+</li>
+
+<li>Microsoft VC++ 7.0 projects files
+  <ul>
+    <li>Tutorial solution file
+  </ul>
+</li>
+
+<li> New tools/applications:
+     <ul>
+     <li>\c Tools/VDPM (View Dependent Progressive Mesh Library)
+       <ul>
+         <li>\c Apps/VDProgMesh/mkbalancedpm - Create a balanced 
+             progressive mesh.
+         </li>
+         <li>\c Apps/VDProgMesh/Analyzer - Create a view dependent 
+             progressive mesh file.
+         </li>
+         <li>\c Apps/VDProgMesh/Synthesizer - A viewer for the VDPM file.</li>
+       </ul>
+     </li>
+     <li>Apps/mconvert</li>
+     <li>Apps/IvViewer - added support for Coin</li>
+     </ul>
+</li>
+
+<li><b>Known Bugs</b>:
+  The following bugs are related to the TriMesh_OSGArrayKernelT<>:
+  <ul>
+    <li>001: Cannot request/release the default attribute 
+             <tt>halfedge_status</tt>.
+    </li>
+    <li>002: Cannot release the default attribute <tt>vertex_texcoords</tt>
+    </li>
+    <li>003: Assignment operator = () does not work properly.</li>
+    <li>004: No copy-constructor available!</li>
+  </ul>
+</li>
+
+</ul>
+</td></tr>
+
+
+<!-- --------------------------------------------------------------------- -->
+
+
+<tr valign=top><td><b>0.11.1</b> (2002/12/02)</td><td>  
+<ul>
+
+<li>Bugs fixed: 0.11.0:{001, 002, 003, 004, 006}<br><br>
+    006: Use acgmake version 1.1.1.
+</li>
+
+<li>Preprocessor warnings of gcc >= 3 fixed.
+</li>
+
+<li>Added some more dynamic ways to append properties to items:
+    OpenMesh::Any and OpenMesh::PropertyT .
+</li>
+
+<li>VectorT: standard operator less added, Vec4f is now
+    16-bit aligned using gcc compiler (for later SIMD usage).
+</li>
+
+<li>Use OM_STATIC_BUILD=1 when creating a static library.
+    The static version of the library needs to included IOInstances.hh,
+    which is done in that case.
+    When compiling with MS VC7, the define is set automatically, as 
+    the DLL-Version is not supported yet.
+    acgmake (Version >= 1.1) set the define automatically when
+    using the flag for static compiling.
+</li>
+
+<li>The read_mesh() methods now clears the mesh before reading a new one.
+</li>
+
+<li>Added can_read() and can_write() methods to the IOManager.
+</li>
+
+
+</ul>
+</td></tr>
+
+
+<!-- --------------------------------------------------------------------- -->
+<tr valign=top><td><b>0.11.0</b> (2002/09/07)</td><td> 
+
+<ul>
+
+<li>Bugs fixed: 0.10.2:{001, 002, 003, 004, 005}
+</li>
+
+<li>Added MS VC++ 7.0 project files for the tutorial programms.
+    (Have a look in <OpenMesh>/Win32/MSVC/)
+</li>
+
+<li>New Input/Output management, see \ref mesh_io. The new interface
+    is as backwards-compatible as possible. Only the read_[off,obj]
+    and write_[off,obj] methods do no longer exist. You should now
+    include OpenMesh/IO/MeshIO.hh instead of MeshReader.hh and
+    MeshWriter.hh. The old include files may be removed in a future
+    release.
+</li>
+
+<li>Added: Generic algorithms may now define their own traits, these traits can
+    be merged with other user-defined traits by the OM_Merge_Traits macro. 
+    See tutorial \ref tutorial_06.
+</li>
+
+<li>Added generic handle <-> item conversions, see 
+    <ul>
+    <li> OpenMesh::Concepts::KernelT::handle() and
+    <li> OpenMesh::PolyMeshT::deref().
+    </ul>
+    The kernel methods vertex_handle(), halfedge_handle(), edge_handle(), 
+    face_handle() should no longer be used, but are still existent for 
+    compatibility reasons. You can hide them by uncommenting the define
+    OM_HIDE_DEPRECATED in OpenMesh/System/config.h.
+</li>
+
+<li>Internal methods, like Vertex::halfedge_handle() or Vertex::point() are 
+    now hidden, since the respective kernel methods (like 
+    MeshKernel::halfedge_handle(VertexHandle) or 
+    MeshKernel::point(VertexHandle)) should be used instead.
+</li>
+
+<li>Added convenience methods for the mesh kernels: 
+    <ul>
+    <li>OpenMesh::Concepts::KernelT::n_halfedges()
+    <li>OpenMesh::Concepts::KernelT::halfedges_empty()
+    <li>OpenMesh::Concepts::KernelT::halfedge_handle(unsigned int _i)
+    </ul>
+</li>
+
+<li><b>Known Bugs</b>: 
+    <ul>
+    <li>001: Ambigous auto_ptr<> cast in ExporterT.hh.</li>
+    <li>002: BaseImporter and BaseExporter have no virtual destructor.</li>
+    <li>003: Reader does not work correctly, when reading from a istream.</li>
+    <li>004: cross(VectorT, VectorT) returns Scalar instead of VectorT.</li>
+    <li>005: PolyMeshT::calc_face_normal() may give wrong results if the
+             first 3 points of the polygon are colinear or concave.</li>
+    <li>006: Reading/writing (MeshIO) of files does not work when using acgmake
+             with SuSE 8.1.</li>
+    </ul>
+</li>
+
+</ul> 
+</td></tr>
+
+<!-- --------------------------------------------------------------------- -->
+
+<tr valign=top><td><b>0.10.2</b> (2002/06/25)</td><td> 
+<ul>
+<li>Bugs fixed: 0.10.1:{001, 002} 
+</li>
+
+<li>The edge collapse checking method TriMeshT::is_collapse_ok() is now more
+    restrictive. It prohibits cases that could be handled by the
+    halfedge data structure, but would probably not be regarded as a
+    legal mesh.
+</li>
+
+<li>The vertex split operation creates up to 3 new edges and 2 new
+    faces. Up to now it was possible to pass handles to edges/faces
+    that should be used instead of creating new ones. This option has
+    been removed in order to get a cleaner interface.
+</li>
+
+<li>The MeshCheckerT has been changed slightly: it omits deleted elements, so
+    one does not have to perform a garbage collection before checking the mesh.
+    It also checks for the halfedges building cycles around faces or
+    boundaries.
+</li>
+
+<li><b>Known Bugs</b>: 
+    <ul>
+    <li>001: OpenMesh::PolyMeshT::operator=() does not return \c *this.
+    <li>002: OpenMesh::DefaultAttributer added unnecessary 20 bits to the 
+             elementary mesh types.
+    </ul>
+</li> 
+</ul> 
+</td></tr>
+
+<!-- --------------------------------------------------------------------- -->
+
+<tr valign=top><td><b>0.10.1</b> (2002/04/22)</td><td> 
+<ul>
+<li>Bugs fixed: 0.10.0:{001, 002, 003, 004, 005} 
+</li>
+
+<li>Added: Predefined attribute \c TexCoord. 
+</li>
+
+<li>Added: Support for MS VC++ 6.0 IDE with Intel Compiler. 
+</li>
+
+<li>Added: Tutorial 6 on generic algorithms. 
+</li>
+
+<li>SharedCoordArrayKernelT is now derived from ArrayKernelT.
+</li>
+
+<li>Added: Assignment operator operator=() for PolyMeshT and TriMeshT.
+</li>
+
+<li>Added: Method TriMeshT::is_collapse_ok(), checking topological conditions
+    for a given halfedge collapse.
+</li>
+
+<li><b>Known Bugs</b>: 
+    <ul>
+    <li>001: PolyMeshT::delete_face(): Outgoing halfedge handle of
+             a vertex can incorrectly be invalidated. Influences
+             vertex circulators, find_halfedge() and therefore
+             add_face().<br>
+             Workaround: Replace <tt>v0</tt> by <tt>v1</tt> in line 585 of
+	     PolyMeshT.cc
+    </li>
+    <li>002: TriMeshT::collapse(): Some special cases are incorrectly
+             handled when collapsing boundary halfedges. The same
+             cases are also incorrect for the inverse operation
+             TriMeshT::vertex_split() operation. 
+    </li>
+    </ul>
+</li>
+</ul>
+</td></tr>
+
+<!-- --------------------------------------------------------------------- -->
+
+<tr valign=top><td><b>0.10.0</b> (2002/03/19)</td><td> 
+<ul>
+<li>Interface for specifying the traits classes simplified (see
+    Traits.hh).  
+</li>
+
+<li>Changed attribute handling; the attributer class (the class that
+    adds and registers attributes to mesh items) can be provided by
+    the user.
+</li>
+
+<li>Removed MyMesh::Face::n_vertices() and
+    MyMesh::Face::set_n_vertices().
+</li>
+
+<li>MeshWriter::write_* changed accordingly.
+</li>
+
+<li>Bug fix: PolyMeshT::delete_[face,edge,vertex] now work correctly.
+</li>
+
+<li>Removed cyclic dependency between items and kernel, because MS
+    VC++ cannot handle the resulting template forward declaration
+    :-(. Therefore the <tt>Base::Refs</tt> class, given for the traits
+    classes, no longer provides the types \c Vertex, \c Halfedge, \c
+    Edge, and \c Face. It now only provides all handle types, the
+    point and the scalar type.
+</li>
+
+<li>Finally: MS VC++ 7.0 supported.
+</li>
+
+<li><b>Known Bugs</b>:
+    <ul> 
+    <li>001: TriMeshT.cc::vertex_split(): call to undefined
+        method Face::set_n_vertices().<br>
+        Workaround: Comment out the two occurences of the call.
+    </li>
+    <li>002: Missing <tt>\#include
+        <OpenMesh/Mesh/Kernels/ListKernel/ListHandles.hh></tt>
+	in OpenMesh/Mesh/Types/PolyMesh_ListKernelT.hh.
+    </li>
+    <li>003: Special case in TriMeshT::edge_collapse(): when collapsing a 
+        boundary vertex into an interior one, the outgoing halfedge of
+        the resulting vertex my not be a boundary one.
+    </li>
+    <li>004: PolyMeshT::delete_edge did not pass its argument 
+        _delete_isolated_vertices to PolyMeshT::delete_face.
+    </li>
+    <li>005: PolyMeshT::assign() was not linked because of an \#if error.
+    </ul>
+</li>
+</ul>
+</td></tr>
+
+<!-- --------------------------------------------------------------------- -->
+
+<tr valign=top><td><b>0.9.2</b> (-) </td><td> 
+<ul>
+<li>PolyMeshT::add_face() now detects more topological errors.
+</li>
+
+<li>Added mesh kernel methods: remove_last_[vertex,edge,face]().
+</li>
+
+</ul>
+</td></tr>
+
+<!-- --------------------------------------------------------------------- -->
+
+<tr valign=top><td><b>0.9.1</b> (2002/02/07)</td><td> 
+<ul>
+<li>Changed the main namespace from ACG to OpenMesh.
+</li>
+
+<li>Added invalid handle constants, e.g. PolyMeshT::InvalidVertexHandle.
+</li>
+
+<li>Mesh provides circulators: PolyMeshT::vv_iter(VertexHandle).
+</li>
+</ul>
+</td></tr>
+
+<!-- --------------------------------------------------------------------- -->
+
+<tr valign=top><td><b> 0.9</b> (2002/01/25)</td><td> 
+<ul>
+<li>initial release</li>
+</ul>
+</td></tr>
+
+
+</table>
+
+\endhtmlonly
+
+**/

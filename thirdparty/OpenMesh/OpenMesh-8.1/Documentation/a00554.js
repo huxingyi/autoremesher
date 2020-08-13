@@ -1,4 +1,0 @@
-var a00554 =
-[
-    [ "OPENMESH_DECIMATER_DECIMATERT_CC", "a00554.html#ab8077407ec24725ad2a2557a65df9a3b", null ]
-];

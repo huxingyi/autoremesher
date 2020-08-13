@@ -1,0 +1,24 @@
+#==  SYSTEM PART -- DON'T TOUCH  ==============================================
+include $(ACGMAKE)/Config
+#==============================================================================
+
+
+# subdirs to process
+SUBDIRS = $(call find-subdirs)
+
+# programms (files containing main(), w/o suffix)
+EXECS = $(call cxx-find-execs)
+
+# packages (qt, opengl, ...)
+PACKAGES := 
+
+# project DSOs
+PROJ_LIBS := OpenMesh/Core
+
+# modules to use (cxx, c, moc, uic, yacc) ! order-dependent !
+MODULES := cxx
+
+
+#==  SYSTEM PART -- DON'T TOUCH  ==============================================
+include $(ACGMAKE)/Rules
+#==============================================================================

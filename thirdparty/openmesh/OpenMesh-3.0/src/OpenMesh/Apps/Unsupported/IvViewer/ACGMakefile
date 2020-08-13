@@ -1,0 +1,37 @@
+#==  SYSTEM PART -- DON'T TOUCH  ==============================================
+include $(ACGMAKE)/Config
+#==============================================================================
+
+
+SUBDIRS  := $(call find-subdirs)
+
+USE_COIN := no
+USE_SOQT := no
+
+ifeq ($(USE_COIN),yes)
+  USE_SOQT := yes
+endif
+
+ifeq ($(USE_SOQT),yes)
+
+  CXX_DEFS += -DUSE_SOQT=1
+
+ifeq ($(USE_COIN),yes)
+  PACKAGES := coin soqt_coin glut opengl qt
+else
+  PACKAGES := Inventor soqt_inventor glut opengl qt
+endif
+
+else
+  PACKAGES  := inventor opengl x11
+endif 
+
+
+PROJ_LIBS = OpenMesh/Core
+
+MODULES := cxx
+
+
+#==  SYSTEM PART -- DON'T TOUCH  ==============================================
+include $(ACGMAKE)/Rules
+#==============================================================================

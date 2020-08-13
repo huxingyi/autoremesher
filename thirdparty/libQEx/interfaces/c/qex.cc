@@ -86,8 +86,8 @@ void qex_extractQuadMesh(qex_TriMesh const * in_triMesh, qex_Valence *in_vertexV
      */
     std::vector<unsigned int> valences, *valences_ptr = 0;
     if (in_vertexValences != 0) {
-        valences.reserve(in_triMesh->tri_count);
-        std::copy(in_vertexValences, in_vertexValences + in_triMesh->tri_count, std::back_inserter(valences));
+        valences.reserve(in_triMesh->vertex_count);
+        std::copy(in_vertexValences, in_vertexValences + in_triMesh->vertex_count, std::back_inserter(valences));
         valences_ptr = &valences;
     }
 

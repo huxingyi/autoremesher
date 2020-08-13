@@ -1,0 +1,197 @@
+//-----------------------------------------------------------------------------
+
+
+/** \page naming_conventions Naming Conventions
+
+The following naming conventions are used for the %OpenMesh code:
+
+<b>Files:</b>
+  \li \c MyClass.cc for C++-Implementation of class \c MyClass
+  \li \c MyClass.hh for C++-Header of class \c MyClass
+
+<b>Classes:</b>
+  \li Class names start with a capital letter: \c MyClass
+  \li Class templates end with \c T: \c MyClassTemplateT
+
+<b>Variables:</b>
+  \li One leading underscore for parameters in function-calls: \c _var
+  \li One trailing underscore for member-variables: \c var_
+  \li Two trailing underscores for static member-variables: \c var__
+
+<b>Functions:</b>
+  \li Words are separated by underscores: \c my_function()
+		 
+<b>Accessing members:</b>
+  \li To get the member \c xxx_ use <tt> const& xxx() const </tt>
+  \li To set the member \c xxx_ use <tt> void set_xxx(arg)  </tt>
+  
+**/
+
+
+//-----------------------------------------------------------------------------
+
+
+/** \page compiling Compiling OpenMesh
+
+\section compilers Tested compilers
+
+%OpenMesh has been successfully tested for the following operating
+systems / compilers:
+
+<table>
+
+<tr><td> Linux </td><td>
+gcc 4.0.x<br>
+gcc 4.1.x<br>
+gcc 4.2.x<br>
+gcc 4.3.x<br>
+gcc 4.4.x<br>
+gcc 4.5.x<br>
+gcc 4.6.x<br>
+gcc 4.7.x<br>
+gcc 4.8.x<br>
+</td></tr>
+
+<tr><td> Windows </td><td> 
+Microsoft Visual Studio 2008<br>
+Microsoft Visual Studio 2010<br>
+Microsoft Visual Studio 2012<br>
+</td></tr>
+
+<tr><td> MacOS X <br>(Panther,Tiger,Leopard,Snow Leopard)</td><td> 
+gcc 4.0 <br>
+gcc 4.2 <br>
+</td></tr>
+
+<tr><td> MacOS X <br>(Snow Leopard),... with clang</td><td> 
+XCode 4.3 <br>
+XCode 4.4 <br>
+XCode 4.5 <br>
+</td></tr>
+
+</table>
+
+\section req_libs Required libraries (Only for included Apps)
+
+Install the following external libraries / frameworks if you want to use the included Applications:<br><br>
+<table>
+<tr><td>Qt4</td><td><a href="http://www.qtsoftware.com/downloads" target="_blank">http://www.qtsoftware.com/downloads</a></td></tr>
+</table><br>
+
+\section build_systems Chosing build system
+
+%OpenMesh can be built using the <b>cmake</b> build system.
+<br>
+<br>
+
+\section sec_compiling_unix Unix
+
+\subsection linux_using_cmake Compiling OpenMesh using CMake
+
+In order to compile %OpenMesh, create a directory named e.g. "build" in
+OpenMesh's root directory. <b>Change to the newly created directory</b> and type
+<br/><br/>
+<tt>
+cmake&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;## Generates the appropriate Makefiles<br>
+make&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;## Builds the project<br>
+</tt><br>
+You can choose the build type by using cmake with the flag<br>
+<b>-DCMAKE_BUILD_TYPE=(Debug|Release)</b><br>
+The default is: Debug
+<br>
+Other flags are:<br/>
+<b>-DBUILD_APPS=OFF</b> to disable build of applications and<br/>
+<b>-DCMAKE_INSTALL_PREFIX=&lt;path&gt;</b> to specify the install path.
+<br/>
+When calling <b>make install</b> cmake will install %OpenMesh into this
+directory using the subdirectories lib/include/bin.
+
+CMake builds both shared and static under Linux.
+
+Everything will then be build in the <b>Build</b> subdirectory containing the libraries in <b>lib</b> and the binaries in <b>bin</b>.
+
+There are some additional targets:<br>
+<b>doc</b>: Builds the Documentation<br>
+<b>doc-install</b>: Builds the Documentation and installs it<br>
+<br>
+<br>
+
+\section sec_compiling_windows Windows
+
+\subsection windows_using_cmake Compiling OpenMesh using CMake
+
+If you want to use cmake to build your Visual Studio 2008 solution file,<br>
+download and install CMake from <a href="http://www.cmake.org/cmake/resources/software.html">www.cmake.org</a>.<br>
+(Note: This is not mandatory since there are already VS2008 solution files included in %OpenMesh).<br><br>
+<br>
+<br>
+<ul>
+<li> Get Visual Studio 2008 or 2010 </li>
+<li> Extract %OpenMesh source code. </li>
+<li> Get all required libraries and install them ( including headers! ).</li>
+<li> Get cmake for windows from http://www.cmake.org/cmake/resources/software.html <li>
+<li> Start the cmake gui and open the %OpenMesh toplevel directory as source directory </li>
+<li> Choose a build directory (e.g. create a directory called "build" in OpenMesh's root folder) </li>
+<li> Click on configure .... If any libraries are left unconfigured, you can adjust the path manually. Rerun configure until everything is configured correctly.
+     Attention: Some build variables are only visible in advanced view mode. Select Visual Studio 9 2008 or Visual Studio 10 (Depending on your version) as
+     generator. </li>
+<li> Click generate to create the visual studio project files </li>
+<li> You can now find a Visual Studio solution file (OpenMesh.sln) in the <b>build</b> directory you chose in cmake </li>
+<li> Now you can build %OpenMesh from within Visual Studio using the newly created project file. </li>
+</ul>
+
+Note: Set the CMAKE_BUILD_TYPE variable to "Release" if you want %OpenMesh to be built as release.
+In Visual Studio choose "Release" in the appropriate select box and build the solution afterwards.
+
+<br>
+<br>
+
+\section sec_compiling_macosx MacOS X
+
+Download and install required libraries as stated above.
+You can download %OpenMesh's sources from <tt>www.openmesh.org</tt> or check out the latest repository via SVN:<br/>
+<tt>svn co http://www.openmesh.org/svnrepo/OpenMesh/trunk %OpenMesh</tt>.<br/><br/>
+
+\subsection mac_using_cmake Compiling OpenMesh using CMake
+
+We recommend you to use CMake >= 2.8 as build system. This can also easily be installed
+via MacPorts as well as the Qt >= 4.7 library which is used for some example applications
+in %OpenMesh.<br/>
+Once installed, change to %OpenMesh's root directory and create a directory
+named e.g. "buildDebug" (assuming you want to build with debug symbols).<br/>
+Then type in the following command to initially set up the build environment:
+<br/><br/>
+<tt>
+cmake&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;## Generates the appropriate Makefiles<br>
+</tt>
+<br/>
+Note: If the build directory is not a subdirectory of %OpenMesh's root folder, replace ".." with %OpenMesh's
+absolute (or relative) path.
+In order to manually set specific build variables, just type:
+<br/><br/>
+<tt>
+ccmake&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;## Configure build environment<br>
+</tt>
+<br/>
+This opens the CMake configure tool. Change the CMAKE_BUILD_TYPE variable to "Release" in order to prepare build
+for release configuration. Now, when everything is set up, just type:
+<br/><br/>
+<tt>
+make&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;## Build %OpenMesh<br>
+</tt>
+<br/>
+And optionally:
+<br/><br/>
+<tt>
+make&nbsp;doc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;## Build %OpenMesh's documentation<br>
+</tt>
+<br>
+The mac application bundle will be found under "Build" in the recently created build folder. 
+It automatically contains all needed shared objects (libs, fonts, textures, etc.).
+
+CMake builds both shared and static under MacOS X.
+
+**/
+
+
+//-----------------------------------------------------------------------------

@@ -23,18 +23,6 @@
 #ifndef QEX_H_INCLUDED
 #define QEX_H_INCLUDED
 
-//#ifndef DLLEXPORT
-//    #ifdef WIN32
-//        #ifdef QEX_EXPORT_SYMBOLS
-//            #define DLLEXPORT __declspec(dllexport)
-//        #else
-//            #define DLLEXPORT __declspec(dllimport)
-//        #endif
-//    #else
-//        #define DLLEXPORT
-//    #endif
-//#endif
-
 #define DLLEXPORT
 
 #ifdef __cplusplus

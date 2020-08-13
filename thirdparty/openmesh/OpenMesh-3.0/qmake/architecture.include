@@ -1,0 +1,87 @@
+
+################################################################################
+# Architecture detection
+# The following Variables are defined by this include:
+# OPERATING_SYSTEM : Debian / Fedora / Windows
+# ARCHITECTURE         : 32 / 64
+# MODE                        : Debug / Release
+# BUILDDIRECTORY     : Concat of all above variables sesparated by underscores e.g. Debian_64_debug
+################################################################################
+
+unix {
+	
+	OPERATING_SYSTEM = UNKNOWN_OS
+
+	exists( /etc/lsb-release ) {
+		OPERATING_SYSTEM = Ubuntu
+	}
+
+
+	exists( /etc/debian_version ) | exists( /etc/debian_release ) {
+		OPERATING_SYSTEM = Debian
+	}
+
+	exists( /etc/fedora-release ) {
+		OPERATING_SYSTEM = Fedora
+	}
+
+	exists( /etc/gentoo-release ) {
+		OPERATING_SYSTEM = Gentoo
+	}
+
+	exists( /etc/lfs-release ) {
+		OPERATING_SYSTEM = Linux_From_Scratch
+	}
+
+	exists( /etc/mandrake-release ) | exists( /etc/mandrakelinux-release ) {
+		OPERATING_SYSTEM = Mandrake
+	}
+
+	exists( /etc/mandriva-release ) {
+		OPERATING_SYSTEM = Mandriva
+	}
+
+	exists( /etc/redhat-release ) | exists( /etc/redhat_version ) {
+		OPERATING_SYSTEM = Redhat
+	}
+
+	exists( /etc/SuSE-release ) | exists( /etc/novell-release ) {
+		OPERATING_SYSTEM = SuSE
+	}
+
+	TEST_DARWIN = $$system(uname -s)
+	contains( TEST_DARWIN, Darwin) {
+		OPERATING_SYSTEM = Darwin
+		DEFINES += ARCH_DARWIN
+		export(DEFINES)
+	}
+
+	HARDWARE_PLATFORM = $$system(uname -a)
+	contains( HARDWARE_PLATFORM, x86_64 ) {
+		# 64-bit Linux
+		ARCHITECTURE = 64
+	} else {
+		# 32-bit Linux
+		ARCHITECTURE = 32
+	}
+
+	contains(TEST_DARWIN, Darwin) {
+		SYSTEMTYPE = Darwin
+	} else {
+		SYSTEMTYPE = Linux
+	}
+}
+
+win32 {
+	OPERATING_SYSTEM = Windows
+	ARCHITECTURE = 32
+	SYSTEMTYPE = Windows
+}
+
+CONFIG( debug, debug|release ){
+	MODE = Debug
+} else {
+	MODE = Release
+}
+
+BUILDDIRECTORY = $${OPERATING_SYSTEM}_$${ARCHITECTURE}_$${MODE}
