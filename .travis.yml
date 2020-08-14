@@ -47,8 +47,8 @@ install:
   - cd build
   - cmake -D "BUILD_APPS=OFF" -D "OPENMESH_BUILD_SHARED=OFF" -DCMAKE_BUILD_TYPE=Release ../
   - cmake --build . --config Release
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then rm -rf Build/lib/libOpenMeshCore.so; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then rm -rf Build/lib/libOpenMeshCore.dylib; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then rm -rf Build/lib/OpenMesh/libOpenMeshCore.so; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then rm -rf Build/lib/OpenMesh/libOpenMeshCore.dylib; fi
   - cd ../../../../
   
   # Build tbb

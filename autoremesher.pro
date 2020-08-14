@@ -244,8 +244,15 @@ HEADERS += thirdparty/libQEx/src/Vector.hh
 SOURCES += thirdparty/libQEx/interfaces/c/qex.cc
 HEADERS += thirdparty/libQEx/interfaces/c/qex.h
 
-CONFIG(debug, debug|release) LIBS += -Lthirdparty/openmesh/OpenMesh-3.0/build-debug/Build/lib -lOpenMeshCored
-CONFIG(release, debug|release) LIBS += -Lthirdparty/openmesh/OpenMesh-3.0/build/Build/lib -lOpenMeshCore
+win32 {
+    CONFIG(debug, debug|release) LIBS += -Lthirdparty/openmesh/OpenMesh-3.0/build-debug/Build/lib -lOpenMeshCored
+    CONFIG(release, debug|release) LIBS += -Lthirdparty/openmesh/OpenMesh-3.0/build/Build/lib -lOpenMeshCore
+}
+
+unix {
+    CONFIG(debug, debug|release) LIBS += -Lthirdparty/openmesh/OpenMesh-3.0/build-debug/Build/lib/OpenMesh -lOpenMeshCored
+    CONFIG(release, debug|release) LIBS += -Lthirdparty/openmesh/OpenMesh-3.0/build/Build/lib/OpenMesh -lOpenMeshCore
+}
 
 win32 {
     LIBS += -luser32
