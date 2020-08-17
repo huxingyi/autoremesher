@@ -77,6 +77,7 @@ private:
     Eigen::MatrixXd *m_PD1 = nullptr;
     Eigen::MatrixXd *m_PD2 = nullptr;
     HalfEdge::Mesh *m_mesh = nullptr;
+    bool m_useQuadCover = true;
     Parameters m_parameters;
     std::vector<size_t> m_vertexValences;
 };

@@ -1,0 +1,54 @@
+  Y-a-t-il une maniere elegante d'ajouter l'intersection avec une boule
+dans la classe ConvexCell ?
+
+  * predicat:
+     1) calcul x,y,z,w
+     2) (x/w - cx)^2 + (y/w - cy)^2 + (z/w - cz)^2 < R2
+        (x - w cx)^2 + (y - w cy)^2 + (z - w cz)^2 < w2 R2
+	(x - w cx)^2 + (y - w cy)^2 + (z - w cz)^2 - (w R)^2 < 0
+           Le degre devient pas mal (8 si je dis pas de betises)
+	   Necessite un coup de PCK (c'est pas un predicat standard ?)
+	   Normalement on devrait pouvoir re-utiliser un predicat du
+	   diagramme de puissance, non ?
+
+           A priori, ca devrait etre orient_3d_lifted_SOS() je pense,
+	   a verifier.... Nope ! ca a pas l'air de pouvoir marcher,
+	   parceque orient_3d_lifted_SOS() regarde si un coin de cellule
+	   de Laguerre est en conflit avec un site, alors qu'ici on regarde
+	   s'il est en conflit avec le "site continu" qui remplit tout
+	   l'espace.
+	   -> nouveau predicat, qui prend en argument les trois plans et
+	      la sphere
+	   -> le faire deja en non-exact, explicitement
+           -> rem: on pourrait gerer les 'rays' (triangles avec un sommet a
+	      l'infini) explicitement, mais un peu penible, donc on peut
+	      pre-clipper par un gros cube.
+
+   * calcul d'un point:
+        x*n1x + y*n1y + z*n1z + w*n1w = 0
+     x*n2x + y*n2y + z*n2z + w*n2w = 0
+    (x-w cx)2/w2 + (y-w cy)2/w2 + (z-w cz)2/w2 = R2
+
+     Trouver un point sur le rayon
+     Equation parametrique du rayon
+     Injecter dans equation sphere
+     Si y'a 2 intersections, prendre celle qui est dans le polyedre
+       precedent (penible !) -> y-a-t-il un autre moyen de discriminer ?
+
+   * obtenir la cellule:
+       la facette spherique peut avoir plusieurs composantes connexes, il faut
+     aller les chercher toutes (un peu penible). Mais au moins, avec vv2t, on n'a
+     plus le probleme du parcours du (des) bord(s) de la zone de conflit (cool !)
+
+   * il faudra sans doute avoir un flag pour la facette spherique.
+
+=====================================================================================
+
+  Calcul des aires et des volumes: est-ce qu'on peut faire des quadratures de degre 2 ?
+    Probablement. On decompose en triangles et tetraedres IP2
+    Puis des fonctions pour calculer:
+        aire d'un triangle IP2
+	volume et centre de masse d'un tetraedre IP2
+
+    (si on veut megotter, on a trois types de triangles, suivant
+       le nombre de cotes courbes)

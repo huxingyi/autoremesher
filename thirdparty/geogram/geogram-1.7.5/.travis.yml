@@ -1,0 +1,79 @@
+language: cpp
+dist: trusty
+sudo: false
+
+addons:
+  apt:
+    sources:
+      - llvm-toolchain-trusty-4.0
+      - ubuntu-toolchain-r-test
+    packages:
+      - libxrandr-dev
+      - libxinerama-dev
+      - libxcursor-dev
+      - libxkbcommon-x11-dev
+      - libpthread-stubs0-dev
+      - libxi-dev
+      - libxmu-dev
+      - clang-4.0
+      - g++-5
+
+matrix:
+  include:
+    - compiler: gcc
+      env: COMPILERS="CXX=g++-4.8 && CC=gcc-4.8" TOOLSET=gcc
+    - compiler: gcc-5
+      env: COMPILERS="CXX=g++-5 && CC=gcc-5" TOOLSET=gcc
+    # There is a weird error for 4.0 and 3.8 during cmake as pthread is not found even if
+    # it is in /usr/include. Don't know whether it is a cmake or a clang related issue...
+#    - compiler: clang-4.0
+#      env: COMPILERS="CXX=clang++-4.0 && CC=clang-4.0" TOOLSET=clang
+    - compiler: clang
+      env: COMPILERS="CXX=clang++ && CC=clang" TOOLSET=clang
+
+
+env:
+  global:
+    - NUM_CPU="`grep processor /proc/cpuinfo | wc -l`"; echo $NUM_CPU
+
+before_install:
+    - eval "${COMPILERS}"
+
+before_script:
+#  - echo | ${CC} -v -E -x c -
+  - BUILD_DIR=`pwd`/build/Linux64-gcc-dynamic-Release
+  - INSTALL_DIR=${BUILD_DIR}/install
+  - TARGET_NAME=$(echo ${TRAVIS_REPO_SLUG} | cut -d "/" -f2)
+  - echo -e "set(CMAKE_INSTALL_PREFIX ${INSTALL_DIR}/${TARGET_NAME})\n" >> CMakeOptions.txt
+#  - echo -e "set(CMAKE_INSTALL_PREFIX ${INSTALL_DIR})\n" >> CMakeOptions.txt
+  - ./configure.sh
+
+script:
+#  - cc --version
+#  - c++ --version
+#  - gcc --version
+#  - g++ --version
+#  - cmake --version
+#  - ${CXX} --version
+#  - ${CC} --version
+#  - echo ${NUM_CPU}
+  - cd ${BUILD_DIR}
+  # for some reason ${NUM_CPU} gives 32 and make compilation crash at some point
+  - make install VERBOSE=1 -j 2 install
+
+before_deploy:
+  - ARCHIVE_BASE_PATH=${INSTALL_DIR}
+  - TARGET_VERSION=$(echo ${TRAVIS_TAG} | cut -d "v" -f2)
+  - TARGET_FULL_NAME=${TARGET_NAME}-${TARGET_VERSION}-${CC}-${TRAVIS_OS_NAME}
+  - INSTALL_ARCHIVE_FILENAME=${TARGET_FULL_NAME}.tgz
+  - cd ${INSTALL_DIR}
+  - tar -czvf ${INSTALL_ARCHIVE_FILENAME} ${TARGET_NAME}
+
+deploy:
+  provider: releases
+  api_key:
+    secure: ${GITHUB_RELEASE_API_KEY}
+  file: ${ARCHIVE_BASE_PATH}/${INSTALL_ARCHIVE_FILENAME}
+  skip_cleanup: true
+  on:
+    tags: true

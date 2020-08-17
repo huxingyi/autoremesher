@@ -23,6 +23,8 @@
 #include <AutoRemesher/Radians>
 #include <iostream>
 #include <unordered_set>
+#include <exploragram/hexdom/quad_cover.h>
+#include <geogram/mesh/mesh_io.h>
 #if AUTO_REMESHER_DEBUG
 #include <QDebug>
 #endif
@@ -244,6 +246,73 @@ bool Parameterizer::miq(size_t *singularityCount,
 
         Eigen::MatrixXd PD1_combed, PD2_combed;
         igl::comb_frame_field(V_deformed, *m_F, X1_deformed, X2_deformed, BIS1_combed, BIS2_combed, PD1_combed, PD2_combed);
+        
+        if (m_useQuadCover) {
+#if AUTO_REMESHER_DEV
+            qDebug() << "Prepare vertices for quad cover...";
+#endif
+            GEO::Mesh M;
+            M.vertices.set_dimension(3);
+            for (size_t i = 0; i < V_deformed.rows(); ++i) {
+                const auto &row = V_deformed.row(i);
+                auto v = M.vertices.create_vertex();
+                double coords[] = {row[0], row[1], row[2]};
+                if (M.vertices.single_precision()) {
+                    float *p = M.vertices.single_precision_point_ptr(v);
+                    for(GEO::index_t c = 0; c < 3; ++c) {
+                        p[c] = float(coords[c]);
+                    }
+                } else {
+                    double *p = M.vertices.point_ptr(v);
+                    for(GEO::index_t c = 0; c < 3; ++c) {
+                        p[c] = coords[c];
+                    }
+                }
+            }
+#if AUTO_REMESHER_DEV
+            qDebug() << "Prepare facets for quad cover...";
+#endif
+            for (size_t i = 0; i < m_F->rows(); ++i) {
+                const auto &row = m_F->row(i);
+                GEO::index_t f = M.facets.create_polygon(3);
+                for (GEO::index_t lv = 0; lv < 3; ++lv) {
+                    M.facets.set_vertex(f, lv, row[lv]);
+                }
+            }
+#if AUTO_REMESHER_DEV
+            qDebug() << "Prepare facet attribute for quad cover...";
+#endif
+            GEO::Attribute<GEO::vec3> B(M.facets.attributes(), "B");
+            GEO::Attribute<GEO::vec2> U(M.facet_corners.attributes(), "U");
+            for (size_t i = 0; i < BIS1_combed.rows(); ++i) {
+                const auto &row = BIS1_combed.row(i);
+                B[i] = GEO::vec3(row[0], row[1], row[2]);
+            }
+#if AUTO_REMESHER_DEV
+            qDebug() << "Parameterizing by quad_cover...";
+#endif
+            GEO::GlobalParam2d::quad_cover(&M, B, U);
+#if AUTO_REMESHER_DEV
+            qDebug() << "BIS1_combed.rows():" << BIS1_combed.rows();
+            qDebug() << "m_F->rows():" << m_F->rows();
+            size_t faceCornerNum = 0;
+            for (HalfEdge::Face *face = m_mesh->firstFace(); nullptr != face; face = face->_next) {
+                const auto &v0 = U[faceCornerNum++];
+                const auto &v1 = U[faceCornerNum++];
+                const auto &v2 = U[faceCornerNum++];
+                HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
+                HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
+                HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
+                h0->startVertexUv[0] = v0[0];
+                h0->startVertexUv[1] = v0[1];
+                h1->startVertexUv[0] = v1[0];
+                h1->startVertexUv[1] = v1[1];
+                h2->startVertexUv[0] = v2[0];
+                h2->startVertexUv[1] = v2[1];
+            }
+#endif
+            return true;
+        }
         
         double stiffness = 5.0;
         bool directRound = false;

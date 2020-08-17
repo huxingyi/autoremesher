@@ -1,0 +1,21 @@
+*** Settings ***
+Test Setup        Prepare Test
+Test Teardown     Cleanup Test
+Force Tags        Remesh    smoke    daily
+Library           OperatingSystem
+Library           lib/VorpatestLibrary.py
+
+*** Variables ***
+${DATADIR}        %{VORPATEST_ROOT_DIR}${/}data${/}Small
+
+*** Test Cases ***
+three_holes.obj
+    [Tags]    daily_valgrind
+    Run Test   three_holes.obj  profile=hex  pts=1000
+
+*** Keywords ***
+Run Test
+    [Arguments]    ${input_name}=${TEST NAME}    @{options}
+    [Documentation]    Runs a vorpaline PGP3D hex dominant meshing test
+    ...    The name of the input file is taken from the test name.
+    run vorpaline    ${DATADIR}${/}${input_name}  @{options}

@@ -1,0 +1,59 @@
+# Doxygen configuration file for generating
+# the internal developer kit documentation
+# This includes *all* source files, including third parties,
+# license files and all .cpp files.
+
+PROJECT_NAME           = "Geogram"
+PROJECT_NUMBER         = "Version @VORPALINE_VERSION@"
+PROJECT_BRIEF          = "A programming library of geometric algorithms"
+
+@INCLUDE               = @CMAKE_SOURCE_DIR@/doc/common.dox
+WARN_LOGFILE           = @doc_output_dir@/devkit-internal.log
+
+# Input files
+
+INPUT                  = @CMAKE_SOURCE_DIR@/src @CMAKE_SOURCE_DIR@/doc/devkit @CMAKE_SOURCE_DIR@/doc/devkit-internal
+FILE_PATTERNS          = *.h *.cpp *.dox
+RECURSIVE              = YES
+TAB_SIZE               = 8
+
+EXCLUDE_PATTERNS       = */.svn/*
+#EXCLUDE                += @CMAKE_SOURCE_DIR@/src/lib/geogram/third_party
+#EXCLUDE                += @CMAKE_SOURCE_DIR@/src/lib/geogram_gfx/third_party
+EXCLUDE                += @CMAKE_SOURCE_DIR@/src/lib/third_party
+
+FULL_PATH_NAMES        = YES
+STRIP_FROM_PATH        = @CMAKE_SOURCE_DIR@/
+STRIP_FROM_INC_PATH    = @CMAKE_SOURCE_DIR@/src/lib/
+
+OUTPUT_DIRECTORY       = @doc_output_dir@/devkit-internal
+GENERATE_TAGFILE       = @doc_output_dir@/devkit-internal.tags
+
+# Symbols to extract
+
+INTERNAL_DOCS          = YES
+ENABLED_SECTIONS       = internal
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+EXTRACT_ANON_NSPACES   = YES
+
+# Generation options
+
+HAVE_DOT               = @DOXYGEN_HAVE_DOT@
+DOT_PATH               = @DOXYGEN_DOT_PATH@
+
+SOURCE_BROWSER         = YES
+HTML_TIMESTAMP         = YES
+GENERATE_TREEVIEW      = YES
+HIDE_UNDOC_RELATIONS   = NO
+COLLABORATION_GRAPH    = YES
+TEMPLATE_RELATIONS     = YES
+REFERENCES_RELATION    = YES
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+INTERACTIVE_SVG        = YES
+DOT_MULTI_TARGETS      = YES

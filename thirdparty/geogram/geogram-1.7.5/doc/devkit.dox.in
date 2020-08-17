@@ -1,0 +1,58 @@
+# Doxygen configuration file for generating
+# the minimal developer kit documentation
+# This includes the Vorpaline C API only
+
+PROJECT_NAME           = "Geogram"
+PROJECT_NUMBER         = "Version @VORPALINE_VERSION@"
+PROJECT_BRIEF          = "A programming library of geometric algorithms (C) Bruno Levy / Inria 2012-2014"
+
+@INCLUDE               = @CMAKE_SOURCE_DIR@/doc/common.dox
+WARN_LOGFILE           = @doc_output_dir@/devkit.log
+
+# Input files
+
+INPUT                  = @CMAKE_SOURCE_DIR@/src/lib/vorpalib/api
+FILE_PATTERNS          = *.h *.dox
+RECURSIVE              = YES
+TAB_SIZE               = 8
+
+EXCLUDE_PATTERNS       = */.svn/*
+EXCLUDE                += @CMAKE_SOURCE_DIR@/src/lib/geogram/third_party
+EXCLUDE                += @CMAKE_SOURCE_DIR@/src/lib/geogram_gfx/third_party
+EXCLUDE                += @CMAKE_SOURCE_DIR@/src/lib/third_party
+
+FULL_PATH_NAMES        = YES
+STRIP_FROM_PATH        = @CMAKE_SOURCE_DIR@/src/lib/
+STRIP_FROM_INC_PATH    = @CMAKE_SOURCE_DIR@/src/lib/
+
+OUTPUT_DIRECTORY       = @doc_output_dir@/devkit
+GENERATE_TAGFILE       = @doc_output_dir@/devkit.tags
+
+# Symbols to extract
+
+INTERNAL_DOCS          = NO
+ENABLED_SECTIONS       =
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+EXTRACT_LOCAL_CLASSES  = NO
+EXTRACT_ANON_NSPACES   = NO
+
+# Generation options
+
+HAVE_DOT               = @DOXYGEN_HAVE_DOT@
+DOT_PATH               = @DOXYGEN_DOT_PATH@
+
+SOURCE_BROWSER         = YES
+HTML_TIMESTAMP         = YES
+GENERATE_TREEVIEW      = YES
+HIDE_UNDOC_RELATIONS   = NO
+COLLABORATION_GRAPH    = NO
+TEMPLATE_RELATIONS     = NO
+REFERENCES_RELATION    = NO
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+INCLUDE_GRAPH          = NO
+INCLUDED_BY_GRAPH      = NO
+INTERACTIVE_SVG        = YES
+DOT_MULTI_TARGETS      = YES

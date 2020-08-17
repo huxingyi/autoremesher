@@ -1,0 +1,103 @@
+# Suppression rules 
+
+# pthread_create:
+# Valgrind reports memory leaks with pthread_create. This seems to be normal
+# as the pthread library does not release thread ressources for later reuse.
+
+{
+   Vorpaline_gomp_64bits_leak_1
+   Memcheck:Leak
+   fun:malloc
+   fun:realloc
+   obj:/usr/*lib*/libgomp.so*
+   obj:/usr/*lib*/libgomp.so*
+   ...
+}
+{
+   Vorpaline_gomp_64bits_leak_2
+   Memcheck:Leak
+   fun:malloc
+   obj:/usr/*lib*/libgomp.so*
+   obj:/usr/*lib*/libgomp.so*   
+   ...
+}
+{
+   Vorpaline_gomp_64bits_leak_3
+   Memcheck:Leak
+   fun:calloc
+   fun:_dl_allocate_tls
+   fun:pthread_create*
+   ...
+}
+{
+   Vorpaline_gomp_64bits_leak_4
+   Memcheck:Leak
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+   fun:pthread_create*
+   ...
+}
+{
+   dlopen1
+   Memcheck:Leak
+   ...
+   fun:dlopen_doit
+   ...
+}
+{  
+   dlopen2
+   Memcheck:Leak
+   ...
+   fun:dlopen@@*
+   ...
+}
+{  
+   dlclose
+   Memcheck:Leak
+   ...
+   fun:dlclose
+   ...
+}
+
+{
+   ZLIB uninitialized memory read
+   Memcheck:Cond
+   ...
+   fun:deflate_fast
+   fun:deflate
+   ...
+}
+
+{
+   OpenGL driver
+   Memcheck:Addr4
+   ...
+   obj:*/i965_dri.so
+   ...
+}
+
+{
+   OpenGL driver
+   Memcheck:Addr8
+   ...
+   obj:*/i965_dri.so
+   ...
+}
+
+{
+   OpenGL driver
+   Memcheck:Value4
+   ...
+   obj:*/i965_dri.so
+   ...
+}
+
+{
+   OpenGL driver
+   Memcheck:Value8
+   ...
+   obj:*/i965_dri.so
+   ...
+}

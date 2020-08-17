@@ -1,0 +1,48 @@
+::
+::      \\V (O |R |P /A |L |I |N |E 
+:: (C) Bruno Levy, INRIA - ALICE, 2012,2013
+::
+::   Confidential - proprietary software
+::
+
+set VORPALINE_SOURCE_DIR=@CMAKE_SOURCE_DIR.PATH@
+set VORPALINE_BUILD_DIR=@CMAKE_BINARY_DIR.PATH@
+set VORPALINE_BIN_DIR=@CMAKE_RUNTIME_OUTPUT_DIRECTORY.PATH@
+set VORPALINE_LIB_DIR=@CMAKE_LIBRARY_OUTPUT_DIRECTORY.PATH@
+
+:: Parse arguments
+:: If the build directory contains a Makefile, we are in a single build
+:: configuration determined at configuration time.
+:: Otherwise, we are in a multi-build configuration and the caller must
+:: specify which configuration on the command line to use with option --config
+
+if exist %VORPALINE_BUILD_DIR%/Makefile (
+    set VORPALINE_BUILD_CONFIG=@CMAKE_BUILD_TYPE@
+) else (
+    if "%1" == "--config" (
+        call :set_config %2
+        shift
+        shift
+    ) else (
+        echo Error: option --config BUILD_CONFIG must be specified as first argument,
+        echo where BUILD_CONFIG is the cmake build configuration to use
+        exit /B 1
+    )
+)
+
+:: Swallow the remaining arguments
+
+:options
+if "%1" == "" goto :eof
+set args=%args% %1
+shift
+goto options
+
+:: Set Vorpaline executables
+
+:set_config
+set VORPALINE_BUILD_CONFIG=%1
+set VORPALINE_BIN_DIR=%VORPALINE_BIN_DIR%\%1
+set VORPALINE_LIB_DIR=%VORPALINE_LIB_DIR%\%1
+goto :eof
+

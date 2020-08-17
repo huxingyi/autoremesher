@@ -1,0 +1,13 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+includedir=${prefix}/include/@VORPALINE_INCLUDE_SUBPATH@
+libdir=${exec_prefix}/lib@LIB_SUFFIX@
+
+Name: geogram_gfx
+Description: Graphic rendering and GUI for geogram
+Version: @VORPALINE_VERSION@
+URL: http://alice.loria.fr/software/geogram
+Requires.private: 
+Libs: -L${libdir} -Wl,-rpath ${libdir} -lgeogram_gfx -lgeogram -l@GEO_GLFW3_LIBNAME@
+Libs.private: 
+Cflags: -I${includedir}

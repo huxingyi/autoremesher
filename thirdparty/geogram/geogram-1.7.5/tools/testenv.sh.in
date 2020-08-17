@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+#      \\V (O |R |P /A |L |I |N |E 
+# (C) Bruno Levy, INRIA - ALICE, 2012,2013
+#
+#   Confidential - proprietary software
+#
+
+export VORPALINE_BUILD_CONFIG="@CMAKE_BUILD_TYPE.PATH@"
+export VORPALINE_SOURCE_DIR="@CMAKE_SOURCE_DIR.PATH@"
+export VORPALINE_BUILD_DIR="@CMAKE_BINARY_DIR.PATH@"
+export VORPALINE_BIN_DIR="@CMAKE_RUNTIME_OUTPUT_DIRECTORY.PATH@"
+export VORPALINE_LIB_DIR="@CMAKE_LIBRARY_OUTPUT_DIRECTORY.PATH@"
+
+args=
+while [ -n "$1" ]; do
+    case "$1" in
+        --with-*=*)
+            var=`echo "$1" | sed 's/--with-\([^=]*\)=\(.*\)$/VORPALINE_WITH_\U\1\E=\2/'`
+            export "$var"
+            shift
+            ;;
+        --with-*)
+            var=`echo "$1" | sed 's/--with-\(.*\)$/VORPALINE_WITH_\U\1=1/'`
+            export "$var"
+            shift
+            ;;
+        *)
+            args="$args $1"
+            shift;
+            ;;
+    esac
+done
+

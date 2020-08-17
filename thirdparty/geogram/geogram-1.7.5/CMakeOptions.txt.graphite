@@ -1,0 +1,16 @@
+# Options for compiling Geogram for Graphite
+# Rename as CMakeOptions.txt
+
+if(WIN32)
+   set(VORPALINE_PLATFORM Win-vs-dynamic-generic)
+elseif(APPLE)
+   set(VORPALINE_PLATFORM Darwin-clang-dynamic)
+elseif(UNIX)
+   set(VORPALINE_PLATFORM Linux64-gcc-dynamic)
+endif()
+
+# Only geogram, geogram_gfx and GLFW will be built
+# (skips generation of geogram demos and programs)
+
+set(GEOGRAM_LIB_ONLY ON)
+

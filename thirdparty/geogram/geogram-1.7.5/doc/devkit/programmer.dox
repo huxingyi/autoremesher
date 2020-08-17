@@ -1,0 +1,96 @@
+/*
+ *  Copyright (c) 2012-2014, Bruno Levy
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions are met:
+ *
+ *  * Redistributions of source code must retain the above copyright notice,
+ *  this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright notice,
+ *  this list of conditions and the following disclaimer in the documentation
+ *  and/or other materials provided with the distribution.
+ *  * Neither the name of the ALICE Project-Team nor the names of its
+ *  contributors may be used to endorse or promote products derived from this
+ *  software without specific prior written permission.
+ * 
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ *  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ *  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ *  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ *  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *
+ *  If you modify this software, you should include a notice giving the
+ *  name of the person performing the modification, the date of modification,
+ *  and the reason for such modification.
+ *
+ *  Contact: Bruno Levy
+ *
+ *     Bruno.Levy@inria.fr
+ *     http://www.loria.fr/~levy
+ *
+ *     ALICE Project
+ *     LORIA, INRIA Lorraine, 
+ *     Campus Scientifique, BP 239
+ *     54506 VANDOEUVRE LES NANCY CEDEX 
+ *     FRANCE
+ *
+ */
+
+namespace GEO {
+
+/**
+
+\page geogram_programmer Programmer's quick links
+
+Quick links to main Geogram functions and classes
+=================================================
+
+- Mesh
+  - GEO::Mesh 
+  - GEO::mesh_load()
+  - GEO::mesh_save()
+- Geometry processing
+  - GEO::compute_normals()
+  - GEO::simple_Laplacian_smooth()
+  - GEO::get_bbox()
+  - GEO::mesh_repair()
+  - GEO::remove_degree3_vertices()
+  - GEO::remove_small_facets()
+  - GEO::remove_small_connected_components()
+  - GEO::orient_normals()
+  - GEO::expand_border()
+  - GEO::get_connected_components()
+- Computational geometry
+  - GEO::Delaunay, GEO::Delaunay3d
+  - GEO::CentroidalVoronoiTesselation
+  - GEO::RestrictedVoronoiDiagram
+  - GEO::NearestNeighborSearch, GEO::KdTree
+  - GEO::MeshFacetsAABB, GEO::MeshCellsAABB
+
+Quick links to main geogram internal classes
+============================================
+
+- Numerics
+  - Numerical analysis: GEO::Optimizer
+  - Computer arithmetics: GEO::expansion, GEO::expansion_nt
+- System
+  - Processes: GEO::Process, GEO::parallel_for()
+  - Command line and logging: GEO::Logger, GEO::CmdLine, GEO::ProgressTask
+  - Types: GEO::Memory
+  - Files: GEO::FileSystem, GEO::LineInput  
+  - Time: GEO::Stopwatch
+- Generic internal implementation of geometric algorithms 
+  - Implementation of Restricted Voronoi Diagram: GEOGen::RestrictedVoronoiDiagram
+  - Implementation of volumetric convex clipping: GEOGen::ConvexCell  
+  - Implementation of surfacic convex clipping: GEOGen::Polygon
+
+ */
+
+}

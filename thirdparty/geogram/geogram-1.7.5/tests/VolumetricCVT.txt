@@ -1,0 +1,30 @@
+*** Settings ***
+Test Setup        Prepare Test
+Test Teardown     Cleanup Test
+Force Tags        VolumetricCVT    smoke    daily
+Library           OperatingSystem
+Library           String
+Library           lib/VorpatestLibrary.py
+
+*** Variables ***
+${DATADIR}        %{VORPATEST_ROOT_DIR}${/}data${/}Tets
+
+*** Test Cases ***
+PetitCubeTets.meshb
+    [Tags]    daily_valgrind
+    Run Test    PetitCubeTets.meshb    pts=1000
+
+PetitCubeTets.meshb (predicates=exact)
+    [Tags]    daily_valgrind
+    Run Test    PetitCubeTets.meshb    pts=1000    algo:predicates=exact
+
+PetitCubeTets.meshb with LpCVT
+    [Tags]    weekly_valgrind
+    Run Test    PetitCubeTets.meshb    pts=1000    LpCVT=true
+
+*** Keywords ***
+Run Test
+    [Arguments]    ${input_name}=${TEST NAME}    @{options}
+    [Documentation]    Runs test_volumetric_CVT on a single input file.
+    ...    The name of the input file is taken from the test name.
+    run command    test_volumetric_CVT    @{options}    ${DATADIR}${/}${input_name}
