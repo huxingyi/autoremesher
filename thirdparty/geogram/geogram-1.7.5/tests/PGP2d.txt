@@ -1,0 +1,36 @@
+*** Settings ***
+Test Setup        Prepare Test
+Test Teardown     Cleanup Test
+Force Tags        Remesh    smoke    daily
+Library           OperatingSystem
+Library           lib/VorpatestLibrary.py
+
+*** Variables ***
+${DATADIR}        %{VORPATEST_ROOT_DIR}${/}data${/}Shapes
+
+*** Test Cases ***
+p7.meshb
+    [Tags]    daily_valgrind
+    Run Test   p7.meshb   profile=quad  remesh:sharp_edges=true
+
+p7.meshb parity
+    [Tags]    daily_valgrind
+    Run Test   p7.meshb   profile=quad  remesh:sharp_edges=true   quad:optimize_parity=true
+
+p13.meshb
+    [Tags]    daily_valgrind
+    Run Test   p13.meshb   profile=quad  
+
+p13.meshb parity
+    [Tags]    daily_valgrind
+    Run Test   p13.meshb   profile=quad   quad:optimize_parity=true
+
+
+*** Keywords ***
+Run Test
+    [Arguments]    ${input_name}=${TEST NAME}    @{options}
+    [Documentation]    Runs a vorpaline PGP2D quad dominant meshing test
+    ...    The name of the input file is taken from the test name.
+    run vorpaline    ${DATADIR}${/}${input_name}  @{options}
+    run vorpastat
+    

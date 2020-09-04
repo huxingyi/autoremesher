@@ -1,0 +1,36 @@
+# OpenLN PSM description file
+# See tools/extract_psm.sh
+
+HEADERS="nl_linkage.h \
+nl.h \
+nl_ext.h \
+nl_64.h"
+
+SOURCES="nl_private.h \
+nl_blas.h \
+nl_matrix.h \
+nl_context.h \
+nl_iterative_solvers.h \
+nl_preconditioners.h \
+nl_superlu.h \
+nl_cholmod.h \
+nl_arpack.h \
+nl_mkl.h \
+nl_cuda.h \
+nl_os.c \
+nl_matrix.c \
+nl_context.c \
+nl_blas.c \
+nl_iterative_solvers.c \
+nl_preconditioners.c \
+nl_superlu.c \
+nl_cholmod.c \
+nl_arpack.c \
+nl_mkl.c \
+nl_cuda.c \
+nl_api.c" 
+
+DOC="http://alice.loria.fr/software/geogram/doc/html/nl_8h.html"
+
+EXAMPLE="../../../examples/geogram/opennl_basic_example/main.c"
+

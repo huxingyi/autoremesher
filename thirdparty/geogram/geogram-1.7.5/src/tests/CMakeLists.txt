@@ -1,0 +1,8 @@
+add_subdirectory(test_nn_search)
+add_subdirectory(test_convex_cell)
+add_subdirectory(bench_load)
+add_subdirectory(test_locks)
+add_subdirectory(test_expansion_nt)
+add_subdirectory(test_HLBFGS)
+add_subdirectory(test_RVC)
+add_subdirectory(test_logger)

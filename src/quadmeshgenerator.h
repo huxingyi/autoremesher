@@ -31,7 +31,6 @@ public:
     struct Parameters
     {
         double gradientSize = 0.0;
-        AutoRemesher::ConstrainedArea constrainedArea = AutoRemesher::ConstrainedArea::ConstrainedAreaBumpy;
     };
 
     QuadMeshGenerator(const std::vector<AutoRemesher::Vector3> &vertices,

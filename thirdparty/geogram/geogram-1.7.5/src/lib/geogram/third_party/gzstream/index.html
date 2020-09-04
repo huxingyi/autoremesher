@@ -1,0 +1,145 @@
+<html> <head>  
+<title>Gzstream Library Home Page</title>
+</head>  
+<body BGCOLOR="FAF8E8" TEXT="#000000">
+
+<h1>Gzstream Library Home Page</h1>
+
+<hr>
+    <TABLE><TR><TD ALIGN=LEFT VALIGN=TOP>
+        <img border=0 src="logo.gif" align=center>
+    </TD><TD ALIGN=LEFT VALIGN=TOP NOWRAP>
+	<ul>
+	<li><a href="#intro"> Introduction</a>
+        <li><a href="#sys">   Supported Systems</a>
+	<li><a href="#inst">  Installation</a>
+	<li><a href="#doc">   Documentation</a>
+	<li><a href="#miss">  What's Missing</a>
+	<li><a href="#src">   Download</a>
+	<li><a href="#links"> Links</a><P>
+	</ul>
+    </TD></TR></TABLE>
+
+
+<hr><!-------------------------------------------------------------------->
+<a name="intro"><h2> Introduction </h2></a>
+
+<i>Gzstream</i> is a small C++ library, basically just a wrapper,
+that provides the functionality of the 
+<a href="http://www.gzip.org/zlib/">zlib C-library</a> in a C++ iostream.
+It is freely available under the <a href="COPYING.LIB">LGPL license</a>.<P>
+
+Gzstream has been written by 
+<a href="http://www.cs.unc.edu/~debug/">Deepak Bandyopadhyay</a> and
+<a href="http://www.cs.unc.edu/~kettner/">Lutz Kettner</a> at 
+the <a href="http://www.cs.unc.edu/Research/compgeom/">Computational 
+Geometry Group at UNC Chapel Hill</a>.<P>
+
+
+<hr><!-------------------------------------------------------------------->
+<a name="sys"><h2> Supported Systems </h2></a>
+
+Gzstream requires a standard compliant C++ compiler (we use the new
+header file conventions and the new iostream in the std:: name space)
+and, of course, zlib. We used zlib 1.1.3 so far, but see the <a
+href="http://www.gzip.org/zlib/">zlib home page</a> for why you should
+upgrade to zlib 1.1.4. So, in theory, the provided sources could run
+on many platforms. However, we used only the following few
+platforms.<P>
+<P>
+
+<ul>
+  <li> PC Linux, RedHat 6.1, g++ version 2.95.2
+  <li> PC Linux, Debian, g++ version 2.95.2 and 3.1
+  <li> SGI Irix 6.5, MIPSpro CC version 7.30
+</ul><P>
+
+
+<hr><!-------------------------------------------------------------------->
+<a name="inst"><h2> Installation </h2></a>
+
+Either compile <tt>gzstream.C</tt> by hand, place it in some library,
+and move <tt>gzstream.h</tt> into the include search path of your
+compiler. Or use the provided <tt>Makefile</tt>, adapt its 
+variables, and follow the remarks in the <tt>Makefile</tt>. Two 
+test programs are provided, <tt>test_gzip.C</tt> and <tt>test_gunzip.C</tt>.
+The <tt>Makefile</tt> contains a rule that performs a small test
+with these programs.<P>
+
+
+<hr><!-------------------------------------------------------------------->
+<a name="doc"><h2> Documentation </h2></a>
+
+The library provides two classes, <tt>igzstream</tt> and <tt>ogzstream</tt>,
+that can be used analogously to <tt>ifstream</tt> and <tt>ofstream</tt>
+respectively.<P>
+
+The classes are by default in the global name space. This can 
+be changed by setting the macro <tt>GZSTREAM_NAMESPACE</tt> to
+the desired name space, e.g., by setting the option 
+</tt>-DGZSTREAM_NAMESPACE=gz</tt> in the <tt>Makefile</tt>. 
+However, this needs to be consistent for both, the library compilation
+and the application that uses the library.<P>
+
+
+<hr><!-------------------------------------------------------------------->
+<a name="miss"><h2> What's Missing </h2></a>
+
+<ul>
+  <li> Seek. The zlib library provides the necessary functionality,
+       but we have not realized that in the wrapper (yet? ;-).
+  <li> Both streams are based on the same streambuffer. So, they 
+       cannot be used to derive an iogzstream class that would allow
+       simultaneous reading and writing to the same file.
+</ul><P>
+
+
+<hr><!-------------------------------------------------------------------->
+<a name="src"><h2> Download and Release Notes</h2></a>
+
+<ul>
+  <li> Gzstream library 1.5 (08 Apr 2003):
+         <a href="gzstream.tgz">gzstream.tgz</a><br>
+       Fixed bug that did not set the state correctly on failure to open or 
+       close a file. <br>
+       Fixed bug in the indexing of the write buffer that
+       caused the write buffer to shrink continously and finally caused 
+       wrong results when writing compressed files (only observed on some
+       platforms). <P>
+  <li> Gzstream library 1.4 (27 Apr 2002):<br>
+       Fixed a bug that stopped stream output after calling <tt>flush()</tt>
+       or using <tt>std::endl</tt>.<P>
+  <li> Gzstream library 1.3 (06 Nov 2001):<br>
+       Fixed unsigned char -- signed char bug. Increased buffer size
+       for better performance.<P>
+  <li> Gzstream library 1.2 (04 Oct 2001):<br>
+       Initial release as gzstream, renamed from zipstream.<P>
+  <li> Zipstream library 1.1 (09 Sep 2001):<br>
+       Initial release.
+</ul>
+
+<hr><!-------------------------------------------------------------------->
+<a name="links"><h2> Acknowledgements </h2></a>
+
+Credits for finding bugs and improving this software go to:
+Vincent Ricard, Peter Milley, Peter J. Torelli, and Ares Lagae.
+<P>
+
+<hr><!-------------------------------------------------------------------->
+<a name="links"><h2> Links </h2></a>
+
+<ul>
+    <li><a href="http://www.gzip.org/zlib/">zlib C-library</a>
+    <li><a href="http://www.cs.unc.edu/~debug/">Deepak Bandyopadhyay</a>
+    <li><a href="http://www.cs.unc.edu/~kettner/">Lutz Kettner</a>
+    <li><a href="http://www.cs.unc.edu/Research/compgeom/">
+            The Computational Geometry Group at UNC Chapel Hill</a>
+</ul>
+
+<hr><!-------------------------------------------------------------------->
+<address> 
+    The Computational Geometry Group at UNC Chapel Hill, Jan. 08, 2003. 
+</address>
+</body>  </html>
+<!-------------------------------------------------------------------->
+<!EOF>

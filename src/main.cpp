@@ -28,6 +28,7 @@
 #include <QSurfaceFormat>
 #include <QSettings>
 #include <QTranslator>
+#include <geogram/basic/common.h>
 #include "mainwindow.h"
 #include "theme.h"
 #include "version.h"
@@ -36,6 +37,8 @@
 int main(int argc, char ** argv)
 {
     QApplication app(argc, argv);
+    
+    GEO::initialize();
 
     QSurfaceFormat format = QSurfaceFormat::defaultFormat();
     format.setProfile(QSurfaceFormat::OpenGLContextProfile::CoreProfile);

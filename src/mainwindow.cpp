@@ -149,17 +149,6 @@ MainWindow::MainWindow()
     
     QHBoxLayout *toolLayout = new QHBoxLayout;
     
-    QComboBox *constrainedAreaSelectBox = new QComboBox;
-    constrainedAreaSelectBox->addItem(tr("Better Edge Flow"));
-    constrainedAreaSelectBox->addItem(tr("Less Distortion"));
-    connect(constrainedAreaSelectBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, [&](int index) {
-        m_constrainedArea = 0 == index ? 
-            AutoRemesher::ConstrainedArea::ConstrainedAreaBumpy : 
-            AutoRemesher::ConstrainedArea::ConstrainedAreaFlat;
-    });
-    
-    constrainedAreaSelectBox->setCurrentIndex(AutoRemesher::ConstrainedArea::ConstrainedAreaBumpy == m_constrainedArea ? 0 : 1);
-    
     QLabel *polyBugetLabel = new QLabel(tr("Poly budget:"));
     
     QComboBox *polyBudgetSelectBox = new QComboBox;
@@ -185,8 +174,6 @@ MainWindow::MainWindow()
     m_saveMeshButton = saveMeshButton;
     
     toolLayout->addStretch();
-    toolLayout->addWidget(constrainedAreaSelectBox);
-    toolLayout->addSpacing(10);
     toolLayout->addWidget(polyBugetLabel);
     toolLayout->addWidget(polyBudgetSelectBox);
     toolLayout->addSpacing(10);
@@ -546,8 +533,7 @@ void MainWindow::generateQuadMesh()
     
     QuadMeshGenerator::Parameters parameters;
     if (!m_highPoly)
-        parameters.gradientSize = 100.0;
-    parameters.constrainedArea = m_constrainedArea;
+        parameters.gradientSize = 200.0;
     
     m_quadMeshGenerator = new QuadMeshGenerator(m_originalVertices, m_originalTriangles);
     m_quadMeshGenerator->setParameters(parameters);

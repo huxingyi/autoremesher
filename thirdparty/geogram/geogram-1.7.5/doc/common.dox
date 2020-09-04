@@ -1,0 +1,62 @@
+# Doxygen common configuration
+# the standard developer kit documentation
+
+QUIET                  = NO
+WARNINGS               = YES
+
+BUILTIN_STL_SUPPORT    = YES
+
+# Output formats
+
+GENERATE_HTMLHELP      = NO
+GENERATE_QHP           = NO
+GENERATE_LATEX         = NO
+GENERATE_MAN           = NO
+GENERATE_RTF           = NO
+
+# Preprocessing options
+
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+
+# DOXYGEN_IGNORE is predefined to allow developers to hide portions
+# of code to doxygen as follows:
+#
+# #ifndef DOXYGEN_IGNORE
+#   internal classes and other private declarations that should not
+#   be documented...
+# #endif // DOXYGEN_IGNORE
+
+PREDEFINED             = "DOXYGEN_IGNORE="
+
+# DOXYGEN_ONLY is predefined to allow developers to write portions
+# of code that must be parsed only by doxygen:
+#
+# #ifdef DOXYGEN_ONLY
+#   Define missing types (especially template parameters)
+#   that cause the documentation generation to fail
+# #endif // DOXYGEN_ONLY
+
+PREDEFINED             += "DOXYGEN_ONLY=1"
+
+# Various Export preprocessor macros 
+
+PREDEFINED             += "__cplusplus=199711"
+PREDEFINED             += "__linux__="
+PREDEFINED             += "__x86_64="
+PREDEFINED             += "__GNUC__="
+PREDEFINED             += "_OPENMP="
+PREDEFINED             += "GEO_OS_LINUX="
+PREDEFINED             += "GEO_OS_UNIX="
+PREDEFINED             += "GEO_OS_X11="
+PREDEFINED             += "GEO_COMPILER_GCC="
+PREDEFINED             += "GEO_OPENMP="
+PREDEFINED             += "GEOGRAM_API="
+PREDEFINED             += "NO_GEOGRAM_API="
+PREDEFINED             += "VORPALIB_API="
+PREDEFINED             += "NO_VORPALIB_API="
+PREDEFINED             += "Q_OBJECT="
+PREDEFINED             += "WINAPI="
+PREDEFINED             += "GEOGRAM_WITH_PDEL="
+

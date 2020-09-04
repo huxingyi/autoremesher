@@ -1,0 +1,205 @@
+/*
+ *  Copyright (c) 2012-2014, Bruno Levy
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions are met:
+ *
+ *  * Redistributions of source code must retain the above copyright notice,
+ *  this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright notice,
+ *  this list of conditions and the following disclaimer in the documentation
+ *  and/or other materials provided with the distribution.
+ *  * Neither the name of the ALICE Project-Team nor the names of its
+ *  contributors may be used to endorse or promote products derived from this
+ *  software without specific prior written permission.
+ * 
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ *  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ *  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ *  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ *  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *
+ *  If you modify this software, you should include a notice giving the
+ *  name of the person performing the modification, the date of modification,
+ *  and the reason for such modification.
+ *
+ *  Contact: Bruno Levy
+ *
+ *     Bruno.Levy@inria.fr
+ *     http://www.loria.fr/~levy
+ *
+ *     ALICE Project
+ *     LORIA, INRIA Lorraine, 
+ *     Campus Scientifique, BP 239
+ *     54506 VANDOEUVRE LES NANCY CEDEX 
+ *     FRANCE
+ *
+ */
+
+namespace GEO {
+
+/**
+
+\page geogram_examples Example programs
+
+Geogram sample programs
+=======================
+
+The options for all example programs can be queried using <program_name> -h or <program_name> /?
+
+vorpaview 
+---------
+a simple mesh viewer
+
+Usage: \code vorpaview meshfile \endcode
+where meshfile is a .mesh, .meshb, .ply, .tet, .obj or .stl file.
+
+If the graphic board supports GLSL, vorpaview uses shaders. If the
+graphic board does not have sufficient GLSL support, vorpaview uses
+plain OpenGL (fixed functionality pipeline). Note that some old
+OpenGL drivers may erroneously claim they support GLSL. If you have
+this problem, you can force vorpaview to deactivate GLSL mode, use:
+\code vorpaview gfx:GLSL=false meshfile \endcode
+Alternatively, you can rename vorpaview(.exe) as vorpaview0(.exe),
+this will deactivate GLSL by default. Note that some options / key bindings
+may not work under this degraded mode. 
+
+vorpastat
+---------
+vorpastat measures the Hausdorff distance between two meshes 
+
+usage: \code vorpastat meshfile1 meshfile2 \endcode
+
+vorpastat can be used to automatically test remeshing algorithms on mesh databases.
+It tests both mesh topology and Haussdorff distance. Whenever the mesh topologies differ
+or the Haussdorff distance is larger than 5% of the bounding box diagonal, it
+returns a non-zero result. 
+
+\code vorpastat stat:sampling_step=nnn meshfile1 meshfile2 \endcode
+can be used to specify the average distance between
+two samples used to estimate the Hausdorff distance (expressed in absolute units or
+in percentage of the bounding box diagonal if it has a trailing '\%' sign).
+
+vorpalite
+---------
+
+vorpalite implements several reconstruction and remeshing algorithms.
+Use the following command to see all the available options:
+\code
+   vorpalite -h
+\endcode
+
+Some examples: \n
+
+Reconstruction (clean point cloud):
+\code
+   vorpalite profile=reconstruct my_points.xyz my_surface.meshb
+\endcode
+
+Reconstruction (noisy point cloud):
+\code
+   vorpalite profile=reconstruct co3ne:Psmooth_iter=2 my_points.xyz my_surface.meshb
+\endcode
+
+Remeshing (anisotropic):
+\code
+   vorpalite profile=remesh input_surface.meshb output_surface.meshb pts=30000
+\endcode
+where 30000 is the desired number of points
+
+Remeshing (isotropic):
+\code
+   vorpalite profile=remesh input_surface.meshb output_surface.meshb pts=30000 aniso=0
+\endcode
+
+Remeshing (graded):
+\code
+   vorpalite profile=remesh input_surface.meshb output_surface.meshb pts=30000 aniso=0 gradation=1
+\endcode
+
+Repair:
+\code
+   vorpalite profile=repair input_surface.meshb output_surface.meshb
+\endcode
+
+Tetrahedral meshing (through bundled TetGen, by Hang Si):
+\code
+   vorpalite profile=tet input_surface.meshb output_tetrahedral_mesh.meshb
+\endcode
+
+compute_delaunay
+----------------
+computes the 3D Delaunay triangulation of a set of points. Note: this is not a
+reconstruction method, the 3D Delaunay triangulation is a tetrahedral mesh that
+uses all the points as its vertices, and that has a boundary that corresponds to
+the convex hull of the pointset. It is not directly useful for applications, but some users
+may want to compute it to extract information from it, e.g. to implement their own
+reconstruction method.
+
+usage:
+\code compute_delaunay pointsfile <outputfile> \endcode
+
+The points file can be in any mesh format supported by Geogram (.mesh, .meshb, .ply ...)
+and in .xyz file format (ASCII, one point per line). The output file (default: out.meshb
+if not specified) contains the tetrahedra. The result can be displayed using vorpaview.
+
+Additional parameters:
+- algo:delaunay=(BDEL|PDEL|tetgen) specify the implementation of the Delaunay triangulation. It can be one of
+  PDEL:Geogram parallel (default), BDEL:Geogram sequential or tetgen (if compiled with tetgen support).
+- dbg:delaunay_benchmark=true to enable more statistics/timings
+- sys:stats=true to display statistics (including predicates and symbolic perturbation)
+
+
+compute_OTM
+-----------
+computes semi-discrete optimal transport map in 3D,
+The algorithm is described in the following references:
+
+1. 3D algorithm: http://arxiv.org/abs/1409.1279
+2. Earlier 2D version by Quentin Merigot: 
+ Q. Merigot. A multiscale approach to optimal transport.
+ Computer Graphics Forum 30 (5) 1583--1592, 2011 (Proc SGP 2011).
+3. Earlier theoretical article on OT and power diagrams: 
+ F. Aurenhammer, F. Hoffmann, and B. Aronov. Minkowski-type theorems 
+ and least-squares clustering. Algorithmica, 20:61-76, 1998.
+
+usage:
+\code compute_OTM meshfile1 meshfile2 \endcode
+
+where meshfile1 and meshfile2 are volumetric tetrahedral meshes. If geogram is compiled
+with tetgen support (see \link geogram_compiling  "compiling" \endlink), mesh files
+can be surfacic meshes (they are then tetrahedralized using tetgen).
+
+This computes a morphing between meshfile1 and meshfile2, saved in morph.tet6, and that
+can be displayed using vorpaview (see above). In addition to standard vorpaview key
+bindings, one can use 't' and 'r' to navigate through time and animate the morphing.
+'F1' can be used to display the tetrahedra inside the mesh.
+
+Additional parameters
+- recenter = true: moves the second mesh in such a way that their centroids match
+- rescale = true: rescale the second mesh in such a way it has the same volume as the first one
+- nb_pts = nnnnn: number of points used to resample the second mesh (default = 1000, use typically
+ 30000 for a nice result)
+- singular = true: output the "singular set" (i.e. the points where transport is discontinuous) to
+ singular.obj
+- out=filename.eobj|filename.obj6|filename.tet6: specify the output file. tet6 file format is a
+ tetrahedral mesh with 6 coordinates per vertex (original and final time). obj6 file format is
+ a surfacic mesh with 6 coordinates per vertex (original and final time), and eobj file format
+ is a surfacic animated mesh with additional information (Kantorovich potential), to be displayed
+ in the Graphite software.
+
+
+compute_RVD
+-----------
+computes the intersection between a Voronoi diagram and a surfacic or volumetric simplicial set
+
+*/
+
+}

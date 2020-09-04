@@ -1,0 +1,70 @@
+# Example of CMakeOptions.txt file
+# Copy to CMakeOptions.txt, then edit the options:
+
+#Uncomment to change default installation prefix
+#set(CMAKE_INSTALL_PREFIX /home/myselft/installroot/Geogram)
+
+#Uncomment to generate a Debian package
+#set(CPACK_GENERATOR DEB)
+
+#Uncomment to disable Hang-Si's tetgen
+#set(GEOGRAM_WITH_TETGEN OFF)
+
+#Uncomment to disable Jonathan Shewchuk's triangle
+#set(GEOGRAM_WITH_TRIANGLE OFF)
+
+#Uncomment to disable Yang Liu's HLBFGS
+#set(GEOGRAM_WITH_HLBFGS OFF)
+
+#Uncomment to disable graphics
+#set(GEOGRAM_WITH_GRAPHICS OFF)
+
+#Uncomment to disable exploragram
+#(hexahedral-dominant testing pipeline and optimal transport
+#set(GEOGRAM_WITH_EXPLORAGRAM OFF)
+
+#Uncomment to disable compilation of legacy numerical libraries
+#(used as OpenNL plugins for SuperLU, CHOLDMOD and ARPACK)
+#set(GEOGRAM_WITH_LEGACY_NUMERICS OFF)
+
+#Uncomment to compile FPG (Meyer and Pion's Floating Point Filter Generator)
+#set(GEOGRAM_WITH_FPG ON)
+
+#Uncomment to disable built-in LUA interpreter
+#set(GEOGRAM_WITH_LUA OFF)
+
+#Uncomment to only compile geogram libraries (if set, vorpalite,
+# vorpaview, demo and example programs will not be compiled)
+#set(GEOGRAM_LIB_ONLY ON)
+
+#Uncomment this block to generate dynamic libraries
+#
+#if(WIN32)
+#   set(VORPALINE_PLATFORM Win-vs-dynamic-generic)
+#elseif(APPLE)
+#   set(VORPALINE_PLATFORM Darwin-clang-dynamic)
+#elseif(UNIX)
+#   set(VORPALINE_PLATFORM Linux64-gcc-dynamic)
+#endif()
+
+#Uncomment the following line for using FMA instructions (see comments in
+#  geogram/numerics/multi_precision.h / multi_precision.cpp)
+#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mfma -frounding-math -ffp-contract=off")
+
+# These options can also be specified with configure.sh --with-xxx(=...)
+
+# set(VORPALINE_WITH_GCOV TRUE)
+# Equivalent to: configure.sh --with-gcov
+
+# set(VORPALINE_WITH_GPROF TRUE)
+# Equivalent to: configure.sh --with-gprof
+
+# set(VORPALINE_WITH_ASAN TRUE)
+# Equivalent to: configure.sh --with-asan
+
+# set(VORPALINE_WITH_TSAN TRUE)
+# Equivalent to: configure.sh --with-tsan
+
+# set(VORPALINE_WITH_DDT "/opt/allinea-tools")
+# Equivalent to: configure.sh --with-ddt=/opt/allinea-tools
+

@@ -26,7 +26,6 @@
 #include <unordered_set>
 #include <igl/boundary_loop.h>
 #include <AutoRemesher/QuadRemesher>
-#include <AutoRemesher/HalfEdge>
 #include <AutoRemesher/Radians>
 
 namespace AutoRemesher
@@ -36,102 +35,42 @@ bool QuadRemesher::remesh()
 {
     qex_TriMesh triMesh = {0};
     qex_QuadMesh quadMesh = {0};
-    qex_Valence *vertexValences = nullptr;
     
-    if (nullptr != m_vertexValences) {
-        vertexValences = (qex_Valence *)malloc(sizeof(qex_Valence) * m_vertexValences->size());
-        for (size_t i = 0; i < m_vertexValences->size(); ++i) {
-            vertexValences[i] = (qex_Valence)(*m_vertexValences)[i];
-        }
-    }
-    
-    triMesh.vertex_count = m_mesh->vertexCount();
-    triMesh.tri_count = m_mesh->faceCount();
+    triMesh.vertex_count = m_vertices->size();
+    triMesh.tri_count = m_triangles->size();
     
     triMesh.vertices = (qex_Point3*)malloc(sizeof(qex_Point3) * triMesh.vertex_count);
     triMesh.tris = (qex_Tri*)malloc(sizeof(qex_Tri) * triMesh.tri_count);
     triMesh.uvTris = (qex_UVTri*)malloc(sizeof(qex_UVTri) * triMesh.tri_count);
     
-    size_t vertexNum = 0;
-    for (HalfEdge::Vertex *vertex = m_mesh->firstVertex(); nullptr != vertex; vertex = vertex->_next) {
-        vertex->outputIndex = vertexNum;
-        triMesh.vertices[vertexNum++] = qex_Point3 {{
-            (double)vertex->position.x(), 
-            (double)vertex->position.y(), 
-            (double)vertex->position.z()
+    for (size_t i = 0; i < m_vertices->size(); ++i) {
+        const auto &vertex = (*m_vertices)[i];
+        triMesh.vertices[i] = qex_Point3 {{
+            (double)vertex.x(), 
+            (double)vertex.y(), 
+            (double)vertex.z()
         }};
     }
     
-    std::vector<HalfEdge::HalfEdge *> triangleHalfEdges;
-    triangleHalfEdges.reserve(triMesh.tri_count * 3);
-    size_t faceNum = 0;
-    for (HalfEdge::Face *face = m_mesh->firstFace(); nullptr != face; face = face->_next) {
-        HalfEdge::HalfEdge *h0 = face->anyHalfEdge;
-        HalfEdge::HalfEdge *h1 = h0->nextHalfEdge;
-        HalfEdge::HalfEdge *h2 = h1->nextHalfEdge;
-        triMesh.tris[faceNum] = qex_Tri {{
-            (qex_Index)h0->startVertex->outputIndex, 
-            (qex_Index)h1->startVertex->outputIndex, 
-            (qex_Index)h2->startVertex->outputIndex
-        }};
-        triangleHalfEdges.push_back(h0);
-        triangleHalfEdges.push_back(h1);
-        triangleHalfEdges.push_back(h2);
-        ++faceNum;
-    }
-    
-    faceNum = 0;
-    for (size_t i = 0; i < triangleHalfEdges.size(); ) {
-        auto &h0 = triangleHalfEdges[i++];
-        auto &h1 = triangleHalfEdges[i++];
-        auto &h2 = triangleHalfEdges[i++];
-        triMesh.uvTris[faceNum++] = qex_UVTri {{
-            qex_Point2 {{h0->startVertexUv[0], h0->startVertexUv[1]}}, 
-            qex_Point2 {{h1->startVertexUv[0], h1->startVertexUv[1]}}, 
-            qex_Point2 {{h2->startVertexUv[0], h2->startVertexUv[1]}}
+    for (size_t i = 0; i < m_triangles->size(); ++i) {
+        const auto &indices = (*m_triangles)[i];
+        triMesh.tris[i] = qex_Tri {{
+            (qex_Index)indices[0], 
+            (qex_Index)indices[1], 
+            (qex_Index)indices[2]
         }};
     }
     
-#if AUTO_REMESHER_DEV
-    {
-        FILE *fp = fopen("qex-tris.obj", "wb");
-        for (size_t i = 0; i < triMesh.vertex_count; ++i) {
-            const auto &position = triMesh.vertices[i];
-            fprintf(fp, "v %f %f %f\n", position.x[0], position.x[1], position.x[2]);
-        }
-        for (size_t i = 0; i < triMesh.tri_count; ++i) {
-            const auto &tris = triMesh.tris[i];
-            fprintf(fp, "f %d %d %d\n", 1 + tris.indices[0], 1 + tris.indices[1], 1 + tris.indices[2]);
-        }
-        fclose(fp);
+    for (size_t i = 0; i < m_triangles->size(); ++i) {
+        const auto &uv = (*m_triangleUvs)[i];
+        triMesh.uvTris[i] = qex_UVTri {{
+            qex_Point2 {{uv[0].x(), uv[0].y()}}, 
+            qex_Point2 {{uv[1].x(), uv[1].y()}}, 
+            qex_Point2 {{uv[2].x(), uv[2].y()}}
+        }};
     }
-    {
-        FILE *fp = fopen("qex-uv.obj", "wb");
-        for (size_t i = 0; i < triangleHalfEdges.size(); ) {
-            auto &h0 = triangleHalfEdges[i++];
-            auto &h1 = triangleHalfEdges[i++];
-            auto &h2 = triangleHalfEdges[i++];
-            fprintf(fp, "v %f %f %f\n", h0->startVertexUv[0], 0.0f, h0->startVertexUv[1]);
-            fprintf(fp, "v %f %f %f\n", h1->startVertexUv[0], 0.0f, h1->startVertexUv[1]);
-            fprintf(fp, "v %f %f %f\n", h2->startVertexUv[0], 0.0f, h2->startVertexUv[1]);
-        }
-        faceNum = 0;
-        for (size_t i = 0; i < triangleHalfEdges.size(); i += 3) {
-            fprintf(fp, "f %d %d %d\n", faceNum + 1, faceNum + 2, faceNum + 3);
-            faceNum += 3;
-        }
-        fclose(fp);
-    }
-    {
-        FILE *fp = fopen("qex-valencens.txt", "wb");
-        for (size_t i = 0; i < m_vertexValences->size(); ++i) {
-            fprintf(fp, "%zu\n", (*m_vertexValences)[i]);
-        }
-        fclose(fp);
-    }
-#endif
     
-    qex_extractQuadMesh(&triMesh, vertexValences, &quadMesh);
+    qex_extractQuadMesh(&triMesh, nullptr, &quadMesh);
     
     m_remeshedVertices.resize(quadMesh.vertex_count);
     for (unsigned int i = 0; i < quadMesh.vertex_count; ++i) {
@@ -164,8 +103,6 @@ bool QuadRemesher::remesh()
 
     free(quadMesh.vertices);
     free(quadMesh.quads);
-    
-    free(vertexValences);
     
     return true;
 }

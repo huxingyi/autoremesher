@@ -1,0 +1,61 @@
+    /**
+     * \brief Tests whether there is an intersection between a segment
+     *  and a mesh facet.
+     * \param[in] q1 , q2 the extremities of the segment
+     * \param[in] M the mesh
+     * \param[in] f the facet
+     */
+    bool segment_mesh_facet_intersection(
+	const vec3& q1, const vec3& q2,
+        const Mesh& M,
+        index_t f
+    ) {
+        index_t c = M.facets.corners_begin(f);
+        const vec3& p1 = Geom::mesh_vertex(M, M.facet_corners.vertex(c));
+	++c;
+	while(c+1 != M.facets.corners_end(f)) {
+	    const vec3& p2 = Geom::mesh_vertex(M, M.facet_corners.vertex(c));
+	    const vec3& p3 = Geom::mesh_vertex(M, M.facet_corners.vertex(c+1));
+	    if(segment_triangle_intersection(q1, q2, p1, p2, p3)) {
+		return true;
+	    }
+	    ++c;
+	}
+	return false;
+    }
+
+    /**
+     * \brief Tests whether there is an intersection between a segment
+     *  and a mesh facet.
+     * \param[in] q1 , q2 the extremities of the segment
+     * \param[in] M the mesh
+     * \param[in] f the facet
+     * \param[in,out] nearest_t coordinate along [q1,q2] of the
+     *  nearest intersection so far
+     * \param[in,out] nearest_f index of the nearest intersected
+     *  facet so far
+     */
+    bool segment_mesh_facet_nearest_intersection(
+	const vec3& q1, const vec3& q2,
+        const Mesh& M, index_t f,
+	double& nearest_t, index_t& nearest_f
+    ) {
+        index_t c = M.facets.corners_begin(f);
+        const vec3& p1 = Geom::mesh_vertex(M, M.facet_corners.vertex(c));
+	++c;
+	while(c+1 != M.facets.corners_end(f)) {
+	    const vec3& p2 = Geom::mesh_vertex(M, M.facet_corners.vertex(c));
+	    const vec3& p3 = Geom::mesh_vertex(M, M.facet_corners.vertex(c+1));
+	    if(
+		segment_triangle_nearest_intersection(
+		    q1, q2, p1, p2, p3, nearest_t
+		)
+	    ) {
+		nearest_f = f;
+		return true;
+	    }
+	    ++c;
+	}
+	return false;
+    }
+

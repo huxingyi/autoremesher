@@ -1,0 +1,181 @@
+/*
+ *  Copyright (c) 2012-2014, Bruno Levy
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions are met:
+ *
+ *  * Redistributions of source code must retain the above copyright notice,
+ *  this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright notice,
+ *  this list of conditions and the following disclaimer in the documentation
+ *  and/or other materials provided with the distribution.
+ *  * Neither the name of the ALICE Project-Team nor the names of its
+ *  contributors may be used to endorse or promote products derived from this
+ *  software without specific prior written permission.
+ * 
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ *  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ *  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ *  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ *  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *
+ *  If you modify this software, you should include a notice giving the
+ *  name of the person performing the modification, the date of modification,
+ *  and the reason for such modification.
+ *
+ *  Contact: Bruno Levy
+ *
+ *     Bruno.Levy@inria.fr
+ *     http://www.loria.fr/~levy
+ *
+ *     ALICE Project
+ *     LORIA, INRIA Lorraine, 
+ *     Campus Scientifique, BP 239
+ *     54506 VANDOEUVRE LES NANCY CEDEX 
+ *     FRANCE
+ *
+ */
+
+namespace GEO {
+
+/**
+
+\page geogram_PSM Geogram Pluggable Software Modules
+
+Pluggable Software Modules
+==========================
+
+Some users of Geogram may be interested only in a subset of
+Geogram functionalities.
+Following the principle that Geogram should be as easy to use/compile as
+possible, some subsets of functionalities are alternatively available as
+a standalone pair of (header,implementation) files, automatically
+extracted/assembled from Geogram sourcetree. This makes the functionality
+usable with 0 dependency: client code that uses a PSM just
+need to insert the header and the implementation file into the project
+(rather than linking with the entire Geogram library).
+
+Geogram PSMs are available in the
+[Geogram distribution](https://gforge.inria.fr/frs/?group_id=5833)
+
+They can be also automatically generated from the Geogram sourcetree, by using:
+\code
+   tools/extract_psm.sh filename.psm
+\endcode
+on a Linux box or under Cygwin (the latter is untested).
+
+Most PSMs come with an example file. To compile, use:
+\code
+  g++ MultiPrecision_example.cpp MultiPrecision_psm.cpp -o MultiPrecision_example
+\endcode
+(where MultiPrecision can be replaced with the PSM name)
+
+List of PSMs
+============
+
+OpenNL 
+------
+
+(src/lib/geogram/NL/OpenNL.psm): solvers for sparse
+linear systems / least squares regression
+
+To compile, it needs the math library:
+\code
+  gcc OpenNL_example.c OpenNL_psm.c -o OpenNL_example -lm 
+\endcode
+
+To enable support for SuperLU dynamic linking (Linux only), use:
+\code
+  gcc -DGEO_DYNAMIC_LIBS OpenNL_example.c OpenNL_psm.c -o OpenNL_example -lm -ldl
+\endcode
+
+To enable OpenMP parallel mode, use:
+\code
+  gcc -fopenmp OpenNL_example.c OpenNL_psm.c -o OpenNL_example -lm 
+\endcode
+
+MultiPrecision 
+--------------
+
+(src/lib/geogram/numerics/MultiPrecision.psm):
+an easy-to-use number type for computing the exact sign of a polynom
+
+To compile, use:
+\code
+  g++ MultiPrecision_example.cpp MultiPrecision_psm.cpp -o MultiPrecision_example
+\endcode
+
+Predicates 
+----------
+
+(src/lib/geogram/numerics/Predicates.psm):
+exact geometric predicates with symbolic perturbation (SOS)
+
+To compile, use:
+\code
+   g++ -c Predicates_psm.cpp 
+\endcode
+(no example program for now)
+
+
+Delaunay
+--------
+
+(src/lib/geogram/delaunay/Delaunay.psm): Sequential and parallel Delaunay 
+triangulation and power diagrams in 2D and 3D. 
+
+To compile, use:
+\code
+  gcc -O3 -fopenmp -frounding-math -ffp-contract=off Delaunay_example.cpp Delaunay_psm.cpp -o Delaunay_example -lm 
+\endcode
+
+
+
+Syntax of a PSM file
+====================
+
+A PSM file specifies a list of header files and a list of
+source files that will be assembled into a single header file
+(respectively a single source file). All file paths are relative
+to where the PSM file is located:
+
+\code
+HEADERS="header_1.h header_2.h ... header_n.h"
+\endcode
+
+Sources can be either C++ or C files. If sources are only C files,
+then the generated source is a C file, else it is a C++ file:
+
+\code
+SOURCES="source_1.cpp source_2.cpp ... source_n.cpp"
+\endcode
+
+To avoid including too many Geogram classes in a PSM, there is a drop-in
+replacement of some Geogram mechanisms (Logger, etc...) in basic/psm.h.
+
+There is also a link to a documentation page, that is inserted
+in the generated header:
+
+\code
+DOC="http://alice.loria.fr/software/geogram/doc/html/link to the doc.html"
+\endcode
+
+Optionally, there can be an example file, that will be also extracted.
+It can be a C++ or a C program. The specified path is relative to where
+the PSM file is located:
+
+\code
+EXAMPLE="path to example.cpp"
+\endcode
+
+
+*/
+
+}

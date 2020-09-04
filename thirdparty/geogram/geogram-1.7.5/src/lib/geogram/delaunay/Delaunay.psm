@@ -1,0 +1,99 @@
+# Predicates PSM description file
+# See tools/extract_psm.sh
+
+HEADERS="../api/defs.h \
+../basic/common.h \
+../basic/assert.h \
+../basic/argused.h \
+../basic/numeric.h \
+../basic/memory.h \
+../basic/counted.h \
+../basic/smart_pointer.h \
+../basic/environment.h \
+../basic/logger.h \
+../basic/atomics.h \
+../basic/thread_sync.h \
+../basic/packed_arrays.h \
+../basic/progress.h \
+../basic/process.h \
+../basic/psm.h \
+../basic/factory.h \
+../basic/vecg.h \
+../basic/matrix.h \
+../basic/geometry.h \
+../numerics/predicates.h \
+../basic/string.h \
+../basic/line_stream.h \
+../basic/stopwatch.h \
+../basic/command_line.h \
+../basic/command_line_args.h \
+../voronoi/convex_cell.h \
+delaunay.h \
+delaunay_2d.h \
+periodic.h \
+periodic_delaunay_3d.h \
+../points/nn_search.h \
+../points/kd_tree.h \
+"
+
+SOURCES="../basic/memory.h \
+../basic/matrix.h \
+../basic/geometry_nd.h \
+../basic/counted.cpp \
+../basic/string.cpp \
+../basic/algorithm.h \
+../basic/algorithm.cpp \
+../basic/file_system.h \
+../basic/environment.cpp \
+../basic/command_line.cpp \
+../basic/command_line_args.cpp \
+../basic/line_stream.cpp \
+../basic/logger.cpp \
+../basic/file_system.cpp \
+../basic/packed_arrays.cpp \
+../basic/progress.cpp \
+../basic/process.cpp \
+../basic/process_unix.cpp \
+../basic/process_win.cpp \
+../basic/factory.cpp \
+../basic/assert.cpp \
+../basic/stopwatch.cpp \
+../basic/numeric.cpp \
+../mesh/mesh_reorder.h \
+../mesh/mesh_reorder.cpp \
+../numerics/multi_precision.h \
+../numerics/multi_precision.cpp \
+../numerics/predicates/side1.h \
+../numerics/predicates/side2.h \
+../numerics/predicates/side3.h \
+../numerics/predicates/side3h.h \
+../numerics/predicates/side3_2dlifted.h \
+../numerics/predicates/side4.h \
+../numerics/predicates/side4h.h \
+../numerics/predicates/orient2d.h \
+../numerics/predicates/orient3d.h \
+../numerics/predicates/dot3d.h \
+../numerics/predicates/det3d.h \
+../numerics/predicates/det4d.h \
+../numerics/predicates/aligned3d.h \
+../numerics/predicates/dot_compare_3d.h \
+../numerics/predicates/det_compare_4d.h \
+../numerics/predicates.cpp \
+cavity.h \
+delaunay_3d.h \
+parallel_delaunay_3d.h \
+delaunay.cpp \
+delaunay_2d.cpp \
+delaunay_3d.cpp \
+parallel_delaunay_3d.cpp \
+../voronoi/convex_cell.cpp \
+periodic.cpp \
+periodic_delaunay_3d.cpp \
+../points/nn_search.cpp \
+../points/kd_tree.cpp \
+../basic/common.cpp \
+"
+
+DOC="http://alice.loria.fr/software/geogram/doc/html/classGEO_1_1Delaunay.html"
+
+EXAMPLE="../../../examples/geogram/compute_delaunay/main.cpp"

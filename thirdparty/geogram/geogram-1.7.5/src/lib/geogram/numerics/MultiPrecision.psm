@@ -1,0 +1,38 @@
+# MultiPrecision PSM description file
+# See tools/extract_psm.sh
+
+HEADERS="../api/defs.h \
+../basic/common.h \
+../basic/argused.h \
+../basic/numeric.h \
+../basic/memory.h \
+../basic/atomics.h \
+../basic/thread_sync.h \
+../basic/psm.h \
+multi_precision.h \
+expansion_nt.h
+"
+
+SOURCES="multi_precision.cpp \
+expansion_nt.cpp
+"
+
+DOC="http://alice.loria.fr/software/geogram/doc/html/multi__precision_8h.html"
+EXAMPLE="../../../tests/test_expansion_nt/main.cpp"
+COPYDIR="../../../tests/test_expansion_nt/CGAL"
+
+extract_readme() {
+   cat <<EOF
+To compile example program, use:
+  g++ MultiPrecision_example.cpp MultiPrecision_psm.cpp -o MultiPrecision_example
+
+Start with:
+  ./MultiPrecision_example
+
+MultiPrecision_psm.h / MultiPrecision_psm.cpp is completely standalone and can be
+included in any project.
+
+There is an example of usage with CGAL in the CGAL subdirectory (see CGAL/README.txt)
+EOF
+}
+

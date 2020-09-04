@@ -1,0 +1,238 @@
+
+/* ================= DIM2 ================ */
+
+#ifdef DIM2
+
+#define predicate(name) name##_2d_filter
+
+#define point(p) \
+     double p##_0, \
+     double p##_1
+
+#define dot_at(p1, p2, ref)               \
+    ( (p1##_0 - ref##_0) * (p2##_0 - ref##_0) + \
+      (p1##_1 - ref##_1) * (p2##_1 - ref##_1) )
+
+#endif
+
+/* ================= DIM3 ================ */
+
+#ifdef DIM3
+
+#define predicate(name) name##_3d_filter
+
+#define point(p) \
+     double p##_0, \
+     double p##_1, \
+     double p##_2
+
+#define dot_at(p1, p2, ref)               \
+    ( (p1##_0 - ref##_0) * (p2##_0 - ref##_0) + \
+      (p1##_1 - ref##_1) * (p2##_1 - ref##_1) + \
+      (p1##_2 - ref##_2) * (p2##_2 - ref##_2) )
+
+#endif
+
+/* ================= DIM4 ================ */
+
+#ifdef DIM4
+
+#define predicate(name) name##_4d_filter
+
+#define point(p) \
+     double p##_0, \
+     double p##_1, \
+     double p##_2, \
+     double p##_3
+
+#define dot_at(p1, p2, ref)               \
+    ( (p1##_0 - ref##_0) * (p2##_0 - ref##_0) + \
+      (p1##_1 - ref##_1) * (p2##_1 - ref##_1) + \
+      (p1##_2 - ref##_2) * (p2##_2 - ref##_2) + \
+      (p1##_3 - ref##_3) * (p2##_3 - ref##_3) )
+
+#endif
+
+/* ================= DIM6 ================ */
+
+#ifdef DIM6
+
+#define predicate(name) name##_6d_filter
+
+#define point(p) \
+     double p##_0, \
+     double p##_1, \
+     double p##_2, \
+     double p##_3, \
+     double p##_4, \
+     double p##_5
+
+#define dot_at(p1, p2, ref)               \
+    ( (p1##_0 - ref##_0) * (p2##_0 - ref##_0) + \
+      (p1##_1 - ref##_1) * (p2##_1 - ref##_1) + \
+      (p1##_2 - ref##_2) * (p2##_2 - ref##_2) + \
+      (p1##_3 - ref##_3) * (p2##_3 - ref##_3) + \
+      (p1##_4 - ref##_4) * (p2##_4 - ref##_4) + \
+      (p1##_5 - ref##_5) * (p2##_5 - ref##_5) )
+#endif
+
+/* ================= DIM7 ================ */
+
+#ifdef DIM7
+
+#define predicate(name) name##_7d_filter
+
+#define point(p) \
+     double p##_0, \
+     double p##_1, \
+     double p##_2, \
+     double p##_3, \
+     double p##_4, \
+     double p##_5, \
+     double p##_6
+
+#define dot_at(p1, p2, ref)               \
+    ( (p1##_0 - ref##_0) * (p2##_0 - ref##_0) + \
+      (p1##_1 - ref##_1) * (p2##_1 - ref##_1) + \
+      (p1##_2 - ref##_2) * (p2##_2 - ref##_2) + \
+      (p1##_3 - ref##_3) * (p2##_3 - ref##_3) + \
+      (p1##_4 - ref##_4) * (p2##_4 - ref##_4) + \
+      (p1##_5 - ref##_5) * (p2##_5 - ref##_5) + \
+      (p1##_6 - ref##_6) * (p2##_6 - ref##_6) )
+#endif
+
+
+/* ================= DIM8 ================ */
+
+#ifdef DIM8
+
+#define predicate(name) name##_8d_filter
+
+#define point(p) \
+     double p##_0, \
+     double p##_1, \
+     double p##_2, \
+     double p##_3, \
+     double p##_4, \
+     double p##_5, \
+     double p##_6, \
+     double p##_7
+
+#define dot_at(p1, p2, ref)               \
+    ( (p1##_0 - ref##_0) * (p2##_0 - ref##_0) + \
+      (p1##_1 - ref##_1) * (p2##_1 - ref##_1) + \
+      (p1##_2 - ref##_2) * (p2##_2 - ref##_2) + \
+      (p1##_3 - ref##_3) * (p2##_3 - ref##_3) + \
+      (p1##_4 - ref##_4) * (p2##_4 - ref##_4) + \
+      (p1##_5 - ref##_5) * (p2##_5 - ref##_5) + \
+      (p1##_6 - ref##_6) * (p2##_6 - ref##_6) + \
+      (p1##_7 - ref##_7) * (p2##_7 - ref##_7) )
+#endif
+
+/* ================= EXACT ================ */
+
+#ifdef DIMN_EXACT
+#   define point(p)            const double* p
+#   define DIM                 ,coord_index_t dim
+#   define scalar              expansion_nt
+#   define predicate(name)     name##_nd_exact_pck
+#   define dot_at(p1, p2, ref) expansion_nt_dot_at(p1,p2,ref,dim) 
+#   define sq_dist(p1,p2)      expansion_nt_sq_dist(p1,p2,dim)
+#   define sign(x)             (x).sign()
+
+#   define begin_sos2(p0,p1) {              \
+           const double* p_sort[2] ;        \
+           p_sort[0]=p0;                    \
+           p_sort[1]=p1;                    \
+           std::sort(p_sort,p_sort+2);      \
+           for(index_t i=0; i<2; ++i) {
+
+
+#   define begin_sos3(p0,p1,p2) {           \
+           const double* p_sort[3] ;        \
+           p_sort[0]=p0;                    \
+           p_sort[1]=p1;                    \
+           p_sort[2]=p2;                    \
+           std::sort(p_sort,p_sort+3);      \
+           for(index_t i=0; i<3; ++i) {
+
+#   define begin_sos4(p0,p1,p2,p3) {        \
+           const double* p_sort[4] ;        \
+           p_sort[0]=p0;                    \
+           p_sort[1]=p1;                    \
+           p_sort[2]=p2;                    \
+           p_sort[3]=p3;                    \
+           std::sort(p_sort,p_sort+4);      \
+           for(index_t i=0; i<4; ++i) {
+
+#   define begin_sos5(p0,p1,p2,p3,p4)       \
+    {                                       \
+           const double* p_sort[5] ;        \
+           p_sort[0]=p0;                    \
+           p_sort[1]=p1;                    \
+           p_sort[2]=p2;                    \
+           p_sort[3]=p3;                    \
+           p_sort[4]=p4;                    \
+           std::sort(p_sort,p_sort+5);      \
+           for(index_t i=0; i<5; ++i) {
+
+#   define end_sos                          \
+           }                                \
+    }
+
+#   define sos(p,s)                         \
+           if(p_sort[i] == p) {             \
+              Sign result = s ;             \
+              if(result != ZERO) {          \
+                return result ;             \
+              }                             \
+           }
+
+#   define generic_predicate_result(s) \
+           {                           \
+              Sign result = Sign(s) ;  \
+              if(result != ZERO) {     \
+                 return result ;       \
+              }                        \
+           }
+
+#else 
+
+#   define scalar                      double
+#   define Sign                        int
+#   define DIM                 
+#   define sq_dist(p1,p2)              dot_at(p1,p1,p2)
+#   define begin_sos2(p0,p1)
+#   define begin_sos3(p0,p1,p2)
+#   define begin_sos4(p0,p1,p2,p3)
+#   define begin_sos5(p0,p1,p2,p3,p4)
+#   define end_sos
+#   define sos(p,s)
+#   define generic_predicate_result(s) return s 
+
+#endif
+
+/* ========== Determinants ============== */
+
+#define det2x2(a11,a12,                    \
+               a21,a22)                    \
+          ((a11)*(a22)-(a12)*(a21))
+
+#define det3x3(a11,a12,a13,                \
+               a21,a22,a23,                \
+               a31,a32,a33)                \
+          ((a11)*det2x2(a22,a23,a32,a33)   \
+          -(a21)*det2x2(a12,a13,a32,a33)   \
+          +(a31)*det2x2(a12,a13,a22,a23))
+
+/* 
+ * |  1   1   1  |
+ * | a21 a22 a23 |
+ * | a31 a32 a33 |
+ */
+#define det_111_2x3(a21,a22,a23,           \
+                    a31,a32,a33)           \
+             (det2x2(a22,a23,a32,a33)+     \
+              det2x2(a23,a21,a33,a31)+     \
+              det2x2(a21,a22,a31,a32))
+

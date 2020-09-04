@@ -1,0 +1,36 @@
+# Predicates PSM description file
+# See tools/extract_psm.sh
+
+HEADERS="../api/defs.h \
+../basic/common.h \
+../basic/argused.h \
+../basic/numeric.h \
+../basic/psm.h \
+predicates.h
+"
+
+SOURCES="../basic/memory.h \
+../basic/vecg.h \
+../basic/matrix.h \
+multi_precision.h \
+multi_precision.cpp \
+predicates/side1.h \
+predicates/side2.h \
+predicates/side3.h \
+predicates/side3h.h \
+predicates/side3_2dlifted.h \
+predicates/side4.h \
+predicates/side4h.h \
+predicates/orient2d.h \
+predicates/orient3d.h \
+predicates/dot3d.h \
+predicates/dot_compare_3d.h \
+predicates/det_compare_4d.h \
+predicates/det3d.h \
+predicates/det4d.h \
+predicates/aligned3d.h \
+predicates.cpp 
+"
+
+DOC="http://alice.loria.fr/software/geogram/doc/html/namespaceGEO_1_1PCK.html"
+

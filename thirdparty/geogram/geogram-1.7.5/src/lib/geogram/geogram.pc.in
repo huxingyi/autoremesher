@@ -1,0 +1,13 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+includedir=${prefix}/include/@VORPALINE_INCLUDE_SUBPATH@
+libdir=${exec_prefix}/lib@LIB_SUFFIX@
+
+Name: geogram
+Description: fast, simple and easy-to-use primitives for geometric programming
+Version: @VORPALINE_VERSION@
+URL: http://alice.loria.fr/software/geogram
+Requires.private: 
+Libs: -L${libdir} -Wl,-rpath ${libdir} -lgeogram
+Libs.private: 
+Cflags: -I${includedir}
