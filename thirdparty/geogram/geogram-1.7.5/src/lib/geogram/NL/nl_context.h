@@ -388,7 +388,7 @@ typedef struct {
 /**
  * \brief Pointer to the current context.
  */
-extern NLContextStruct* nlCurrentContext;
+extern thread_local NLContextStruct* nlCurrentContext;
 
 /**
  * \brief Makes sure that the finite state automaton is
