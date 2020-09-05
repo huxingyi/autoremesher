@@ -105,25 +105,6 @@ bool Parameterizer::parameterize()
         return 0.5 + x * 0.5;
     };
     {
-        FILE *fp = fopen("debug-quadcover.obj", "wb");
-        size_t faceCornerIndex = 0;
-        for (size_t i = 0; i < m_triangleFieldVectors->size(); ++i) {
-            const auto &v0 = U[faceCornerIndex++];
-            const auto &v1 = U[faceCornerIndex++];
-            const auto &v2 = U[faceCornerIndex++];
-            fprintf(fp, "v %f %f %f\n", normalizeUv(v0[0]), 0.0, normalizeUv(v0[1]));
-            fprintf(fp, "v %f %f %f\n", normalizeUv(v1[0]), 0.0, normalizeUv(v1[1]));
-            fprintf(fp, "v %f %f %f\n", normalizeUv(v2[0]), 0.0, normalizeUv(v2[1]));
-        }
-        faceCornerIndex = 0;
-        for (size_t i = 0; i < m_triangleFieldVectors->size(); ++i) {
-            fprintf(fp, "f %zu %zu %zu\n", 
-                1 + faceCornerIndex, 2 + faceCornerIndex, 3 + faceCornerIndex);
-            faceCornerIndex += 3;
-        }
-        fclose(fp);
-    }
-    {
         FILE *fp = fopen("quadcover.obj", "wb");
         fprintf(fp, "mtllib quadcover.mtl\n");
         fprintf(fp, "usemtl quadcover\n");

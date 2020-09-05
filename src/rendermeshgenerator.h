@@ -22,6 +22,7 @@
 #ifndef AUTO_REMESHER_RENDER_MESH_GENERATOR_H
 #define AUTO_REMESHER_RENDER_MESH_GENERATOR_H
 #include <QObject>
+#include <AutoRemesher/Vector3>
 #include "pbrshadermesh.h"
 
 class RenderMeshGenerator: public QObject
@@ -60,6 +61,9 @@ private:
     PbrShaderMesh *m_renderMesh = nullptr;
     
     void normalizeVertices();
+    static void calculateNormalizedFactors(const std::vector<AutoRemesher::Vector3> &vertices, 
+        AutoRemesher::Vector3 *origin, 
+        double *maxLength);
 };
 
 #endif

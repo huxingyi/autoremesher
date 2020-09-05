@@ -36,10 +36,8 @@
 namespace AutoRemesher
 {
     
-const double AutoRemesher::m_defaultTargetEdgeLength = 1.5;
-const size_t AutoRemesher::m_defaultMaxVertexCount = 70000;
 const double AutoRemesher::m_defaultSharpEdgeDegrees = 60;
-const double AutoRemesher::m_defaultGradientSize = 100;
+const double AutoRemesher::m_defaultScaling = 1.0;
     
 void AutoRemesher::buildEdgeToFaceMap(const std::vector<std::vector<size_t>> &triangles, std::map<std::pair<size_t, size_t>, size_t> &edgeToFaceMap)
 {
@@ -87,98 +85,36 @@ void AutoRemesher::splitToIslands(const std::vector<std::vector<size_t>> &triang
     }
 }
 
-void AutoRemesher::calculateNormalizedFactors(const std::vector<Vector3> &vertices, Vector3 *origin, double *maxLength)
+double AutoRemesher::calculateAverageEdgeLength(const std::vector<Vector3> &vertices,
+        const std::vector<std::vector<size_t>> &faces)
 {
-    double minX = std::numeric_limits<double>::max();
-    double maxX = std::numeric_limits<double>::lowest();
-    double minY = std::numeric_limits<double>::max();
-    double maxY = std::numeric_limits<double>::lowest();
-    double minZ = std::numeric_limits<double>::max();
-    double maxZ = std::numeric_limits<double>::lowest();
-    for (const auto &v: vertices) {
-        if (v.x() < minX)
-            minX = v.x();
-        if (v.x() > maxX)
-            maxX = v.x();
-        if (v.y() < minY)
-            minY = v.y();
-        if (v.y() > maxY)
-            maxY = v.y();
-        if (v.z() < minZ)
-            minZ = v.z();
-        if (v.z() > maxZ)
-            maxZ = v.z();
+    double sumOfLength = 0.0;
+    size_t edgeCount = 0;
+    for (const auto &face: faces) {
+        for (size_t i = 0; i < face.size(); ++i) {
+            size_t j = (i + 1) % face.size();
+            sumOfLength += (vertices[face[i]] - vertices[face[j]]).length();
+            ++edgeCount;
+        }
     }
-    Vector3 length = {
-        (maxX - minX) * 0.5,
-        (maxY - minY) * 0.5,
-        (maxZ - minZ) * 0.5,
-    };
-    *maxLength = length[0];
-    if (length[1] > *maxLength)
-        *maxLength = length[1];
-    if (length[2] > *maxLength)
-        *maxLength = length[2];
-    *origin = {
-        (maxX + minX) * 0.5,
-        (maxY + minY) * 0.5,
-        (maxZ + minZ) * 0.5,
-    };
-}
-
-IsotropicRemesher *AutoRemesher::createIsotropicRemesh(const std::vector<Vector3> sourceVertices,
-    const std::vector<std::vector<size_t>> sourceTriangles,
-    double sharpEdgeDegrees, 
-    size_t targetVertexCount,
-    double *targetEdgeLength)
-{
-    IsotropicRemesher *isotropicRemesher = nullptr;
-    double minTargetVertexCount = targetVertexCount * 0.9;
-    
-    if (Double::isZero(*targetEdgeLength))
-        *targetEdgeLength = m_defaultTargetEdgeLength;
-    
-    while (nullptr == isotropicRemesher || isotropicRemesher->remeshedVertices().size() < minTargetVertexCount) {
-        delete isotropicRemesher;
-        isotropicRemesher = new IsotropicRemesher(sourceVertices, sourceTriangles);
-        isotropicRemesher->setSharpEdgeDegrees(sharpEdgeDegrees);
-        isotropicRemesher->setTargetEdgeLength(*targetEdgeLength);
-        isotropicRemesher->remesh();
-#if AUTO_REMESHER_DEBUG
-        qDebug() << "isotropicRemesher from vertices " << sourceVertices.size() << " to " << isotropicRemesher->remeshedVertices().size() << " targetEdgeLength:" << *targetEdgeLength;
-#endif
-        *targetEdgeLength *= 0.9;
-    }
-    
-    while (nullptr == isotropicRemesher || isotropicRemesher->remeshedVertices().size() > targetVertexCount) {
-        delete isotropicRemesher;
-#if AUTO_REMESHER_DEBUG
-        qDebug() << "isotropicRemesher remeshing targetEdgeLength:" << *targetEdgeLength;
-#endif
-        isotropicRemesher = new IsotropicRemesher(sourceVertices, sourceTriangles);
-        isotropicRemesher->setSharpEdgeDegrees(sharpEdgeDegrees);
-        isotropicRemesher->setTargetEdgeLength(*targetEdgeLength);
-        isotropicRemesher->remesh();
-#if AUTO_REMESHER_DEBUG
-        qDebug() << "isotropicRemesher from vertices " << sourceVertices.size() << " to " << isotropicRemesher->remeshedVertices().size() << " targetEdgeLength:" << *targetEdgeLength;
-#endif
-        *targetEdgeLength *= 1.1;
-    }
-
-    return isotropicRemesher;
+    if (0 == edgeCount)
+        return 0.0;
+    return sumOfLength / edgeCount;
 }
 
 bool AutoRemesher::remesh()
 {
-    Vector3 origin;
-    double recoverScale = 1.0;
-    double scale = 100;
-    double maxLength = 1.0;
-    calculateNormalizedFactors(m_vertices, &origin, &maxLength);
-    recoverScale = maxLength / scale;
-    for (auto &v: m_vertices) {
-        v = scale * (v - origin) / maxLength;
-    }
+    double averageEdgeLength = calculateAverageEdgeLength(m_vertices, m_triangles);
+#if AUTO_REMESHER_DEBUG
+    qDebug() << "Uniform remeshing... averageEdgeLength:" << averageEdgeLength;
+#endif
+    IsotropicRemesher *isotropicRemesher = new IsotropicRemesher(m_vertices, m_triangles);
+    isotropicRemesher->setSharpEdgeDegrees(m_defaultSharpEdgeDegrees);
+    isotropicRemesher->setTargetEdgeLength(averageEdgeLength);
+    isotropicRemesher->remesh();
+    m_vertices = isotropicRemesher->remeshedVertices();
+    m_triangles = isotropicRemesher->remeshedTriangles();
+    delete isotropicRemesher;
     
     std::vector<std::vector<std::vector<size_t>>> m_trianglesIslands;
     splitToIslands(m_triangles, m_trianglesIslands);
@@ -196,7 +132,7 @@ bool AutoRemesher::remesh()
     {
         std::vector<Vector3> vertices;
         std::vector<std::vector<size_t>> triangles;
-        double gradientSize;
+        double scaling;
     };
 
     std::vector<IslandContext> islandContexes;
@@ -218,18 +154,9 @@ bool AutoRemesher::remesh()
             }
             context.triangles.push_back(triangle);
         }
-        
-        double localMaxLength = 1.0;
-        Vector3 localOrigin;
-        calculateNormalizedFactors(context.vertices, &localOrigin, &localMaxLength);
-        localMaxLength *= recoverScale;
-        
-        context.gradientSize = m_gradientSize * (localMaxLength / maxLength);
-        
-#if AUTO_REMESHER_DEBUG
-        qDebug() << "Gradient size[" << islandIndex << "/" << m_trianglesIslands.size() << "]:" << context.gradientSize;
-#endif
-        
+
+        context.scaling = m_scaling;
+
         islandContexes.push_back(context);
     }
     
@@ -238,17 +165,13 @@ bool AutoRemesher::remesh()
     public:
         ~ParameterizationThread()
         {
-            delete isotropicRemesher;
             delete parameterizer;
             delete remesher;
         }
         
         size_t islandIndex = 0;
         const IslandContext *island = nullptr;
-        IsotropicRemesher *isotropicRemesher = nullptr;
         Parameterizer *parameterizer = nullptr;
-        double sharpEdgeDegrees = m_defaultSharpEdgeDegrees;
-        double targetEdgeLength = m_defaultTargetEdgeLength;
         QuadRemesher *remesher = nullptr;
     };
 
@@ -271,17 +194,9 @@ bool AutoRemesher::remesh()
         {
             for (size_t i = range.begin(); i != range.end(); ++i) {
                 auto &thread = (*m_parameterizationThreads)[i];
-#if AUTO_REMESHER_DEBUG
-                qDebug() << "Island[" << thread.islandIndex << "]: uniform remeshing...";
-#endif
-                thread.targetEdgeLength = 0.0;
-                thread.isotropicRemesher = AutoRemesher::createIsotropicRemesh(thread.island->vertices,
-                    thread.island->triangles,
-                    m_defaultSharpEdgeDegrees, 
-                    m_defaultMaxVertexCount,
-                    &thread.targetEdgeLength);
-                const auto &vertices = thread.isotropicRemesher->remeshedVertices();
-                const auto &triangles = thread.isotropicRemesher->remeshedTriangles();
+
+                const auto &vertices = thread.island->vertices;
+                const auto &triangles = thread.island->triangles;
                 
 #if AUTO_REMESHER_DEBUG
                 qDebug() << "Island[" << thread.islandIndex << "]: parameterizing...";
@@ -289,7 +204,7 @@ bool AutoRemesher::remesh()
                 thread.parameterizer = new Parameterizer(&vertices, 
                     &triangles,
                     nullptr);
-                thread.parameterizer->setScaling(thread.island->gradientSize / 100);
+                thread.parameterizer->setScaling(thread.island->scaling);
                 thread.parameterizer->parameterize();
 #if AUTO_REMESHER_DEBUG
                 qDebug() << "Island[" << thread.islandIndex << "]: quad remeshing...";
@@ -329,7 +244,7 @@ bool AutoRemesher::remesh()
         size_t vertexStartIndex = m_remeshedVertices.size();
         m_remeshedVertices.reserve(m_remeshedVertices.size() + vertices.size());
         for (const auto &it: vertices) {
-            m_remeshedVertices.push_back(it * recoverScale + origin);
+            m_remeshedVertices.push_back(it);
         }
         for (const auto &it: quads) {
             m_remeshedQuads.push_back({

@@ -30,7 +30,7 @@ class QuadMeshGenerator: public QObject
 public:
     struct Parameters
     {
-        double gradientSize = 0.0;
+        double scaling = 0.0;
     };
 
     QuadMeshGenerator(const std::vector<AutoRemesher::Vector3> &vertices,

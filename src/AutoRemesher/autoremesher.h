@@ -42,9 +42,9 @@ public:
     {
     }
     
-    void setGradientSize(double gradientSize)
+    void setScaling(double scaling)
     {
-        m_gradientSize = gradientSize;
+        m_scaling = scaling;
     }
     
     const std::vector<Vector3> &remeshedVertices()
@@ -58,30 +58,22 @@ public:
     }
     
     bool remesh();
-    static void calculateNormalizedFactors(const std::vector<Vector3> &vertices, 
-        Vector3 *origin, 
-        double *maxLength);
-    static IsotropicRemesher *createIsotropicRemesh(std::vector<Vector3> sourceVertices,
-        std::vector<std::vector<size_t>> sourceTriangles,
-        double sharpEdgeDegrees, 
-        size_t targetVertexCount,
-        double *targetEdgeLength);
     
-    static const double m_defaultTargetEdgeLength;
-    static const size_t m_defaultMaxVertexCount;
     static const double m_defaultSharpEdgeDegrees;
-    static const double m_defaultGradientSize;
+    static const double m_defaultScaling;
 private:
     std::vector<Vector3> m_vertices;
     std::vector<std::vector<size_t>> m_triangles;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedQuads;
-    double m_gradientSize = m_defaultGradientSize;
+    double m_scaling = m_defaultScaling;
     
     void buildEdgeToFaceMap(const std::vector<std::vector<size_t>> &triangles, 
         std::map<std::pair<size_t, size_t>, size_t> &edgeToFaceMap);
     void splitToIslands(const std::vector<std::vector<size_t>> &triangles, 
         std::vector<std::vector<std::vector<size_t>>> &islands);
+    static double calculateAverageEdgeLength(const std::vector<Vector3> &vertices,
+        const std::vector<std::vector<size_t>> &faces);
 };
     
 }

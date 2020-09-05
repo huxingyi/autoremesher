@@ -29,11 +29,50 @@ void RenderMeshGenerator::process()
     emit finished();
 }
 
+void RenderMeshGenerator::calculateNormalizedFactors(const std::vector<AutoRemesher::Vector3> &vertices, AutoRemesher::Vector3 *origin, double *maxLength)
+{
+    double minX = std::numeric_limits<double>::max();
+    double maxX = std::numeric_limits<double>::lowest();
+    double minY = std::numeric_limits<double>::max();
+    double maxY = std::numeric_limits<double>::lowest();
+    double minZ = std::numeric_limits<double>::max();
+    double maxZ = std::numeric_limits<double>::lowest();
+    for (const auto &v: vertices) {
+        if (v.x() < minX)
+            minX = v.x();
+        if (v.x() > maxX)
+            maxX = v.x();
+        if (v.y() < minY)
+            minY = v.y();
+        if (v.y() > maxY)
+            maxY = v.y();
+        if (v.z() < minZ)
+            minZ = v.z();
+        if (v.z() > maxZ)
+            maxZ = v.z();
+    }
+    AutoRemesher::Vector3 length = {
+        (maxX - minX) * 0.5,
+        (maxY - minY) * 0.5,
+        (maxZ - minZ) * 0.5,
+    };
+    *maxLength = length[0];
+    if (length[1] > *maxLength)
+        *maxLength = length[1];
+    if (length[2] > *maxLength)
+        *maxLength = length[2];
+    *origin = {
+        (maxX + minX) * 0.5,
+        (maxY + minY) * 0.5,
+        (maxZ + minZ) * 0.5,
+    };
+}
+
 void RenderMeshGenerator::normalizeVertices()
 {
     AutoRemesher::Vector3 origin;
     double maxLength = 1.0;
-    AutoRemesher::AutoRemesher::calculateNormalizedFactors(*m_vertices, &origin, &maxLength);
+    calculateNormalizedFactors(*m_vertices, &origin, &maxLength);
     for (auto &v: *m_vertices) {
         v = (v - origin) / maxLength;
     }

@@ -40,8 +40,8 @@ void QuadMeshGenerator::generate()
 {
     delete m_autoRemesher;
     m_autoRemesher = new AutoRemesher::AutoRemesher(m_vertices, m_triangles);
-    if (m_parameters.gradientSize > 0)
-        m_autoRemesher->setGradientSize(m_parameters.gradientSize);
+    if (m_parameters.scaling > 0)
+        m_autoRemesher->setScaling(m_parameters.scaling);
     if (!m_autoRemesher->remesh())
         return;
     
