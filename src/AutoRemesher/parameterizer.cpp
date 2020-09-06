@@ -63,7 +63,7 @@ bool Parameterizer::parameterize()
     if (nullptr == m_triangleFieldVectors) {
         GEO::FrameField FF;
         FF.set_use_spatial_search(false);
-        FF.create_from_surface_mesh(M, false, 60);
+        FF.create_from_surface_mesh(M, false, 90);
         const auto &frames = FF.frames();
         for (GEO::index_t f: M.facets) {
             B[f] = GEO::vec3(
@@ -101,6 +101,20 @@ bool Parameterizer::parameterize()
     }
     
 #if AUTO_REMESHER_DEV
+    {
+        FILE *fp = fopen("debug-uv.obj", "wb");
+        for (size_t i = 0; i < m_triangles->size(); ++i) {
+            const auto &uv = (*m_triangleUvs)[i];
+            fprintf(fp, "v %f %f %f\n", uv[0][0], 0.0, uv[0][1]);
+            fprintf(fp, "v %f %f %f\n", uv[1][0], 0.0, uv[1][1]);
+            fprintf(fp, "v %f %f %f\n", uv[2][0], 0.0, uv[2][1]);
+        }
+        for (size_t i = 0; i < m_triangles->size(); ++i) {
+            fprintf(fp, "f %zu %zu %zu\n", i * 3 + 1, i * 3 + 2, i * 3 + 3);
+        }
+        fclose(fp);
+    }
+    
     auto normalizeUv = [](double x) {
         return 0.5 + x * 0.5;
     };

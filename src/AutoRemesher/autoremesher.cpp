@@ -26,6 +26,7 @@
 #include <AutoRemesher/AutoRemesher>
 #include <AutoRemesher/IsotropicRemesher>
 #include <AutoRemesher/Parameterizer>
+#include <AutoRemesher/QuadExtractor>
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
 #include <tbb/tbb_thread.h>
@@ -36,7 +37,7 @@
 namespace AutoRemesher
 {
     
-const double AutoRemesher::m_defaultSharpEdgeDegrees = 60;
+const double AutoRemesher::m_defaultSharpEdgeDegrees = 90;
 const double AutoRemesher::m_defaultScaling = 1.0;
     
 void AutoRemesher::buildEdgeToFaceMap(const std::vector<std::vector<size_t>> &triangles, std::map<std::pair<size_t, size_t>, size_t> &edgeToFaceMap)
@@ -115,7 +116,7 @@ bool AutoRemesher::remesh()
     m_vertices = isotropicRemesher->remeshedVertices();
     m_triangles = isotropicRemesher->remeshedTriangles();
     delete isotropicRemesher;
-    
+
     std::vector<std::vector<std::vector<size_t>>> m_trianglesIslands;
     splitToIslands(m_triangles, m_trianglesIslands);
     
@@ -206,10 +207,14 @@ bool AutoRemesher::remesh()
                     nullptr);
                 thread.parameterizer->setScaling(thread.island->scaling);
                 thread.parameterizer->parameterize();
+                
+                std::vector<std::vector<Vector2>> *uvs = thread.parameterizer->takeTriangleUvs();
+                QuadExtractor quadExtractor(&vertices, &triangles, uvs);
+                quadExtractor.extract();
 #if AUTO_REMESHER_DEBUG
                 qDebug() << "Island[" << thread.islandIndex << "]: quad remeshing...";
 #endif
-                std::vector<std::vector<Vector2>> *uvs = thread.parameterizer->takeTriangleUvs();
+                
                 thread.remesher = new QuadRemesher(&vertices, 
                     &triangles, 
                     uvs);
@@ -217,7 +222,6 @@ bool AutoRemesher::remesh()
                     delete thread.remesher;
                     thread.remesher = nullptr;
                 }
-                delete uvs;
 #if AUTO_REMESHER_DEBUG
                 if (nullptr != thread.remesher) {
                     qDebug() << "Island[" << thread.islandIndex << "]: remesh done, quads:" << thread.remesher->remeshedQuads().size();
@@ -225,6 +229,7 @@ bool AutoRemesher::remesh()
                     qDebug() << "Island[" << thread.islandIndex << "]: remesh failed";
                 }
 #endif
+                delete uvs;
             }
         }
     private:

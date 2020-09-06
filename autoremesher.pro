@@ -176,6 +176,12 @@ HEADERS += src/AutoRemesher/isotropicremesher.h
 SOURCES += src/AutoRemesher/parameterizer.cpp
 HEADERS += src/AutoRemesher/parameterizer.h
 
+SOURCES += src/AutoRemesher/quadextractor.cpp
+HEADERS += src/AutoRemesher/quadextractor.h
+
+SOURCES += src/AutoRemesher/positionkey.cpp
+HEADERS += src/AutoRemesher/positionkey.h
+
 INCLUDEPATH += thirdparty/geogram/geogram-1.7.5/src/lib
 win32 {
     DEFINES -= UNICODE
