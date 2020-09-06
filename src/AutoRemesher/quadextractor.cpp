@@ -20,12 +20,102 @@
 #include <AutoRemesher/QuadExtractor>
 #include <AutoRemesher/PositionKey>
 #include <unordered_map>
+#include <unordered_set>
+#include <queue>
 #include <map>
+#include <set>
 
 namespace AutoRemesher
 {
 
 bool QuadExtractor::extract()
+{
+    std::vector<Vector3> crossPoints;
+    std::set<std::pair<size_t, size_t>> links;
+    std::unordered_set<size_t> intersections;
+    extractConnections(&crossPoints, &links, &intersections);
+    
+    std::unordered_map<size_t, std::unordered_set<size_t>> nextPointMap;
+    for (const auto &it: links) {
+        nextPointMap[it.first].insert(it.second);
+        nextPointMap[it.second].insert(it.first);
+    }
+    
+    std::vector<Vector3> intersectionVertices;
+    intersectionVertices.reserve(intersections.size());
+    std::unordered_map<size_t, size_t> intersectionOldToNewMap;
+    for (const auto &it: intersections) {
+        intersectionOldToNewMap.insert({it, intersectionVertices.size()});
+        intersectionVertices.push_back(crossPoints[it]);
+    }
+    
+    std::vector<std::pair<size_t, size_t>> halfEdges;
+    for (const auto &intersection: intersections) {
+        std::cerr << "Processing intersection:" << intersection << std::endl;
+        auto findAroundIntersection = nextPointMap.find(intersection);
+        if (findAroundIntersection == nextPointMap.end())
+            continue;
+        for (const auto &pointAround: findAroundIntersection->second) {
+            size_t pointIndex = pointAround;
+            std::unordered_set<size_t> visited;
+            visited.insert(intersection);
+            for (;;) {
+                visited.insert(pointIndex);
+                std::cerr << "Loop pointIndex:" << pointIndex << std::endl;
+                auto findNext = nextPointMap.find(pointIndex);
+                if (findNext == nextPointMap.end()) {
+                    std::cerr << "Failed to find next of pointIndex:" << pointIndex << std::endl;
+                    break;
+                }
+                bool foundIntersection = false;
+                std::vector<size_t> neighbors;
+                for (const auto &it: findNext->second) {
+                    if (visited.end() != visited.find(it))
+                        continue;
+                    if (intersections.end() != intersections.find(it)) {
+                        std::cerr << "Found next insersection of pointIndex:" << pointIndex << " result:" << it << std::endl;
+                        pointIndex = it;
+                        foundIntersection = true;
+                        break;
+                    }
+                    neighbors.push_back(it);
+                }
+                if (foundIntersection)
+                    break;
+                if (1 != neighbors.size()) {
+                    std::cerr << "Found multiple next neighbors of pointIndex:" << pointIndex << " num:" << neighbors.size() << std::endl;
+                    break;
+                }
+                pointIndex = neighbors[0];
+            }
+            if (intersection != pointIndex && 
+                    intersections.end() != intersections.find(pointIndex)) {
+                std::cerr << "Halfedge:" << intersection << "~" << pointIndex << std::endl;
+                halfEdges.push_back({intersectionOldToNewMap[intersection], intersectionOldToNewMap[pointIndex]});
+            }
+        }
+    }
+    
+#if AUTO_REMESHER_DEV
+    {
+        FILE *fp = fopen("debug-quadextractor-halfedges.obj", "wb");
+        for (size_t i = 0; i < intersectionVertices.size(); ++i) {
+            const auto &vertex = intersectionVertices[i];
+            fprintf(fp, "v %f %f %f\n", vertex.x(), vertex.y(), vertex.z());
+        }
+        for (const auto &it: halfEdges) {
+            fprintf(fp, "l %zu %zu\n", 1 + it.first, 1 + it.second);
+        }
+        fclose(fp);
+    }
+#endif
+
+    return true;
+}
+
+void QuadExtractor::extractConnections(std::vector<Vector3> *positions, 
+    std::set<std::pair<size_t, size_t>> *links,
+    std::unordered_set<size_t> *intersections)
 {
     struct CrossContext
     {
@@ -33,8 +123,10 @@ bool QuadExtractor::extract()
         Vector2 uvPosition;
     };
     
-    std::vector<Vector3> crossPoints;
+    std::vector<Vector3> &crossPoints = *positions;
     std::map<PositionKey, size_t> crossPointMap;
+    std::set<std::pair<size_t, size_t>> intersectionLinks;
+    std::set<std::pair<size_t, size_t>> canceledLinks;
     auto findCrossPoints = [&](std::map<size_t, std::vector<std::pair<CrossContext, CrossContext>>> &crossLinks, 
             size_t coordIndex,
             const std::map<size_t, std::vector<std::pair<CrossContext, CrossContext>>> *perpendicularCrossLinks=nullptr) {
@@ -89,7 +181,7 @@ bool QuadExtractor::extract()
             }
             for (const auto &it: integerLink) {
                 if (it.second.size() >= 2) {
-                    crossLinks[triangleIndex].push_back({it.second[0], it.second[1]});
+                    bool foundIntersection = false;
                     if (nullptr != perpendicularLines) {
                         const auto &uv0 = it.second[0].uvPosition;
                         const auto &uv1 = it.second[1].uvPosition;
@@ -114,16 +206,27 @@ bool QuadExtractor::extract()
                             }
                             if (segmentPosition < fromPosition || segmentPosition > toPosition)
                                 continue;
-                            double ratio = (segmentPosition - fromPosition) / distance;
+                            double ratio = distance > 0 ? (segmentPosition - fromPosition) / distance : 0.5;
                             Vector3 position3 = crossPoints[it.second[fromIndex].crossPositionIndex] * (1 - ratio) +
                                 crossPoints[it.second[toIndex].crossPositionIndex] * ratio;
+                            std::cerr << "Intersection ratio:" << ratio << " position3:" << position3 << std::endl;
                             auto insertResult = crossPointMap.insert({position3, crossPoints.size()});
                             if (insertResult.second)
                                 crossPoints.push_back(position3);
                             auto newPositionIndex = insertResult.first->second;
-                            std::cerr << "newPositionIndex:" << newPositionIndex << std::endl;
+                            intersections->insert(newPositionIndex);
+                            intersectionLinks.insert({it.second[0].crossPositionIndex, newPositionIndex});
+                            intersectionLinks.insert({newPositionIndex, it.second[1].crossPositionIndex});
+                            intersectionLinks.insert({perpendicularLine.first.crossPositionIndex, newPositionIndex});
+                            intersectionLinks.insert({newPositionIndex, perpendicularLine.second.crossPositionIndex});
+                            if (perpendicularLine.first.crossPositionIndex != newPositionIndex &&
+                                    newPositionIndex != perpendicularLine.second.crossPositionIndex)
+                                canceledLinks.insert({perpendicularLine.first.crossPositionIndex, perpendicularLine.second.crossPositionIndex});
+                            foundIntersection = true;
                         }
                     }
+                    if (!foundIntersection)
+                        crossLinks[triangleIndex].push_back({it.second[0], it.second[1]});
                 }
             }
         }
@@ -133,20 +236,31 @@ bool QuadExtractor::extract()
     findCrossPoints(xCrossLinks, 0);
     findCrossPoints(yCrossLinks, 1, &xCrossLinks);
     
+    auto &mergedLinks = *links;
+    mergedLinks = intersectionLinks;
+    auto mergeLink = [&](const std::map<size_t, std::vector<std::pair<CrossContext, CrossContext>>> &crossLinks) {
+        for (const auto &it: crossLinks) {
+            for (const auto &subIt: it.second) {
+                if (subIt.first.crossPositionIndex == subIt.second.crossPositionIndex)
+                    continue;
+                mergedLinks.insert({subIt.first.crossPositionIndex, subIt.second.crossPositionIndex});
+            }
+        }
+    };
+    mergeLink(xCrossLinks);
+    mergeLink(yCrossLinks);
+    for (const auto &it: canceledLinks)
+        mergedLinks.erase(it);
+    
 #if AUTO_REMESHER_DEV
     {
-        FILE *fp = fopen("debug-quadextractor.obj", "wb");
+        FILE *fp = fopen("debug-quadextractor-connections.obj", "wb");
         for (size_t i = 0; i < crossPoints.size(); ++i) {
             const auto &vertex = crossPoints[i];
             fprintf(fp, "v %f %f %f\n", vertex.x(), vertex.y(), vertex.z());
         }
-        for (const auto &it: xCrossLinks) {
-            for (const auto &subIt: it.second)
-                fprintf(fp, "l %zu %zu\n", 1 + subIt.first.crossPositionIndex, 1 + subIt.second.crossPositionIndex);
-        }
-        for (const auto &it: yCrossLinks) {
-            for (const auto &subIt: it.second)
-                fprintf(fp, "l %zu %zu\n", 1 + subIt.first.crossPositionIndex, 1 + subIt.second.crossPositionIndex);
+        for (const auto &it: mergedLinks) {
+            fprintf(fp, "l %zu %zu\n", 1 + it.first, 1 + it.second);
         }
         fclose(fp);
     }

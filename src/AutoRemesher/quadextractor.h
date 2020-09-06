@@ -20,6 +20,8 @@
 #ifndef AUTO_REMESHER_QUAD_EXTRACTOR_H
 #define AUTO_REMESHER_QUAD_EXTRACTOR_H
 #include <vector>
+#include <set>
+#include <unordered_set>
 #include <AutoRemesher/Vector3>
 #include <AutoRemesher/Vector2>
 
@@ -56,6 +58,10 @@ private:
     const std::vector<std::vector<Vector2>> *m_triangleUvs = nullptr;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedQuads;
+    
+    void extractConnections(std::vector<Vector3> *positions, 
+        std::set<std::pair<size_t, size_t>> *links,
+        std::unordered_set<size_t> *intersections);
 };
     
 }
