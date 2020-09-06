@@ -32,25 +32,42 @@ bool QuadExtractor::extract()
 {
     std::vector<Vector3> crossPoints;
     std::set<std::pair<size_t, size_t>> links;
-    std::unordered_set<size_t> intersections;
+    std::unordered_map<size_t, Intersection> intersections;
     extractConnections(&crossPoints, &links, &intersections);
     
+    std::unordered_map<size_t, std::unordered_set<size_t>> edgeConnectMap;
+    extractEdges(intersections, links, &edgeConnectMap);
+    
+    extractMesh(crossPoints, intersections, edgeConnectMap, &m_remeshedQuads);
+    
+    m_remeshedVertices.reserve(intersections.size());
+    std::unordered_map<size_t, size_t> intersectionOldToNewMap;
+    for (const auto &it: intersections) {
+        intersectionOldToNewMap.insert({it.first, m_remeshedVertices.size()});
+        m_remeshedVertices.push_back(crossPoints[it.first]);
+    }
+    for (auto &it: m_remeshedQuads) {
+        it[0] = intersectionOldToNewMap[it[0]];
+        it[1] = intersectionOldToNewMap[it[1]];
+        it[2] = intersectionOldToNewMap[it[2]];
+        it[3] = intersectionOldToNewMap[it[3]];
+    }
+
+    return true;
+}
+
+void QuadExtractor::extractEdges(const std::unordered_map<size_t, Intersection> &intersections,
+        const std::set<std::pair<size_t, size_t>> &links,
+        std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap)
+{
     std::unordered_map<size_t, std::unordered_set<size_t>> nextPointMap;
     for (const auto &it: links) {
         nextPointMap[it.first].insert(it.second);
         nextPointMap[it.second].insert(it.first);
     }
-    
-    std::vector<Vector3> intersectionVertices;
-    intersectionVertices.reserve(intersections.size());
-    std::unordered_map<size_t, size_t> intersectionOldToNewMap;
-    for (const auto &it: intersections) {
-        intersectionOldToNewMap.insert({it, intersectionVertices.size()});
-        intersectionVertices.push_back(crossPoints[it]);
-    }
-    
-    std::vector<std::pair<size_t, size_t>> halfEdges;
-    for (const auto &intersection: intersections) {
+
+    for (const auto &intersectionIt: intersections) {
+        const auto &intersection = intersectionIt.first;
         //std::cerr << "Processing intersection:" << intersection << std::endl;
         auto findAroundIntersection = nextPointMap.find(intersection);
         if (findAroundIntersection == nextPointMap.end())
@@ -91,36 +108,63 @@ bool QuadExtractor::extract()
             if (intersection != pointIndex && 
                     intersections.end() != intersections.find(pointIndex)) {
                 //std::cerr << "Halfedge:" << intersection << "~" << pointIndex << std::endl;
-                halfEdges.push_back({intersectionOldToNewMap[intersection], intersectionOldToNewMap[pointIndex]});
+                (*edgeConnectMap)[intersection].insert(pointIndex);
+                (*edgeConnectMap)[pointIndex].insert(intersection);
             }
         }
     }
-    
-#if AUTO_REMESHER_DEV
-    {
-        FILE *fp = fopen("debug-quadextractor-halfedges.obj", "wb");
-        for (size_t i = 0; i < intersectionVertices.size(); ++i) {
-            const auto &vertex = intersectionVertices[i];
-            fprintf(fp, "v %f %f %f\n", vertex.x(), vertex.y(), vertex.z());
-        }
-        for (const auto &it: halfEdges) {
-            fprintf(fp, "l %zu %zu\n", 1 + it.first, 1 + it.second);
-        }
-        fclose(fp);
-    }
-#endif
+}
 
-    return true;
+void QuadExtractor::extractMesh(const std::vector<Vector3> &points,
+        const std::unordered_map<size_t, Intersection> &intersections,
+        const std::unordered_map<size_t, std::unordered_set<size_t>> &edgeConnectMap,
+        std::vector<std::vector<size_t>> *quads)
+{
+    quads->reserve(intersections.size());
+    for (const auto &intersectionIt: intersections) {
+        const auto &intersection = intersectionIt.second;
+        auto findNeighbors = edgeConnectMap.find(intersectionIt.first);
+        if (findNeighbors == edgeConnectMap.end())
+            continue;
+        size_t rightBottom = std::numeric_limits<size_t>::max();
+        size_t rightTop = std::numeric_limits<size_t>::max();
+        size_t leftTop = std::numeric_limits<size_t>::max();
+        for (const auto &neighborIndex: findNeighbors->second) {
+            auto findNeighborInfo = intersections.find(neighborIndex);
+            if (findNeighborInfo == intersections.end())
+                continue;
+            const auto &neighbor = findNeighborInfo->second;
+            if (neighbor.column == intersection.column) {
+                if (neighbor.row > intersection.row) {
+                    rightBottom = neighborIndex;
+                }
+            } else if (neighbor.column > intersection.column) {
+                if (neighbor.row > intersection.row) {
+                    rightTop = neighborIndex;
+                } else if (neighbor.row == intersection.row) {
+                    leftTop = neighborIndex;
+                }
+            }
+        }
+        if (rightBottom != std::numeric_limits<size_t>::max() &&
+                rightTop != std::numeric_limits<size_t>::max() &&
+                leftTop != std::numeric_limits<size_t>::max()) {
+            quads->push_back({intersectionIt.first, rightBottom, rightTop, leftTop});
+        }
+    }
+    
+    // TODO: Revise normal
 }
 
 void QuadExtractor::extractConnections(std::vector<Vector3> *positions, 
     std::set<std::pair<size_t, size_t>> *links,
-    std::unordered_set<size_t> *intersections)
+    std::unordered_map<size_t, Intersection> *intersections)
 {
     struct CrossContext
     {
         size_t crossPositionIndex;
         Vector2 uvPosition;
+        int integer;
     };
     
     std::vector<Vector3> &crossPoints = *positions;
@@ -170,7 +214,7 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *positions,
                         auto insertResult = crossPointMap.insert({position3, crossPoints.size()});
                         if (insertResult.second)
                             crossPoints.push_back(position3);
-                        integerLink[integer].push_back({insertResult.first->second, position2});
+                        integerLink[integer].push_back({insertResult.first->second, position2, integer});
                     }
                 }
             }
@@ -215,7 +259,7 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *positions,
                             if (insertResult.second)
                                 crossPoints.push_back(position3);
                             auto newPositionIndex = insertResult.first->second;
-                            intersections->insert(newPositionIndex);
+                            intersections->insert({newPositionIndex, {triangleIndex, perpendicularLine.first.integer, it.second[0].integer}});
                             intersectionLinks.insert({it.second[0].crossPositionIndex, newPositionIndex});
                             intersectionLinks.insert({newPositionIndex, it.second[1].crossPositionIndex});
                             intersectionLinks.insert({perpendicularLine.first.crossPositionIndex, newPositionIndex});

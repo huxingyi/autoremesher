@@ -21,6 +21,7 @@
 #define AUTO_REMESHER_QUAD_EXTRACTOR_H
 #include <vector>
 #include <set>
+#include <unordered_map>
 #include <unordered_set>
 #include <AutoRemesher/Vector3>
 #include <AutoRemesher/Vector2>
@@ -31,6 +32,13 @@ namespace AutoRemesher
 class QuadExtractor
 {
 public:
+    struct Intersection
+    {
+        size_t sourceTriangleIndex;
+        int column;
+        int row;
+    };
+
     QuadExtractor(const std::vector<Vector3> *vertices,
             const std::vector<std::vector<size_t>> *triangles,
             const std::vector<std::vector<Vector2>> *triangleUvs) :
@@ -61,7 +69,14 @@ private:
     
     void extractConnections(std::vector<Vector3> *positions, 
         std::set<std::pair<size_t, size_t>> *links,
-        std::unordered_set<size_t> *intersections);
+        std::unordered_map<size_t, Intersection> *intersections);
+    void extractEdges(const std::unordered_map<size_t, Intersection> &intersections,
+        const std::set<std::pair<size_t, size_t>> &links,
+        std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap);
+    void extractMesh(const std::vector<Vector3> &points,
+        const std::unordered_map<size_t, Intersection> &intersections,
+        const std::unordered_map<size_t, std::unordered_set<size_t>> &edgeConnectMap,
+        std::vector<std::vector<size_t>> *quads);
 };
     
 }
