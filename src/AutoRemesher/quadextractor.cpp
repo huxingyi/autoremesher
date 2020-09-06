@@ -51,7 +51,7 @@ bool QuadExtractor::extract()
     
     std::vector<std::pair<size_t, size_t>> halfEdges;
     for (const auto &intersection: intersections) {
-        std::cerr << "Processing intersection:" << intersection << std::endl;
+        //std::cerr << "Processing intersection:" << intersection << std::endl;
         auto findAroundIntersection = nextPointMap.find(intersection);
         if (findAroundIntersection == nextPointMap.end())
             continue;
@@ -61,10 +61,10 @@ bool QuadExtractor::extract()
             visited.insert(intersection);
             for (;;) {
                 visited.insert(pointIndex);
-                std::cerr << "Loop pointIndex:" << pointIndex << std::endl;
+                //std::cerr << "Loop pointIndex:" << pointIndex << std::endl;
                 auto findNext = nextPointMap.find(pointIndex);
                 if (findNext == nextPointMap.end()) {
-                    std::cerr << "Failed to find next of pointIndex:" << pointIndex << std::endl;
+                    //std::cerr << "Failed to find next of pointIndex:" << pointIndex << std::endl;
                     break;
                 }
                 bool foundIntersection = false;
@@ -73,7 +73,7 @@ bool QuadExtractor::extract()
                     if (visited.end() != visited.find(it))
                         continue;
                     if (intersections.end() != intersections.find(it)) {
-                        std::cerr << "Found next insersection of pointIndex:" << pointIndex << " result:" << it << std::endl;
+                        //std::cerr << "Found next insersection of pointIndex:" << pointIndex << " result:" << it << std::endl;
                         pointIndex = it;
                         foundIntersection = true;
                         break;
@@ -90,7 +90,7 @@ bool QuadExtractor::extract()
             }
             if (intersection != pointIndex && 
                     intersections.end() != intersections.find(pointIndex)) {
-                std::cerr << "Halfedge:" << intersection << "~" << pointIndex << std::endl;
+                //std::cerr << "Halfedge:" << intersection << "~" << pointIndex << std::endl;
                 halfEdges.push_back({intersectionOldToNewMap[intersection], intersectionOldToNewMap[pointIndex]});
             }
         }
@@ -139,7 +139,8 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *positions,
                 const auto &current = cornerUvs[j];
                 const auto &next = cornerUvs[k];
                 double distance = std::abs(current[coordIndex] - next[coordIndex]);
-                if ((int)current[coordIndex] != (int)next[coordIndex]) {
+                if ((int)current[coordIndex] != (int)next[coordIndex] ||
+                        (current[coordIndex] > 0) != (next[coordIndex] > 0)) {
                     int lowInteger, highInteger;
                     double fromPosition;
                     double toPosition;
@@ -209,7 +210,7 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *positions,
                             double ratio = distance > 0 ? (segmentPosition - fromPosition) / distance : 0.5;
                             Vector3 position3 = crossPoints[it.second[fromIndex].crossPositionIndex] * (1 - ratio) +
                                 crossPoints[it.second[toIndex].crossPositionIndex] * ratio;
-                            std::cerr << "Intersection ratio:" << ratio << " position3:" << position3 << std::endl;
+                            //std::cerr << "Intersection ratio:" << ratio << " position3:" << position3 << std::endl;
                             auto insertResult = crossPointMap.insert({position3, crossPoints.size()});
                             if (insertResult.second)
                                 crossPoints.push_back(position3);
