@@ -35,8 +35,6 @@ public:
     struct Intersection
     {
         size_t sourceTriangleIndex;
-        int column;
-        int row;
     };
 
     QuadExtractor(const std::vector<Vector3> *vertices,

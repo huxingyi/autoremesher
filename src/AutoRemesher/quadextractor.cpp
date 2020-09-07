@@ -19,6 +19,7 @@
  */
 #include <AutoRemesher/QuadExtractor>
 #include <AutoRemesher/PositionKey>
+#include <AutoRemesher/Double>
 #include <unordered_map>
 #include <unordered_set>
 #include <queue>
@@ -52,6 +53,20 @@ bool QuadExtractor::extract()
         it[2] = intersectionOldToNewMap[it[2]];
         it[3] = intersectionOldToNewMap[it[3]];
     }
+    
+#if AUTO_REMESHER_DEV
+    {
+        FILE *fp = fopen("debug-quadextractor-quads.obj", "wb");
+        for (size_t i = 0; i < m_remeshedVertices.size(); ++i) {
+            const auto &vertex = m_remeshedVertices[i];
+            fprintf(fp, "v %f %f %f\n", vertex.x(), vertex.y(), vertex.z());
+        }
+        for (const auto &it: m_remeshedQuads) {
+            fprintf(fp, "f %zu %zu %zu %zu\n", 1 + it[0], 1 + it[1], 1 + it[2], 1 + it[3]);
+        }
+        fclose(fp);
+    }
+#endif
 
     return true;
 }
@@ -121,39 +136,53 @@ void QuadExtractor::extractMesh(const std::vector<Vector3> &points,
         std::vector<std::vector<size_t>> *quads)
 {
     quads->reserve(intersections.size());
+    std::set<std::tuple<size_t, size_t, size_t, size_t>> candidates;
     for (const auto &intersectionIt: intersections) {
+        const auto &level0 = intersectionIt.first;
         const auto &intersection = intersectionIt.second;
-        auto findNeighbors = edgeConnectMap.find(intersectionIt.first);
-        if (findNeighbors == edgeConnectMap.end())
+        auto findLevel1 = edgeConnectMap.find(level0);
+        if (findLevel1 == edgeConnectMap.end())
             continue;
-        size_t rightBottom = std::numeric_limits<size_t>::max();
-        size_t rightTop = std::numeric_limits<size_t>::max();
-        size_t leftTop = std::numeric_limits<size_t>::max();
-        for (const auto &neighborIndex: findNeighbors->second) {
-            auto findNeighborInfo = intersections.find(neighborIndex);
-            if (findNeighborInfo == intersections.end())
+        const auto &triangleVertices = (*m_triangles)[intersection.sourceTriangleIndex];
+        auto triangleNormal = Vector3::normal((*m_vertices)[triangleVertices[0]],
+            (*m_vertices)[triangleVertices[1]], 
+            (*m_vertices)[triangleVertices[2]]);
+        for (const auto &level1: findLevel1->second) {
+            auto findLevel2 = edgeConnectMap.find(level1);
+            if (findLevel2 == edgeConnectMap.end())
                 continue;
-            const auto &neighbor = findNeighborInfo->second;
-            if (neighbor.column == intersection.column) {
-                if (neighbor.row > intersection.row) {
-                    rightBottom = neighborIndex;
-                }
-            } else if (neighbor.column > intersection.column) {
-                if (neighbor.row > intersection.row) {
-                    rightTop = neighborIndex;
-                } else if (neighbor.row == intersection.row) {
-                    leftTop = neighborIndex;
+            for (const auto &level2: findLevel2->second) {
+                if (level0 == level2)
+                    continue;
+                auto findLevel3 = edgeConnectMap.find(level2);
+                if (findLevel3 == edgeConnectMap.end())
+                    continue;
+                for (const auto &level3: findLevel3->second) {
+                    if (level1 == level3)
+                        continue;
+                    auto findLevel4 = edgeConnectMap.find(level3);
+                    if (findLevel4 == edgeConnectMap.end())
+                        continue;
+                    for (const auto &level4: findLevel4->second) {
+                        if (level0 != level4)
+                            continue;
+                        std::vector<size_t> allLevels = {level0, level1, level2, level3};
+                        std::sort(allLevels.begin(), allLevels.end());
+                        auto insertResult = candidates.insert({allLevels[0], allLevels[1], allLevels[2], allLevels[3]});
+                        if (insertResult.second) {
+                            auto quadNormal = Vector3::normal(points[level0], points[level1], points[level2]);
+                            if (Vector3::dotProduct(quadNormal, triangleNormal) > 0) {
+                                quads->push_back({level0, level1, level2, level3});
+                            } else {
+                                quads->push_back({level3, level2, level1, level0});
+                            }
+                        }
+                        break;
+                    }
                 }
             }
         }
-        if (rightBottom != std::numeric_limits<size_t>::max() &&
-                rightTop != std::numeric_limits<size_t>::max() &&
-                leftTop != std::numeric_limits<size_t>::max()) {
-            quads->push_back({intersectionIt.first, rightBottom, rightTop, leftTop});
-        }
     }
-    
-    // TODO: Revise normal
 }
 
 void QuadExtractor::extractConnections(std::vector<Vector3> *positions, 
@@ -171,6 +200,14 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *positions,
     std::map<PositionKey, size_t> crossPointMap;
     std::set<std::pair<size_t, size_t>> intersectionLinks;
     std::set<std::pair<size_t, size_t>> canceledLinks;
+    
+    auto addCrossPoint = [&](const Vector3 &position3, size_t triangleIndex) {
+        auto insertResult = crossPointMap.insert({position3, crossPoints.size()});
+        if (insertResult.second)
+            crossPoints.push_back(position3);
+        return insertResult;
+    };
+    
     auto findCrossPoints = [&](std::map<size_t, std::vector<std::pair<CrossContext, CrossContext>>> &crossLinks, 
             size_t coordIndex,
             const std::map<size_t, std::vector<std::pair<CrossContext, CrossContext>>> *perpendicularCrossLinks=nullptr) {
@@ -178,6 +215,7 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *positions,
             const auto &cornerUvs = (*m_triangleUvs)[triangleIndex];
             const auto &cornerIndices = (*m_triangles)[triangleIndex];
             std::unordered_map<int, std::vector<CrossContext>> integerLink;
+            //std::cerr << "======== Processing triangleIndex:" << triangleIndex << " ==============" << std::endl;
             for (size_t j = 0; j < 3; ++j) {
                 size_t k = (j + 1) % 3;
                 const auto &current = cornerUvs[j];
@@ -211,9 +249,27 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *positions,
                         Vector3 position3 = (*m_vertices)[cornerIndices[fromIndex]] * (1 - ratio) +
                             (*m_vertices)[cornerIndices[toIndex]] * ratio;
                         Vector2 position2 = cornerUvs[fromIndex] * (1 - ratio) + cornerUvs[toIndex] * ratio;
-                        auto insertResult = crossPointMap.insert({position3, crossPoints.size()});
-                        if (insertResult.second)
-                            crossPoints.push_back(position3);
+                        auto insertResult = addCrossPoint(position3, triangleIndex);
+                        //std::cerr << "j:" << j << " integer:" << integer << " crossPoint:" << insertResult.first->second << " position2:" << position2 << std::endl;
+                        integerLink[integer].push_back({insertResult.first->second, position2, integer});
+                    }
+                } else if ((Double::isZero((double)(int)current[coordIndex] - current[coordIndex]) && 
+                        Double::isZero(current[coordIndex] - next[coordIndex]))) {
+                    // Triangle edge collapse with isoline
+                    int integer = (int)current[coordIndex];
+                    //std::cerr << "j:" << j << " Triangle edge collapse with isoline integer:" << integer << std::endl;
+                    {
+                        const Vector3 &position3 = (*m_vertices)[cornerIndices[j]];
+                        const Vector2 &position2 = cornerUvs[j];
+                        auto insertResult = addCrossPoint(position3, triangleIndex);
+                        //std::cerr << "  first: integer:" << integer << " crossPoint:" << insertResult.first->second << " position2:" << position2 << std::endl;
+                        integerLink[integer].push_back({insertResult.first->second, position2, integer});
+                    }
+                    {
+                        const Vector3 &position3 = (*m_vertices)[cornerIndices[k]];
+                        const Vector2 &position2 = cornerUvs[k];
+                        auto insertResult = addCrossPoint(position3, triangleIndex);
+                        //std::cerr << "  second: integer:" << integer << " crossPoint:" << insertResult.first->second << " position2:" << position2 << std::endl;
                         integerLink[integer].push_back({insertResult.first->second, position2, integer});
                     }
                 }
@@ -225,53 +281,61 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *positions,
                     perpendicularLines = &findResult->second;
             }
             for (const auto &it: integerLink) {
+                //if (it.second.size() >= 3) {
+                //    std::cerr << "triangleIndex:" << triangleIndex << " integerLink size:" << it.second.size() << " integer:" << it.first << std::endl;
+                //    for (size_t i = 0; i < it.second.size(); ++i) {
+                //        std::cerr << "["<<i<<"]:" << "crossPoint:" << it.second[i].crossPositionIndex << " uvPosition:" << it.second[i].uvPosition << std::endl;
+                //    }
+                //}
                 if (it.second.size() >= 2) {
-                    bool foundIntersection = false;
-                    if (nullptr != perpendicularLines) {
-                        const auto &uv0 = it.second[0].uvPosition;
-                        const auto &uv1 = it.second[1].uvPosition;
-                        auto perpendicularCoordIndex = (coordIndex + 1) % 2;
-                        double distance = std::abs(uv0[perpendicularCoordIndex] - uv1[perpendicularCoordIndex]);
-                        for (const auto &perpendicularLine: *perpendicularLines) {
-                            double segmentPosition = perpendicularLine.first.uvPosition[perpendicularCoordIndex];
-                            double fromPosition;
-                            double toPosition;
-                            size_t fromIndex;
-                            size_t toIndex;
-                            if (uv0[perpendicularCoordIndex] < uv1[perpendicularCoordIndex]) {
-                                fromPosition = uv0[perpendicularCoordIndex];
-                                toPosition = uv1[perpendicularCoordIndex];
-                                fromIndex = 0;
-                                toIndex = 1;
-                            } else {
-                                fromPosition = uv1[perpendicularCoordIndex];
-                                toPosition = uv0[perpendicularCoordIndex];
-                                fromIndex = 1;
-                                toIndex = 0;
+                    for (size_t pointIndex = 0; pointIndex < it.second.size(); ++pointIndex) {
+                        size_t nextPointIndex = (pointIndex + 1) % it.second.size();
+                        bool foundIntersection = false;
+                        if (nullptr != perpendicularLines) {
+                            const auto &uv0 = it.second[pointIndex].uvPosition;
+                            const auto &uv1 = it.second[nextPointIndex].uvPosition;
+                            auto perpendicularCoordIndex = (coordIndex + 1) % 2;
+                            double distance = std::abs(uv0[perpendicularCoordIndex] - uv1[perpendicularCoordIndex]);
+                            for (const auto &perpendicularLine: *perpendicularLines) {
+                                double segmentPosition = perpendicularLine.first.uvPosition[perpendicularCoordIndex];
+                                double fromPosition;
+                                double toPosition;
+                                size_t fromIndex;
+                                size_t toIndex;
+                                if (uv0[perpendicularCoordIndex] < uv1[perpendicularCoordIndex]) {
+                                    fromPosition = uv0[perpendicularCoordIndex];
+                                    toPosition = uv1[perpendicularCoordIndex];
+                                    fromIndex = pointIndex;
+                                    toIndex = nextPointIndex;
+                                } else {
+                                    fromPosition = uv1[perpendicularCoordIndex];
+                                    toPosition = uv0[perpendicularCoordIndex];
+                                    fromIndex = nextPointIndex;
+                                    toIndex = pointIndex;
+                                }
+                                if (segmentPosition < fromPosition || 
+                                        segmentPosition > toPosition)
+                                    continue;
+                                double ratio = distance > 0 ? (segmentPosition - fromPosition) / distance : 0.5;
+                                Vector3 position3 = crossPoints[it.second[fromIndex].crossPositionIndex] * (1 - ratio) +
+                                    crossPoints[it.second[toIndex].crossPositionIndex] * ratio;
+                                //std::cerr << "Intersection ratio:" << ratio << " position3:" << position3 << std::endl;
+                                auto insertResult = addCrossPoint(position3, triangleIndex);
+                                auto newPositionIndex = insertResult.first->second;
+                                intersections->insert({newPositionIndex, {triangleIndex}});
+                                intersectionLinks.insert({it.second[pointIndex].crossPositionIndex, newPositionIndex});
+                                intersectionLinks.insert({newPositionIndex, it.second[nextPointIndex].crossPositionIndex});
+                                intersectionLinks.insert({perpendicularLine.first.crossPositionIndex, newPositionIndex});
+                                intersectionLinks.insert({newPositionIndex, perpendicularLine.second.crossPositionIndex});
+                                if (perpendicularLine.first.crossPositionIndex != newPositionIndex &&
+                                        newPositionIndex != perpendicularLine.second.crossPositionIndex)
+                                    canceledLinks.insert({perpendicularLine.first.crossPositionIndex, perpendicularLine.second.crossPositionIndex});
+                                foundIntersection = true;
                             }
-                            if (segmentPosition < fromPosition || segmentPosition > toPosition)
-                                continue;
-                            double ratio = distance > 0 ? (segmentPosition - fromPosition) / distance : 0.5;
-                            Vector3 position3 = crossPoints[it.second[fromIndex].crossPositionIndex] * (1 - ratio) +
-                                crossPoints[it.second[toIndex].crossPositionIndex] * ratio;
-                            //std::cerr << "Intersection ratio:" << ratio << " position3:" << position3 << std::endl;
-                            auto insertResult = crossPointMap.insert({position3, crossPoints.size()});
-                            if (insertResult.second)
-                                crossPoints.push_back(position3);
-                            auto newPositionIndex = insertResult.first->second;
-                            intersections->insert({newPositionIndex, {triangleIndex, perpendicularLine.first.integer, it.second[0].integer}});
-                            intersectionLinks.insert({it.second[0].crossPositionIndex, newPositionIndex});
-                            intersectionLinks.insert({newPositionIndex, it.second[1].crossPositionIndex});
-                            intersectionLinks.insert({perpendicularLine.first.crossPositionIndex, newPositionIndex});
-                            intersectionLinks.insert({newPositionIndex, perpendicularLine.second.crossPositionIndex});
-                            if (perpendicularLine.first.crossPositionIndex != newPositionIndex &&
-                                    newPositionIndex != perpendicularLine.second.crossPositionIndex)
-                                canceledLinks.insert({perpendicularLine.first.crossPositionIndex, perpendicularLine.second.crossPositionIndex});
-                            foundIntersection = true;
                         }
+                        if (!foundIntersection)
+                            crossLinks[triangleIndex].push_back({it.second[pointIndex], it.second[nextPointIndex]});
                     }
-                    if (!foundIntersection)
-                        crossLinks[triangleIndex].push_back({it.second[0], it.second[1]});
                 }
             }
         }
@@ -280,7 +344,7 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *positions,
     std::map<size_t, std::vector<std::pair<CrossContext, CrossContext>>> yCrossLinks;
     findCrossPoints(xCrossLinks, 0);
     findCrossPoints(yCrossLinks, 1, &xCrossLinks);
-    
+
     auto &mergedLinks = *links;
     mergedLinks = intersectionLinks;
     auto mergeLink = [&](const std::map<size_t, std::vector<std::pair<CrossContext, CrossContext>>> &crossLinks) {
