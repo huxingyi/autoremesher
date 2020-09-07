@@ -260,6 +260,7 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *positions,
                 }
             }
             if (integerLink.empty()) {
+                bool isCornerIntegers[3] = {false, false, false};
                 for (size_t j = 0; j < 3; ++j) {
                     size_t k = (j + 1) % 3;
                     const auto &current = cornerUvs[j];
@@ -290,6 +291,10 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *positions,
                             double ratio = (integer - fromPosition) / distance;
                             if (ratio < 0 || ratio > 1)
                                 continue;
+                            if (Double::isZero(ratio))
+                                isCornerIntegers[fromIndex] = true;
+                            if (Double::isZero(ratio - 1.0))
+                                isCornerIntegers[toIndex] = true;
                             Vector3 position3 = (*m_vertices)[cornerIndices[fromIndex]] * (1 - ratio) +
                                 (*m_vertices)[cornerIndices[toIndex]] * ratio;
                             Vector2 position2 = cornerUvs[fromIndex] * (1 - ratio) + cornerUvs[toIndex] * ratio;
@@ -299,6 +304,8 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *positions,
                         }
                     }
                 }
+                if (isCornerIntegers[0] && isCornerIntegers[1] && isCornerIntegers[2])
+                    integerLink.clear();
             }
             const std::vector<std::pair<CrossContext, CrossContext>> *perpendicularLines = nullptr;
             if (nullptr != perpendicularCrossLinks) {
