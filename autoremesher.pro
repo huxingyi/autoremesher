@@ -167,9 +167,6 @@ HEADERS += src/preferences.h
 SOURCES += src/AutoRemesher/autoremesher.cpp
 HEADERS += src/AutoRemesher/autoremesher.h
 
-SOURCES += src/AutoRemesher/quadremesher.cpp
-HEADERS += src/AutoRemesher/quadremesher.h
-
 SOURCES += src/AutoRemesher/isotropicremesher.cpp
 HEADERS += src/AutoRemesher/isotropicremesher.h
 
@@ -461,47 +458,6 @@ unix {
 win32 {
 	CONFIG(debug, debug|release) LIBS += -Lthirdparty/tbb/build2-debug/Debug -ltbb_static_debug -ltbbmalloc_static_debug -ltbbmalloc_proxy_static_debug
     CONFIG(release, debug|release) LIBS += -Lthirdparty/tbb/build2/Release -ltbb_static -ltbbmalloc_static -ltbbmalloc_proxy_static
-}
-
-INCLUDEPATH += thirdparty/openmesh/OpenMesh-3.0/src
-
-INCLUDEPATH += thirdparty/libQEx/src
-
-INCLUDEPATH += thirdparty/libQEx/interfaces/c
-
-HEADERS += thirdparty/libQEx/src/Algebra.hh
-
-HEADERS += thirdparty/libQEx/src/ExactPredicates.h
-
-HEADERS += thirdparty/libQEx/src/Globals.hh
-
-HEADERS += thirdparty/libQEx/src/MeshDecimatorT.hh
-
-SOURCES += thirdparty/libQEx/src/MeshExtractor.cc
-
-SOURCES += thirdparty/libQEx/src/MeshExtractorT.cc
-HEADERS += thirdparty/libQEx/src/MeshExtractorT.hh
-
-SOURCES += thirdparty/libQEx/src/predicates.c
-
-SOURCES += thirdparty/libQEx/src/QuadExtractorPostprocT.cc
-HEADERS += thirdparty/libQEx/src/QuadExtractorPostprocT.hh
-
-HEADERS += thirdparty/libQEx/src/TransitionFunction.hh
-
-HEADERS += thirdparty/libQEx/src/Vector.hh
-
-SOURCES += thirdparty/libQEx/interfaces/c/qex.cc
-HEADERS += thirdparty/libQEx/interfaces/c/qex.h
-
-win32 {
-    CONFIG(debug, debug|release) LIBS += -Lthirdparty/openmesh/OpenMesh-3.0/build-debug/Build/lib -lOpenMeshCored
-    CONFIG(release, debug|release) LIBS += -Lthirdparty/openmesh/OpenMesh-3.0/build/Build/lib -lOpenMeshCore
-}
-
-unix {
-    CONFIG(debug, debug|release) LIBS += -Lthirdparty/openmesh/OpenMesh-3.0/build-debug/Build/lib/OpenMesh -lOpenMeshCored
-    CONFIG(release, debug|release) LIBS += -Lthirdparty/openmesh/OpenMesh-3.0/build/Build/lib/OpenMesh -lOpenMeshCore
 }
 
 win32 {

@@ -32,11 +32,6 @@ namespace AutoRemesher
 class QuadExtractor
 {
 public:
-    struct Intersection
-    {
-        size_t sourceTriangleIndex;
-    };
-
     QuadExtractor(const std::vector<Vector3> *vertices,
             const std::vector<std::vector<size_t>> *triangles,
             const std::vector<std::vector<Vector2>> *triangleUvs) :
@@ -65,14 +60,13 @@ private:
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedQuads;
     
-    void extractConnections(std::vector<Vector3> *positions, 
-        std::set<std::pair<size_t, size_t>> *links,
-        std::unordered_map<size_t, Intersection> *intersections);
-    void extractEdges(const std::unordered_map<size_t, Intersection> &intersections,
-        const std::set<std::pair<size_t, size_t>> &links,
+    void extractConnections(std::vector<Vector3> *crossPoints, 
+        std::vector<size_t> *sourceTriangles,
+        std::set<std::pair<size_t, size_t>> *connections);
+    void extractEdges(const std::set<std::pair<size_t, size_t>> &connections,
         std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap);
     void extractMesh(const std::vector<Vector3> &points,
-        const std::unordered_map<size_t, Intersection> &intersections,
+        const std::vector<size_t> &pointSourceTriangles,
         const std::unordered_map<size_t, std::unordered_set<size_t>> &edgeConnectMap,
         std::vector<std::vector<size_t>> *quads);
 };

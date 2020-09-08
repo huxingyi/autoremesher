@@ -25,7 +25,6 @@
 #include <cstddef>
 #include <map>
 #include <AutoRemesher/Vector3>
-#include <AutoRemesher/QuadRemesher>
 
 namespace AutoRemesher
 {

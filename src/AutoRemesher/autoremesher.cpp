@@ -173,7 +173,7 @@ bool AutoRemesher::remesh()
         size_t islandIndex = 0;
         const IslandContext *island = nullptr;
         Parameterizer *parameterizer = nullptr;
-        QuadRemesher *remesher = nullptr;
+        QuadExtractor *remesher = nullptr;
     };
 
     std::vector<ParameterizationThread> parameterizationThreads(islandContexes.size());
@@ -209,16 +209,13 @@ bool AutoRemesher::remesh()
                 thread.parameterizer->parameterize();
                 
                 std::vector<std::vector<Vector2>> *uvs = thread.parameterizer->takeTriangleUvs();
-                QuadExtractor quadExtractor(&vertices, &triangles, uvs);
-                quadExtractor.extract();
 #if AUTO_REMESHER_DEBUG
-                qDebug() << "Island[" << thread.islandIndex << "]: quad remeshing...";
+                qDebug() << "Island[" << thread.islandIndex << "]: quad extracing...";
 #endif
-                
-                thread.remesher = new QuadRemesher(&vertices, 
+                thread.remesher = new QuadExtractor(&vertices, 
                     &triangles, 
                     uvs);
-                if (!thread.remesher->remesh()) {
+                if (!thread.remesher->extract()) {
                     delete thread.remesher;
                     thread.remesher = nullptr;
                 }
