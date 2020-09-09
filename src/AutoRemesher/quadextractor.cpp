@@ -55,6 +55,8 @@ bool QuadExtractor::extract()
     std::cerr << "Extract edges..." << std::endl;
     std::unordered_map<size_t, std::unordered_set<size_t>> edgeConnectMap;
     extractEdges(connections, &edgeConnectMap);
+    collapseShortEdges(&crossPoints, &edgeConnectMap);
+    collapseTriangles(&crossPoints, &edgeConnectMap);
     std::cerr << "Extract edges done" << std::endl;
     
 #if AUTO_REMESHER_DEV
@@ -165,11 +167,113 @@ void QuadExtractor::extractEdges(const std::set<std::pair<size_t, size_t>> &conn
     }
 }
 
+void QuadExtractor::collapseShortEdges(std::vector<Vector3> *crossPoints,
+    std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap)
+{
+    double totalLength = 0.0;
+    size_t edgeCount = 0;
+    std::map<std::pair<size_t, size_t>, double> edgeLengths;
+    for (const auto &it: *edgeConnectMap) {
+        for (const auto &neighbor: it.second) {
+            if (edgeLengths.end() != edgeLengths.find({neighbor, it.first}))
+                continue;
+            double edgeLength = ((*crossPoints)[it.first] - (*crossPoints)[neighbor]).length();
+            totalLength += edgeLength;
+            edgeLengths.insert({{it.first, neighbor}, edgeLength});
+            ++edgeCount;
+        }
+    }
+    if (0 == edgeCount)
+        return;
+    double averageEdgeLength = totalLength / edgeCount;
+    double collapsedLength = averageEdgeLength * 0.1;
+    for (const auto &it: edgeLengths) {
+        if (it.second > collapsedLength)
+            continue;
+        collapseEdge(crossPoints, edgeConnectMap, it.first);
+    }
+}
+
+void QuadExtractor::collapseEdge(std::vector<Vector3> *crossPoints,
+    std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap,
+    const std::pair<size_t, size_t> &edge)
+{
+    auto findSecondNeighbors = edgeConnectMap->find(edge.second);
+    if (findSecondNeighbors == edgeConnectMap->end())
+        return;
+    auto findFirstNeighbors = edgeConnectMap->find(edge.first);
+    if (findFirstNeighbors == edgeConnectMap->end())
+        return;
+    if (findSecondNeighbors->second.end() == findSecondNeighbors->second.find(edge.first))
+        return;
+    if (findFirstNeighbors->second.end() == findFirstNeighbors->second.find(edge.second))
+        return;
+    auto firstNeighbors = findFirstNeighbors->second;
+    (*crossPoints)[edge.second] = ((*crossPoints)[edge.first] + (*crossPoints)[edge.second]) * 0.5;
+    for (const auto &neighbor: firstNeighbors) {
+        if (neighbor == edge.second)
+            continue;
+        (*edgeConnectMap)[edge.second].insert(neighbor);
+        (*edgeConnectMap)[neighbor].insert(edge.second);
+        (*edgeConnectMap)[neighbor].erase(edge.first);
+    }
+    (*edgeConnectMap).erase(edge.first);
+    (*edgeConnectMap)[edge.second].erase(edge.first);
+    if ((*edgeConnectMap)[edge.second].empty())
+        (*edgeConnectMap).erase(edge.second);
+}
+
+void QuadExtractor::collapseTriangles(std::vector<Vector3> *crossPoints,
+        std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap)
+{
+    std::set<std::tuple<size_t, size_t, size_t>> collapseList;
+    for (const auto &level0It: *edgeConnectMap) {
+        const auto &level0 = level0It.first;
+        auto findLevel1 = (*edgeConnectMap).find(level0);
+        if (findLevel1 == (*edgeConnectMap).end())
+            continue;
+        for (const auto &level1: findLevel1->second) {
+            auto findLevel2 = (*edgeConnectMap).find(level1);
+            if (findLevel2 == (*edgeConnectMap).end())
+                continue;
+            for (const auto &level2: findLevel2->second) {
+                if (level0 == level2)
+                    continue;
+                auto findLevel3 = (*edgeConnectMap).find(level2);
+                if (findLevel3 == (*edgeConnectMap).end())
+                    continue;
+                for (const auto &level3: findLevel3->second) {
+                    if (level0 != level3)
+                        continue;
+                    std::vector<size_t> levels = {level0, level1, level2};
+                    std::sort(levels.begin(), levels.end());
+                    collapseList.insert({levels[0], levels[1], levels[2]});
+                    break;
+                }
+            }
+        }
+    }
+    for (const auto &it: collapseList) {
+        collapseEdge(crossPoints, edgeConnectMap, {std::get<0>(it), std::get<1>(it)});
+        collapseEdge(crossPoints, edgeConnectMap, {std::get<1>(it), std::get<2>(it)});
+    }
+}
+
 void QuadExtractor::extractMesh(const std::vector<Vector3> &points,
         const std::vector<size_t> &pointSourceTriangles,
         const std::unordered_map<size_t, std::unordered_set<size_t>> &edgeConnectMap,
         std::vector<std::vector<size_t>> *quads)
 {
+    auto calculateQuadNormal = [&](const std::vector<size_t> &corners) {
+        Vector3 normals;
+        for (size_t i = 0; i < 4; ++i) {
+            normals += Vector3::normal(points[corners[(i + 0) % 4]], 
+                points[corners[(i + 1) % 4]], 
+                points[corners[(i + 2) % 4]]);
+        }
+        return normals.normalized();
+    };
+    
     std::set<std::tuple<size_t, size_t, size_t, size_t>> candidates;
     for (const auto &level0It: edgeConnectMap) {
         const auto &level0 = level0It.first;
@@ -191,7 +295,7 @@ void QuadExtractor::extractMesh(const std::vector<Vector3> &points,
                 if (findLevel3 == edgeConnectMap.end())
                     continue;
                 for (const auto &level3: findLevel3->second) {
-                    if (level1 == level3)
+                    if (level1 == level3 || level0 == level3)
                         continue;
                     auto findLevel4 = edgeConnectMap.find(level3);
                     if (findLevel4 == edgeConnectMap.end())
@@ -203,7 +307,19 @@ void QuadExtractor::extractMesh(const std::vector<Vector3> &points,
                         std::sort(allLevels.begin(), allLevels.end());
                         auto insertResult = candidates.insert({allLevels[0], allLevels[1], allLevels[2], allLevels[3]});
                         if (insertResult.second) {
-                            auto quadNormal = Vector3::normal(points[level0], points[level1], points[level2]);
+#if AUTO_REMESHER_DEV
+                            {
+                                std::unordered_set<size_t> corners;
+                                corners.insert(level0);
+                                corners.insert(level1);
+                                corners.insert(level2);
+                                corners.insert(level3);
+                                if (corners.size() != 4) {
+                                    std::cerr << "Found repeated vertex in quad:" << level0 << " " << level1 << " " << level2 << " " << level3 << std::endl;
+                                }
+                            }
+#endif
+                            auto quadNormal = calculateQuadNormal({level0, level1, level2, level3});
                             if (Vector3::dotProduct(quadNormal, triangleNormal) > 0) {
                                 quads->push_back({level0, level1, level2, level3});
                             } else {
@@ -252,8 +368,9 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *crossPoints,
 
         // Extract intersections of isolines with edges
         std::map<int, std::vector<std::vector<CrossPoint>>> lines[2];
+        bool edgeCollapsed[2][3] = {{false, false, false},
+            {false, false, false}};
         for (size_t i = 0; i < 2; ++i) {
-            bool edgeCollapsed[] = {false, false, false};
             for (size_t j = 0; j < 3; ++j) {
                 size_t k = (j + 1) % 3;
                 const auto &current = cornerUvs[j];
@@ -261,7 +378,7 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *crossPoints,
                 if ((Double::isZero((double)(int)current[i] - current[i]) && 
                         Double::isZero(current[i] - next[i]))) {
                     int integer = (int)current[i];
-                    edgeCollapsed[j] = true;
+                    edgeCollapsed[i][j] = true;
                     CrossPoint fromPoint;
                     fromPoint.position3 = (*m_vertices)[cornerIndices[j]];
                     fromPoint.position2 = cornerUvs[j];
@@ -305,7 +422,7 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *crossPoints,
                         if (ratio < 0 || ratio > 1)
                             continue;
                         if (Double::isZero(ratio) || Double::isZero(ratio - 1.0)) {
-                            if (edgeCollapsed[j])
+                            if (edgeCollapsed[i][j])
                                 continue;
                         }
                         CrossPoint point;

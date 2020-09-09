@@ -65,6 +65,13 @@ private:
         std::set<std::pair<size_t, size_t>> *connections);
     void extractEdges(const std::set<std::pair<size_t, size_t>> &connections,
         std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap);
+    void collapseShortEdges(std::vector<Vector3> *crossPoints,
+        std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap);
+    void collapseTriangles(std::vector<Vector3> *crossPoints,
+        std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap);
+    void collapseEdge(std::vector<Vector3> *crossPoints,
+        std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap,
+        const std::pair<size_t, size_t> &edge);
     void extractMesh(const std::vector<Vector3> &points,
         const std::vector<size_t> &pointSourceTriangles,
         const std::unordered_map<size_t, std::unordered_set<size_t>> &edgeConnectMap,
