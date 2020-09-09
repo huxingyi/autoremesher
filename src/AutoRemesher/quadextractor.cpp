@@ -25,6 +25,8 @@
 #include <queue>
 #include <map>
 #include <set>
+#include <igl/boundary_loop.h>
+#include <exploragram/hexdom/polygon.h>
 
 namespace AutoRemesher
 {
@@ -55,8 +57,10 @@ bool QuadExtractor::extract()
     std::cerr << "Extract edges..." << std::endl;
     std::unordered_map<size_t, std::unordered_set<size_t>> edgeConnectMap;
     extractEdges(connections, &edgeConnectMap);
-    collapseShortEdges(&crossPoints, &edgeConnectMap);
-    collapseTriangles(&crossPoints, &edgeConnectMap);
+    bool collapsedShortEdges = collapseShortEdges(&crossPoints, &edgeConnectMap);
+    bool collapsedTriangles = collapseTriangles(&crossPoints, &edgeConnectMap);
+    if (collapsedShortEdges || collapsedTriangles)
+        simplifyGraph(edgeConnectMap);
     std::cerr << "Extract edges done" << std::endl;
     
 #if AUTO_REMESHER_DEV
@@ -111,6 +115,22 @@ bool QuadExtractor::extract()
         it[2] = oldToNewMap[it[2]];
         it[3] = oldToNewMap[it[3]];
     }
+    
+#if AUTO_REMESHER_DEV
+    {
+        FILE *fp = fopen("debug-quadextractor-quads-withoutfix.obj", "wb");
+        for (size_t i = 0; i < m_remeshedVertices.size(); ++i) {
+            const auto &vertex = m_remeshedVertices[i];
+            fprintf(fp, "v %f %f %f\n", vertex.x(), vertex.y(), vertex.z());
+        }
+        for (const auto &it: m_remeshedQuads) {
+            fprintf(fp, "f %zu %zu %zu %zu\n", 1 + it[0], 1 + it[1], 1 + it[2], 1 + it[3]);
+        }
+        fclose(fp);
+    }
+#endif
+
+    fixHoles();
     
 #if AUTO_REMESHER_DEV
     {
@@ -172,7 +192,7 @@ void QuadExtractor::simplifyGraph(std::unordered_map<size_t, std::unordered_set<
     }
 }
 
-void QuadExtractor::collapseShortEdges(std::vector<Vector3> *crossPoints,
+bool QuadExtractor::collapseShortEdges(std::vector<Vector3> *crossPoints,
     std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap)
 {
     double totalLength = 0.0;
@@ -189,14 +209,17 @@ void QuadExtractor::collapseShortEdges(std::vector<Vector3> *crossPoints,
         }
     }
     if (0 == edgeCount)
-        return;
+        return false;
     double averageEdgeLength = totalLength / edgeCount;
-    double collapsedLength = averageEdgeLength * 0.1;
+    double collapsedLength = averageEdgeLength * 0.15;
+    bool collapsed = false;
     for (const auto &it: edgeLengths) {
         if (it.second > collapsedLength)
             continue;
         collapseEdge(crossPoints, edgeConnectMap, it.first);
+        collapsed = true;
     }
+    return collapsed;
 }
 
 void QuadExtractor::collapseEdge(std::vector<Vector3> *crossPoints,
@@ -228,7 +251,7 @@ void QuadExtractor::collapseEdge(std::vector<Vector3> *crossPoints,
         (*edgeConnectMap).erase(edge.second);
 }
 
-void QuadExtractor::collapseTriangles(std::vector<Vector3> *crossPoints,
+bool QuadExtractor::collapseTriangles(std::vector<Vector3> *crossPoints,
         std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap)
 {
     std::set<std::tuple<size_t, size_t, size_t>> collapseList;
@@ -258,13 +281,13 @@ void QuadExtractor::collapseTriangles(std::vector<Vector3> *crossPoints,
             }
         }
     }
-    if (!collapseList.empty()) {
-        for (const auto &it: collapseList) {
-            collapseEdge(crossPoints, edgeConnectMap, {std::get<0>(it), std::get<1>(it)});
-            collapseEdge(crossPoints, edgeConnectMap, {std::get<1>(it), std::get<2>(it)});
-        }
-        simplifyGraph(*edgeConnectMap);
+    if (collapseList.empty())
+        return false;
+    for (const auto &it: collapseList) {
+        collapseEdge(crossPoints, edgeConnectMap, {std::get<0>(it), std::get<1>(it)});
+        collapseEdge(crossPoints, edgeConnectMap, {std::get<1>(it), std::get<2>(it)});
     }
+    return true;
 }
 
 void QuadExtractor::extractMesh(std::vector<Vector3> &points,
@@ -573,5 +596,59 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *crossPoints,
         }
     }
 }
+
+void QuadExtractor::fixHoles()
+{
+    Eigen::MatrixXi F(m_remeshedQuads.size() * 2, 3);
+    for (size_t i = 0, j = 0; i < m_remeshedQuads.size(); ++i) {
+        const auto &quad = m_remeshedQuads[i];
+        F.row(j++) << quad[0], quad[1], quad[2];
+        F.row(j++) << quad[2], quad[3], quad[0];
+    }
+    std::vector<std::vector<int>> loops;
+    igl::boundary_loop(F, loops);
     
+    std::cerr << "Detected holes:" << loops.size() << std::endl;
+    
+    for (const auto &loop: loops) {
+        if (loop.size() > 14) {
+            std::cerr << "Ignore long hole at length:" << loop.size() << std::endl;
+            continue;
+        }
+        std::cerr << "Fixing hole at length:" << loop.size() << "..." << std::endl;
+        GEO::vector<GEO::vec3> loopPoints;
+        std::vector<int> loopVertices = loop;
+        for (const auto &it: loop) {
+            const auto &source = m_remeshedVertices[it];
+            loopPoints.push_back(GEO::vec3(source[0], source[1], source[2]));
+        }
+        GEO::Poly3d polygon(loopPoints);
+        GEO::vector<GEO::index_t> quadVertices;
+        if (!polygon.try_quadrangulate(quadVertices)) {
+            std::cerr << "Fix hole failed at length:" << loop.size() << std::endl;
+            continue;
+        }
+        if (loopPoints.size() > loop.size()) {
+            for (GEO::index_t i = loop.size(); i < loopPoints.size(); ++i) {
+                const auto &source = loopPoints[i];
+                loopVertices.push_back(m_remeshedVertices.size());
+                std::cerr << "Add new vertex:" << m_remeshedVertices.size() << std::endl;
+                m_remeshedVertices.push_back(Vector3(source[0], source[1], source[2]));
+            }
+        }
+        for (GEO::index_t i = 0; i + 4 <= quadVertices.size(); i += 4) {
+            m_remeshedQuads.push_back({
+                (size_t)loopVertices[quadVertices[i + 3]],
+                (size_t)loopVertices[quadVertices[i + 2]],
+                (size_t)loopVertices[quadVertices[i + 1]],
+                (size_t)loopVertices[quadVertices[i + 0]]
+            });
+            std::cerr << "Add new quad:{" << m_remeshedQuads[m_remeshedQuads.size() - 1][0] << "," <<
+                m_remeshedQuads[m_remeshedQuads.size() - 1][1] << "," <<
+                m_remeshedQuads[m_remeshedQuads.size() - 1][2] << "," <<
+                m_remeshedQuads[m_remeshedQuads.size() - 1][3] << "}" << std::endl;
+        }
+    }
+}
+
 }

@@ -445,6 +445,8 @@ SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/exploragram/hexdom/frame.cpp
 HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/exploragram/hexdom/frame.h
 SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/exploragram/hexdom/spherical_harmonics_l4.cpp
 HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/exploragram/hexdom/spherical_harmonics_l4.h
+SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/exploragram/hexdom/polygon.cpp
+HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/exploragram/hexdom/polygon.h
 SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/exploragram/hexdom/quad_cover.cpp
 HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/exploragram/hexdom/quad_cover.h
 

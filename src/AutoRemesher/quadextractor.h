@@ -65,9 +65,9 @@ private:
         std::set<std::pair<size_t, size_t>> *connections);
     void extractEdges(const std::set<std::pair<size_t, size_t>> &connections,
         std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap);
-    void collapseShortEdges(std::vector<Vector3> *crossPoints,
+    bool collapseShortEdges(std::vector<Vector3> *crossPoints,
         std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap);
-    void collapseTriangles(std::vector<Vector3> *crossPoints,
+    bool collapseTriangles(std::vector<Vector3> *crossPoints,
         std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap);
     void collapseEdge(std::vector<Vector3> *crossPoints,
         std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap,
@@ -77,6 +77,7 @@ private:
         std::unordered_map<size_t, std::unordered_set<size_t>> &edgeConnectMap,
         std::vector<std::vector<size_t>> *quads);
     void simplifyGraph(std::unordered_map<size_t, std::unordered_set<size_t>> &graph);
+    void fixHoles();
 };
     
 }
