@@ -77,6 +77,7 @@ private:
         std::unordered_map<size_t, std::unordered_set<size_t>> &edgeConnectMap,
         std::vector<std::vector<size_t>> *quads);
     void simplifyGraph(std::unordered_map<size_t, std::unordered_set<size_t>> &graph);
+    void fixFlippedFaces();
     void fixHoles();
 };
     

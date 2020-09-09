@@ -129,7 +129,8 @@ bool QuadExtractor::extract()
         fclose(fp);
     }
 #endif
-
+    
+    fixFlippedFaces();
     fixHoles();
     
 #if AUTO_REMESHER_DEV
@@ -593,6 +594,30 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *crossPoints,
                     }
                 }
             }
+        }
+    }
+}
+
+void QuadExtractor::fixFlippedFaces()
+{
+    std::map<std::pair<size_t, size_t>, std::vector<size_t>> halfEdgeToFaceMap;
+    for (size_t i = 0; i < m_remeshedQuads.size(); ++i) {
+        const auto &face = m_remeshedQuads[i];
+        for (size_t j = 0; j < face.size(); ++j) {
+            size_t k = (j + 1) % face.size();
+            halfEdgeToFaceMap[{face[j], face[k]}].push_back(i);
+        }
+    }
+    std::unordered_map<size_t, size_t> faceConflicts;
+    for (const auto &it: halfEdgeToFaceMap) {
+        if (it.second.size() == 1)
+            continue;
+        for (const auto &conflictFace: it.second)
+            faceConflicts[conflictFace]++;
+    }
+    for (const auto &it: faceConflicts) {
+        if (it.second >= 3) {
+            std::reverse(m_remeshedQuads[it.first].begin(), m_remeshedQuads[it.first].end());
         }
     }
 }
