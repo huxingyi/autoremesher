@@ -137,6 +137,11 @@ void QuadExtractor::extractEdges(const std::set<std::pair<size_t, size_t>> &conn
         graph[it.first].insert(it.second);
         graph[it.second].insert(it.first);
     }
+    simplifyGraph(graph);
+}
+
+void QuadExtractor::simplifyGraph(std::unordered_map<size_t, std::unordered_set<size_t>> &graph)
+{
     for (;;) {
         std::unordered_map<size_t, std::pair<size_t, size_t>> delayPairs;
         for (auto it = graph.begin(); it != graph.end(); ) {
@@ -253,28 +258,33 @@ void QuadExtractor::collapseTriangles(std::vector<Vector3> *crossPoints,
             }
         }
     }
-    for (const auto &it: collapseList) {
-        collapseEdge(crossPoints, edgeConnectMap, {std::get<0>(it), std::get<1>(it)});
-        collapseEdge(crossPoints, edgeConnectMap, {std::get<1>(it), std::get<2>(it)});
+    if (!collapseList.empty()) {
+        for (const auto &it: collapseList) {
+            collapseEdge(crossPoints, edgeConnectMap, {std::get<0>(it), std::get<1>(it)});
+            collapseEdge(crossPoints, edgeConnectMap, {std::get<1>(it), std::get<2>(it)});
+        }
+        simplifyGraph(*edgeConnectMap);
     }
 }
 
-void QuadExtractor::extractMesh(const std::vector<Vector3> &points,
+void QuadExtractor::extractMesh(std::vector<Vector3> &points,
         const std::vector<size_t> &pointSourceTriangles,
-        const std::unordered_map<size_t, std::unordered_set<size_t>> &edgeConnectMap,
+        std::unordered_map<size_t, std::unordered_set<size_t>> &edgeConnectMap,
         std::vector<std::vector<size_t>> *quads)
 {
-    auto calculateQuadNormal = [&](const std::vector<size_t> &corners) {
+    auto calculateFaceNormal = [&](const std::vector<size_t> &corners) {
         Vector3 normals;
-        for (size_t i = 0; i < 4; ++i) {
-            normals += Vector3::normal(points[corners[(i + 0) % 4]], 
-                points[corners[(i + 1) % 4]], 
-                points[corners[(i + 2) % 4]]);
+        for (size_t i = 0; i < corners.size(); ++i) {
+            normals += Vector3::normal(points[corners[(i + 0) % corners.size()]], 
+                points[corners[(i + 1) % corners.size()]], 
+                points[corners[(i + 2) % corners.size()]]);
         }
         return normals.normalized();
     };
     
-    std::set<std::tuple<size_t, size_t, size_t, size_t>> candidates;
+    std::set<std::tuple<size_t, size_t, size_t, size_t>> candidates4;
+    std::set<std::tuple<size_t, size_t, size_t, size_t, size_t>> candidates5;
+    std::vector<std::vector<size_t>> face5s;
     for (const auto &level0It: edgeConnectMap) {
         const auto &level0 = level0It.first;
         auto findLevel1 = edgeConnectMap.find(level0);
@@ -295,32 +305,40 @@ void QuadExtractor::extractMesh(const std::vector<Vector3> &points,
                 if (findLevel3 == edgeConnectMap.end())
                     continue;
                 for (const auto &level3: findLevel3->second) {
-                    if (level1 == level3 || level0 == level3)
+                    if (level1 == level3)
                         continue;
                     auto findLevel4 = edgeConnectMap.find(level3);
                     if (findLevel4 == edgeConnectMap.end())
                         continue;
                     for (const auto &level4: findLevel4->second) {
-                        if (level0 != level4)
+                        if (level0 != level4) {
+                            auto findLevel5 = edgeConnectMap.find(level4);
+                            if (findLevel5 == edgeConnectMap.end())
+                                continue;
+                            for (const auto &level5: findLevel5->second) {
+                                if (level0 != level5)
+                                    continue;
+                                std::vector<size_t> allLevels = {level0, level1, level2, level3, level4};
+                                std::sort(allLevels.begin(), allLevels.end());
+                                auto insertResult = candidates5.insert({allLevels[0], allLevels[1], allLevels[2], allLevels[3], allLevels[4]});
+                                if (insertResult.second) {
+                                    auto faceNormal = calculateFaceNormal({level0, level1, level2, level3, level4});
+                                    if (Vector3::dotProduct(faceNormal, triangleNormal) > 0) {
+                                        face5s.push_back({level0, level1, level2, level3, level4});
+                                    } else {
+                                        face5s.push_back({level4, level3, level2, level1, level0});
+                                    }
+                                }
+                                break;
+                            }
                             continue;
+                        }
                         std::vector<size_t> allLevels = {level0, level1, level2, level3};
                         std::sort(allLevels.begin(), allLevels.end());
-                        auto insertResult = candidates.insert({allLevels[0], allLevels[1], allLevels[2], allLevels[3]});
+                        auto insertResult = candidates4.insert({allLevels[0], allLevels[1], allLevels[2], allLevels[3]});
                         if (insertResult.second) {
-#if AUTO_REMESHER_DEV
-                            {
-                                std::unordered_set<size_t> corners;
-                                corners.insert(level0);
-                                corners.insert(level1);
-                                corners.insert(level2);
-                                corners.insert(level3);
-                                if (corners.size() != 4) {
-                                    std::cerr << "Found repeated vertex in quad:" << level0 << " " << level1 << " " << level2 << " " << level3 << std::endl;
-                                }
-                            }
-#endif
-                            auto quadNormal = calculateQuadNormal({level0, level1, level2, level3});
-                            if (Vector3::dotProduct(quadNormal, triangleNormal) > 0) {
+                            auto faceNormal = calculateFaceNormal({level0, level1, level2, level3});
+                            if (Vector3::dotProduct(faceNormal, triangleNormal) > 0) {
                                 quads->push_back({level0, level1, level2, level3});
                             } else {
                                 quads->push_back({level3, level2, level1, level0});
@@ -329,6 +347,58 @@ void QuadExtractor::extractMesh(const std::vector<Vector3> &points,
                         break;
                     }
                 }
+            }
+        }
+    }
+    
+    if (!face5s.empty()) {
+        std::unordered_map<size_t, size_t> replaceList;
+        std::map<std::pair<size_t, size_t>, size_t> halfEdgeToFaceMap;
+        for (size_t faceIndex = 0; faceIndex < face5s.size(); ++faceIndex) {
+            const auto &it = face5s[faceIndex];
+            for (size_t i = 0; i < it.size(); ++i) {
+                size_t j = (i + 1) % it.size();
+                halfEdgeToFaceMap[{it[i], it[j]}] = faceIndex;
+            }
+        }
+        std::unordered_set<size_t> processedFaces;
+        for (const auto &it: halfEdgeToFaceMap) {
+            if (processedFaces.end() != processedFaces.find(it.second))
+                continue;
+            auto findOppositeFace = halfEdgeToFaceMap.find({it.first.second, it.first.first});
+            if (findOppositeFace == halfEdgeToFaceMap.end())
+                continue;
+            if (processedFaces.end() != processedFaces.find(findOppositeFace->second))
+                continue;
+            processedFaces.insert(it.second);
+            processedFaces.insert(findOppositeFace->second);
+            auto removed = it.first.first;
+            auto collapseTo = it.first.second;
+            if (replaceList.end() != replaceList.find(collapseTo) || 
+                    replaceList.end() != replaceList.find(removed))
+                continue;
+            replaceList[removed] = collapseTo;
+            collapseEdge(&points, &edgeConnectMap, {removed, collapseTo});
+            auto addQuad = [&](size_t face5Index) {
+                std::vector<size_t> quad;
+                quad.reserve(4);
+                for (const auto &vertexIndex: face5s[face5Index]) {
+                    if (vertexIndex == removed)
+                        continue;
+                    quad.push_back(vertexIndex);
+                }
+                if (4 == quad.size())
+                    quads->push_back(quad);
+            };
+            addQuad(it.second);
+            addQuad(findOppositeFace->second);
+        }
+        for (auto &it: *quads) {
+            for (size_t i = 0; i < it.size(); ++i) {
+                auto findReplacement = replaceList.find(it[i]);
+                if (findReplacement == replaceList.end())
+                    continue;
+                it[i] = findReplacement->second;
             }
         }
     }

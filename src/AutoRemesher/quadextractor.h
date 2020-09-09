@@ -72,10 +72,11 @@ private:
     void collapseEdge(std::vector<Vector3> *crossPoints,
         std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap,
         const std::pair<size_t, size_t> &edge);
-    void extractMesh(const std::vector<Vector3> &points,
+    void extractMesh(std::vector<Vector3> &points,
         const std::vector<size_t> &pointSourceTriangles,
-        const std::unordered_map<size_t, std::unordered_set<size_t>> &edgeConnectMap,
+        std::unordered_map<size_t, std::unordered_set<size_t>> &edgeConnectMap,
         std::vector<std::vector<size_t>> *quads);
+    void simplifyGraph(std::unordered_map<size_t, std::unordered_set<size_t>> &graph);
 };
     
 }
