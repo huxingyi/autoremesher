@@ -1,0 +1,41 @@
+# azure-pipelines template file
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/process/templates?view=azure-devops
+
+# Valid testType parameter values are '' / 'fuzz' / 'memcheck'
+
+parameters:
+  buildType: Release
+  testType: ''
+  excludeTests: ''
+
+steps:
+- bash: |
+    exclusionFlags=""
+    if [[ -n "${{ parameters.excludeTests}}" ]]; then
+        exclusionFlags="-E ${{ parameters.excludeTests }}"
+        echo "Excluding tests ${{ parameters.excludeTests }}"
+    fi
+    if [[ "${{ parameters.testType }}" == "memcheck" ]]; then
+      echo "Running valgrind memcheck tests"
+      ctest $exclusionFlags \
+            -C ${{ parameters.buildType }} \
+            --timeout 50000 \
+            --force-new-ctest-process \
+            --test-action memcheck \
+            --output-on-failure \
+            -VV
+    elif [[ "${{ parameters.testType }}" == "fuzz" ]]; then
+      echo "Running fuzz test"
+      ls
+      ls bin
+      bin/IlmImfFuzzTest
+    else
+      ctest -T Test \
+            $exclusionFlags \
+            -C ${{ parameters.buildType }} \
+            --timeout 7200 \
+            --output-on-failure \
+            -VV
+    fi
+  workingDirectory: _build
+  displayName: Test OpenEXR

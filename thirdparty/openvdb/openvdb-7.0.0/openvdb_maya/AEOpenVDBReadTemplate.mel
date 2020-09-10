@@ -1,0 +1,130 @@
+global proc AEOpenVDBReadTemplate( string $nodeAttr )
+{
+    editorTemplate -beginScrollLayout;
+    {
+        editorTemplate -beginLayout "OpenVDB Read File" -collapse 0;
+        {
+            editorTemplate -callCustom "importVDBFilePathNew" "importVDBFilePathReplace" "VdbFilePath";
+            editorTemplate -addControl "FrameNumbering";
+        }
+
+        editorTemplate -beginLayout "Information" -collapse 0;
+        editorTemplate -beginNoOptimize;
+        {
+             editorTemplate -callCustom "AEAT_ReadInfoNew"
+                "AEAT_ReadInfoReplace" "NodeInfo";
+        }
+        editorTemplate -endNoOptimize;
+        editorTemplate -endLayout;
+
+        editorTemplate -addExtraControls;
+    }
+    editorTemplate -endScrollLayout;
+}
+
+global proc importVDBFilePathNew( string $attr )
+{
+    global int $gAttributeEditorTemplateLabelWidth;
+    rowLayout
+        -numberOfColumns 3
+        -columnWidth3 $gAttributeEditorTemplateLabelWidth 175 35
+        -columnAttach3 "right" "both" "both"
+        -columnAlign3 "left" "left" "center"
+        -rowAttach 1 "both" 0
+        -rowAttach 2 "both" 0
+        -rowAttach 3 "both" 0
+        importVDBFilePathLayout;
+    {
+        text
+            -label "VDB File Path"
+            -annotation ""
+            importVDBFilePathLabel;
+
+        textField
+            -fileName "vdb file path and name. Insert a sequence of pound signs (#) and connect the global frame time node to embed the current frame number in the file name. (The number of pound signs defines the zero padding width.)"
+            -insertionPosition 0
+            -editable true
+            -annotation "vdb file path and name. Insert a sequence of pound signs (#) and connect the global frame time node to embed the current frame number in the file name. (The number of pound signs defines the zero padding width.)"
+            importVDBFilePathField;
+
+        button
+            -label "..."
+            -align "center"
+            -command ""
+            -annotation "Browse for the VDB file."
+            importVDBFilePathButton;
+
+        setParent ..;
+    }
+
+    importVDBFilePathReplace( $attr );
+}
+
+global proc importVDBFilePathReplace( string $attr )
+{
+    setParent importVDBFilePathLayout;
+    connectControl importVDBFilePathField $attr;
+    button -e
+        -command ("browseForVDBFile( \""+$attr+"\" )")
+        importVDBFilePathButton;
+    setParent ..;
+}
+
+global proc browseForVDBFile( string $filePathAttr )
+{
+    string $currentFilePath = `getAttr $filePathAttr`;
+    string $currentFilePathDir = dirname( $currentFilePath );
+
+    if( $currentFilePath != "" )
+    {
+        if( filetest( "-d", $currentFilePath ) == 1 )
+        {
+            $currentFilePathDir = $currentFilePath;
+        }
+    }
+
+    string $singleFilter = "VDB Files (*.vdb)";
+
+    string $path[] = `fileDialog2 -ds 2 -cap "VDB File" -dir $currentFilePathDir -ff $singleFilter -fm 1`;
+
+    if (size($path) > 0)
+    {
+        setAttr -type "string" $filePathAttr $path[0];
+    }
+}
+
+global proc
+AEAT_ReadInfoUpdate( string $nodeName )
+{
+    string $info = `getAttr ($nodeName + ".NodeInfo")`;
+    scrollField -e -text $info readInfoField;
+}
+
+global proc
+AEAT_ReadInfoNew( string $attr )
+{
+    scrollField
+        -editable 0
+        readInfoField;
+    AEAT_ReadInfoReplace($attr);
+}
+
+global proc
+AEAT_ReadInfoReplace( string $attr )
+{
+    string $parent = `setParent -q`;
+    string $nodeName = plugNode($attr);
+
+    if( `text -exists ($parent+"|readInfoScriptJobParent")` == 1 ) {
+        deleteUI readInfoScriptJobParent;
+    }
+
+    string $scriptParent = `text -manage 0 readInfoScriptJobParent`;
+
+    scriptJob -parent $scriptParent
+        -attributeChange ($nodeName+".NodeInfo")
+        ("AEAT_ReadInfoUpdate(\""+$nodeName+"\")");
+
+    AEAT_ReadInfoUpdate($nodeName);
+}
+

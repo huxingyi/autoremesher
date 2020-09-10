@@ -1,0 +1,16 @@
+global proc AEOpenVDBTransformTemplate( string $nodeAttr )
+{
+    editorTemplate -beginScrollLayout;
+    {
+        editorTemplate -beginLayout "OpenVDB Transform" -collapse 0;
+        editorTemplate -addControl "Translate";
+        editorTemplate -addControl "Rotate";
+        editorTemplate -addControl "Scale";
+        editorTemplate -addControl "Pivot";
+        editorTemplate -addControl "UniformScale";
+        editorTemplate -addControl "InvertTransformation";
+        editorTemplate -endLayout;
+	    editorTemplate -addExtraControls;
+    }
+    editorTemplate -endScrollLayout;
+}

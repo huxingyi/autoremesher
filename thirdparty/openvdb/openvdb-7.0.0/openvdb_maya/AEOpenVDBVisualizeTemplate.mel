@@ -1,0 +1,77 @@
+global proc AEOpenVDBVisualizeTemplate( string $nodeAttr )
+{
+    editorTemplate -beginScrollLayout;
+    {
+        editorTemplate -beginLayout "OpenVDB Visualization Settings" -collapse 0;
+        editorTemplate -beginNoOptimize;
+        {
+            editorTemplate -callCustom "newOpenVDBVisualizeGridSelection" "replaceOpenVDBVisualizeGridSelection" "VdbAllGridNames";
+
+            editorTemplate -addSeparator;
+
+            editorTemplate -addControl "ActiveValueBoundingBox";
+            editorTemplate -addControl "InternalNodes";
+            editorTemplate -addControl "LeafNodes";
+            editorTemplate -addControl "ActiveTiles";
+            editorTemplate -addControl "ActiveVoxels";
+
+            editorTemplate -addSeparator;
+
+            editorTemplate
+                -annotation "Surface the selected VDB volume."
+                -addControl "Surface";
+
+            editorTemplate -addControl "Isovalue";
+        }
+        editorTemplate -endNoOptimize;
+        editorTemplate -endLayout;
+	    editorTemplate -addExtraControls;
+    }
+    editorTemplate -endScrollLayout;
+}
+
+global proc newOpenVDBVisualizeGridSelection(string $attr)
+{
+    optionMenu
+        -label "VDB Grid Name:"
+        -width 300
+        -changeCommand ("updateOpenVDBVisualizeGridSelection( \""+$attr+"\" )")
+        vdbGridNameMenu;
+
+    replaceOpenVDBVisualizeGridSelection($attr);
+}
+
+global proc replaceOpenVDBVisualizeGridSelection(string $attr)
+{
+    //connectControl vdbGridNameMenu $attr;
+
+    // Clear old items
+    {
+        string $items[] = `optionMenu -q -ill vdbGridNameMenu`;
+        string $item;
+        for ($item in $items) deleteUI $item;
+    }
+
+    // Add new items
+    {
+        string $currentGridNames = `getAttr $attr`;
+        $currentGridNames = "* " + $currentGridNames;
+
+        string $gridNames[];
+        tokenize $currentGridNames " " $gridNames;
+
+        string $name;
+        for ($name in $gridNames) menuItem -l $name -parent vdbGridNameMenu;
+    }
+
+    /// @todo re-select previous item if it exists, don't update VdbSelectedGridNames if the same item is selectd.
+}
+
+global proc updateOpenVDBVisualizeGridSelection(string $attr)
+{
+    string $selectedGrid = `optionMenu -q -value vdbGridNameMenu`;
+    string $selectionAttr = plugNode($attr) + ".VdbSelectedGridNames";
+    setAttr -type "string" $selectionAttr $selectedGrid;
+}
+
+

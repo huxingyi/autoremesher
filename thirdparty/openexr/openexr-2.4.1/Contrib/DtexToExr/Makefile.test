@@ -1,0 +1,59 @@
+##
+## SPDX-License-Identifier: BSD-3-Clause
+## Copyright Contributors to the OpenEXR Project.
+##
+
+BUILDTMP = obj
+
+IPATH = -I${DTEXTOEXR_PREFIX}/include/OpenEXR \
+	-I${DTEXTOEXR_RMANROOT}/include/prmansdk-160 \
+	-I${DTEXTOEXR_RMANROOT}/include
+
+LPATH = -L${DTEXTOEXR_PREFIX}/lib \
+	-L${DTEXTOEXR_RMANROOT}/lib/prmansdk-160 \
+	-L${DTEXTOEXR_RMANROOT}/lib \
+	-Wl,-rpath ${DTEXTOEXR_PREFIX}/lib \
+	-Wl,-rpath ${DTEXTOEXR_RMANROOT}/lib/prmansdk-160 \
+	-Wl,-rpath ${DTEXTOEXR_RMANROOT}/lib
+
+LIBS = -lIlmImf -lImath -lIlmThread -lIex -lHalf \
+	-lprman \
+	-lpthread -lm
+
+CXX = /usr/bin/g++
+LN = /usr/bin/g++
+
+CFLAGS = -g
+
+HFILES = PxBaseDeepHelper.h \
+	PxDeepOutPixel.h \
+	PxDeepOutRow.h \
+	PxDeepUtils.h \
+	PxFourChanDeepRgba.h \
+	PxOneChanDeepAlpha.h \
+	PxOneChanDeepOpacity.h
+
+OFILES = ${BUILDTMP}/PxDeepUtils.o \
+	${BUILDTMP}/DtexToExr.o
+
+all: ${BUILDTMP}/DtexToExr
+
+${BUILDTMP}/PxDeepUtils.o: PxDeepUtils.h PxDeepUtils.cpp
+	mkdir -p ${BUILDTMP}
+	${CXX} PxDeepUtils.cpp -c -o ${BUILDTMP}/PxDeepUtils.o ${CFLAGS} ${IPATH}
+
+
+${BUILDTMP}/DtexToExr.o: DtexToExr.cpp ${HFILES}
+	mkdir -p ${BUILDTMP}
+	${CXX} DtexToExr.cpp -c -o ${BUILDTMP}/DtexToExr.o ${CFLAGS} ${IPATH}
+
+${BUILDTMP}/DtexToExr: ${OFILES}
+	mkdir -p ${BUILDTMP}
+	${LN} ${OFILES} -o ${BUILDTMP}/DtexToExr ${CFLAGS} ${IPATH} ${LPATH} ${LIBS}
+
+install: ${BUILDTMP}/DtexToExr
+	/bin/cp -f ${BUILDTMP}/DtexToExr ${DTEXTOEXR_PREFIX}/bin/DtexToExr
+
+clean:
+	/bin/rm ${OFILES}
+	/bin/rm ${BUILDTMP}/DtexToExr

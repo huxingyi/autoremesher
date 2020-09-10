@@ -1,0 +1,186 @@
+/**
+
+@page dependencies Dependencies
+
+@section depContents Contents
+- @ref depComponents
+  - @ref depDependencyTable
+  - @ref depKnownIssues
+- @ref depInstallingDependencies
+  - @ref depUsingAptGet
+  - @ref depUsingHomebrew
+  - @ref depManInstall
+<!-- - @ref depContents -->
+
+------------------------------------------------------------------------------
+
+@b Note: The dependency information on this page details a complete
+requirements list for building OpenVDB as a @b standalone package. If you wish
+to use OpenVDB with a supported 3rd party DCC (Houdini/Maya), make sure you've
+first read the [Building OpenVDB](@ref build) information.
+
+------------------------------------------------------------------------------
+
+There are a number of optional and required dependencies necessary when
+building different components of OpenVDB. Below you'll find a full list of all
+dependencies, any minimum/recommended version requirements and some guides for
+getting these dependencies installed. You'll also find information on any
+known issues with particular software. Please report any issues not listed
+here to the OpenVDB TSC.
+
+Note that OpenVDB is production tested against the [VFX Reference Platform]
+(https://www.vfxplatform.com/). Not all dependencies exist in the VFX
+Reference Platform, but for those that do, their specified versions are
+@b always recommended.
+
+@section depComponents OpenVDB Components
+
+Component               | Requirements                                                                         | Optional
+----------------------- | ------------------------------------------------------------------------------------ | --------
+OpenVDB Core Library    | CMake, C++11 compiler, IlmBase::Half, TBB::tbb, ZLIB, Boost::system, Boost::iostream | Blosc, Log4cplus, OpenEXR::IlmImf
+OpenVDB Print           | Core Library dependencies                                                            | -
+OpenVDB LOD             | Core Library dependencies                                                            | -
+OpenVDB Render          | Core Library dependencies, OpenEXR, IlmBase                                          | -
+OpenVDB View            | Core Library dependencies, OpenGL, GLFW3, Boost::thread                              | -
+OpenVDB Python          | Core Library dependencies, Python, Boost::python                                     | Boost::numpy*, NumPy
+OpenVDB UnitTests       | Core Library dependencies, CppUnit                                                   | -
+OpenVDB Documentation   | Doxygen                                                                              | -
+
+ - @b * Boost::numpy is required for NumPy support with Boost from version 1.65
+ onwards.
+
+@subsection depDependencyTable Dependency Table
+
+Package        | Minimum | Recommended | Description                                                       | apt-get | Homebrew | Source
+-------------- | ------- | ----------- | ----------------------------------------------------------------- | ------- | -------- | ------
+CMake          | 3.11    | Latest      | Cross-platform family of tools designed to help build software    | Y       | Y        | https://cmake.org
+GCC            | 6.3.1   | 6.3.1       | C++ 14 Compiler: The GNU Compiler Collection                      | Y       | Y        | https://www.gnu.org/software/gcc
+Clang          | 3.8     | Latest      | C++ 14 Compiler: A C language family frontend for LLVM            | Y       | Y        | https://clang.llvm.org
+Intel ICC      | 17      | Latest      | C++ 14 Compiler: Intels C++ Compiler                              | Y       | Y        | https://software.intel.com/en-us/c-compilers
+MSVC           | 19.10   | Latest      | C++ 14 Compiler: Microsoft Visual C++ Compiler                    | Y       | Y        | https://visualstudio.microsoft.com/vs
+IlmBase        | 2.2     | 2.2         | Used half precision floating points and EXR serialization support | Y       | Y        | http://www.openexr.com
+OpenEXR        | 2.2     | 2.2         | EXR serialization support                                         | Y       | Y        | http://www.openexr.com
+TBB            | 2017 U6 | 2017 U6     | Threading Building Blocks - template library for task parallelism | Y       | Y        | https://www.threadingbuildingblocks.org
+ZLIB           | 1.2.7   | Latest      | Compression library for disk serialization compression            | Y       | Y        | https://www.zlib.net
+Boost          | 1.61    | 1.61        | Components: system, iostreams, python, thread, numpy              | Y       | Y        | https://www.boost.org
+Python         | 2.7     | 2.7         | The python interpreter and libraries for C++/python bindings      | Y       | Y        | https://www.python.org
+NumPy          | 1.12.1  | 1.9.2       | Scientific computing with Python                                  | Y       | Y        | http://www.numpy.org
+CppUnit        | 1.10    | Latest      | A unit testing framework module for C++                           | N       | Y        | https://freedesktop.org/wiki/Software/cppunit
+Blosc          | 1.5*    | 1.5*        | Recommended dependency for improved disk compression              | N       | N**      | https://github.com/Blosc/c-blosc/releases
+Log4cplus      | 1.1.2   | Latest      | An optional dependency for improved OpenVDB Logging               | Y       | Y        | https://github.com/log4cplus/log4cplus
+GLFW           | 3.1     | Latest      | Simple API for OpenGL development                                 | Y       | Y        | https://www.glfw.org
+OpenGL         | 3.2     | Latest      | Environment for developing portable graphics applications         | Y       | Y        | https://www.opengl.org
+Doxygen        | 1.8.8   | 1.8.11      | Documentation generation from C++                                 | Y       | Y        | http://www.doxygen.nl
+
+ - @b * Blosc [unit Test failures with 1.14 and compilation errors with 1.16]
+  (https://jira.aswf.io/browse/OVDB-78)
+ - @b ** Blosc 1.16 is only available through Homebrew and currently requires
+ [manual](@ref depManInstall) installation for 1.5.
+
+@subsection depKnownIssues Known Issues
+
+ - @b GLFW: Crash with GLFW 3.2.1 when used with EGL on Linux. OpenVDB View may
+ segfault on closure. Whilst this [has been fixed in the GLFW repository]
+ (https://github.com/glfw/glfw/issues/1146), there is no new release.
+
+ - @b Boost 1.65/1.66/1.67 + @b Python3 + @b NumPy: Known issue on UNIX systems
+ which can cause the below python runtime error. Consider updating to Boost 1.68
+ if you require both Python3 and NumPy support:
+
+@code{.sh}
+RuntimeError: FATAL: module compiled as little endian, but detected different endianness at runtime.
+@endcode
+
+@section depInstallingDependencies Installing Dependencies
+
+This section details a number of ways to get you up and running with the
+required OpenVDB dependencies.
+
+@subsection depUsingAptGet Using UNIX apt-get
+
+@b Note: Blosc and CppUnit are unavailable using apt-get. See the other
+package manager methods or the [manual installation](@ref depManInstall)
+options.
+
+@code{.sh}
+#!/bin/bash
+apt-get install cmake                   # CMake
+apt-get install libilmbase-dev          # IlmBase
+apt-get install libopenexr-dev          # OpenEXR
+apt-get install libtbb-dev              # TBB
+apt-get install zlibc                   # zlib
+apt-get install libboost-system-dev     # Boost::system
+apt-get install libboost-iostreams-dev  # Boost::iostream
+apt-get install libboost-python-dev     # Boost::python
+apt-get install libboost-thread-dev     # Boost::thread
+apt-get install libboost-numpy-dev      # Boost::numpy
+apt-get install python-dev              # Python
+apt-get install python-numpy            # NumPy
+apt-get install liblog4cplus-dev        # Log4cplus
+apt-get install libglfw3-dev            # GLFW
+apt-get install doxygen                 # doxygen
+@endcode
+
+@subsection depUsingHomebrew Using Homebrew
+
+[Homebrew](https://brew.sh/) is a package manager for UNIX systems and is
+an alternative to apt-get or manual installation from source.
+
+@b Note: Homebrew installs blosc 1.16 by default with no option for previous
+versions. OpenVDB recommends Blosc version 1.5 as there are known issues with
+using later versions of blosc. See the
+[manual installation](@ref depManInstall) options.
+
+@code{.sh}
+#!/bin/bash
+brew install cmake                     # CMake
+brew install ilmbase                   # IlmBase
+brew install openexr                   # OpenEXR
+brew install tbb                       # TBB
+brew install zlib                      # zlib
+brew install boost                     # Boost
+brew install boost-python              # Boost-python
+brew install python                    # Python
+brew install numpy                     # NumPy
+brew install cppunit                   # CppUnit
+brew install glfw                      # GLFW
+brew install doxygen                   # Doxygen
+@endcode
+
+@subsection depManInstall UNIX Manual Installations
+
+Some dependencies may be unavailable using the above package manager methods.
+Below are manual installation methods for these packages. Note that you will
+have to provide your chosen installation locations to the OpenVDB CMake build
+system when building OpenVDB.
+
+@b Blosc
+
+@code{.sh}
+#!/bin/bash
+wget https://github.com/Blosc/c-blosc/archive/v1.5.0.zip
+unzip v1.5.0.zip
+cd c-blosc-1.5.0
+# Install to users home directory - you may customise this location
+mkdir -p $HOME/blosc
+# Requires CMake
+cmake -DCMAKE_INSTALL_PREFIX=$HOME/blosc
+make
+make install
+@endcode
+
+@b CppUnit
+
+@code{.sh}
+#!/bin/bash
+wget http://dev-www.libreoffice.org/src/cppunit-1.13.2.tar.gz
+tar -xvzf cppunit-1.13.2.tar.gz
+cd cppunit-1.13.2
+# Install to users home directory - you may customise this location
+mkdir -p $HOME/cppunit
+./configure --prefix=$HOME/cppunit
+make
+make install
+@endcode
+
+*/

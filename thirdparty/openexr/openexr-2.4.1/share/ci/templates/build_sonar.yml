@@ -1,0 +1,31 @@
+# azure-pipelines template file
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/process/templates?view=azure-devops
+
+# Note: This is currently Linux only
+
+parameters:
+  cxxCompiler: ''
+  cCompiler: ''
+
+steps:
+- bash: |
+    if [ "$CXXCOMPILER" ]; then
+        export CXX="$CXXCOMPILER"
+    fi
+    if [ "$CCOMPILER" ]; then
+        export CC="$CCOMPILER"
+    fi
+    export LD_LIBRARY_PATH=$PWD/IlmBase/Half:$PWD/IlmBase/IlmThread:$PWD/IlmBase/Iex:$PWD/IlmBase/IexMath:$PWD/IlmBase/Imath:$PWD/OpenEXR/IlmImf:$PWD/OpenEXR/IlmImfUtil:$LD_LIBRARY_PATH
+    build-wrapper-linux-x86-64 --out-dir bw_output make clean all
+  workingDirectory: _build
+  displayName: Build OpenEXR with build-wrapper
+
+- template: test.yml
+
+- bash: share/ci/scripts/linux/run_gcov.sh
+  displayName: Generate code coverage report
+
+- bash: sonar-scanner -X -Dsonar.login=$SONAR_TOKEN
+  env:
+    SONAR_TOKEN: $(tokens.sonarCloud)
+  displayName: Run sonar-scanner

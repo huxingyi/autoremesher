@@ -1,0 +1,39 @@
+# See https://help.github.com/articles/about-codeowners/
+# for more info about CODEOWNERS file
+
+# It uses the same pattern rule for gitignore file
+# https://git-scm.com/docs/gitignore#_pattern_format
+
+# Admin
+/openvdb/tsc/charter.md                             @kmuseth @pcucka @jmlait @idclip @danrbailey
+/openvdb/tsc/process/                               @kmuseth @pcucka @jmlait @idclip @danrbailey
+/openvdb/CODEOWNERS                                 @kmuseth @pcucka @jmlait @idclip @danrbailey
+/openvdb/CONTRIBUTING.md                            @kmuseth @pcucka @jmlait @idclip @danrbailey
+
+# Core OpenVDB Library
+/openvdb/cmd/                                       @kmuseth @pcucka
+/openvdb/io/                                        @kmuseth @pcucka
+/openvdb/math/                                      @kmuseth @pcucka
+/openvdb/points/                                    @danrbailey @idclip
+/openvdb/python/                                    @kmuseth @pcucka
+/openvdb/tools/                                     @kmuseth @pcucka
+/openvdb/tree/                                      @kmuseth @pcucka
+/openvdb/util/                                      @kmuseth @pcucka
+/openvdb/*.cc                                       @kmuseth @pcucka
+/openvdb/*.h                                        @kmuseth @pcucka
+
+# OpenVDB Houdini - Default
+/openvdb_houdini/**                                 @kmuseth @pcucka
+
+# OpenVDB Houdini - VDB Primitive and SideFX Utils
+/openvdb_houdini/GEO_PrimVDB.*                      @jmlait
+/openvdb_houdini/GU_PrimVDB.*                       @jmlait
+/openvdb_houdini/GEO_VDBTranslator.*                @jmlait
+/openvdb_houdini/GT_GEOPrimCollectVDB.*             @jmlait
+/openvdb_houdini/SOP_VDBVerbUtils.*                 @jmlait
+/openvdb_houdini/UT_VDBUtils.*                      @jmlait
+
+# OpenVDB Houdini - VDB Points
+/openvdb_houdini/PointUtils.*                       @danrbailey @idclip
+/openvdb_houdini/*_OpenVDB_Points_*                 @danrbailey @idclip
+/openvdb_houdini/GR_PrimVDBPoints.*                 @danrbailey @idclip

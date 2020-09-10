@@ -1,0 +1,40 @@
+# azure-pipelines template file
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/process/templates?view=azure-devops
+
+parameters:
+  buildType: Release
+  buildUtils: ON
+  buildSharedLibs: ON
+  runFuzzTests: OFF
+  verbose: OFF
+  cxxStd: 14
+  cxxFlags: ''
+  cxxCompiler: ''
+  cCompiler: ''
+  cmakeOpts: ''
+
+steps:
+- bash: |
+    mkdir _build
+    mkdir _install
+  displayName: Create build directories
+
+- bash: |
+    if [ "$CXXCOMPILER" ]; then
+        export CXX="$CXXCOMPILER"
+    fi
+    if [ "$CCOMPILER" ]; then
+        export CC="$CCOMPILER"
+    fi
+    cmake ../. \
+          -DCMAKE_INSTALL_PREFIX=../_install \
+          -DCMAKE_BUILD_TYPE=${{ parameters.buildType }} \
+          -DCMAKE_CXX_STANDARD=${{ parameters.cxxStd }} \
+          -DCMAKE_CXX_FLAGS="${{ parameters.cxxFlags }}" \
+          -DCMAKE_VERBOSE_MAKEFILE:BOOL=${{ parameters.verbose }} \
+          -DBUILD_SHARED_LIBS=${{ parameters.buildSharedLibs }} \
+          -DOPENEXR_BUILD_UTILS=${{ parameters.buildUtils }} \
+          -DOPENEXR_RUN_FUZZ_TESTS=${{ parameters.runFuzzTests }} \
+          ${{ parameters.cmakeOpts }}
+  workingDirectory: _build
+  displayName: Configure OpenEXR

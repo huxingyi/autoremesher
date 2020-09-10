@@ -1,0 +1,27 @@
+diff --git a/internal-complibs/snappy-1.1.1/snappy-stubs-public.h b/internal-complibs/snappy-1.1.1/snappy-stubs-public.h
+index ecda439..4cc8965 100644
+--- a/internal-complibs/snappy-1.1.1/snappy-stubs-public.h
++++ b/internal-complibs/snappy-1.1.1/snappy-stubs-public.h
+@@ -36,8 +36,21 @@
+ #ifndef UTIL_SNAPPY_OPENSOURCE_SNAPPY_STUBS_PUBLIC_H_
+ #define UTIL_SNAPPY_OPENSOURCE_SNAPPY_STUBS_PUBLIC_H_
+ 
+-#if 1
++// MSVC 2008 does not include stdint.h.  This is a workaround by Mark W.
++// Please note that this is only defined in the Blosc sources of Snappy.
++#if !defined(_MSC_VER) || _MSC_VER >= 1600
+ #include <stdint.h>
++#else
++typedef signed char int8_t;
++typedef short int16_t;
++typedef int int32_t;
++typedef __int64 int64_t;
++typedef ptrdiff_t intptr_t;
++typedef unsigned char uint8_t;
++typedef unsigned short uint16_t;
++typedef unsigned int uint32_t;
++typedef unsigned __int64 uint64_t;
++typedef size_t uintptr_t;
+ #endif
+ 
+ #if 1

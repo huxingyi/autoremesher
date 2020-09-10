@@ -1,0 +1,67 @@
+#!/bin/sh
+
+##
+## SPDX-License-Identifier: BSD-3-Clause
+## Copyright Contributors to the OpenEXR Project.
+##
+
+# If we're on OS X, use glibtoolize instead of toolize when available
+HOSTTYPE=`uname`
+if [ "$HOSTTYPE" = "Darwin" ] && $(which glibtoolize > /dev/null 2>&1) ; then
+        LIBTOOLIZE=glibtoolize
+else
+        LIBTOOLIZE=libtoolize
+fi
+
+
+
+
+# Check Autoconf version
+if [ -x `which autoconf` ]; then
+	AC_VER=`autoconf --version | head -n 1 | sed 's/^[^0-9]*//'`
+	AC_VER_MAJOR=`echo $AC_VER | cut -f1 -d'.'`
+	AC_VER_MINOR=`echo $AC_VER | cut -f2 -d'.' | sed 's/[^0-9]*$//'`
+
+	if [ "$AC_VER_MAJOR" -lt "2" ]; then
+		echo "Autoconf 2.13 or greater needed to build configure."
+		exit 1
+	fi
+
+	if [ "$AC_VER_MINOR" -lt "13" ]; then
+		echo "Autoconf 2.13 or greater needed to build configure."
+		exit 1
+	fi
+
+	if [ "$AC_VER_MINOR" -lt "50" ]; then
+		if [ ! -e configure.in ]; then
+			ln -s configure.ac configure.in
+		fi
+		echo "If you see some warnings about cross-compiling, don't worry; this is normal."
+	else
+		rm -f configure.in
+	fi
+else
+	echo autoconf not found. OpenEXR CVS requires autoconf to bootstrap itself.
+	exit 1
+fi
+
+run_cmd() {
+    echo running $* ...
+    if ! $*; then
+			echo failed!
+			exit 1
+    fi
+}
+
+# Check if /usr/local/share/aclocal exists
+if [ -d /usr/local/share/aclocal ]; then
+	ACLOCAL_INCLUDE="$ACLOCAL_INCLUDE -I /usr/local/share/aclocal"
+fi	
+
+run_cmd aclocal -I m4 $ACLOCAL_INCLUDE
+run_cmd $LIBTOOLIZE --automake --copy
+run_cmd automake --add-missing --copy --foreign
+run_cmd autoconf
+echo
+echo "Now type './configure' to configure OpenEXR_Viewers."
+echo

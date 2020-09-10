@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+    <metadata>
+        <id>openexr-msvc-x86</id>
+        <version>2.3.0.8788</version>
+        <authors>administrator</authors>
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <description>Visual Studio 2017 Release OpenEXR as NuGet package.</description>
+    </metadata>
+    <files>
+        <file src="..\..\LICENSE" target="LICENSE" />
+        <file src="..\..\README.md" target="README.md" />
+		<file src="..\..\build-nuget\**\*.*" target="build\native" />
+    </files>
+</package>

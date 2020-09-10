@@ -27,6 +27,21 @@ namespace AutoRemesher
 
 bool Parameterizer::parameterize()
 {
+#if AUTO_REMESHER_DEV
+    {
+        FILE *fp = fopen("debug-input-for-parameterization.obj", "wb");
+        for (size_t i = 0; i < m_vertices->size(); ++i) {
+            const auto &vertex = (*m_vertices)[i];
+            fprintf(fp, "v %f %f %f\n", vertex[0], vertex[1], vertex[2]);
+        }
+        for (size_t i = 0; i < m_triangles->size(); ++i) {
+            const auto &indices = (*m_triangles)[i];
+            fprintf(fp, "f %zu %zu %zu\n", indices[0] + 1, indices[1] + 1, indices[2] + 1);
+        }
+        fclose(fp);
+    }
+#endif
+
     GEO::Mesh M;
     
     M.vertices.set_dimension(3);

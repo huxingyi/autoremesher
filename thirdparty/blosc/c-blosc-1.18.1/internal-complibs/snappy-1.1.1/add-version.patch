@@ -1,0 +1,19 @@
+diff --git a/internal-complibs/snappy-1.1.1/snappy-c.h b/internal-complibs/snappy-1.1.1/snappy-c.h
+index c6c2a86..eabe3ae 100644
+--- a/internal-complibs/snappy-1.1.1/snappy-c.h
++++ b/internal-complibs/snappy-1.1.1/snappy-c.h
+@@ -37,6 +37,14 @@
+ extern "C" {
+ #endif
+ 
++// The next is for getting the Snappy version even if used the C API
++// Please note that this is only defined in the Blosc sources of Snappy.
++#define SNAPPY_MAJOR 1
++#define SNAPPY_MINOR 1
++#define SNAPPY_PATCHLEVEL 1
++#define SNAPPY_VERSION \
++    ((SNAPPY_MAJOR << 16) | (SNAPPY_MINOR << 8) | SNAPPY_PATCHLEVEL)
++
+ #include <stddef.h>
+ 
+ /*

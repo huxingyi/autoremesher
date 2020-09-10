@@ -1,0 +1,27 @@
+# These Doxygen settings should be appended to doxygen-config
+# to enable generation of openvdb_houdini documentation.
+
+ENABLED_SECTIONS      += OPENVDB_HOUDINI
+
+ALIASES               += hulink{2}="@link @hunamespace::\1 \2@endlink" \
+                         hvdblink{2}="@link @hvdbnamespace::\1 \2@endlink"
+# Deprecated; use the two-argument overloads defined above.
+ALIASES               += hulink="@link @hunamespace" \
+                         hvdblink="@link @hvdbnamespace"
+
+INPUT                 += doc/houdini.txt \
+                         openvdb_houdini/AttributeTransferUtil.h \
+                         openvdb_houdini/GEO_PrimVDB.h \
+                         openvdb_houdini/GT_GEOPrimCollectVDB.h \
+                         openvdb_houdini/GU_PrimVDB.h \
+                         openvdb_houdini/GU_VDBPointTools.h \
+                         openvdb_houdini/GeometryUtil.h \
+                         openvdb_houdini/OP_NodeChain.h \
+                         openvdb_houdini/ParmFactory.h \
+                         openvdb_houdini/PointUtils.h \
+                         openvdb_houdini/SOP_NodeVDB.h \
+                         openvdb_houdini/SOP_VDBVerbUtils.h \
+                         openvdb_houdini/UT_VDBTools.h \
+                         openvdb_houdini/UT_VDBUtils.h \
+                         openvdb_houdini/Utils.h
+

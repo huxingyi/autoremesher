@@ -170,6 +170,9 @@ HEADERS += src/AutoRemesher/autoremesher.h
 SOURCES += src/AutoRemesher/isotropicremesher.cpp
 HEADERS += src/AutoRemesher/isotropicremesher.h
 
+SOURCES += src/AutoRemesher/vdbremesher.cpp
+HEADERS += src/AutoRemesher/vdbremesher.h
+
 SOURCES += src/AutoRemesher/parameterizer.cpp
 HEADERS += src/AutoRemesher/parameterizer.h
 
@@ -178,6 +181,19 @@ HEADERS += src/AutoRemesher/quadextractor.h
 
 SOURCES += src/AutoRemesher/positionkey.cpp
 HEADERS += src/AutoRemesher/positionkey.h
+
+INCLUDEPATH += thirdparty/openvdb/openvdb-7.0.0
+INCLUDEPATH += thirdparty/openexr/openexr-2.4.1
+unix {
+	LIBS += -Lthirdparty/openvdb/openvdb-7.0.0/build/openvdb -lopenvdb
+	LIBS += -Lthirdparty/openexr/openexr-2.4.1/build/IlmBase/Half -lHalf-2_4
+    LIBS += -Lthirdparty/zlib/zlib-1.2.11/build -lz
+	LIBS += -Lthirdparty/blosc/c-blosc-1.18.1/build/blosc -lblosc
+}
+win32 {
+	LIBS += -Lthirdparty/openvdb/openvdb-7.0.0/build/openvdb/Release -lopenvdb
+	LIBS += -Lthirdparty/openexr/openexr-2.4.1/build/IlmBase/Half/Release -lHalf-2_4
+}
 
 INCLUDEPATH += thirdparty/geogram/geogram-1.7.5/src/lib
 win32 {
@@ -413,32 +429,6 @@ SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/rply/rpl
 HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/rply/rply.h
 HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/rply/rplyfile.h
 
-SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/adler32.c
-SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/crc32.c
-HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/crc32.h
-SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/gzclose.c
-SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/gzread.c
-SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/inffast.c
-HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/inffast.h
-SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/inftrees.c
-HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/inftrees.h
-SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/uncompr.c
-SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/compress.c
-SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/deflate.c
-HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/deflate.h
-SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/gzlib.c
-SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/gzwrite.c
-HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/gzguts.h
-HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/inffixed.h
-SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/inflate.c
-HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/inflate.h
-SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/trees.c
-HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/trees.h
-HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/zconf.h
-SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/zutil.c
-HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/zutil.h
-HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/geogram/third_party/zlib/zlib.h  
-
 SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/exploragram/hexdom/basic.cpp
 HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/exploragram/hexdom/basic.h
 SOURCES += thirdparty/geogram/geogram-1.7.5/src/lib/exploragram/hexdom/frame.cpp
@@ -453,13 +443,14 @@ HEADERS += thirdparty/geogram/geogram-1.7.5/src/lib/exploragram/hexdom/quad_cove
 INCLUDEPATH += thirdparty/tbb/include
 unix {
 	LIBS += -Lthirdparty/tbb/build2 -ltbbmalloc_proxy_static -ltbbmalloc_static -ltbb_static
+    LIBS += -Lthirdparty/zlib/zlib-1.2.11/build -lz
 	unix:!macx {
 		LIBS += -ldl
 	}
 }
 win32 {
-	CONFIG(debug, debug|release) LIBS += -Lthirdparty/tbb/build2-debug/Debug -ltbb_static_debug -ltbbmalloc_static_debug -ltbbmalloc_proxy_static_debug
-    CONFIG(release, debug|release) LIBS += -Lthirdparty/tbb/build2/Release -ltbb_static -ltbbmalloc_static -ltbbmalloc_proxy_static
+    LIBS += -Lthirdparty/zlib/zlib-1.2.11/build/Release -lzlibstatic
+    CONFIG(release, debug|release) LIBS += -Lthirdparty/tbb/build2/Release -ltbb
 }
 
 win32 {

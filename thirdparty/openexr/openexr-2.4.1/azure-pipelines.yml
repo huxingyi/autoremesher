@@ -1,0 +1,280 @@
+# Azure CI build file 
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/yaml-schema?view=azure-devops&tabs=schema
+    
+trigger:
+  batch: true
+  branches:
+    include:
+    - master
+    - RB-2.4
+    - ci-test
+
+pr:
+  autoCancel: true
+  branches:
+    include:
+    - master
+    - RB-2.4
+
+schedules:
+  - cron: "0 0 * * 0"
+    displayName: Weekly Sunday build
+    branches:
+      include:
+        - master
+    always: true
+
+jobs:
+# ------------------------------------------------------------------------------
+# Linux
+# ------------------------------------------------------------------------------
+# Note: 'agentImage' is the Microsoft-hosted agent. 'containerImage' is the
+#        Docker container where the build occurs.
+# Note: 'containerImage' images are hosted on DockerHub.
+
+# TODO: Move Docker images to ASWF DockerHub account
+
+- job: Linux
+  strategy:
+    matrix:
+      CentOS 7 gcc VFX CY2019:
+        agentImage: 'ubuntu-16.04'
+        containerImage: aswfstaging/ci-openexr:2019.0
+        cxxCompiler: g++
+        cCompiler: gcc
+      CentOS 7 Clang 7 VFX CY2019:
+        agentImage: 'ubuntu-16.04'
+        containerImage: aswfstaging/ci-openexr:2019.0
+        cxxCompiler: clang++
+        cCompiler: clang
+  pool:
+    vmImage: $(agentImage)
+  container: $[ variables['containerImage'] ]
+  timeoutInMinutes: 360
+
+  steps:
+  - template: share/ci/templates/checkout.yml
+  - bash: ''
+    displayName: Install dependencies
+
+  - template: share/ci/templates/configure.yml
+    parameters:
+      cxxCompiler: $(cxxCompiler)
+      cCompiler: $(cCompiler)
+
+  - template: share/ci/templates/build.yml
+    parameters:
+      cxxCompiler: $(cxxCompiler)
+      cCompiler: $(cCompiler)
+      cmakeOpts: -- -j4
+
+  - template: share/ci/templates/test.yml
+    parameters:
+      excludeTests: ''
+
+  - task: PublishTestResults@2
+    condition: succeededOrFailed()
+    displayName: 'Publish test results'
+    inputs:
+      testResultsFormat: 'cTest'
+      testResultsFiles: '**/Test*.xml' 
+      failTaskOnFailedTests: true
+
+# ------------------------------------------------------------------------------
+#  SonarCloud static analysis
+# ------------------------------------------------------------------------------
+- job: SonarCloud
+  displayName: SonarCloud Ubuntu 16.04 VFX CY2019
+  condition: in(variables['Build.Reason'], 'Manual', 'Schedule')
+  timeoutInMinutes: 360
+  pool:
+    vmImage: 'ubuntu-16.04'
+  container: aswfstaging/ci-base:2019.0
+
+  steps:
+  - template: share/ci/templates/checkout.yml
+  - bash: ''
+    displayName: Install dependencies
+  - template: share/ci/templates/configure.yml
+    parameters:
+      cxxFlags: -g -O0 -fprofile-arcs -ftest-coverage
+      cmakeOpts: |
+        -DCMAKE_EXE_LINKER_FLAGS="-lgcov" \
+        -DCMAKE_CXX_OUTPUT_EXTENSION_REPLACE=ON
+
+  - template: share/ci/templates/build_sonar.yml
+
+# ------------------------------------------------------------------------------
+# macOS
+# ------------------------------------------------------------------------------
+- job: macOS
+  strategy:
+    matrix:
+      10.14 AppleClang 10.0:
+        agentImage: 'macOS-10.14'
+      10.13 AppleClang 10.0:
+        agentImage: 'macOS-10.13'
+  pool:
+    vmImage: $(agentImage)
+  timeoutInMinutes: 360
+
+  steps:
+  - template: share/ci/templates/checkout.yml
+  - bash: |
+      share/ci/scripts/macos/install_python.sh 2.7.16
+      share/ci/scripts/macos/install_python.sh 3.7.4
+      share/ci/scripts/macos/install_boost.sh 
+    displayName: Install dependencies
+
+  - template: share/ci/templates/configure.yml
+    parameters:
+      cmakeOpts: -DBoost_NO_BOOST_CMAKE=ON
+
+  - template: share/ci/templates/build.yml
+    parameters:
+      cmakeOpts: -- -j4
+
+  - template: share/ci/templates/test.yml
+    parameters:
+      excludeTests: ''
+
+  - task: PublishTestResults@2
+    condition: succeededOrFailed()
+    displayName: 'Publish test results'
+    inputs:
+      testResultsFormat: 'cTest'
+      testResultsFiles: '**/Test*.xml' 
+      failTaskOnFailedTests: true
+
+
+# ------------------------------------------------------------------------------
+# Windows
+# ------------------------------------------------------------------------------
+- job: Windows
+  strategy:
+    matrix:
+      2016 MSVC 14.16:
+        agentImage: 'vs2017-win2016'
+        buildSharedLibs: ON
+#      2016 MSVC 14.16 (Static):
+#        agentImage: 'vs2017-win2016'
+#        buildSharedLibs: OFF
+#      2012 MSVC 14.0:
+#        agentImage: 'vs2015-win2012r2'
+#        buildSharedLibs: ON
+  pool:
+    vmImage: $(agentImage)
+  timeoutInMinutes: 360
+
+  steps:
+  - template: share/ci/templates/checkout.yml
+  - powershell: |
+      share/ci/scripts/windows/install_cmake.ps1 3.12.4
+      share/ci/scripts/windows/install_python.ps1 2.7.16 
+      share/ci/scripts/windows/install_python.ps1 3.7.4
+      share/ci/scripts/windows/install_boost.ps1 1.66.0
+      share/ci/scripts/windows/install_zlib.ps1 1.2.11 
+    displayName: Install dependencies
+
+  - template: share/ci/templates/configure.yml
+    parameters:
+      buildSharedLibs: $(buildSharedLibs)
+      verbose: ON
+      cmakeOpts: ''
+
+  - template: share/ci/templates/build.yml
+    parameters:
+      cmakeOpts: -- 
+
+  - template: share/ci/templates/test.yml
+    parameters:
+      excludeTests: ''
+
+  - task: PublishTestResults@2
+    condition: succeededOrFailed()
+    displayName: 'Publish test results'
+    inputs:
+      testResultsFormat: 'cTest'
+      testResultsFiles: '**/Test*.xml' 
+      failTaskOnFailedTests: true
+
+
+# ------------------------------------------------------------------------------
+#  Valgrind memcheck test
+# ------------------------------------------------------------------------------
+- job: Memcheck
+  displayName: Valgrind Memcheck Test Linux CentOS 7 gcc VFX CY2019
+  condition: in(variables['Build.Reason'], 'Manual', 'Schedule')
+  timeoutInMinutes: 1440
+  pool:
+    vmImage: 'ubuntu-16.04'
+  container: aswfstaging/ci-base:2019.0
+
+  steps:
+  - template: share/ci/templates/checkout.yml
+  - bash: |
+      share/ci/scripts/linux/install_valgrind.sh 
+    displayName: Install dependencies
+
+  - template: share/ci/templates/configure.yml
+    parameters:
+      cxxCompiler: g++
+      cCompiler: gcc
+
+  - template: share/ci/templates/build.yml
+    parameters:
+      cxxCompiler: g++
+      cCompiler: gcc
+      cmakeOpts: -- -j4
+
+  - template: share/ci/templates/test.yml
+    parameters:
+      testType: 'memcheck'
+
+  - bash: |
+      if [[ -d _build/Testing/Temporary ]]; then 
+        for log in _build/Testing/Temporary/MemoryChecker.*.log; do 
+          echo "========================== " ${log##*/} " ==========================" 
+          cat $log 
+          echo 
+        done 
+      else 
+         echo "Memcheck log files not found." 
+      fi
+    condition: succeededOrFailed()
+    displayName: Valgrind memcheck test results
+
+# ------------------------------------------------------------------------------
+#  Fuzz test
+# ------------------------------------------------------------------------------
+- job: Fuzz
+  displayName: Fuzz Test Linux CentOS 7 gcc VFX CY2019
+  timeoutInMinutes: 1440
+  condition: in(variables['Build.Reason'], 'Manual', 'Schedule')
+  pool:
+    vmImage: 'ubuntu-16.04'
+  container: aswfstaging/ci-base:2019.0
+
+  steps:
+  - template: share/ci/templates/checkout.yml
+  - bash: ''
+    displayName: Install dependencies
+    condition: and(succeeded(), variables['installSh'])
+
+  - template: share/ci/templates/configure.yml
+    parameters:
+      cxxCompiler: g++
+      cCompiler: gcc
+      cmakeOpts: |
+        -DOPENEXR_RUN_FUZZ_TESTS=ON 
+
+  - template: share/ci/templates/build.yml
+    parameters:
+      cxxCompiler: g++
+      cCompiler: gcc
+      cmakeOpts: -- -j4 
+
+  - template: share/ci/templates/test.yml
+    parameters:
+      testType: 'fuzz'
+

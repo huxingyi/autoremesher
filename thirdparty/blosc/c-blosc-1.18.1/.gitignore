@@ -1,0 +1,4 @@
+bench/bench
+build/
+
+*.sw?

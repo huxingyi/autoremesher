@@ -1,0 +1,30 @@
+global proc AEOpenVDBFilterTemplate( string $nodeAttr )
+{
+    editorTemplate -beginScrollLayout;
+    {
+        editorTemplate -beginLayout "OpenVDB Filter" -collapse 0;
+        editorTemplate -addControl "Filter" "AEAT_OpenVDBFilterUpdateEnabled";
+        editorTemplate -addControl "FilterVoxelRadius";
+        editorTemplate -addControl "Iterations";
+        editorTemplate -addControl "Offset";
+        editorTemplate -endLayout;
+	    editorTemplate -addExtraControls;
+    }
+    editorTemplate -endScrollLayout;
+}
+
+global proc
+AEAT_OpenVDBFilterUpdateEnabled( string $node )
+{
+    int $operation = `getAttr ($node+".Filter")`;
+
+    if ($operation < 3) {
+        editorTemplate -dimControl $node "FilterVoxelRadius" 0;
+        editorTemplate -dimControl $node "Iterations" 0;
+        editorTemplate -dimControl $node "Offset" 1;
+    } else {
+        editorTemplate -dimControl $node "FilterVoxelRadius" 1;
+        editorTemplate -dimControl $node "Iterations" 1;
+        editorTemplate -dimControl $node "Offset" 0;
+    }
+}

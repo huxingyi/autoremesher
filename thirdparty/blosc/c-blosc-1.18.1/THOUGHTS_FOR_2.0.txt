@@ -1,0 +1,19 @@
+Here there go some random thoughts for Blosc 2.0:
+
+* Try to find a classification for the return codes and standarize
+  them.  Use constants in blosc.h for naming them.
+
+* blosc_init() should return a structure that should serve as a
+  context for other calls. So instead of blosc_set_blocksize(size_t
+  size), you would have blosc_set_blocksize(blosc_context* context,
+  size_t size).
+
+  See: https://github.com/Blosc/c-blosc/pull/66/files#r20010877 for
+  some discussion.
+
+* Add more space in header for allowing more compressors and filters.
+  Discuss how much should that space be in the mailing list.
+
+* Make two different versions of the header so that it supports 32-bit
+  sizes as well as 64-bit?  That would allow to compress buffers larger
+  than INT_MAX.

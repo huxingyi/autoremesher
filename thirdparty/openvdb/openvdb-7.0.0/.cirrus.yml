@@ -1,0 +1,33 @@
+# Cirrus yaml script to configure continous integration
+#
+# Author: Dan Bailey
+
+# Global default configuration
+container:
+  image: node:latest
+
+# Search the git repository for any trailing spaces (excluding CMake)
+trailing_spaces_task:
+  test_script:
+    - set +e
+    - git grep -n -I -E '^.+[ ]+$' -- './*'
+    - test $? -eq 1
+
+# Search the C++ source code for any tabs
+spaces_not_tabs_task:
+  test_script:
+    - set +e
+    - git grep -n "	" -- '*.cc' '*.h'
+    - test $? -eq 1
+
+# Install Doxygen and build core library documentation, erroring on warning
+# (note - this excludes util/Formats.h due to a bug in Doxygen)
+doxygen_task:
+  test_script:
+    - set +e
+    - apt-get update
+    - apt-get install doxygen -y
+    - cd openvdb
+    - make doc 2>&1 | tee ./doxygen.log
+    - grep "warning:" ./doxygen.log | grep -v "util/Formats.h"
+    - test $? -eq 1

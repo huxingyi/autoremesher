@@ -27,6 +27,7 @@
 #include <AutoRemesher/IsotropicRemesher>
 #include <AutoRemesher/Parameterizer>
 #include <AutoRemesher/QuadExtractor>
+#include <AutoRemesher/VdbRemesher>
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
 #include <tbb/tbb_thread.h>
@@ -105,17 +106,41 @@ double AutoRemesher::calculateAverageEdgeLength(const std::vector<Vector3> &vert
 
 bool AutoRemesher::remesh()
 {
-    double averageEdgeLength = calculateAverageEdgeLength(m_vertices, m_triangles);
+#if AUTO_REMESHER_DEBUG
+    qDebug() << "Vdb remeshing...";
+#endif
+    VdbRemesher vdbRemesher(&m_vertices, &m_triangles);
+    vdbRemesher.remesh();    
+    std::vector<Vector3> *vdbVertices = vdbRemesher.takeVdbVertices();
+    std::vector<std::vector<size_t>> *vdbTriangles = vdbRemesher.takeVdbTriangles();
+#if AUTO_REMESHER_DEBUG
+    qDebug() << "Vdb remeshing done, vertices:" << vdbVertices->size() << " triangles:" << vdbTriangles->size();
+#endif
+
+    const std::vector<Vector3> *useVertices = nullptr;
+    const std::vector<std::vector<size_t>> *useTriangles = nullptr;
+    if (vdbTriangles->empty()) {
+        useVertices = &m_vertices;
+        useTriangles = &m_triangles;
+    } else {
+        useVertices = vdbVertices;
+        useTriangles = vdbTriangles;
+    }
+    
+    double averageEdgeLength = calculateAverageEdgeLength(*useVertices, *useTriangles);
 #if AUTO_REMESHER_DEBUG
     qDebug() << "Uniform remeshing... averageEdgeLength:" << averageEdgeLength;
 #endif
-    IsotropicRemesher *isotropicRemesher = new IsotropicRemesher(m_vertices, m_triangles);
+    IsotropicRemesher *isotropicRemesher = new IsotropicRemesher(*useVertices, *useTriangles);
     isotropicRemesher->setSharpEdgeDegrees(m_defaultSharpEdgeDegrees);
     isotropicRemesher->setTargetEdgeLength(averageEdgeLength);
     isotropicRemesher->remesh();
     m_vertices = isotropicRemesher->remeshedVertices();
     m_triangles = isotropicRemesher->remeshedTriangles();
     delete isotropicRemesher;
+    
+    delete vdbVertices;
+    delete vdbTriangles;
 
     std::vector<std::vector<std::vector<size_t>>> m_trianglesIslands;
     splitToIslands(m_triangles, m_trianglesIslands);
@@ -257,6 +282,9 @@ bool AutoRemesher::remesh()
             });
         }
     }
+    
+    for (auto &it: m_remeshedVertices)
+        it = it * vdbRemesher.recoverScale() + vdbRemesher.origin();
 
 #if AUTO_REMESHER_DEBUG
     qDebug() << "Remesh done";

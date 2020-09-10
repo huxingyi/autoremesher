@@ -1,0 +1,44 @@
+version: '{build}'
+
+platform: x64
+
+configuration: Release
+
+environment:
+  CMAKE_GENERATOR: Visual Studio 15 2017 Win64
+  VCPKG_DEFAULT_TRIPLET: x64-windows
+
+os: Visual Studio 2017
+
+cache: c:\tools\vcpkg\installed\
+
+before_build:
+  - cd C:\tools\vcpkg
+  - vcpkg install zlib blosc openexr tbb cppunit jemalloc
+  - vcpkg integrate install
+
+  # - adjust the PATH so that the vdb_test executable picks up all of the dll's correctly
+  - set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%\build\openvdb\%CONFIGURATION%;C:\Tools\vcpkg\installed\x64-windows\bin;C:\Libraries\boost_1_67_0\lib64-msvc-14.0
+
+build_script:
+  - cd %APPVEYOR_BUILD_FOLDER%
+  - mkdir build
+  - cd build
+  - cmake \
+    -G"Visual Studio 15 2017 Win64" \
+    -DCMAKE_CONFIGURATION_TYPES=%CONFIGURATION% \
+    -DCMAKE_INSTALL_PREFIX=%APPVEYOR_BUILD_FOLDER%\cmake_install \
+    -DCMAKE_TOOLCHAIN_FILE=C:\tools\vcpkg\scripts\buildsystems\vcpkg.cmake \
+    -DOPENVDB_ABI_VERSION_NUMBER=6 \
+    -DOPENVDB_BUILD_BINARIES=OFF \
+    -DOPENVDB_BUILD_PYTHON_MODULE=OFF \
+    -DOPENVDB_BUILD_UNITTESTS=ON \
+    -DUSE_BLOSC=ON \
+    -DBOOST_ROOT=C:\Libraries\boost_1_67_0 \
+    -DBOOST_LIBRARYDIR=C:\Libraries\boost_1_67_0\lib64-msvc-14.0 \
+    ..
+  - cmake --build . --parallel 4 --config %CONFIGURATION% --target install
+
+test_script:
+  - cd %APPVEYOR_BUILD_FOLDER%
+  - build\openvdb\unittest\Release\vdb_test.exe -v

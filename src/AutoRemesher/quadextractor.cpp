@@ -212,7 +212,7 @@ bool QuadExtractor::collapseShortEdges(std::vector<Vector3> *crossPoints,
     if (0 == edgeCount)
         return false;
     double averageEdgeLength = totalLength / edgeCount;
-    double collapsedLength = averageEdgeLength * 0.15;
+    double collapsedLength = averageEdgeLength * 0.1;
     bool collapsed = false;
     for (const auto &it: edgeLengths) {
         if (it.second > collapsedLength)

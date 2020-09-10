@@ -1,0 +1,8 @@
+# azure-pipelines template file
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/process/templates?view=azure-devops
+
+steps:
+- checkout: self
+  clean: true
+  fetchDepth: 50
+  displayName: Checkout OpenEXR source

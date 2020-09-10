@@ -1,0 +1,145 @@
+
+schedules:
+- cron: "0 0 * * *"
+  displayName: Daily build
+  branches:
+    include:
+    - master
+  always: true
+
+stages:
+- stage: Build
+  jobs:
+  - job: sonarcloud
+    displayName: SonarCloud Static Analysis
+    condition: in(variables['Build.Reason'], 'Manual', 'Schedule')
+    pool:
+      vmImage: 'ubuntu-16.04'
+    container: aswf/ci-openvdb:2019
+    timeoutInMinutes: 0
+    steps:
+    - bash: ci/build_sonar.sh
+    - bash: cd build && ctest -V; cd -
+    - bash: ci/test_sonar.sh
+
+  - job: testabi7
+    displayName: and Test ABI=7 (VFX2020)
+    pool:
+      vmImage: 'ubuntu-16.04'
+    container: aswf/ci-openvdb:2020
+    timeoutInMinutes: 0
+    steps:
+    - bash: ci/build.sh clang++ Release 7 ON None
+    - bash: cd build && ctest -V; cd -
+
+  - job: testabi6
+    displayName: and Test ABI=6 (VFX2019)
+    pool:
+      vmImage: 'ubuntu-16.04'
+    container: aswf/ci-openvdb:2019
+    timeoutInMinutes: 0
+    steps:
+    - bash: ci/build.sh clang++ Release 6 ON None
+    - bash: cd build && ctest -V; cd -
+
+  - job: testabi5
+    displayName: and Test ABI=5 (VFX2018)
+    pool:
+      vmImage: 'ubuntu-16.04'
+    container: aswf/ci-openvdb:2018
+    timeoutInMinutes: 0
+    steps:
+    - bash: ci/build.sh clang++ Release 5 ON None
+    - bash: cd build && ctest -V; cd -
+
+  - job: testabi4
+    displayName: and Test ABI=4 (VFX2018)
+    pool:
+      vmImage: 'ubuntu-16.04'
+    container: aswf/ci-openvdb:2018
+    timeoutInMinutes: 0
+    steps:
+    - bash: ci/build.sh clang++ Release 4 ON None
+    - bash: cd build && ctest -V; cd -
+
+  - job: testhou175
+    displayName: Houdini 17.5
+    pool:
+      vmImage: 'ubuntu-16.04'
+    container: aswf/ci-base:2018
+    timeoutInMinutes: 0
+    condition: variables['HOUPASS']
+    steps:
+    - bash: ci/install_houdini.sh 17.5 ${HOUPASS}
+    - bash: ci/build_houdini.sh clang++ Release ON
+
+  - job: testhou170
+    displayName: Houdini 17.0
+    pool:
+      vmImage: 'ubuntu-16.04'
+    container: aswf/ci-base:2018
+    timeoutInMinutes: 0
+    condition: variables['HOUPASS']
+    steps:
+    - bash: ci/install_houdini.sh 17.0 ${HOUPASS}
+    - bash: ci/build_houdini.sh clang++ Release OFF
+
+  - job: testabi7noblosc
+    displayName: and Test ABI=7 (No Blosc)
+    pool:
+      vmImage: 'ubuntu-16.04'
+    container: aswf/ci-openvdb:2020
+    timeoutInMinutes: 0
+    steps:
+    - bash: ci/build.sh clang++ Release 7 OFF None
+    - bash: cd build && ctest -V; cd -
+
+  - job: testhou175gcc
+    displayName: Houdini 17.5 (GCC)
+    pool:
+      vmImage: 'ubuntu-16.04'
+    container: aswf/ci-base:2018
+    timeoutInMinutes: 0
+    condition: variables['HOUPASS']
+    steps:
+    - bash: ci/install_houdini.sh 17.5 ${HOUPASS}
+    - bash: ci/build_houdini.sh g++ Release OFF
+
+  - job: testhou175debug
+    displayName: Houdini 17.5 (Debug Mode)
+    pool:
+      vmImage: 'ubuntu-16.04'
+    container: aswf/ci-base:2018
+    timeoutInMinutes: 0
+    condition: variables['HOUPASS']
+    steps:
+    - bash: ci/install_houdini.sh 17.5 ${HOUPASS}
+    - bash: ci/build_houdini.sh clang++ Debug OFF
+
+  - job: testabi7gcc
+    displayName: ABI=7 (GCC)
+    pool:
+      vmImage: 'ubuntu-16.04'
+    container: aswf/ci-openvdb:2020
+    timeoutInMinutes: 0
+    steps:
+    - bash: ci/build.sh g++ Release 7 ON None
+
+  - job: testabi7debug
+    displayName: ABI=7 (Debug)
+    pool:
+      vmImage: 'ubuntu-16.04'
+    container: aswf/ci-openvdb:2020
+    timeoutInMinutes: 0
+    steps:
+    - bash: ci/build.sh clang++ Debug 7 ON None
+
+  - job: testabi7sse
+    displayName: ABI=7 (SSE42)
+    pool:
+      vmImage: 'ubuntu-16.04'
+    container: aswf/ci-openvdb:2020
+    timeoutInMinutes: 0
+    steps:
+    - bash: ci/build.sh g++ Release 7 ON SSE42
+    - bash: cd build && ctest -V; cd -

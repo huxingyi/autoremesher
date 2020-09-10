@@ -1,0 +1,66 @@
+global proc AEOpenVDBToPolygonsTemplate( string $nodeAttr )
+{
+    editorTemplate -beginScrollLayout;
+    {
+        editorTemplate -beginLayout "OpenVDB To Polygons Settings" -collapse 0;
+        editorTemplate -beginNoOptimize;
+        {
+            editorTemplate -callCustom "newOpenVDBToPolygonsGridSelection" "replaceOpenVDBToPolygonsGridSelection" "vdbAllGridNames";
+
+            editorTemplate -addSeparator;
+
+            editorTemplate -addControl "isovalue";
+            editorTemplate -addControl "adaptivity";
+        }
+        editorTemplate -endNoOptimize;
+        editorTemplate -endLayout;
+        editorTemplate -addExtraControls;
+    }
+    editorTemplate -endScrollLayout;
+}
+
+global proc newOpenVDBToPolygonsGridSelection(string $attr)
+{
+    optionMenu
+        -label "VDB Grid Name:"
+        -width 300
+        -changeCommand ("updateOpenVDBToPolygonsGridSelection( \""+$attr+"\" )")
+        vdbGridNameMenu;
+
+    replaceOpenVDBToPolygonsGridSelection($attr);
+}
+
+global proc replaceOpenVDBToPolygonsGridSelection(string $attr)
+{
+    //connectControl vdbGridNameMenu $attr;
+
+    // Clear old items
+    {
+        string $items[] = `optionMenu -q -ill vdbGridNameMenu`;
+        string $item;
+        for ($item in $items) deleteUI $item;
+    }
+
+    // Add new items
+    {
+        string $currentGridNames = `getAttr $attr`;
+        $currentGridNames = "* " + $currentGridNames;
+
+        string $gridNames[];
+        tokenize $currentGridNames " " $gridNames;
+
+        string $name;
+        for ($name in $gridNames) menuItem -l $name -parent vdbGridNameMenu;
+    }
+
+    /// @todo re-select previous item if it exists, don't update VdbSelectedGridNames if the same item is selectd.
+}
+
+global proc updateOpenVDBToPolygonsGridSelection(string $attr)
+{
+    string $selectedGrid = `optionMenu -q -value vdbGridNameMenu`;
+    string $selectionAttr = plugNode($attr) + ".VdbSelectedGridNames";
+    setAttr -type "string" $selectionAttr $selectedGrid;
+}
+
+

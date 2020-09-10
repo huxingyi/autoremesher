@@ -1,0 +1,20 @@
+##
+## SPDX-License-Identifier: BSD-3-Clause
+## Copyright Contributors to the OpenEXR Project.
+##
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+OpenEXR_includedir=@includedir@/OpenEXR
+libsuffix=@LIB_SUFFIX_DASH@
+
+Name: OpenEXR
+Description: OpenEXR image library
+Version: @OPENEXR_VERSION@
+
+Libs: -L${libdir} -lIlmImf${libsuffix}
+Cflags: -I${OpenEXR_includedir}
+Requires: IlmBase
+Libs.private: -lz

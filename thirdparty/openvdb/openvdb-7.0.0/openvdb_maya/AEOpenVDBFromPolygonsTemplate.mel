@@ -1,0 +1,214 @@
+
+
+global proc
+AEOpenVDBFromPolygonsTemplate( string $nodeAttr )
+{
+    editorTemplate -beginScrollLayout;
+    {
+        editorTemplate -beginLayout "Settings" -collapse 0;
+        editorTemplate -beginNoOptimize;
+        {
+            editorTemplate -callCustom "AEAT_FromPolygonsOutputsNew"
+                "AEAT_FromPolygonsOutputsReplace" "DistanceGridName";
+
+            editorTemplate -addSeparator;
+
+            editorTemplate -addControl "EstimatedGridResolution";
+
+            editorTemplate
+                -annotation "Uniform voxel size in world units."
+                -addControl "VoxelSize";
+
+            editorTemplate
+                -annotation ("Specify the width of the exterior (d >= 0) " +
+                    "portion of the narrow band. (3 voxel units is optimal " +
+                    "for level set operations.)")
+                -addControl "ExteriorBandWidth";
+
+            editorTemplate
+                -annotation ("Specify the width of the interior (d < 0) " +
+                    "portion of the narrow band. (3 voxel units is optimal " +
+                    "for level set operations.)")
+                -addControl "InteriorBandWidth";
+
+            editorTemplate
+                -annotation ("Extract signed distances for all interior " +
+                    "voxels, this operation is going to densify the " +
+                    "interior of the model. Requires a closed watertight mesh.")
+                -addControl "FillInterior" "AEAT_FromPolygonsUpdateEnabled";
+
+            editorTemplate
+                -annotation ("Generate an unsigned distance field. This " +
+                    "operation will work on any mesh, i.e. does not require " +
+                    "a closed watertight mesh.")
+                -addControl "UnsignedDistanceField" "AEAT_FromPolygonsUpdateEnabled";
+        }
+        editorTemplate -endNoOptimize;
+        editorTemplate -endLayout;
+
+        editorTemplate -beginLayout "Information" -collapse 0;
+        editorTemplate -beginNoOptimize;
+        {
+             editorTemplate -callCustom "AEAT_FromPolygonsInfoNew"
+                "AEAT_FromPolygonsInfoReplace" "NodeInfo";
+
+
+        }
+        editorTemplate -endNoOptimize;
+        editorTemplate -endLayout;
+
+	    editorTemplate -addExtraControls;
+    }
+    editorTemplate -endScrollLayout;
+}
+
+
+global proc
+AEAT_FromPolygonsUpdateEnabled( string $node )
+{
+    int $fill = `getAttr ($node+".FillInterior")`;
+    int $unsigned = `getAttr ($node+".UnsignedDistanceField")`;
+
+    if ($fill == 1 || $unsigned == 1) {
+        editorTemplate -dimControl $node "InteriorBandWidth" 1;
+    } else {
+        editorTemplate -dimControl $node "InteriorBandWidth" 0;
+    }
+
+    if ($unsigned == 1) {
+        editorTemplate -dimControl $node "FillInterior" 1;
+    } else {
+        editorTemplate -dimControl $node "FillInterior" 0;
+    }
+}
+
+
+global proc
+AEAT_FromPolygonsOutputsUpdateGridEnables( string $parentUI, string $attr )
+{
+    int $exportDistance = `getAttr $attr`;
+    textField -e -enable $exportDistance $parentUI;
+}
+
+
+global proc
+AEAT_FromPolygonsOutputsNew( string $attr )
+{
+    string $parent = `setParent -q` + "|fromPolygonsOutputsLayout|";
+    string $node = plugNode($attr);
+
+    global int $gAttributeEditorTemplateLabelWidth;
+    rowColumnLayout
+        -numberOfColumns 2
+        -columnWidth 1 $gAttributeEditorTemplateLabelWidth
+        -columnWidth 2 175
+        fromPolygonsOutputsLayout;
+    {
+        checkBox
+            -label "Distance VDB"
+            -annotation "Enable / disable the distance VDB output."
+            fromPolygonsDistanceVDBCheckBox;
+
+        textField
+            -fileName ""
+            -insertionPosition 0
+            -editable true
+            -annotation "Distance VDB name"
+            fromPolygonsDistanceVDBName;
+
+        checkBox
+            -label "Density VDB"
+            -annotation "Enable / disable the density VDB output."
+            fromPolygonsDensityVDBCheckBox;
+
+        textField
+            -fileName ""
+            -insertionPosition 0
+            -editable true
+            -annotation "Density VDB name"
+            fromPolygonsDensityVDBName;
+
+        setParent ..;
+    }
+
+    AEAT_FromPolygonsOutputsReplace( $attr );
+}
+
+
+global proc
+AEAT_FromPolygonsOutputsReplace( string $attr )
+{
+    string $parent = `setParent -q`;
+    string $parentLayout = $parent + "|fromPolygonsOutputsLayout|";
+    string $nodeName = plugNode($attr);
+
+    if( `text -exists ($parent+"|fromPolygonsScriptJobParent")` == 1 ) {
+        deleteUI fromPolygonsScriptJobParent;
+    }
+
+    string $scriptParent = `text -manage 0 fromPolygonsScriptJobParent`;
+
+    scriptJob -parent $scriptParent
+        -attributeChange ($nodeName+".ExportDistanceVDB")
+        ("AEAT_FromPolygonsOutputsUpdateGridEnables(\""+$parentLayout+
+        "fromPolygonsDistanceVDBName\",\""+($nodeName+".ExportDistanceVDB")+"\")");
+
+    scriptJob -parent $scriptParent
+        -attributeChange ($nodeName+".ExportDensityVDB")
+        ("AEAT_FromPolygonsOutputsUpdateGridEnables(\""+$parentLayout+
+        "fromPolygonsDensityVDBName\",\""+($nodeName+".ExportDensityVDB")+"\")");
+
+    setParent fromPolygonsOutputsLayout;
+
+    connectControl fromPolygonsDistanceVDBCheckBox ($nodeName + ".ExportDistanceVDB");
+    connectControl fromPolygonsDistanceVDBName ($nodeName + ".DistanceGridName");
+    connectControl fromPolygonsDensityVDBCheckBox ($nodeName + ".ExportDensityVDB");
+    connectControl fromPolygonsDensityVDBName ($nodeName + ".DensityGridName");
+
+    AEAT_FromPolygonsOutputsUpdateGridEnables($parentLayout+
+        "fromPolygonsDistanceVDBName", $nodeName+".ExportDistanceVDB");
+
+    AEAT_FromPolygonsOutputsUpdateGridEnables($parentLayout+
+        "fromPolygonsDensityVDBName", $nodeName+".ExportDensityVDB");
+
+   setParent $parent;
+}
+
+global proc
+AEAT_FromPolygonsInfoUpdate( string $nodeName )
+{
+    string $info = `getAttr ($nodeName + ".NodeInfo")`;
+    scrollField -e -text $info fromPolygonsInfoField;
+}
+
+global proc
+AEAT_FromPolygonsInfoNew( string $attr )
+{
+    scrollField
+        -editable 0
+        fromPolygonsInfoField;
+    AEAT_FromPolygonsInfoReplace($attr);
+}
+
+global proc
+AEAT_FromPolygonsInfoReplace( string $attr )
+{
+    string $parent = `setParent -q`;
+    string $nodeName = plugNode($attr);
+
+    if( `text -exists ($parent+"|fromPolygonsInfoScriptJobParent")` == 1 ) {
+        deleteUI fromPolygonsInfoScriptJobParent;
+    }
+
+    string $scriptParent = `text -manage 0 fromPolygonsInfoScriptJobParent`;
+
+    scriptJob -parent $scriptParent
+        -attributeChange ($nodeName+".NodeInfo")
+        ("AEAT_FromPolygonsInfoUpdate(\""+$nodeName+"\")");
+
+    AEAT_FromPolygonsInfoUpdate($nodeName);
+}
+
+
+
+

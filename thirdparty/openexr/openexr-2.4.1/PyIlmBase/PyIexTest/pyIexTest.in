@@ -1,0 +1,149 @@
+#!@PYTHON@
+
+import iex
+
+print ("")
+print ("testing exception inheritance")
+e = iex.BaseExc('test')
+assert(isinstance(e,iex.BaseExc))
+assert(isinstance(e,RuntimeError))
+del e
+print ("ok")
+print ("")
+
+print ("testing C++ to Python exception translation")
+
+#-----------------------------------------------------------------------------
+# Test if the exception class hierarchy works
+#-----------------------------------------------------------------------------
+
+try:
+    raise iex.BaseExc('test')
+except iex.BaseExc as e:
+    pass
+except:
+    assert 0
+else:
+    assert 0
+
+try:
+    raise iex.EpermExc('test')
+except iex.EnoentExc:
+    assert 0
+except iex.ErrnoExc:
+    pass
+except:
+    assert 0
+else:
+    assert 0
+
+try:
+    raise iex.EpermExc('test')
+except RuntimeError:
+    pass
+except:
+    assert 0
+else:
+    assert 0
+
+#-----------------------------------------------------------------------------
+# Test exceptions thrown by C++ code
+#-----------------------------------------------------------------------------
+
+try:
+    iex.testCxxExceptions (0)	# returns None, without raising an exception
+except:
+    assert 0
+else:
+    pass
+
+
+try:
+    iex.testCxxExceptions (1)	# C++ throws int(3),
+				# translated as RuntimeError
+except RuntimeError:
+    pass
+except:
+    assert 0
+else:
+    assert 0
+
+try:
+    iex.testCxxExceptions (2)	# C++ throws std::invalid_argument,
+    				# translated as ValueError
+except ValueError:
+    pass
+except:
+    assert 0
+else:
+    assert 0
+
+
+try:
+    iex.testCxxExceptions (3)	# C++ throws Iex::BaseExc,
+    				# translated as iex.BaseExc
+except iex.BaseExc:
+    pass
+except:
+    assert 0
+else:
+    assert 0
+
+
+try:
+    iex.testCxxExceptions (4)	# C++ throws Iex::ArgExc,
+    				# translated as iex.ArgExc
+except iex.ArgExc:
+    pass
+except:
+    assert 0
+else:
+    assert 0
+
+print ("ok")
+print ("")
+
+print ('testing exception raising')
+try:
+   raise iex.BaseExc('new BaseExc from python')
+except iex.ArgExc as e:
+   traceback.print_exc()
+   assert False
+except iex.BaseExc as e:
+   pass
+except:
+   traceback.print_exc()
+   assert False
+else:
+   assert False
+
+try:
+   raise iex.ArgExc('new ArgExc from python')
+except iex.ArgExc as e:
+   pass
+except iex.BaseExc as e:
+   traceback.print_exc()
+   assert False
+except:
+   traceback.print_exc()
+   assert False
+else:
+   assert False
+
+print ("ok")
+print ("")
+
+print ('testing exception conversion')
+be = iex.testMakeBaseExc('testStr')
+assert (isinstance(be,iex.BaseExc))
+assert (be.__class__ == iex.BaseExc)
+ae = iex.testMakeArgExc('testStr')
+assert (isinstance(ae,iex.BaseExc))
+assert (isinstance(ae,iex.ArgExc))
+assert (ae.__class__ == iex.ArgExc)
+assert (iex.testBaseExcString(be) == 'testStr')
+assert (iex.testBaseExcString(ae) == 'testStr')
+assert (iex.testArgExcString(ae) == 'testStr')
+
+print ("ok")
+print ("")

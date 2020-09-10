@@ -1,0 +1,16 @@
+IlmBase.pc
+autom4te.cache/
+config.guess
+config.log
+config.status
+config.sub
+config/IlmBaseConfig.h
+config/stamp-h1
+configure
+depcomp
+install-sh
+libtool
+ltmain.sh
+missing
+.metadata/
+

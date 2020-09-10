@@ -1,0 +1,222 @@
+global proc AEOpenVDBFromMayaFluidTemplate( string $nodeAttr )
+{
+    editorTemplate -beginScrollLayout;
+    {
+        editorTemplate -beginLayout "OpenVDB Conversion Settings" -collapse 0;
+        editorTemplate -beginNoOptimize;
+        {
+            editorTemplate
+                -annotation "Select a Maya Fluids Shape node"
+                -addControl "FluidNodeName";
+            editorTemplate -addSeparator;
+            editorTemplate -callCustom "newOpenVDBFromMayaFluidUI" "replaceOpenVDBFromMayaFluidUI" "Density";
+        }
+        editorTemplate -endNoOptimize;
+        editorTemplate -endLayout;
+	    editorTemplate -addExtraControls;
+    }
+    editorTemplate -endScrollLayout;
+}
+
+
+global proc newOpenVDBFromMayaFluidUI( string $attr )
+{
+    global int $gAttributeEditorTemplateLabelWidth;
+    int $fieldWidth = 200;
+    int $toggleWidth = 20;
+
+    rowLayout
+        -numberOfColumns 3
+        -columnWidth3 $gAttributeEditorTemplateLabelWidth $fieldWidth $toggleWidth
+        -columnAttach3 "right" "both" "both"
+        -columnAlign3 "left" "left" "left"
+        densityLayout;
+    {
+        text -label "Density" densityLabel;
+
+        textField
+            -annotation "Specify a name for the output VDB."
+            densityName;
+
+        checkBox -label ""
+            -annotation "Convert the density field."
+            densityToggle;
+
+        setParent ..;
+    }
+
+    rowLayout
+        -numberOfColumns 3
+        -columnWidth3 $gAttributeEditorTemplateLabelWidth $fieldWidth $toggleWidth
+        -columnAttach3 "right" "both" "both"
+        -columnAlign3 "left" "left" "left"
+        temperatureLayout;
+    {
+        text -label "Temperature" temperatureLabel;
+
+        textField
+            -annotation "Specify a name for the output VDB."
+            temperatureName;
+
+        checkBox -label ""
+            -annotation "Convert the temperature field."
+            temperatureToggle;
+
+        setParent ..;
+    }
+
+    rowLayout
+        -numberOfColumns 3
+        -columnWidth3 $gAttributeEditorTemplateLabelWidth $fieldWidth $toggleWidth
+        -columnAttach3 "right" "both" "both"
+        -columnAlign3 "left" "left" "left"
+        pressureLayout;
+    {
+        text -label "Pressure" pressureLabel;
+
+        textField
+            -annotation "Specify a name for the output VDB."
+            pressureName;
+
+        checkBox -label ""
+            -annotation "Convert the pressure field."
+            pressureToggle;
+
+        setParent ..;
+    }
+
+    rowLayout
+        -numberOfColumns 3
+        -columnWidth3 $gAttributeEditorTemplateLabelWidth $fieldWidth $toggleWidth
+        -columnAttach3 "right" "both" "both"
+        -columnAlign3 "left" "left" "left"
+        fuelLayout;
+    {
+        text -label "Fuel" fuelLabel;
+
+        textField
+            -annotation "Specify a name for the output VDB."
+            fuelName;
+
+        checkBox -label ""
+            -annotation "Convert the fuel field."
+            fuelToggle;
+
+        setParent ..;
+    }
+
+    rowLayout
+        -numberOfColumns 3
+        -columnWidth3 $gAttributeEditorTemplateLabelWidth $fieldWidth $toggleWidth
+        -columnAttach3 "right" "both" "both"
+        -columnAlign3 "left" "left" "left"
+        falloffLayout;
+    {
+        text -label "Falloff" falloffLabel;
+
+        textField
+            -annotation "Specify a name for the output VDB."
+            falloffName;
+
+        checkBox -label ""
+            -annotation "Convert the falloff field."
+            falloffToggle;
+
+        setParent ..;
+    }
+
+    rowLayout
+        -numberOfColumns 3
+        -columnWidth3 $gAttributeEditorTemplateLabelWidth $fieldWidth $toggleWidth
+        -columnAttach3 "right" "both" "both"
+        -columnAlign3 "left" "left" "left"
+        velocityLayout;
+    {
+        text -label "Velocity" velocityLabel;
+
+        textField
+            -annotation "Specify a name for the output VDB."
+            velocityName;
+
+        checkBox -label ""
+            -annotation "Convert the velocity field."
+            velocityToggle;
+
+        setParent ..;
+    }
+
+
+    rowLayout
+        -numberOfColumns 3
+        -columnWidth3 $gAttributeEditorTemplateLabelWidth $fieldWidth $toggleWidth
+        -columnAttach3 "right" "both" "both"
+        -columnAlign3 "left" "left" "left"
+        colorLayout;
+    {
+        text -label "Color" colorLabel;
+
+        textField
+            -annotation "Specify a name for the output VDB."
+            colorName;
+
+        checkBox -label ""
+            -annotation "Convert the color field."
+            colorToggle;
+
+        setParent ..;
+    }
+
+    rowLayout
+        -numberOfColumns 3
+        -columnWidth3 $gAttributeEditorTemplateLabelWidth $fieldWidth $toggleWidth
+        -columnAttach3 "right" "both" "both"
+        -columnAlign3 "left" "left" "left"
+        coordinatesLayout;
+    {
+        text -label "Coordinates" coordinatesLabel;
+
+        textField
+            -annotation "Specify a name for the output VDB."
+            coordinatesName;
+
+        checkBox -label ""
+            -annotation "Convert the coordinates field."
+            coordinatesToggle;
+
+        setParent ..;
+    }
+
+    replaceOpenVDBFromMayaFluidUI($attr);
+}
+
+global proc replaceOpenVDBFromMayaFluidUI( string $attr )
+{
+    setParent densityLayout;
+
+    string $nodeName = plugNode($attr);
+
+    connectControl densityToggle $attr;
+    connectControl densityName ($nodeName + ".DensityName");
+
+    connectControl temperatureToggle ($nodeName + ".Temperature");
+    connectControl temperatureName ($nodeName + ".TemperatureName");
+
+    connectControl pressureName ($nodeName + ".PressureName");
+    connectControl pressureToggle ($nodeName + ".Pressure");
+
+    connectControl fuelName ($nodeName + ".FuelName");
+    connectControl fuelToggle ($nodeName + ".Fuel");
+
+    connectControl falloffName ($nodeName + ".FalloffName");
+    connectControl falloffToggle ($nodeName + ".Falloff");
+
+    connectControl velocityName ($nodeName + ".VelocityName");
+    connectControl velocityToggle ($nodeName + ".Velocity");
+
+    connectControl colorName ($nodeName + ".ColorsName");
+    connectControl colorToggle ($nodeName + ".Color");
+
+    connectControl coordinatesName ($nodeName + ".CoordinatesName");
+    connectControl coordinatesToggle ($nodeName + ".Coordinates");
+}
+
