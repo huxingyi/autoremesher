@@ -1,6 +1,5 @@
 QT += core widgets opengl network
 CONFIG += release
-DEFINES += AUTO_REMESHER_DEV
 CONFIG(release, debug|release) DEFINES += NDEBUG
 DEFINES += AUTO_REMESHER_DEBUG
 DEFINES += QT_MESSAGELOGCONTEXT

@@ -344,7 +344,8 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
                                     continue;
                                 std::vector<size_t> allLevels = {level0, level1, level2, level3, level4};
                                 std::sort(allLevels.begin(), allLevels.end());
-                                auto insertResult = candidates5.insert({allLevels[0], allLevels[1], allLevels[2], allLevels[3], allLevels[4]});
+                                auto insertResult = candidates5.insert(
+std::make_tuple(allLevels[0], allLevels[1], allLevels[2], allLevels[3], allLevels[4]));
                                 if (insertResult.second) {
                                     auto faceNormal = calculateFaceNormal({level0, level1, level2, level3, level4});
                                     if (Vector3::dotProduct(faceNormal, triangleNormal) > 0) {
@@ -359,7 +360,8 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
                         }
                         std::vector<size_t> allLevels = {level0, level1, level2, level3};
                         std::sort(allLevels.begin(), allLevels.end());
-                        auto insertResult = candidates4.insert({allLevels[0], allLevels[1], allLevels[2], allLevels[3]});
+                        auto insertResult = candidates4.insert(
+std::make_tuple(allLevels[0], allLevels[1], allLevels[2], allLevels[3]));
                         if (insertResult.second) {
                             auto faceNormal = calculateFaceNormal({level0, level1, level2, level3});
                             if (Vector3::dotProduct(faceNormal, triangleNormal) > 0) {
