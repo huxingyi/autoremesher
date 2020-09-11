@@ -1,5 +1,8 @@
 QT += core widgets opengl network
 CONFIG += release
+
+DEFINES += AUTO_REMESHER_DEV
+
 CONFIG(release, debug|release) DEFINES += NDEBUG
 DEFINES += AUTO_REMESHER_DEBUG
 DEFINES += QT_MESSAGELOGCONTEXT
@@ -26,10 +29,10 @@ macx {
 }
 
 isEmpty(HUMAN_VERSION) {
-	HUMAN_VERSION = "1.0.0-beta.1"
+	HUMAN_VERSION = "1.0.0-beta.2"
 }
 isEmpty(VERSION) {
-	VERSION = 1.0.0.6
+	VERSION = 1.0.0.7
 }
 
 HOMEPAGE_URL = "https://autoremesher.dust3d.org/"

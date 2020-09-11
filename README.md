@@ -5,9 +5,10 @@ Buy me a coffee for staying up late coding :-) [![](https://www.paypalobjects.co
 # Overview
 Automatic quad remeshing software based on state of the art libraries: [Geogram](http://alice.loria.fr/index.php/software/4-library/75-geogram.html), [libigl](https://github.com/libigl), [OpenVDB](https://www.openvdb.org/), [CGAL](https://www.cgal.org/) and [others](https://github.com/huxingyi/autoremesher/blob/master/ACKNOWLEDGEMENTS.html).
 
-The origin: https://blogs.dust3d.org/2020/06/19/auto-remesher/
+Introduction:
+https://blogs.dust3d.org/2020/09/11/auto-remesher-1.0.0-beta.1-released/
 
-![](https://repository-images.githubusercontent.com/273084732/92388100-d691-11ea-838b-327efca8bf62)   
+![](https://blogs.dust3d.org/public/attachments/2020-09-11-auto-remesher-1.0.0-beta.1-released/auto-remesher-beta1.png)   
 
 # Quick Start
 
