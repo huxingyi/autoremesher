@@ -20,14 +20,34 @@ install:
     call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
   - if "%PLATFORM%" == "x86"
     call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars32.bat"
-
-  - cd thirdparty/openmesh/OpenMesh-3.0
+    
+  - cd thirdparty/blosc/c-blosc-1.18.1
   - mkdir build
   - cd build
   - if "%PLATFORM%" == "x64"
-    cmake -G "Visual Studio 15 2017" -A %PLATFORM% -D "BUILD_APPS=OFF" ../
+    cmake -G "Visual Studio 15 2017" -A %PLATFORM% -D "BUILD_SHARED=OFF" -D "BUILD_TESTS=OFF" -D "BUILD_BENCHMARKS=OFF" ../
   - if "%PLATFORM%" == "x86"
-    cmake -G "Visual Studio 15 2017" -D "BUILD_APPS=OFF" ../
+    cmake -G "Visual Studio 15 2017" -D "BUILD_SHARED=OFF" -D "BUILD_TESTS=OFF" -D "BUILD_BENCHMARKS=OFF" ../
+  - cmake --build . --config Release
+  - cd %APPVEYOR_BUILD_FOLDER%
+  
+  - cd thirdparty/zlib/zlib-1.2.11
+  - mkdir build
+  - cd build
+  - if "%PLATFORM%" == "x64"
+    cmake -G "Visual Studio 15 2017" -A %PLATFORM% ../
+  - if "%PLATFORM%" == "x86"
+    cmake -G "Visual Studio 15 2017" ../
+  - cmake --build . --config Release
+  - cd %APPVEYOR_BUILD_FOLDER%
+  
+  - cd thirdparty/openexr/openexr-2.4.1
+  - mkdir build
+  - cd build
+  - if "%PLATFORM%" == "x64"
+    cmake -G "Visual Studio 15 2017" -A %PLATFORM% -D "BUILD_SHARED_LIBS=OFF" -D "PYILMBASE_ENABLE=0" -D "OPENEXR_VIEWERS_ENABLE=0" -D "ZLIB_INCLUDE_DIR=%APPVEYOR_BUILD_FOLDER%/thirdparty/zlib/zlib-1.2.11" -D "ZLIB_LIBRARY=%APPVEYOR_BUILD_FOLDER%/thirdparty/zlib/zlib-1.2.11/build/Release/zlibstatic.lib" ../
+  - if "%PLATFORM%" == "x86"
+    cmake -G "Visual Studio 15 2017" -D "BUILD_SHARED_LIBS=OFF" -D "PYILMBASE_ENABLE=0" -D "OPENEXR_VIEWERS_ENABLE=0" -D "ZLIB_INCLUDE_DIR=%APPVEYOR_BUILD_FOLDER%/thirdparty/zlib/zlib-1.2.11" -D "ZLIB_LIBRARY=%APPVEYOR_BUILD_FOLDER%/thirdparty/zlib/zlib-1.2.11/build/Release/zlibstatic.lib" ../
   - cmake --build . --config Release
   - cd %APPVEYOR_BUILD_FOLDER%
   
@@ -38,6 +58,16 @@ install:
     cmake -G "Visual Studio 15 2017" -A %PLATFORM% ../
   - if "%PLATFORM%" == "x86"
     cmake -G "Visual Studio 15 2017" ../
+  - cmake --build . --config Release
+  - cd %APPVEYOR_BUILD_FOLDER%
+  
+  - cd thirdparty/openvdb/openvdb-7.0.0
+  - mkdir build
+  - cd build
+  - if "%PLATFORM%" == "x64"
+    cmake -G "Visual Studio 15 2017" -A %PLATFORM% -D "OPENVDB_CORE_STATIC=OFF" -D "OPENVDB_BUILD_VDB_PRINT=OFF" -D "IlmBase_INCLUDE_DIR=%APPVEYOR_BUILD_FOLDER%/thirdparty/openexr/openexr-2.4.1" -D "IlmBase_Half_LIBRARY=%APPVEYOR_BUILD_FOLDER%/thirdparty/openexr/openexr-2.4.1/build/IlmBase/Half/Release/Half-2_4.lib" -D "TBB_INCLUDEDIR=%APPVEYOR_BUILD_FOLDER%/thirdparty/tbb/include" -D "TBB_LIBRARYDIR=%APPVEYOR_BUILD_FOLDER%/thirdparty/tbb/build2/Release" -D "ZLIB_INCLUDE_DIR=%APPVEYOR_BUILD_FOLDER%/thirdparty/zlib/zlib-1.2.11" -D "ZLIB_LIBRARY=%APPVEYOR_BUILD_FOLDER%/thirdparty/zlib/zlib-1.2.11/build/Release/zlibstatic.lib" -D "Blosc_INCLUDE_DIR=%APPVEYOR_BUILD_FOLDER%/thirdparty/blosc/c-blosc-1.18.1" -D "Blosc_LIBRARY=%APPVEYOR_BUILD_FOLDER%/thirdparty/blosc/c-blosc-1.18.1/build/blosc/Release/libblosc.lib" -D "BOOST_INCLUDEDIR=C:/Libraries/boost_1_66_0" -D "OPENVDB_DISABLE_BOOST_IMPLICIT_LINKING=ON" -D "CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES=C:/Libraries/boost_1_66_0;%APPVEYOR_BUILD_FOLDER%/thirdparty/blosc/c-blosc-1.18.1/blosc;%APPVEYOR_BUILD_FOLDER%/thirdparty/zlib/zlib-1.2.11/build" ../
+  - if "%PLATFORM%" == "x86"
+    cmake -G "Visual Studio 15 2017" -D "OPENVDB_CORE_STATIC=OFF" -D "OPENVDB_BUILD_VDB_PRINT=OFF" -D "IlmBase_INCLUDE_DIR=%APPVEYOR_BUILD_FOLDER%/thirdparty/openexr/openexr-2.4.1" -D "IlmBase_Half_LIBRARY=%APPVEYOR_BUILD_FOLDER%/thirdparty/openexr/openexr-2.4.1/build/IlmBase/Half/Release/Half-2_4.lib" -D "TBB_INCLUDEDIR=%APPVEYOR_BUILD_FOLDER%/thirdparty/tbb/include" -D "TBB_LIBRARYDIR=%APPVEYOR_BUILD_FOLDER%/thirdparty/tbb/build2/Release" -D "ZLIB_INCLUDE_DIR=%APPVEYOR_BUILD_FOLDER%/thirdparty/zlib/zlib-1.2.11" -D "ZLIB_LIBRARY=%APPVEYOR_BUILD_FOLDER%/thirdparty/zlib/zlib-1.2.11/build/Release/zlibstatic.lib" -D "Blosc_INCLUDE_DIR=%APPVEYOR_BUILD_FOLDER%/thirdparty/blosc/c-blosc-1.18.1" -D "Blosc_LIBRARY=%APPVEYOR_BUILD_FOLDER%/thirdparty/blosc/c-blosc-1.18.1/build/blosc/Release/libblosc.lib" -D "BOOST_INCLUDEDIR=C:/Libraries/boost_1_66_0" -D "OPENVDB_DISABLE_BOOST_IMPLICIT_LINKING=ON" -D "CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES=C:/Libraries/boost_1_66_0;%APPVEYOR_BUILD_FOLDER%/thirdparty/blosc/c-blosc-1.18.1/blosc;%APPVEYOR_BUILD_FOLDER%/thirdparty/zlib/zlib-1.2.11/build" ../
   - cmake --build . --config Release
   - cd %APPVEYOR_BUILD_FOLDER%
   
@@ -71,6 +101,8 @@ after_test:
   - if "%PLATFORM%" == "x86"
     set RELEASE_FILENAME=autoremesher-%TAG%-x86.zip
   - 7z a %RELEASE_FILENAME% %APPVEYOR_BUILD_FOLDER%\release\autoremesher.exe
+  - 7z a %RELEASE_FILENAME% %APPVEYOR_BUILD_FOLDER%\thirdparty\tbb\build2\Release\tbb.dll
+  - 7z a %RELEASE_FILENAME% %APPVEYOR_BUILD_FOLDER%\thirdparty\openvdb\openvdb-7.0.0\build\openvdb\Release\openvdb.dll
   - if "%PLATFORM%" == "x64"
     7z a %RELEASE_FILENAME% %APPVEYOR_BUILD_FOLDER%\thirdparty\cgal\CGAL-5.1-beta1\auxiliary\gmp\lib\libgmp-10.dll
   - if "%PLATFORM%" == "x86"
