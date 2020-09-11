@@ -79,6 +79,7 @@ private:
     void simplifyGraph(std::unordered_map<size_t, std::unordered_set<size_t>> &graph);
     void fixFlippedFaces();
     void fixHoles();
+    void fixSimpleHole(const std::vector<int> &loop);
 };
     
 }

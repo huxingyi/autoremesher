@@ -80,7 +80,7 @@ private:
     RenderMeshGenerator *m_renderMeshGenerator = nullptr;
     std::queue<ResultMesh> m_renderQueue;
     bool m_quadMeshResultIsDirty = false;
-    bool m_highPoly = false;
+    bool m_highPoly = true;
     QuadMeshGenerator *m_quadMeshGenerator = nullptr;
     SpinnableAwesomeButton *m_loadModelButton = nullptr;
     SpinnableAwesomeButton *m_saveMeshButton = nullptr;
