@@ -101,11 +101,10 @@ bool VdbRemesher::remesh()
     for (const auto &it: *m_triangles) {
         area += Vector3::area(vertices[it[0]], vertices[it[1]], vertices[it[2]]);
     }
-    float voxelSize = m_defaultVoxelSize;
     if (area > 0)
-        voxelSize *= area / m_stanfordBunnyArea;
+        m_voxelSize *= area / m_stanfordBunnyArea;
 #if AUTO_REMESHER_DEBUG
-    qDebug() << "Area:" << area << " voxelSize:" << voxelSize;
+    qDebug() << "Area:" << area << " voxelSize:" << m_voxelSize;
 #endif
 
     std::vector<openvdb::Vec3s> inputPoints(vertices.size());
@@ -134,7 +133,7 @@ bool VdbRemesher::remesh()
 			}
 		}
 	}
-    openvdb::math::Transform::Ptr transform = openvdb::math::Transform::createLinearTransform(voxelSize);
+    openvdb::math::Transform::Ptr transform = openvdb::math::Transform::createLinearTransform(m_voxelSize);
 	openvdb::FloatGrid::Ptr grid = openvdb::tools::meshToLevelSet<openvdb::FloatGrid>(
 		*transform, inputPoints, inputTriangles, inputQuads, 3);
 

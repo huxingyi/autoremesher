@@ -39,7 +39,7 @@ namespace AutoRemesher
 {
     
 const double AutoRemesher::m_defaultSharpEdgeDegrees = 90;
-const double AutoRemesher::m_defaultScaling = 1.0;
+const double AutoRemesher::m_defaultScaling = 1.2;
     
 void AutoRemesher::buildEdgeToFaceMap(const std::vector<std::vector<size_t>> &triangles, std::map<std::pair<size_t, size_t>, size_t> &edgeToFaceMap)
 {
@@ -127,7 +127,7 @@ bool AutoRemesher::remesh()
         useTriangles = vdbTriangles;
     }
     
-    double averageEdgeLength = calculateAverageEdgeLength(*useVertices, *useTriangles);
+    double averageEdgeLength = vdbTriangles->empty() ? vdbRemesher.voxelSize() : calculateAverageEdgeLength(*useVertices, *useTriangles);
 #if AUTO_REMESHER_DEBUG
     qDebug() << "Uniform remeshing... averageEdgeLength:" << averageEdgeLength;
 #endif
@@ -246,7 +246,7 @@ bool AutoRemesher::remesh()
                 }
 #if AUTO_REMESHER_DEBUG
                 if (nullptr != thread.remesher) {
-                    qDebug() << "Island[" << thread.islandIndex << "]: remesh done, quads:" << thread.remesher->remeshedQuads().size();
+                    qDebug() << "Island[" << thread.islandIndex << "]: remesh done, vertices:" << thread.remesher->remeshedVertices().size() << " quads:" << thread.remesher->remeshedQuads().size();
                 } else {
                     qDebug() << "Island[" << thread.islandIndex << "]: remesh failed";
                 }

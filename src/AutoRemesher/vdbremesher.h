@@ -66,6 +66,11 @@ public:
         return m_recoverScale;
     }
     
+    const double voxelSize()
+    {
+        return m_voxelSize;
+    }
+    
     bool remesh();
     
     static float m_defaultVoxelSize;
@@ -77,6 +82,7 @@ private:
     std::vector<std::vector<size_t>> *m_vdbTriangles = nullptr;
     Vector3 m_origin;
     double m_recoverScale = 1.0;
+    float m_voxelSize = m_defaultVoxelSize;
     
     void normalizeVertices();
     static void calculateNormalizedFactors(const std::vector<Vector3> &vertices, 
