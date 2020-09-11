@@ -62,7 +62,7 @@ install:
   - cd thirdparty/openexr/openexr-2.4.1
   - mkdir build
   - cd build
-  - cmake -D "BUILD_SHARED_LIBS=OFF" -D "PYILMBASE_ENABLE=0" -D "OPENEXR_VIEWERS_ENABLE=0" -D "ZLIB_INCLUDE_DIR=$TRAVIS_BUILD_DIR/thirdparty/zlib/zlib-1.2.11" -D "ZLIB_LIBRARY=$TRAVIS_BUILD_DIR/thirdparty/zlib/zlib-1.2.11/build/zlibstatic.lib" ../
+  - cmake -D "BUILD_SHARED_LIBS=OFF" -D "PYILMBASE_ENABLE=0" -D "OPENEXR_VIEWERS_ENABLE=0" -D "ZLIB_INCLUDE_DIR=$TRAVIS_BUILD_DIR/thirdparty/zlib/zlib-1.2.11" -D "ZLIB_LIBRARY=$TRAVIS_BUILD_DIR/thirdparty/zlib/zlib-1.2.11/build/libz.a" ../
   - cmake --build . --config Release
   - cd "$TRAVIS_BUILD_DIR"
   
