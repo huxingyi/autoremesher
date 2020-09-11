@@ -119,7 +119,7 @@ bool AutoRemesher::remesh()
 
     const std::vector<Vector3> *useVertices = nullptr;
     const std::vector<std::vector<size_t>> *useTriangles = nullptr;
-    if (vdbTriangles->empty()) {
+    if (vdbTriangles->size() < 1000) {
         useVertices = &m_vertices;
         useTriangles = &m_triangles;
     } else {
@@ -127,7 +127,7 @@ bool AutoRemesher::remesh()
         useTriangles = vdbTriangles;
     }
     
-    double averageEdgeLength = vdbTriangles->empty() ? vdbRemesher.voxelSize() : calculateAverageEdgeLength(*useVertices, *useTriangles);
+    double averageEdgeLength = vdbTriangles->size() < 1000 ? vdbRemesher.voxelSize() : calculateAverageEdgeLength(*useVertices, *useTriangles);
 #if AUTO_REMESHER_DEBUG
     qDebug() << "Uniform remeshing... averageEdgeLength:" << averageEdgeLength;
 #endif

@@ -1,3 +1,9 @@
+1.0.0-beta.1
+- Replace MIQ with QuadCover  
+- Implement simple quad extractor  
+- Remove libQEx  
+- Add OpenVDB for uniform remeshing  
+
 1.0.0-alpha.4
 - Add constrained option: Better Edge Flow/Less Distortion  
 - Fix libQEx access violation  

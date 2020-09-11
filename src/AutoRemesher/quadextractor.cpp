@@ -276,7 +276,7 @@ bool QuadExtractor::collapseTriangles(std::vector<Vector3> *crossPoints,
                         continue;
                     std::vector<size_t> levels = {level0, level1, level2};
                     std::sort(levels.begin(), levels.end());
-                    collapseList.insert({levels[0], levels[1], levels[2]});
+                    collapseList.insert(std::make_tuple(levels[0], levels[1], levels[2]));
                     break;
                 }
             }
@@ -344,7 +344,7 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
                                     continue;
                                 std::vector<size_t> allLevels = {level0, level1, level2, level3, level4};
                                 std::sort(allLevels.begin(), allLevels.end());
-                                auto insertResult = candidates5.insert({allLevels[0], allLevels[1], allLevels[2], allLevels[3], allLevels[4]});
+                                auto insertResult = candidates5.insert(std::make_tuple(allLevels[0], allLevels[1], allLevels[2], allLevels[3], allLevels[4]));
                                 if (insertResult.second) {
                                     auto faceNormal = calculateFaceNormal({level0, level1, level2, level3, level4});
                                     if (Vector3::dotProduct(faceNormal, triangleNormal) > 0) {
@@ -359,7 +359,7 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
                         }
                         std::vector<size_t> allLevels = {level0, level1, level2, level3};
                         std::sort(allLevels.begin(), allLevels.end());
-                        auto insertResult = candidates4.insert({allLevels[0], allLevels[1], allLevels[2], allLevels[3]});
+                        auto insertResult = candidates4.insert(std::make_tuple(allLevels[0], allLevels[1], allLevels[2], allLevels[3]));
                         if (insertResult.second) {
                             auto faceNormal = calculateFaceNormal({level0, level1, level2, level3});
                             if (Vector3::dotProduct(faceNormal, triangleNormal) > 0) {
