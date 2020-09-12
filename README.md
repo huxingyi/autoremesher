@@ -13,19 +13,19 @@ https://blogs.dust3d.org/2020/09/11/auto-remesher-1.0.0-beta.1-released/
 # Quick Start
 
 ## Windows
-Download autoremesher-unstable.zip from [releases](https://github.com/huxingyi/autoremesher/releases)
+Download autoremesher-`<version>`.zip from [releases](https://github.com/huxingyi/autoremesher/releases)
 Extract it and run the exe,  
-*If you are running 32bit instead of 64bit, please download autoremesher-unstable-x86.zip*
+*If you are running 32bit instead of 64bit, please download autoremesher-`<version>`-x86.zip*
 
 ## macOS
-Download autoremesher-unstable.dmg file from [releases](https://github.com/huxingyi/autoremesher/releases)
+Download autoremesher-`<version>`.dmg file from [releases](https://github.com/huxingyi/autoremesher/releases)
 *For the first time, Apple will reject to run and popup something like "can't be opened because its integrity cannot be verified", Goto System preferences > Security & Privacy > General and under "Allow apps downloaded from" click the button to allow it*
 
 ## Linux
-Download autoremesher-unstable.AppImage file from [releases](https://github.com/huxingyi/autoremesher/releases)
+Download autoremesher-`<version>`.AppImage file from [releases](https://github.com/huxingyi/autoremesher/releases)
 ```
-$ chmod a+x ./autoremesher-unstable.AppImage
-$ ./autoremesher-unstable.AppImage
+$ chmod a+x ./autoremesher-`<version>`.AppImage
+$ ./autoremesher-`<version>`.AppImage
 ```
 
 ## Media
