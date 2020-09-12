@@ -38,6 +38,7 @@ $ ./autoremesher-`<version>`.AppImage
 - [「autoremesher」多角形を自動でリトポしてれる無料トポロジーツール](https://modelinghappy.com/archives/30339) **modelinghappy.com**  
 - [Open Source Auto Remesher](https://blender-addons.org/open-source-auto-remesher/) **blender-addons.org**  
 - [AutoRemesher | Auto-Retopology-Tool](https://www.digitalproduction.com/2020/08/05/autoremesher-auto-retopology-tool/) **digitalproduction.com**  
+- [Autoremesher open source auto-retopology tool](https://blenderartists.org/t/autoremesher-open-source-auto-retopology-tool/1245131/126) **blenderartists.org**  
 
 ## Acknowledgements
 https://github.com/huxingyi/autoremesher/blob/master/ACKNOWLEDGEMENTS.html
