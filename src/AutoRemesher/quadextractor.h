@@ -79,8 +79,9 @@ private:
     void fixFlippedFaces();
     bool removeIsolatedFaces();
     bool removeNonManifoldFaces();
+    void makeTedge(const std::vector<size_t> &triangle);
     void fixHoles();
-    void fixHoleWithQuads(const std::vector<int> &loop);
+    void fixHoleWithQuads(std::vector<size_t> &hole, bool checkScore=true);
     void recordGoodQuads();
     bool testPointInTriangle(const std::vector<Vector3> &points, 
         const std::vector<size_t> &triangle,

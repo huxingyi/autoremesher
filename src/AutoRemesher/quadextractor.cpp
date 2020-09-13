@@ -333,6 +333,7 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
     };
     
     std::set<std::tuple<size_t, size_t, size_t>> corners;
+    std::set<std::pair<size_t, size_t>> halfEdges;
     auto isConerUsed = [&](size_t previous, size_t current, size_t next) {
         if (corners.end() != corners.find(std::make_tuple(previous, current, next)))
             return true;
@@ -340,7 +341,7 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
             return true;
         return false;
     };
-    auto isQuadConflits = [&](size_t level0, size_t level1, size_t level2, size_t level3) {
+    auto isQuadCornerConflits = [&](size_t level0, size_t level1, size_t level2, size_t level3) {
         if (isConerUsed(level0, level1, level2))
             return true;
         if (isConerUsed(level1, level2, level3))
@@ -358,6 +359,23 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
         
         corners.insert(std::make_tuple(level3, level0, level1));
         corners.insert(std::make_tuple(level1, level0, level3));
+    };
+    auto isQuadHalfEdgeConflits = [&](size_t level0, size_t level1, size_t level2, size_t level3) {
+        if (halfEdges.end() != halfEdges.find({level0, level1}))
+            return true;
+        if (halfEdges.end() != halfEdges.find({level1, level2}))
+            return true;
+        if (halfEdges.end() != halfEdges.find({level2, level3}))
+            return true;
+        if (halfEdges.end() != halfEdges.find({level3, level0}))
+            return true;
+        return false;
+    };
+    auto addQuadHalfEdges = [&](size_t level0, size_t level1, size_t level2, size_t level3) {
+        halfEdges.insert({level0, level1});
+        halfEdges.insert({level1, level2});
+        halfEdges.insert({level2, level3});
+        halfEdges.insert({level3, level0});
     };
     
     for (const auto &level0It: edgeConnectMap) {
@@ -389,13 +407,20 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
                         if (level0 != level4) {
                             continue;
                         }
-                        if (!isQuadConflits(level0, level1, level2, level3)) {
-                            addQuadCorners(level0, level1, level2, level3);
+                        if (!isQuadCornerConflits(level0, level1, level2, level3)) {
                             auto faceNormal = calculateFaceNormal({level0, level1, level2, level3});
                             if (Vector3::dotProduct(faceNormal, triangleNormal) > 0) {
-                                quads->push_back({level0, level1, level2, level3});
+                                if (!isQuadHalfEdgeConflits(level0, level1, level2, level3)) {
+                                    quads->push_back({level0, level1, level2, level3});
+                                    addQuadCorners(level0, level1, level2, level3);
+                                    addQuadHalfEdges(level0, level1, level2, level3);
+                                }
                             } else {
-                                quads->push_back({level3, level2, level1, level0});
+                                if (!isQuadHalfEdgeConflits(level3, level2, level1, level0)) {
+                                    quads->push_back({level3, level2, level1, level0});
+                                    addQuadCorners(level3, level2, level1, level0);
+                                    addQuadHalfEdges(level3, level2, level1, level0);
+                                }
                             }
                         }
                         break;
@@ -625,12 +650,40 @@ bool QuadExtractor::testPointInTriangle(const std::vector<Vector3> &points,
     return false;
 }
 
-void QuadExtractor::fixHoleWithQuads(const std::vector<int> &loop)
+void QuadExtractor::makeTedge(const std::vector<size_t> &triangle)
 {
-    auto hole = loop;
+    std::vector<std::pair<size_t, double>> cornerAngles;
+    for (size_t i = 0; i < triangle.size(); ++i) {
+        size_t h = (i + triangle.size() - 1) % triangle.size();
+        size_t j = (i + 1) % triangle.size();
+        cornerAngles.push_back({i, Vector3::angle((m_remeshedVertices[triangle[h]] - m_remeshedVertices[triangle[i]]).normalized(), 
+            (m_remeshedVertices[triangle[j]] - m_remeshedVertices[triangle[i]]).normalized())});
+    }
+    size_t collapseIndex = std::max_element(cornerAngles.begin(), cornerAngles.end(), [](const std::pair<size_t, double> &first,
+            const std::pair<size_t, double> &second) {
+        return first.second < second.second;
+    })->first;
+    Vector3 collapseTo;
+    for (size_t i = 0; i < triangle.size(); ++i) {
+        if (i == collapseIndex)
+            continue;
+        collapseTo += m_remeshedVertices[triangle[i]];
+    }
+    collapseTo /= 2;
+    m_remeshedVertices[triangle[collapseIndex]] = collapseTo;
+}
+
+void QuadExtractor::fixHoleWithQuads(std::vector<size_t> &hole, bool checkScore)
+{
     for (;;) {
-        if (hole.size() <= 3) {
-            std::cerr << "fixHoleWithQuads canceled on hole size:" << hole.size() << std::endl;
+        if (hole.size() <= 2) {
+            std::cerr << "fixHoleWithQuads cancel on edge length:" << hole.size() << std::endl;
+            return;
+        }
+        
+        if (3 == hole.size()) {
+            std::cerr << "fixHoleWithQuads make t-edge" << std::endl;
+            makeTedge(hole);
             return;
         }
         
@@ -660,9 +713,11 @@ void QuadExtractor::fixHoleWithQuads(const std::vector<int> &loop)
         bool holeChanged = false;
         for (int edgeIndex = edgeScores.size() - 1; edgeIndex >= 0; --edgeIndex) {
             const auto &score = edgeScores[edgeIndex];
-            if (score.second <= 0) {
-                std::cerr << "fixHoleWithQuads failed, highest score(dot):" << score.second << std::endl;
-                return;
+            if (checkScore) {
+                if (score.second <= 0) {
+                    std::cerr << "fixHoleWithQuads failed, highest score(dot):" << score.second << std::endl;
+                    return;
+                }
             }
             int i = score.first;
             int h = (i + hole.size() - 1) % hole.size();
@@ -693,7 +748,7 @@ void QuadExtractor::fixHoleWithQuads(const std::vector<int> &loop)
                 m_remeshedQuads[m_remeshedQuads.size() - 1][2] << "," <<
                 m_remeshedQuads[m_remeshedQuads.size() - 1][3] << "}" << std::endl;
                 
-            std::vector<int> newHole;
+            std::vector<size_t> newHole;
             for (int w = 0; w < hole.size(); ++w) {
                 if (w == i || w == j)
                     continue;
@@ -716,20 +771,22 @@ void QuadExtractor::fixHoles()
         F.row(j++) << quad[0], quad[1], quad[2];
         F.row(j++) << quad[2], quad[3], quad[0];
     }
-    std::vector<std::vector<int>> loops;
+    std::vector<std::vector<size_t>> loops;
     igl::boundary_loop(F, loops);
     
     std::cerr << "Detected holes:" << loops.size() << std::endl;
     
-    for (const auto &loop: loops) {
+    for (auto &loop: loops) {
         if (loop.size() > 32) {
             std::cerr << "Ignore long hole at length:" << loop.size() << std::endl;
             continue;
         }
-        if (loop.size() <= 3)
+        if (loop.size() == 1)
             continue;
         std::cerr << "Fixing hole at length:" << loop.size() << "..." << std::endl;
-        fixHoleWithQuads(loop);
+        fixHoleWithQuads(loop, true);
+        if (loop.size() > 4)
+            fixHoleWithQuads(loop, false);
     }
 }
 
