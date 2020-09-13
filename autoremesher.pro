@@ -201,6 +201,7 @@ win32 {
 }
 
 INCLUDEPATH += thirdparty/geogram/geogram-1.7.5/src/lib
+INCLUDEPATH += thirdparty/geogram
 win32 {
     DEFINES -= UNICODE
     LIBS += -ladvapi32 -lshell32

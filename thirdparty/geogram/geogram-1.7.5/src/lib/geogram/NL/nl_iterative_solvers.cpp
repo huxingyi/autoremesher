@@ -46,6 +46,7 @@
 #include "nl_blas.h"
 #include "nl_matrix.h"
 #include "nl_context.h"
+#include <geogram_report_progress.h>
 
 /************************************************************************/
 /* Solvers */
@@ -93,11 +94,13 @@ static NLuint nlSolveSystem_CG(
     blas->Dscal(blas,N,-1.,g,1);
     blas->Dcopy(blas,N,g,1,r,1);
     curr_err = blas->Ddot(blas,N,g,1,g,1);
+    NLdouble err_range = curr_err - err;
     while ( curr_err >err && its < max_iter) {
 	if(nlCurrentContext != NULL) {
 	    if(nlCurrentContext->progress_func != NULL) {
 		nlCurrentContext->progress_func(its, max_iter, curr_err, err);
 	    }
+        geogram_report_progress_callback(geogram_report_progress_tag, (float)((err_range - (curr_err - err)) / err_range));
 	    if(nlCurrentContext->verbose && !(its % 100)) {
 		nl_printf ( "%4d : %.10e -- %.10e\n", its, curr_err, err );
 	    }
@@ -145,12 +148,15 @@ static NLuint nlSolveSystem_PRE_CG(
     blas->Dcopy(blas,N,d,1,h,1);
     rh=blas->Ddot(blas,N,r,1,h,1);
     curr_err = blas->Ddot(blas,N,r,1,r,1);
+    
+    NLdouble err_range = curr_err - err;
 
     while ( curr_err >err && its < max_iter) {
 	if(nlCurrentContext != NULL) {
 	    if(nlCurrentContext->progress_func != NULL) {
 		nlCurrentContext->progress_func(its, max_iter, curr_err, err);
 	    }
+        geogram_report_progress_callback(geogram_report_progress_tag, (float)((err_range - (curr_err - err)) / err_range));
 	    if( nlCurrentContext->verbose && !(its % 100)) {
 		nl_printf ( "%4d : %.10e -- %.10e\n", its, curr_err, err );
 	    }
@@ -202,12 +208,15 @@ static NLuint nlSolveSystem_BICGSTAB(
     nl_assert( blas->Ddot(blas,N,rT,1,rT,1)>1e-40 );
     rTh=blas->Ddot(blas,N,rT,1,h,1);
     rTr=blas->Ddot(blas,N,r,1,r,1);
+    
+    NLdouble err_range = rTr - err;
 
     while ( rTr>err && its < max_iter) {
 	if(nlCurrentContext != NULL) {
 	    if(nlCurrentContext->progress_func != NULL) {
 		nlCurrentContext->progress_func(its, max_iter, rTr, err);
 	    }
+        geogram_report_progress_callback(geogram_report_progress_tag, (float)((err_range - (rTr - err)) / err_range));
 	    if( (nlCurrentContext->verbose) && !(its % 100)) {
 		nl_printf ( "%4d : %.10e -- %.10e\n", its, rTr, err );
 	    }
@@ -283,12 +292,15 @@ static NLuint nlSolveSystem_PRE_BICGSTAB(
     nl_assert( blas->Ddot(blas,N,rT,1,rT,1)>1e-40 );
     rTh=blas->Ddot(blas,N,rT,1,h,1);
     rTr=blas->Ddot(blas,N,r,1,r,1);
+    
+    NLdouble err_range = rTr - err;
 
     while ( rTr>err && its < max_iter) {
 	if(nlCurrentContext != NULL) {	
 	    if(nlCurrentContext->progress_func != NULL) {
 		nlCurrentContext->progress_func(its, max_iter, rTr, err);
 	    }
+        geogram_report_progress_callback(geogram_report_progress_tag, (float)((err_range - (rTr - err)) / err_range));
 	    if( (nlCurrentContext->verbose) && !(its % 100)) {
 		nl_printf ( "%4d : %.10e -- %.10e\n", its, rTr, err );
 	    }

@@ -32,6 +32,11 @@
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
 #include <tbb/tbb_thread.h>
+#include <geogram_report_progress.h>
+
+thread_local void *geogram_report_progress_tag;
+thread_local geogram_report_progress_handler geogram_report_progress_callback;
+
 #if AUTO_REMESHER_DEBUG
 #include <QDebug>
 #endif
@@ -57,6 +62,19 @@ double AutoRemesher::calculateAverageEdgeLength(const std::vector<Vector3> &vert
     if (0 == edgeCount)
         return 0.0;
     return sumOfLength / edgeCount;
+}
+
+struct ReportProgressContext
+{
+    size_t islandIndex;
+};
+
+static void ReportProgress(void *tag, float progress)
+{
+    ReportProgressContext *context = (ReportProgressContext *)tag;
+#if AUTO_REMESHER_DEBUG
+    qDebug() << "Island[" << context->islandIndex << "]: progress(" << (progress * 100) << "%)";
+#endif
 }
 
 bool AutoRemesher::remesh()
@@ -182,6 +200,11 @@ bool AutoRemesher::remesh()
 #if AUTO_REMESHER_DEBUG
                 qDebug() << "Island[" << thread.islandIndex << "]: parameterizing...";
 #endif
+                ReportProgressContext reportProgressContext;
+                reportProgressContext.islandIndex = i;
+                geogram_report_progress_tag = &reportProgressContext;
+                geogram_report_progress_callback = ReportProgress;
+                
                 thread.parameterizer = new Parameterizer(&vertices, 
                     &triangles,
                     nullptr);
