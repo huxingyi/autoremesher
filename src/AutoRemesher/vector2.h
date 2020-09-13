@@ -160,6 +160,18 @@ public:
         
         return Vector2(alpha, beta);
     }
+    
+    inline static bool isInTriangle(const Vector2 &a, const Vector2 &b, const Vector2 &c, const Vector2 &point)
+    {
+        auto alphaAndBeta = barycentricCoordinates(a, b, c, point);
+        if (alphaAndBeta[0] < 0)
+            return false;
+        if (alphaAndBeta[1] < 0)
+            return false;
+        if ((1.0 - (alphaAndBeta[0] + alphaAndBeta[1])) < 0)
+            return false;
+        return true;
+    }
 
 private:
     double m_data[2] = {0.0};

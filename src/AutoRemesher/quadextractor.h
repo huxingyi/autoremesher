@@ -59,6 +59,7 @@ private:
     const std::vector<std::vector<Vector2>> *m_triangleUvs = nullptr;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedQuads;
+    std::set<std::pair<size_t, size_t>> m_goodQuadHalfEdges;
     
     void extractConnections(std::vector<Vector3> *crossPoints, 
         std::vector<size_t> *sourceTriangles,
@@ -79,7 +80,11 @@ private:
     void simplifyGraph(std::unordered_map<size_t, std::unordered_set<size_t>> &graph);
     void fixFlippedFaces();
     void fixHoles();
-    void fixSimpleHole(const std::vector<int> &loop);
+    void fixHoleWithQuads(const std::vector<int> &loop);
+    void recordGoodQuads();
+    bool testPointInTriangle(const std::vector<Vector3> &points, 
+        const std::vector<size_t> &triangle,
+        const std::vector<size_t> &testPoints);
 };
     
 }

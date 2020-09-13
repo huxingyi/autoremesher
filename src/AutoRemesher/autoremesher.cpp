@@ -39,7 +39,7 @@ namespace AutoRemesher
 {
     
 const double AutoRemesher::m_defaultSharpEdgeDegrees = 90;
-const double AutoRemesher::m_defaultScaling = 1.2;
+const double AutoRemesher::m_defaultScaling = 0.9;
     
 void AutoRemesher::buildEdgeToFaceMap(const std::vector<std::vector<size_t>> &triangles, std::map<std::pair<size_t, size_t>, size_t> &edgeToFaceMap)
 {

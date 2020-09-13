@@ -533,7 +533,7 @@ void MainWindow::generateQuadMesh()
     
     QuadMeshGenerator::Parameters parameters;
     if (!m_highPoly)
-        parameters.scaling = 2.4;
+        parameters.scaling = 5.0;
     
     m_quadMeshGenerator = new QuadMeshGenerator(m_originalVertices, m_originalTriangles);
     m_quadMeshGenerator->setParameters(parameters);
