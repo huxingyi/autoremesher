@@ -149,17 +149,6 @@ MainWindow::MainWindow()
     
     QHBoxLayout *toolLayout = new QHBoxLayout;
     
-    QLabel *polyBugetLabel = new QLabel(tr("Poly budget:"));
-    
-    QComboBox *polyBudgetSelectBox = new QComboBox;
-    polyBudgetSelectBox->addItem(tr("Low"));
-    polyBudgetSelectBox->addItem(tr("High"));
-    connect(polyBudgetSelectBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, [&](int index) {
-        m_highPoly = 1 == index;
-    });
-    
-    polyBudgetSelectBox->setCurrentIndex(m_highPoly ? 1 : 0);
-    
     SpinnableAwesomeButton *loadModelButton = new SpinnableAwesomeButton();
     loadModelButton->setAwesomeIcon(QChar(fa::folderopeno));
     connect(loadModelButton->button(), &QPushButton::clicked, this, &MainWindow::loadModel);
@@ -174,9 +163,6 @@ MainWindow::MainWindow()
     m_saveMeshButton = saveMeshButton;
     
     toolLayout->addStretch();
-    toolLayout->addWidget(polyBugetLabel);
-    toolLayout->addWidget(polyBudgetSelectBox);
-    toolLayout->addSpacing(10);
     toolLayout->addWidget(loadModelButton);
     toolLayout->addWidget(saveMeshButton);
     
@@ -532,8 +518,6 @@ void MainWindow::generateQuadMesh()
     QThread *thread = new QThread;
     
     QuadMeshGenerator::Parameters parameters;
-    if (!m_highPoly)
-        parameters.scaling = 5.0;
     
     m_quadMeshGenerator = new QuadMeshGenerator(m_originalVertices, m_originalTriangles);
     m_quadMeshGenerator->setParameters(parameters);

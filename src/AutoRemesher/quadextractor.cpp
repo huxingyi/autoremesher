@@ -137,6 +137,7 @@ bool QuadExtractor::extract()
 #endif
 
     fixHoles();
+    connectTvertices();
     
 #if AUTO_REMESHER_DEV
     {
@@ -207,6 +208,7 @@ bool QuadExtractor::removeNonManifoldFaces()
 
 void QuadExtractor::recordGoodQuads()
 {
+    m_goodQuadHalfEdges.clear();
     for (const auto &it: m_remeshedQuads) {
         for (size_t i = 0; i < it.size(); ++i) {
             size_t j = (i + 1) % it.size();
@@ -650,6 +652,108 @@ bool QuadExtractor::testPointInTriangle(const std::vector<Vector3> &points,
     return false;
 }
 
+void QuadExtractor::buildVertexNeighborMap(std::unordered_map<size_t, std::vector<size_t>> *vertexNeighborMap)
+{
+    for (const auto &it: m_remeshedQuads) {
+        for (size_t i = 0; i < it.size(); ++i) {
+            size_t j = (i + 1) % it.size();
+            (*vertexNeighborMap)[it[i]].push_back(it[j]);
+            (*vertexNeighborMap)[it[j]].push_back(it[i]);
+        }
+    }
+}
+
+void QuadExtractor::connectTwoTvertices(size_t startVertex, const std::vector<size_t> &path)
+{
+    std::cerr << "Connecting t-vertices, start:" << startVertex << std::endl;
+    for (size_t i = 0; i < path.size(); ++i)
+        std::cerr << "path["<<i<<"]:" << path[i] << std::endl;
+    
+    std::unordered_set<size_t> needRemoveVertices;
+    needRemoveVertices.insert(startVertex);
+    for (const auto &it: path)
+        needRemoveVertices.insert(it);
+    
+    bool changed = false;
+    std::vector<std::vector<size_t>> remainFaces;
+    for (const auto &it: m_remeshedQuads) {
+        bool needRemoveFace = false;
+        for (size_t i = 0; i < it.size(); ++i) {
+            auto findNeedRemove = needRemoveVertices.find(it[i]);
+            if (findNeedRemove == needRemoveVertices.end())
+                continue;
+            needRemoveFace = true;
+            break;
+        }
+        if (needRemoveFace) {
+            changed = true;
+            continue;
+        }
+        remainFaces.push_back(it);
+    }
+    if (!changed)
+        return;
+    
+    m_remeshedQuads = remainFaces;
+    std::cerr << "Fixing holes for removed t-vertices from:" << startVertex << std::endl;
+    recordGoodQuads();
+    fixHoles();
+}
+
+void QuadExtractor::connectTvertices()
+{
+    while (!m_tVertices.empty()) {
+        std::unordered_map<size_t, std::vector<size_t>> vertexNeighborMap;
+        buildVertexNeighborMap(&vertexNeighborMap);
+        
+        std::unordered_map<size_t, size_t> parentMap;
+        
+        size_t startVertex = *m_tVertices.begin();
+        std::cerr << "Searching nearest t-vertex, start:" << startVertex << std::endl;
+        m_tVertices.erase(startVertex);
+        std::queue<size_t> q;
+        std::unordered_set<size_t> visited;
+        visited.insert(startVertex);
+        auto findNeighbor = vertexNeighborMap.find(startVertex);
+        if (findNeighbor == vertexNeighborMap.end()) {
+            m_tVertices.erase(startVertex);
+            continue;
+        }
+        for (const auto &it: findNeighbor->second) {
+            parentMap[it] = startVertex;
+            q.push(it);
+        }
+        while (!q.empty()) {
+            auto v = q.front();
+            q.pop();
+            if (visited.end() != visited.find(v))
+                continue;
+            if (m_tVertices.end() != m_tVertices.find(v)) {
+                std::vector<size_t> path;
+                size_t stopVertex = v;
+                while (startVertex != v) {
+                    path.push_back(v);
+                    v = parentMap[v];
+                }
+                std::reverse(path.begin(), path.end());
+                m_tVertices.erase(stopVertex);
+                connectTwoTvertices(startVertex, path);
+                break;
+            }
+            visited.insert(v);
+            auto findNeighbor = vertexNeighborMap.find(v);
+            if (findNeighbor == vertexNeighborMap.end())
+                continue;
+            for (const auto &it: findNeighbor->second) {
+                if (visited.end() != visited.find(it))
+                    continue;
+                parentMap[it] = v;
+                q.push(it);
+            }
+        }
+    }
+}
+
 void QuadExtractor::makeTedge(const std::vector<size_t> &triangle)
 {
     std::vector<std::pair<size_t, double>> cornerAngles;
@@ -671,6 +775,7 @@ void QuadExtractor::makeTedge(const std::vector<size_t> &triangle)
     }
     collapseTo /= 2;
     m_remeshedVertices[triangle[collapseIndex]] = collapseTo;
+    m_tVertices.insert(triangle[collapseIndex]);
 }
 
 void QuadExtractor::fixHoleWithQuads(std::vector<size_t> &hole, bool checkScore)
@@ -777,7 +882,7 @@ void QuadExtractor::fixHoles()
     std::cerr << "Detected holes:" << loops.size() << std::endl;
     
     for (auto &loop: loops) {
-        if (loop.size() > 32) {
+        if (loop.size() > 65) {
             std::cerr << "Ignore long hole at length:" << loop.size() << std::endl;
             continue;
         }

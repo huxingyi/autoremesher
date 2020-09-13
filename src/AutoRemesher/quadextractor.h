@@ -60,6 +60,7 @@ private:
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedQuads;
     std::set<std::pair<size_t, size_t>> m_goodQuadHalfEdges;
+    std::unordered_set<size_t> m_tVertices;
     
     void extractConnections(std::vector<Vector3> *crossPoints, 
         std::vector<size_t> *sourceTriangles,
@@ -86,6 +87,9 @@ private:
     bool testPointInTriangle(const std::vector<Vector3> &points, 
         const std::vector<size_t> &triangle,
         const std::vector<size_t> &testPoints);
+    void connectTvertices();
+    void buildVertexNeighborMap(std::unordered_map<size_t, std::vector<size_t>> *vertexNeighborMap);
+    void connectTwoTvertices(size_t startVertex, const std::vector<size_t> &path);
 };
     
 }
