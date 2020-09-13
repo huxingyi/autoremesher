@@ -184,6 +184,9 @@ HEADERS += src/AutoRemesher/quadextractor.h
 SOURCES += src/AutoRemesher/positionkey.cpp
 HEADERS += src/AutoRemesher/positionkey.h
 
+SOURCES += src/AutoRemesher/meshseparator.cpp
+HEADERS += src/AutoRemesher/meshseparator.h
+
 INCLUDEPATH += thirdparty/openvdb/openvdb-7.0.0
 INCLUDEPATH += thirdparty/openexr/openexr-2.4.1
 unix {

@@ -19,56 +19,21 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#ifndef AUTO_REMESHER_AUTO_REMESHER_H
-#define AUTO_REMESHER_AUTO_REMESHER_H
-#include <vector>
-#include <cstddef>
+#ifndef AUTO_REMESHER_MESH_SEPARATOR_H
+#define AUTO_REMESHER_MESH_SEPARATOR_H
 #include <map>
-#include <AutoRemesher/Vector3>
+#include <vector>
 
 namespace AutoRemesher
 {
     
-class IsotropicRemesher;
-
-class AutoRemesher
+class MeshSeparator
 {
 public:
-    AutoRemesher(const std::vector<Vector3> &vertices,
-            const std::vector<std::vector<size_t>> &triangles) :
-        m_vertices(vertices),
-        m_triangles(triangles)
-    {
-    }
-    
-    void setScaling(double scaling)
-    {
-        m_scaling = scaling;
-    }
-    
-    const std::vector<Vector3> &remeshedVertices()
-    {
-        return m_remeshedVertices;
-    }
-    
-    const std::vector<std::vector<size_t>> &remeshedQuads()
-    {
-        return m_remeshedQuads;
-    }
-    
-    bool remesh();
-    
-    static const double m_defaultSharpEdgeDegrees;
-    static const double m_defaultScaling;
-private:
-    std::vector<Vector3> m_vertices;
-    std::vector<std::vector<size_t>> m_triangles;
-    std::vector<Vector3> m_remeshedVertices;
-    std::vector<std::vector<size_t>> m_remeshedQuads;
-    double m_scaling = m_defaultScaling;
-    
-    static double calculateAverageEdgeLength(const std::vector<Vector3> &vertices,
-        const std::vector<std::vector<size_t>> &faces);
+    static void splitToIslands(const std::vector<std::vector<size_t>> &faces, 
+        std::vector<std::vector<std::vector<size_t>>> &islands);
+    static void buildEdgeToFaceMap(const std::vector<std::vector<size_t>> &faces, 
+        std::map<std::pair<size_t, size_t>, size_t> &edgeToFaceMap);
 };
     
 }

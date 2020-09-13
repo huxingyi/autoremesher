@@ -28,6 +28,7 @@
 #include <AutoRemesher/Parameterizer>
 #include <AutoRemesher/QuadExtractor>
 #include <AutoRemesher/VdbRemesher>
+#include <AutoRemesher/MeshSeparator>
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
 #include <tbb/tbb_thread.h>
@@ -40,52 +41,6 @@ namespace AutoRemesher
     
 const double AutoRemesher::m_defaultSharpEdgeDegrees = 90;
 const double AutoRemesher::m_defaultScaling = 0.9;
-    
-void AutoRemesher::buildEdgeToFaceMap(const std::vector<std::vector<size_t>> &triangles, std::map<std::pair<size_t, size_t>, size_t> &edgeToFaceMap)
-{
-    edgeToFaceMap.clear();
-    for (size_t index = 0; index < triangles.size(); ++index) {
-        const auto &face = triangles[index];
-        for (size_t i = 0; i < 3; i++) {
-            size_t j = (i + 1) % 3;
-            edgeToFaceMap[{face[i], face[j]}] = index;
-        }
-    }
-}
-
-void AutoRemesher::splitToIslands(const std::vector<std::vector<size_t>> &triangles, std::vector<std::vector<std::vector<size_t>>> &islands)
-{
-    std::map<std::pair<size_t, size_t>, size_t> edgeToFaceMap;
-    buildEdgeToFaceMap(triangles, edgeToFaceMap);
-    
-    std::unordered_set<size_t> processedFaces;
-    std::queue<size_t> waitFaces;
-    for (size_t indexInGroup = 0; indexInGroup < triangles.size(); ++indexInGroup) {
-        if (processedFaces.find(indexInGroup) != processedFaces.end())
-            continue;
-        waitFaces.push(indexInGroup);
-        std::vector<std::vector<size_t>> island;
-        while (!waitFaces.empty()) {
-            size_t index = waitFaces.front();
-            waitFaces.pop();
-            if (processedFaces.find(index) != processedFaces.end())
-                continue;
-            const auto &face = triangles[index];
-            for (size_t i = 0; i < 3; i++) {
-                size_t j = (i + 1) % 3;
-                auto findOppositeFaceResult = edgeToFaceMap.find({face[j], face[i]});
-                if (findOppositeFaceResult == edgeToFaceMap.end())
-                    continue;
-                waitFaces.push(findOppositeFaceResult->second);
-            }
-            island.push_back(triangles[index]);
-            processedFaces.insert(index);
-        }
-        if (island.size() < 4)
-            continue;
-        islands.push_back(island);
-    }
-}
 
 double AutoRemesher::calculateAverageEdgeLength(const std::vector<Vector3> &vertices,
         const std::vector<std::vector<size_t>> &faces)
@@ -143,7 +98,7 @@ bool AutoRemesher::remesh()
     delete vdbTriangles;
 
     std::vector<std::vector<std::vector<size_t>>> m_trianglesIslands;
-    splitToIslands(m_triangles, m_trianglesIslands);
+    MeshSeparator::splitToIslands(m_triangles, m_trianglesIslands);
     
     if (m_trianglesIslands.empty()) {
         std::cerr << "Input mesh is empty" << std::endl;

@@ -68,8 +68,6 @@ private:
         std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap);
     bool collapseShortEdges(std::vector<Vector3> *crossPoints,
         std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap);
-    bool collapseTriangles(std::vector<Vector3> *crossPoints,
-        std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap);
     void collapseEdge(std::vector<Vector3> *crossPoints,
         std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap,
         const std::pair<size_t, size_t> &edge);
@@ -79,6 +77,8 @@ private:
         std::vector<std::vector<size_t>> *quads);
     void simplifyGraph(std::unordered_map<size_t, std::unordered_set<size_t>> &graph);
     void fixFlippedFaces();
+    bool removeIsolatedFaces();
+    bool removeNonManifoldFaces();
     void fixHoles();
     void fixHoleWithQuads(const std::vector<int> &loop);
     void recordGoodQuads();
