@@ -1,3 +1,8 @@
+1.0.0-beta.2
+- Fix holes  
+- Replace Poly budget with density setting  
+- Remove laplacian smooth in preprocess  
+
 1.0.0-beta.1
 - Replace MIQ with QuadCover  
 - Implement simple quad extractor  
