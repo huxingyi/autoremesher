@@ -56,37 +56,18 @@ public:
         return vdbTriangles;
     }
     
-    const Vector3 &origin()
+    void setVoxelSize(double voxelSize)
     {
-        return m_origin;
-    }
-    
-    const double &recoverScale()
-    {
-        return m_recoverScale;
-    }
-    
-    const double voxelSize()
-    {
-        return m_voxelSize;
+        m_voxelSize = (float)voxelSize;
     }
     
     bool remesh();
-    
-    static float m_defaultVoxelSize;
-    static float m_stanfordBunnyArea;
 private:
     std::vector<Vector3> *m_vertices = nullptr;
     const std::vector<std::vector<size_t>> *m_triangles = nullptr;
     std::vector<Vector3> *m_vdbVertices = nullptr;
     std::vector<std::vector<size_t>> *m_vdbTriangles = nullptr;
-    Vector3 m_origin;
-    double m_recoverScale = 1.0;
-    float m_voxelSize = m_defaultVoxelSize;
-    
-    void normalizeVertices();
-    static void calculateNormalizedFactors(const std::vector<Vector3> &vertices, 
-        Vector3 *origin, double *maxLength);
+    float m_voxelSize = 1.0;
 };
     
 }

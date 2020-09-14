@@ -31,6 +31,12 @@ namespace AutoRemesher
     
 class IsotropicRemesher;
 
+enum class ModelType
+{
+    Organic,
+    HardSurface
+};
+
 class AutoRemesher
 {
 public:
@@ -41,9 +47,19 @@ public:
     {
     }
     
+    void setTargetTriangleCount(size_t targetTriangleCount)
+    {
+        m_targetTriangleCount = targetTriangleCount;
+    }
+    
     void setScaling(double scaling)
     {
         m_scaling = scaling;
+    }
+    
+    void setModelType(ModelType modelType)
+    {
+        m_modelType = modelType;
     }
     
     const std::vector<Vector3> &remeshedVertices()
@@ -60,15 +76,21 @@ public:
     
     static const double m_defaultSharpEdgeDegrees;
     static const double m_defaultScaling;
+    static float m_stanfordBunnyArea;
 private:
     std::vector<Vector3> m_vertices;
     std::vector<std::vector<size_t>> m_triangles;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedQuads;
     double m_scaling = m_defaultScaling;
+    size_t m_targetTriangleCount = 0;
+    double m_voxelSize = 0.0;
+    ModelType m_modelType = ModelType::Organic;
     
     static double calculateAverageEdgeLength(const std::vector<Vector3> &vertices,
         const std::vector<std::vector<size_t>> &faces);
+    void initializeVoxelSize();
+    void preprocess();
 };
     
 }

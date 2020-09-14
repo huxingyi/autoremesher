@@ -890,7 +890,7 @@ void QuadExtractor::fixHoles()
             continue;
         std::cerr << "Fixing hole at length:" << loop.size() << "..." << std::endl;
         fixHoleWithQuads(loop, true);
-        if (loop.size() > 4)
+        if (loop.size() >= 4)
             fixHoleWithQuads(loop, false);
     }
 }

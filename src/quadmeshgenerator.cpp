@@ -42,6 +42,9 @@ void QuadMeshGenerator::generate()
     m_autoRemesher = new AutoRemesher::AutoRemesher(m_vertices, m_triangles);
     if (m_parameters.scaling > 0)
         m_autoRemesher->setScaling(m_parameters.scaling);
+    if (m_parameters.targetTriangleCount > 0)
+        m_autoRemesher->setTargetTriangleCount(m_parameters.targetTriangleCount);
+    m_autoRemesher->setModelType(m_parameters.modelType);
     if (!m_autoRemesher->remesh())
         return;
     

@@ -166,6 +166,9 @@ HEADERS += src/ddsfile.h
 SOURCES += src/preferences.cpp
 HEADERS += src/preferences.h
 
+SOURCES += src/floatnumberwidget.cpp
+HEADERS += src/floatnumberwidget.h
+
 SOURCES += src/AutoRemesher/autoremesher.cpp
 HEADERS += src/AutoRemesher/autoremesher.h
 

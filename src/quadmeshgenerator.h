@@ -31,6 +31,8 @@ public:
     struct Parameters
     {
         double scaling = 0.0;
+        size_t targetTriangleCount = 0;
+        AutoRemesher::ModelType modelType = AutoRemesher::ModelType::Organic;
     };
 
     QuadMeshGenerator(const std::vector<AutoRemesher::Vector3> &vertices,

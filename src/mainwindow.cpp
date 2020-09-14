@@ -53,6 +53,7 @@
 #include "quadmeshgenerator.h"
 #include "spinnableawesomebutton.h"
 #include "logbrowser.h"
+#include "floatnumberwidget.h"
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
@@ -149,6 +150,24 @@ MainWindow::MainWindow()
     
     QHBoxLayout *toolLayout = new QHBoxLayout;
     
+    m_targetTriangleCountWidget = new FloatNumberWidget;
+    m_targetTriangleCountWidget->setItemName(tr("Density"));
+    m_targetTriangleCountWidget->setRange(0.0, 1.0);
+    m_targetTriangleCountWidget->setValue(m_targetDensity);
+    
+    connect(m_targetTriangleCountWidget, &FloatNumberWidget::valueChanged, [=](float value) {
+        m_targetDensity = value;
+    });
+    
+    //m_modelTypeSelectBox = new QComboBox;
+    //m_modelTypeSelectBox->addItem(tr("Organic"));
+    //m_modelTypeSelectBox->addItem(tr("Hard surface"));
+    //connect(m_modelTypeSelectBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, [&](int index) {
+    //    m_modelType = 1 == index ? AutoRemesher::ModelType::HardSurface : AutoRemesher::ModelType::Organic;
+    //});
+    
+    //m_modelTypeSelectBox->setCurrentIndex(AutoRemesher::ModelType::HardSurface == m_modelType ? 1 : 0);
+    
     SpinnableAwesomeButton *loadModelButton = new SpinnableAwesomeButton();
     loadModelButton->setAwesomeIcon(QChar(fa::folderopeno));
     connect(loadModelButton->button(), &QPushButton::clicked, this, &MainWindow::loadModel);
@@ -163,6 +182,9 @@ MainWindow::MainWindow()
     m_saveMeshButton = saveMeshButton;
     
     toolLayout->addStretch();
+    toolLayout->addWidget(m_targetTriangleCountWidget);
+    //toolLayout->addWidget(m_modelTypeSelectBox);
+    toolLayout->addSpacing(10);
     toolLayout->addWidget(loadModelButton);
     toolLayout->addWidget(saveMeshButton);
     
@@ -205,13 +227,18 @@ void MainWindow::updateButtonStates()
     if (nullptr == m_quadMeshGenerator &&
             !m_quadMeshResultIsDirty) {
         m_loadModelButton->showSpinner(false);
-        if (nullptr != m_remeshedQuads)
+        m_targetTriangleCountWidget->setEnabled(true);
+        //m_modelTypeSelectBox->setEnabled(true);
+        if (nullptr != m_remeshedQuads) {
             m_saveMeshButton->show();
-        else
+        } else {
             m_saveMeshButton->hide();
+        }
     } else {
         m_loadModelButton->showSpinner(true);
         m_saveMeshButton->hide();
+        m_targetTriangleCountWidget->setDisabled(true);
+        //m_modelTypeSelectBox->setDisabled(true);
     }
 }
 
@@ -518,6 +545,11 @@ void MainWindow::generateQuadMesh()
     QThread *thread = new QThread;
     
     QuadMeshGenerator::Parameters parameters;
+    
+    const int low = 10000;
+    const int high = 200000;
+    parameters.targetTriangleCount = low + (high - low) * m_targetDensity;
+    parameters.modelType = m_modelType;
     
     m_quadMeshGenerator = new QuadMeshGenerator(m_originalVertices, m_originalTriangles);
     m_quadMeshGenerator->setParameters(parameters);

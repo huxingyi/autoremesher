@@ -32,6 +32,8 @@
 class RenderMeshGenerator;
 class QuadMeshGenerator;
 class SpinnableAwesomeButton;
+class FloatNumberWidget;
+class QComboBox;
 
 class MainWindow : public QMainWindow
 {
@@ -72,6 +74,8 @@ private:
     AutoRemesher::AutoRemesher *m_autoRemesher = nullptr;
     bool m_inProgress = false;
     bool m_saved = true;
+    float m_targetDensity = 0.26;
+    AutoRemesher::ModelType m_modelType = AutoRemesher::ModelType::Organic;
     std::vector<AutoRemesher::Vector3> m_originalVertices;
     std::vector<std::vector<size_t>> m_originalTriangles;
     std::vector<AutoRemesher::Vector3> *m_remeshedVertices = nullptr;
@@ -83,6 +87,8 @@ private:
     QuadMeshGenerator *m_quadMeshGenerator = nullptr;
     SpinnableAwesomeButton *m_loadModelButton = nullptr;
     SpinnableAwesomeButton *m_saveMeshButton = nullptr;
+    FloatNumberWidget *m_targetTriangleCountWidget = nullptr;
+    QComboBox *m_modelTypeSelectBox = nullptr;
 };
 
 #endif

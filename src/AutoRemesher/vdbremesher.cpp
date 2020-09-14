@@ -37,75 +37,10 @@
 
 namespace AutoRemesher
 {
-    
-float VdbRemesher::m_defaultVoxelSize = 0.015f;
-float VdbRemesher::m_stanfordBunnyArea = 9.60311f;
-
-void VdbRemesher::calculateNormalizedFactors(const std::vector<Vector3> &vertices, Vector3 *origin, double *maxLength)
-{
-    double minX = std::numeric_limits<double>::max();
-    double maxX = std::numeric_limits<double>::lowest();
-    double minY = std::numeric_limits<double>::max();
-    double maxY = std::numeric_limits<double>::lowest();
-    double minZ = std::numeric_limits<double>::max();
-    double maxZ = std::numeric_limits<double>::lowest();
-    for (const auto &v: vertices) {
-        if (v.x() < minX)
-            minX = v.x();
-        if (v.x() > maxX)
-            maxX = v.x();
-        if (v.y() < minY)
-            minY = v.y();
-        if (v.y() > maxY)
-            maxY = v.y();
-        if (v.z() < minZ)
-            minZ = v.z();
-        if (v.z() > maxZ)
-            maxZ = v.z();
-    }
-    Vector3 length = {
-        (maxX - minX) * 0.5,
-        (maxY - minY) * 0.5,
-        (maxZ - minZ) * 0.5,
-    };
-    *maxLength = length[0];
-    if (length[1] > *maxLength)
-        *maxLength = length[1];
-    if (length[2] > *maxLength)
-        *maxLength = length[2];
-    *origin = {
-        (maxX + minX) * 0.5,
-        (maxY + minY) * 0.5,
-        (maxZ + minZ) * 0.5,
-    };
-}
-
-void VdbRemesher::normalizeVertices()
-{
-    double scale = 1.0;
-    double maxLength = 1.0;
-    calculateNormalizedFactors(*m_vertices, &m_origin, &maxLength);
-    m_recoverScale = maxLength / scale;
-    for (auto &v: *m_vertices) {
-        v = scale * (v - m_origin) / maxLength;
-    }
-}
 
 bool VdbRemesher::remesh()
 {
-    normalizeVertices();
-    
     auto &vertices = *m_vertices;
-    
-    double area = 0.0;
-    for (const auto &it: *m_triangles) {
-        area += Vector3::area(vertices[it[0]], vertices[it[1]], vertices[it[2]]);
-    }
-    if (area > 0)
-        m_voxelSize *= area / m_stanfordBunnyArea;
-#if AUTO_REMESHER_DEBUG
-    qDebug() << "Area:" << area << " voxelSize:" << m_voxelSize;
-#endif
 
     std::vector<openvdb::Vec3s> inputPoints(vertices.size());
 	std::vector<openvdb::Vec3I> inputTriangles;
@@ -146,8 +81,10 @@ bool VdbRemesher::remesh()
 	std::vector<openvdb::Vec3s> outputPoints;
 	std::vector<openvdb::Vec3I> outputTriangles;
 	std::vector<openvdb::Vec4I> outputQuads;
-	openvdb::tools::volumeToMesh<openvdb::FloatGrid>(*grid, outputPoints, outputTriangles, outputQuads,
-		isovalue, adaptivity, relaxDisorientedTriangles);
+    
+    openvdb::tools::volumeToMesh<openvdb::FloatGrid>(*grid, outputPoints, outputTriangles, outputQuads,
+        isovalue, adaptivity, relaxDisorientedTriangles);
+    
     delete m_vdbVertices;
 	m_vdbVertices = new std::vector<Vector3>(outputPoints.size());
 	for (size_t i = 0; i < outputPoints.size(); ++i) {
