@@ -8,7 +8,7 @@ Automatic quad remeshing software based on state of the art libraries: [Geogram]
 Introduction:
 https://blogs.dust3d.org/2020/09/11/auto-remesher-1.0.0-beta.1-released/
 
-![](https://blogs.dust3d.org/public/attachments/2020-09-11-auto-remesher-1.0.0-beta.1-released/auto-remesher-beta1.png)   
+![](https://user-images.githubusercontent.com/3941597/93143111-6e536b00-f726-11ea-994e-660e88bd90f3.png)   
 
 # Quick Start
 
