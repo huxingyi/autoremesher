@@ -115,7 +115,7 @@ bool QuadExtractor::extract()
     
     fixFlippedFaces();
     removeIsolatedFaces();
-    if (removeNonManifoldFaces())
+    while (removeNonManifoldFaces())
         removeIsolatedFaces();
     recordGoodQuads();
     

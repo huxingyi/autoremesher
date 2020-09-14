@@ -45,7 +45,7 @@ namespace AutoRemesher
 {
     
 const double AutoRemesher::m_defaultSharpEdgeDegrees = 90;
-const double AutoRemesher::m_defaultScaling = 0.9;
+const double AutoRemesher::m_defaultScaling = 1.8;
 
 double AutoRemesher::calculateAverageEdgeLength(const std::vector<Vector3> &vertices,
         const std::vector<std::vector<size_t>> &faces)

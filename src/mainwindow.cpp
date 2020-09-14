@@ -546,8 +546,8 @@ void MainWindow::generateQuadMesh()
     
     QuadMeshGenerator::Parameters parameters;
     
-    const int low = 10000;
-    const int high = 200000;
+    const int low = 12000;
+    const int high = 300000;
     parameters.targetTriangleCount = low + (high - low) * m_targetDensity;
     parameters.modelType = m_modelType;
     

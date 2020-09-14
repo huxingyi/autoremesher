@@ -72,8 +72,8 @@ bool VdbRemesher::remesh()
 	openvdb::FloatGrid::Ptr grid = openvdb::tools::meshToLevelSet<openvdb::FloatGrid>(
 		*transform, inputPoints, inputTriangles, inputQuads, 3);
 
-	openvdb::tools::LevelSetFilter<openvdb::FloatGrid> filter(*grid);
-	filter.laplacian();
+	//openvdb::tools::LevelSetFilter<openvdb::FloatGrid> filter(*grid);
+	//filter.laplacian();
 	
     double isovalue = 0.0;
 	double adaptivity = 0.0;
