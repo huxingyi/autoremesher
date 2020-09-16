@@ -90,7 +90,12 @@ private:
     static double calculateAverageEdgeLength(const std::vector<Vector3> &vertices,
         const std::vector<std::vector<size_t>> &faces);
     void initializeVoxelSize();
-    void preprocess();
+    static void resample(std::vector<Vector3> &vertices, 
+        std::vector<std::vector<size_t>> &triangles, 
+        double voxelSize,
+        size_t islandIndex);
+    static double calculateMeshArea(const std::vector<Vector3> &vertices,
+        const std::vector<std::vector<size_t>> &triangles);
 };
     
 }

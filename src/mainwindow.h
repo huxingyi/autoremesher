@@ -74,7 +74,7 @@ private:
     AutoRemesher::AutoRemesher *m_autoRemesher = nullptr;
     bool m_inProgress = false;
     bool m_saved = true;
-    float m_targetDensity = 0.12;
+    float m_targetDensity = 0.42;
     AutoRemesher::ModelType m_modelType = AutoRemesher::ModelType::Organic;
     std::vector<AutoRemesher::Vector3> m_originalVertices;
     std::vector<std::vector<size_t>> m_originalTriangles;

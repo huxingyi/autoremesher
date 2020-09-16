@@ -66,15 +66,22 @@ double AutoRemesher::calculateAverageEdgeLength(const std::vector<Vector3> &vert
 
 void AutoRemesher::initializeVoxelSize()
 {
-    double area = 0.0;
-    for (const auto &it: m_triangles) {
-        area += Vector3::area(m_vertices[it[0]], m_vertices[it[1]], m_vertices[it[2]]);
-    }
+    double area = calculateMeshArea(m_vertices, m_triangles);
     double triangleArea = area / m_targetTriangleCount;
     m_voxelSize = std::sqrt(triangleArea / (0.86602540378 * 0.5));
 #if AUTO_REMESHER_DEBUG
     qDebug() << "Area:" << area << " voxelSize:" << m_voxelSize;
 #endif
+}
+
+double AutoRemesher::calculateMeshArea(const std::vector<Vector3> &vertices,
+        const std::vector<std::vector<size_t>> &triangles)
+{
+    double area = 0.0;
+    for (const auto &it: triangles) {
+        area += Vector3::area(vertices[it[0]], vertices[it[1]], vertices[it[2]]);
+    }
+    return area;
 }
 
 struct ReportProgressContext
@@ -84,57 +91,58 @@ struct ReportProgressContext
 
 static void ReportProgress(void *tag, float progress)
 {
-    ReportProgressContext *context = (ReportProgressContext *)tag;
+    //ReportProgressContext *context = (ReportProgressContext *)tag;
 #if AUTO_REMESHER_DEBUG
-    //qDebug() << "Island[" << context->islandIndex << "]: progress(" << (progress * 100) << "%)";
+    //int percentage = (int)std::pow(10, progress * 2.0);
+    //qDebug() << "Island[" << context->islandIndex << "]: progress(" << (progress) << " percentage:" << percentage << "%)";
 #endif
 }
 
-void AutoRemesher::preprocess()
+void AutoRemesher::resample(std::vector<Vector3> &vertices, 
+    std::vector<std::vector<size_t>> &triangles, 
+    double voxelSize,
+    size_t islandIndex)
 {
-#if AUTO_REMESHER_DEBUG
-    qDebug() << "Preprocessing...";
-#endif
     std::vector<Vector3> *vdbVertices = nullptr;
     std::vector<std::vector<size_t>> *vdbTriangles = nullptr;
     
-    bool isVdbGood = false;
-    if (ModelType::Organic == m_modelType) {
 #if AUTO_REMESHER_DEBUG
-        qDebug() << "Vdb remeshing on voxel size:" << m_voxelSize;
+    qDebug() << "Island[" << islandIndex << "]: Vdb remeshing on voxel size:" << voxelSize;
 #endif
-        VdbRemesher vdbRemesher(&m_vertices, &m_triangles);
-        vdbRemesher.setVoxelSize(m_voxelSize);
-        vdbRemesher.remesh();
-        
-        delete vdbVertices;
-        delete vdbTriangles;
-        vdbVertices = vdbRemesher.takeVdbVertices();
-        vdbTriangles = vdbRemesher.takeVdbTriangles();
+    double areaBeforeVdbRemesh = calculateMeshArea(vertices, triangles);
+    VdbRemesher vdbRemesher(&vertices, &triangles);
+    vdbRemesher.setVoxelSize(voxelSize);
+    vdbRemesher.remesh();
+    delete vdbVertices;
+    delete vdbTriangles;
+    vdbVertices = vdbRemesher.takeVdbVertices();
+    vdbTriangles = vdbRemesher.takeVdbTriangles();
+    double areaAfterVdbRemesh = calculateMeshArea(*vdbVertices, *vdbTriangles);
 #if AUTO_REMESHER_DEBUG
-        qDebug() << "Vdb remeshed to vertex count:" << vdbVertices->size() << "triangle count:" << vdbTriangles->size() << "on voxel size:" << m_voxelSize;
+    qDebug() << "Island[" << islandIndex << "]: Vdb remeshed to vertex count:" << vdbVertices->size() << "triangle count:" << vdbTriangles->size() << "on voxel size:" << voxelSize;
+    qDebug() << "Island[" << islandIndex << "]: Area before vdb remesh:" << areaBeforeVdbRemesh;
+    qDebug() << "Island[" << islandIndex << "]: Area after vdb remesh:" << areaAfterVdbRemesh;
 #endif
-        isVdbGood = (vdbTriangles->size() >= 1000);
-    }
+    bool isVdbGood = (vdbTriangles->size() >= 100 && std::abs(areaAfterVdbRemesh - areaBeforeVdbRemesh) < areaBeforeVdbRemesh * 0.5);
     
 #if AUTO_REMESHER_DEBUG
-    qDebug() << "Uniformly remeshing...";
+    qDebug() << "Island[" << islandIndex << "]: Uniformly remeshing... isVdbGood:" << isVdbGood;
 #endif
     IsotropicRemesher *isotropicRemesher = nullptr;
     if (isVdbGood) {
         isotropicRemesher = new IsotropicRemesher(*vdbVertices, *vdbTriangles);
         isotropicRemesher->setTargetEdgeLength(calculateAverageEdgeLength(*vdbVertices, *vdbTriangles));
     } else {
-        isotropicRemesher = new IsotropicRemesher(m_vertices, m_triangles);
-        isotropicRemesher->setTargetEdgeLength(m_voxelSize);
+        isotropicRemesher = new IsotropicRemesher(vertices, triangles);
+        isotropicRemesher->setTargetEdgeLength(voxelSize);
     }
     isotropicRemesher->setSharpEdgeDegrees(m_defaultSharpEdgeDegrees);
     isotropicRemesher->remesh();
-    m_vertices = isotropicRemesher->remeshedVertices();
-    m_triangles = isotropicRemesher->remeshedTriangles();
+    vertices = isotropicRemesher->remeshedVertices();
+    triangles = isotropicRemesher->remeshedTriangles();
     delete isotropicRemesher;
 #if AUTO_REMESHER_DEBUG
-    qDebug() << "Uniformly remesh done, vertex count:" << m_vertices.size() << " triangle count:" << m_triangles.size();
+    qDebug() << "Island[" << islandIndex << "]: Uniformly remesh done, vertex count:" << vertices.size() << " triangle count:" << triangles.size();
 #endif
     
     delete vdbVertices;
@@ -144,7 +152,6 @@ void AutoRemesher::preprocess()
 bool AutoRemesher::remesh()
 {
     initializeVoxelSize();
-    preprocess();
     
     std::vector<std::vector<std::vector<size_t>>> m_trianglesIslands;
     MeshSeparator::splitToIslands(m_triangles, m_trianglesIslands);
@@ -162,6 +169,7 @@ bool AutoRemesher::remesh()
     {
         std::vector<Vector3> vertices;
         std::vector<std::vector<size_t>> triangles;
+        double voxelSize;
         double scaling;
     };
 
@@ -186,6 +194,7 @@ bool AutoRemesher::remesh()
         }
 
         context.scaling = m_scaling;
+        context.voxelSize = m_voxelSize;
 
         islandContexes.push_back(context);
     }
@@ -200,7 +209,7 @@ bool AutoRemesher::remesh()
         }
         
         size_t islandIndex = 0;
-        const IslandContext *island = nullptr;
+        IslandContext *island = nullptr;
         Parameterizer *parameterizer = nullptr;
         QuadExtractor *remesher = nullptr;
     };
@@ -208,7 +217,7 @@ bool AutoRemesher::remesh()
     std::vector<ParameterizationThread> parameterizationThreads(islandContexes.size());
     for (size_t i = 0; i < islandContexes.size(); ++i) {
         auto &thread = parameterizationThreads[i];
-        const auto &context = islandContexes[i];
+        auto &context = islandContexes[i];
         thread.islandIndex = i;
         thread.island = &context;
     }
@@ -224,6 +233,12 @@ bool AutoRemesher::remesh()
         {
             for (size_t i = range.begin(); i != range.end(); ++i) {
                 auto &thread = (*m_parameterizationThreads)[i];
+                
+#if AUTO_REMESHER_DEBUG
+                qDebug() << "Island[" << thread.islandIndex << "]: resampling...";
+#endif
+                
+                resample(thread.island->vertices, thread.island->triangles, thread.island->voxelSize, thread.islandIndex);
 
                 const auto &vertices = thread.island->vertices;
                 const auto &triangles = thread.island->triangles;
@@ -244,7 +259,7 @@ bool AutoRemesher::remesh()
                 
                 std::vector<std::vector<Vector2>> *uvs = thread.parameterizer->takeTriangleUvs();
 #if AUTO_REMESHER_DEBUG
-                qDebug() << "Island[" << thread.islandIndex << "]: quad extracing...";
+                qDebug() << "Island[" << thread.islandIndex << "]: quad extracting...";
 #endif
                 thread.remesher = new QuadExtractor(&vertices, 
                     &triangles, 
