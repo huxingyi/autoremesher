@@ -75,6 +75,7 @@ private:
     bool m_inProgress = false;
     bool m_saved = true;
     float m_targetDensity = 0.42;
+    float m_targetScaling = 1.0;
     AutoRemesher::ModelType m_modelType = AutoRemesher::ModelType::Organic;
     std::vector<AutoRemesher::Vector3> m_originalVertices;
     std::vector<std::vector<size_t>> m_originalTriangles;
@@ -88,6 +89,7 @@ private:
     SpinnableAwesomeButton *m_loadModelButton = nullptr;
     SpinnableAwesomeButton *m_saveMeshButton = nullptr;
     FloatNumberWidget *m_targetTriangleCountWidget = nullptr;
+    FloatNumberWidget *m_targetScalingWidget = nullptr;
     QComboBox *m_modelTypeSelectBox = nullptr;
 };
 

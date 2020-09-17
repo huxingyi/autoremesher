@@ -154,10 +154,19 @@ MainWindow::MainWindow()
     m_targetTriangleCountWidget->setItemName(tr("Density"));
     m_targetTriangleCountWidget->setRange(0.0, 1.0);
     m_targetTriangleCountWidget->setValue(m_targetDensity);
-    
     connect(m_targetTriangleCountWidget, &FloatNumberWidget::valueChanged, [=](float value) {
         m_targetDensity = value;
     });
+    
+    /*
+    m_targetScalingWidget = new FloatNumberWidget;
+    m_targetScalingWidget->setItemName(tr("Edge Scaling"));
+    m_targetScalingWidget->setRange(0.5, 5.0);
+    m_targetScalingWidget->setValue(m_targetScaling);
+    connect(m_targetScalingWidget, &FloatNumberWidget::valueChanged, [=](float value) {
+        m_targetScaling = value;
+    });
+    */
     
     //m_modelTypeSelectBox = new QComboBox;
     //m_modelTypeSelectBox->addItem(tr("Organic"));
@@ -183,6 +192,7 @@ MainWindow::MainWindow()
     
     toolLayout->addStretch();
     toolLayout->addWidget(m_targetTriangleCountWidget);
+    //toolLayout->addWidget(m_targetScalingWidget);
     //toolLayout->addWidget(m_modelTypeSelectBox);
     toolLayout->addSpacing(10);
     toolLayout->addWidget(loadModelButton);
@@ -227,6 +237,7 @@ void MainWindow::updateButtonStates()
     if (nullptr == m_quadMeshGenerator &&
             !m_quadMeshResultIsDirty) {
         m_loadModelButton->showSpinner(false);
+        //m_targetScalingWidget->setEnabled(true);
         m_targetTriangleCountWidget->setEnabled(true);
         //m_modelTypeSelectBox->setEnabled(true);
         if (nullptr != m_remeshedQuads) {
@@ -237,6 +248,7 @@ void MainWindow::updateButtonStates()
     } else {
         m_loadModelButton->showSpinner(true);
         m_saveMeshButton->hide();
+        //m_targetScalingWidget->setDisabled(true);
         m_targetTriangleCountWidget->setDisabled(true);
         //m_modelTypeSelectBox->setDisabled(true);
     }
@@ -546,9 +558,14 @@ void MainWindow::generateQuadMesh()
     
     QuadMeshGenerator::Parameters parameters;
     
-    const int base = 50000;
-    const int densityRange = 600000;
-    parameters.targetTriangleCount = base + densityRange * m_targetDensity;
+    {
+        const int base = 50000;
+        const int range = 600000;
+        parameters.targetTriangleCount = base + range * m_targetDensity;
+    }
+    {
+        parameters.scaling = m_targetScaling;
+    }
     parameters.modelType = m_modelType;
     
     m_quadMeshGenerator = new QuadMeshGenerator(m_originalVertices, m_originalTriangles);

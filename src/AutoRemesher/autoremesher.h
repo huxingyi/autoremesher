@@ -75,14 +75,12 @@ public:
     bool remesh();
     
     static const double m_defaultSharpEdgeDegrees;
-    static const double m_defaultScaling;
-    static float m_stanfordBunnyArea;
 private:
     std::vector<Vector3> m_vertices;
     std::vector<std::vector<size_t>> m_triangles;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedQuads;
-    double m_scaling = m_defaultScaling;
+    double m_scaling = 0.0;
     size_t m_targetTriangleCount = 0;
     double m_voxelSize = 0.0;
     ModelType m_modelType = ModelType::Organic;

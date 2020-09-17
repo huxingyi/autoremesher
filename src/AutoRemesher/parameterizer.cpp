@@ -78,7 +78,7 @@ bool Parameterizer::parameterize()
     if (nullptr == m_triangleFieldVectors) {
         GEO::FrameField FF;
         FF.set_use_spatial_search(false);
-        FF.create_from_surface_mesh(M, false, 90);
+        FF.create_from_surface_mesh(M, false, 45);
         const auto &frames = FF.frames();
         for (GEO::index_t f: M.facets) {
             B[f] = GEO::vec3(
