@@ -124,6 +124,7 @@ after_test:
   - 7z a %RELEASE_FILENAME% %QTDIR%\bin\Qt5Gui.dll
   - 7z a %RELEASE_FILENAME% %QTDIR%\bin\Qt5Core.dll
   - 7z a %RELEASE_FILENAME% %QTDIR%\bin\Qt5Network.dll
+  - 7z a %RELEASE_FILENAME% %QTDIR%\bin\Qt5WinExtras.dll
   - 7z a %RELEASE_FILENAME% %QTDIR%\bin\opengl32sw.dll
   - 7z a %RELEASE_FILENAME% "%VCREDIST_CRT_DIR%\msvcp140.dll"
   - 7z a %RELEASE_FILENAME% "%VCREDIST_CRT_DIR%\vcruntime140.dll"

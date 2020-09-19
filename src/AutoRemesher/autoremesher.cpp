@@ -35,6 +35,7 @@
 #include <geogram_report_progress.h>
 
 thread_local void *geogram_report_progress_tag;
+thread_local int geogram_report_progress_round;
 thread_local geogram_report_progress_handler geogram_report_progress_callback;
 
 #if AUTO_REMESHER_DEBUG
@@ -86,15 +87,16 @@ double AutoRemesher::calculateMeshArea(const std::vector<Vector3> &vertices,
 struct ReportProgressContext
 {
     size_t islandIndex;
+    AutoRemesher *autoRemesher;
 };
 
 static void ReportProgress(void *tag, float progress)
 {
-    //ReportProgressContext *context = (ReportProgressContext *)tag;
+    ReportProgressContext *context = (ReportProgressContext *)tag;
 #if AUTO_REMESHER_DEBUG
-    //int percentage = (int)std::pow(10, progress * 2.0);
-    //qDebug() << "Island[" << context->islandIndex << "]: progress(" << (progress) << " percentage:" << percentage << "%)";
+    //qDebug() << "Island[" << context->islandIndex << "]: round(" << geogram_report_progress_round << ") progress(" << (100 * progress) << "%)";
 #endif
+    context->autoRemesher->updateProgress(context->islandIndex, (float)geogram_report_progress_round / 8 + progress / 8);
 }
 
 void AutoRemesher::resample(std::vector<Vector3> &vertices, 
@@ -148,8 +150,23 @@ void AutoRemesher::resample(std::vector<Vector3> &vertices,
     delete vdbTriangles;
 }
 
+void AutoRemesher::updateProgress(size_t threadIndex, float progress)
+{
+    if (nullptr == m_progressHandler)
+        return;
+    
+    m_threadProgress[threadIndex] = progress;
+    float totalProgress = 0.0;
+    for (size_t i = 0; i < m_threadProgress.size(); ++i)
+        totalProgress += m_threadProgress[i] * m_threadProgressWeights[i];
+    m_progressHandler(m_tag, totalProgress);
+}
+
 bool AutoRemesher::remesh()
 {
+    if (nullptr != m_progressHandler)
+        m_progressHandler(m_tag, 0.0);
+    
     initializeVoxelSize();
     
     std::vector<std::vector<std::vector<size_t>>> m_trianglesIslands;
@@ -157,6 +174,8 @@ bool AutoRemesher::remesh()
     
     if (m_trianglesIslands.empty()) {
         std::cerr << "Input mesh is empty" << std::endl;
+        if (nullptr != m_progressHandler)
+            m_progressHandler(m_tag, 1.0);
         return false;
     }
     
@@ -211,15 +230,22 @@ bool AutoRemesher::remesh()
         IslandContext *island = nullptr;
         Parameterizer *parameterizer = nullptr;
         QuadExtractor *remesher = nullptr;
+        AutoRemesher *autoRemesher = nullptr;
+        float progressWeight = 1.0;
     };
-
+    
+    m_threadProgressWeights.resize(islandContexes.size(), 1.0);
     std::vector<ParameterizationThread> parameterizationThreads(islandContexes.size());
     for (size_t i = 0; i < islandContexes.size(); ++i) {
         auto &thread = parameterizationThreads[i];
         auto &context = islandContexes[i];
         thread.islandIndex = i;
         thread.island = &context;
+        thread.autoRemesher = this;
+        if (!m_triangles.empty())
+            m_threadProgressWeights[i] = (float)(((double)context.triangles.size() / m_triangles.size()));
     }
+    m_threadProgress.resize(parameterizationThreads.size());
 
     class SurfaceParameterizer
     {
@@ -247,7 +273,9 @@ bool AutoRemesher::remesh()
 #endif
                 ReportProgressContext reportProgressContext;
                 reportProgressContext.islandIndex = i;
+                reportProgressContext.autoRemesher = thread.autoRemesher;
                 geogram_report_progress_tag = &reportProgressContext;
+                geogram_report_progress_round = 0;
                 geogram_report_progress_callback = ReportProgress;
                 
                 thread.parameterizer = new Parameterizer(&vertices, 
@@ -330,6 +358,9 @@ bool AutoRemesher::remesh()
 #if AUTO_REMESHER_DEBUG
     qDebug() << "Remesh debug result saved";
 #endif
+
+    if (nullptr != m_progressHandler)
+        m_progressHandler(m_tag, 1.0);
 
     return true;
 }

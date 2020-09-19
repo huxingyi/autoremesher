@@ -36,6 +36,17 @@ void QuadMeshGenerator::process()
     emit finished();
 }
 
+void QuadMeshGenerator::emitProgress(float progress)
+{
+    emit reportProgress(progress);
+}
+
+static void reportProgressHandler(void *tag, float progress)
+{
+    QuadMeshGenerator *generator = (QuadMeshGenerator *)tag;
+    generator->emitProgress(progress);
+}
+
 void QuadMeshGenerator::generate()
 {
     delete m_autoRemesher;
@@ -45,6 +56,8 @@ void QuadMeshGenerator::generate()
     if (m_parameters.targetTriangleCount > 0)
         m_autoRemesher->setTargetTriangleCount(m_parameters.targetTriangleCount);
     m_autoRemesher->setModelType(m_parameters.modelType);
+    m_autoRemesher->setTag(this);
+    m_autoRemesher->setProgressHandler(reportProgressHandler);
     if (!m_autoRemesher->remesh())
         return;
     

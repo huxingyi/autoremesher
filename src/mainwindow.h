@@ -23,6 +23,7 @@
 #define AUTO_REMESHER_MAIN_WINDOW_H
 #include <QMainWindow>
 #include <QCloseEvent>
+#include <QShowEvent>
 #include <QString>
 #include <queue>
 #include <AutoRemesher/AutoRemesher>
@@ -34,6 +35,9 @@ class QuadMeshGenerator;
 class SpinnableAwesomeButton;
 class FloatNumberWidget;
 class QComboBox;
+#ifdef Q_OS_WIN32
+class QWinTaskbarButton;
+#endif
 
 class MainWindow : public QMainWindow
 {
@@ -51,6 +55,7 @@ public:
     static size_t total();
 protected:
     void closeEvent(QCloseEvent *event);
+    void showEvent(QShowEvent *event);
 private slots:
     void showSupporters();
     void showAcknowlegements();
@@ -69,6 +74,7 @@ private slots:
     void generateQuadMesh();
     void quadMeshReady();
     void updateButtonStates();
+    void updateProgress(float progress);
 private:
     PbrShaderWidget *m_modelRenderWidget = nullptr;
     AutoRemesher::AutoRemesher *m_autoRemesher = nullptr;
@@ -91,6 +97,9 @@ private:
     FloatNumberWidget *m_targetTriangleCountWidget = nullptr;
     FloatNumberWidget *m_targetScalingWidget = nullptr;
     QComboBox *m_modelTypeSelectBox = nullptr;
+#ifdef Q_OS_WIN32
+    QWinTaskbarButton *m_taskbarButton = nullptr;
+#endif
 };
 
 #endif

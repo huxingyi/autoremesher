@@ -23,6 +23,7 @@
 typedef void (*geogram_report_progress_handler)(void *tag, float progress);
 
 extern thread_local void *geogram_report_progress_tag;
+extern thread_local int geogram_report_progress_round;
 extern thread_local geogram_report_progress_handler geogram_report_progress_callback;
 
 #endif

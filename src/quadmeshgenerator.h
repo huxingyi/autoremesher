@@ -69,8 +69,10 @@ public:
     }
 
     void generate();
+    void emitProgress(float progress);
     
 signals:
+    void reportProgress(float progress);
     void finished();
 public slots:
     void process();

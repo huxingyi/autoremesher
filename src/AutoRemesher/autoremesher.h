@@ -37,6 +37,8 @@ enum class ModelType
     HardSurface
 };
 
+typedef void (*AutoRemesherProgressHandler)(void *tag, float progress);
+
 class AutoRemesher
 {
 public:
@@ -57,6 +59,16 @@ public:
         m_scaling = scaling;
     }
     
+    void setProgressHandler(AutoRemesherProgressHandler progressHandler)
+    {
+        m_progressHandler = progressHandler;
+    }
+    
+    void setTag(void *tag)
+    {
+        m_tag = tag;
+    }
+    
     void setModelType(ModelType modelType)
     {
         m_modelType = modelType;
@@ -73,6 +85,7 @@ public:
     }
     
     bool remesh();
+    void updateProgress(size_t threadIndex, float progress);
     
     static const double m_defaultSharpEdgeDegrees;
 private:
@@ -80,10 +93,14 @@ private:
     std::vector<std::vector<size_t>> m_triangles;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedQuads;
+    std::vector<float> m_threadProgress;
+    std::vector<float> m_threadProgressWeights;
     double m_scaling = 0.0;
     size_t m_targetTriangleCount = 0;
     double m_voxelSize = 0.0;
     ModelType m_modelType = ModelType::Organic;
+    AutoRemesherProgressHandler m_progressHandler = nullptr;
+    void *m_tag = nullptr;
     
     static double calculateAverageEdgeLength(const std::vector<Vector3> &vertices,
         const std::vector<std::vector<size_t>> &faces);

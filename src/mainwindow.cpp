@@ -41,6 +41,10 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QUuid>
+#ifdef Q_OS_WIN32
+#include <QWinTaskbarButton>
+#include <QWinTaskbarProgress>
+#endif
 #include "mainwindow.h"
 #include "graphicscontainerwidget.h"
 #include "aboutwidget.h"
@@ -83,6 +87,10 @@ MainWindow::MainWindow()
     }
 
     g_windows.insert({this, QUuid::createUuid()});
+    
+#ifdef Q_OS_WIN32
+    m_taskbarButton = new QWinTaskbarButton(this);
+#endif
     
     GraphicsWidget *graphicsWidget = new GraphicsWidget;
     
@@ -389,6 +397,13 @@ void MainWindow::updateTitle()
     setWindowTitle(QString("%1 %2 %3%4").arg(appName).arg(appVer).arg(m_currentFilename).arg(m_saved ? "" : "*"));
 }
 
+void MainWindow::updateProgress(float progress)
+{
+#ifdef Q_OS_WIN32
+    m_taskbarButton->progress()->setValue((int)(progress * 100));
+#endif
+}
+
 MainWindow::~MainWindow()
 {
     g_windows.erase(this);
@@ -470,6 +485,16 @@ void MainWindow::checkForUpdates()
     g_updatesCheckWidget->show();
     g_updatesCheckWidget->activateWindow();
     g_updatesCheckWidget->raise();
+}
+
+void MainWindow::showEvent(QShowEvent *event)
+{
+#ifdef Q_OS_WIN32
+    m_taskbarButton->setWindow(windowHandle());
+    m_taskbarButton->progress()->setVisible(true);
+#endif
+
+    event->accept();
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
@@ -569,6 +594,7 @@ void MainWindow::generateQuadMesh()
     parameters.modelType = m_modelType;
     
     m_quadMeshGenerator = new QuadMeshGenerator(m_originalVertices, m_originalTriangles);
+    connect(m_quadMeshGenerator, &QuadMeshGenerator::reportProgress, this, &MainWindow::updateProgress);
     m_quadMeshGenerator->setParameters(parameters);
     m_quadMeshGenerator->moveToThread(thread);
     connect(thread, &QThread::started, m_quadMeshGenerator, &QuadMeshGenerator::process);
