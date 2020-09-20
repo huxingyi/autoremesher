@@ -62,7 +62,6 @@ private:
     const std::vector<Vector3> *m_triangleFieldVectors = nullptr;
     std::vector<std::vector<Vector2>> *m_triangleUvs = nullptr;
     double m_scaling = 1.0;
-    std::vector<Vector3> m_smoothedVertices;
 };
     
 }

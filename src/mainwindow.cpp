@@ -584,7 +584,7 @@ void MainWindow::generateQuadMesh()
     QuadMeshGenerator::Parameters parameters;
     
     {
-        const int base = 200000;
+        const int base = 100000;
         const int range = 500000;
         parameters.targetTriangleCount = base + range * m_targetDensity;
     }

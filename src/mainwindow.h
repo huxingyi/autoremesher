@@ -81,7 +81,7 @@ private:
     bool m_inProgress = false;
     bool m_saved = true;
     float m_targetDensity = 0.0;
-    float m_targetScaling = 1.0;
+    float m_targetScaling = 3.0;
     AutoRemesher::ModelType m_modelType = AutoRemesher::ModelType::Organic;
     std::vector<AutoRemesher::Vector3> m_originalVertices;
     std::vector<std::vector<size_t>> m_originalTriangles;

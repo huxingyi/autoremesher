@@ -58,10 +58,10 @@ bool QuadExtractor::extract()
     std::cerr << "Extract edges..." << std::endl;
     std::unordered_map<size_t, std::unordered_set<size_t>> edgeConnectMap;
     extractEdges(connections, &edgeConnectMap);
-    bool collapsedShortEdges = collapseShortEdges(&crossPoints, &edgeConnectMap);
-    //bool collapsedTriangles = collapseTriangles(&crossPoints, &edgeConnectMap);
-    if (collapsedShortEdges/* || collapsedTriangles*/)
+    if (collapseShortEdges(&crossPoints, &edgeConnectMap))
         simplifyGraph(edgeConnectMap);
+    collapseTriangles(&crossPoints, &edgeConnectMap);
+        
     std::cerr << "Extract edges done" << std::endl;
     
 #if AUTO_REMESHER_DEV
@@ -113,6 +113,23 @@ bool QuadExtractor::extract()
             v = oldToNewMap[v];
     }
     
+#if AUTO_REMESHER_DEV
+    {
+        FILE *fp = fopen("debug-quadextractor-quads-withoutfix.obj", "wb");
+        for (size_t i = 0; i < m_remeshedVertices.size(); ++i) {
+            const auto &vertex = m_remeshedVertices[i];
+            fprintf(fp, "v %f %f %f\n", vertex.x(), vertex.y(), vertex.z());
+        }
+        for (const auto &it: m_remeshedQuads) {
+            fprintf(fp, "f");
+            for (const auto &v: it)
+                fprintf(fp, " %zu", 1 + v);
+            fprintf(fp, "\n");
+        }
+        fclose(fp);
+    }
+#endif
+    
     fixFlippedFaces();
     removeIsolatedFaces();
     while (removeNonManifoldFaces())
@@ -121,7 +138,7 @@ bool QuadExtractor::extract()
     
 #if AUTO_REMESHER_DEV
     {
-        FILE *fp = fopen("debug-quadextractor-quads-withoutfix.obj", "wb");
+        FILE *fp = fopen("debug-quadextractor-quads-removed-bad.obj", "wb");
         for (size_t i = 0; i < m_remeshedVertices.size(); ++i) {
             const auto &vertex = m_remeshedVertices[i];
             fprintf(fp, "v %f %f %f\n", vertex.x(), vertex.y(), vertex.z());
@@ -258,6 +275,114 @@ void QuadExtractor::simplifyGraph(std::unordered_map<size_t, std::unordered_set<
             graph[it.second.second].insert(it.second.first);
         }
     }
+}
+
+bool QuadExtractor::collapseTriangles(std::vector<Vector3> *crossPoints,
+        std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap)
+{
+    std::unordered_map<size_t, std::unordered_set<size_t>> triangleEdges;
+    for (const auto &level0It: *edgeConnectMap) {
+        const auto &level0 = level0It.first;
+        auto findLevel1 = (*edgeConnectMap).find(level0);
+        if (findLevel1 == (*edgeConnectMap).end())
+            continue;
+        for (const auto &level1: findLevel1->second) {
+            auto findLevel2 = (*edgeConnectMap).find(level1);
+            if (findLevel2 == (*edgeConnectMap).end())
+                continue;
+            for (const auto &level2: findLevel2->second) {
+                if (level0 == level2)
+                    continue;
+                auto findLevel3 = (*edgeConnectMap).find(level2);
+                if (findLevel3 == (*edgeConnectMap).end())
+                    continue;
+                for (const auto &level3: findLevel3->second) {
+                    if (level0 != level3)
+                        continue;
+                    triangleEdges[level0].insert(level1);
+                    triangleEdges[level0].insert(level2);
+                    triangleEdges[level1].insert(level0);
+                    triangleEdges[level1].insert(level2);
+                    triangleEdges[level2].insert(level0);
+                    triangleEdges[level2].insert(level1);
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (triangleEdges.empty())
+        return false;
+    
+    std::vector<std::vector<size_t>> clusters;
+    std::unordered_set<size_t> visited;
+    for (const auto &edge: triangleEdges) {
+        std::queue<size_t> q;
+        q.push(edge.first);
+        std::vector<size_t> group;
+        while (!q.empty()) {
+            size_t v = q.front();
+            q.pop();
+            if (visited.find(v) != visited.end())
+                continue;
+            visited.insert(v);
+            group.push_back(v);
+            auto findNeighbor = triangleEdges.find(v);
+            if (findNeighbor == triangleEdges.end())
+                continue;
+            for (const auto &neighbor: findNeighbor->second) {
+                if (visited.find(neighbor) != visited.end())
+                    continue;
+                q.push(neighbor);
+            }
+        }
+        if (group.empty())
+            continue;
+        clusters.push_back(group);
+    }
+    
+    std::cerr << "collapseTriangles clusters:" << clusters.size() << std::endl;
+    
+    for (const auto &group: clusters) {
+        Vector3 center;
+        for (const auto &v: group)
+            center += (*crossPoints)[v];
+        center /= group.size();
+        (*crossPoints)[group[0]] = center;
+        
+        std::cerr << "group:" << group.size() << std::endl;
+        for (size_t i = 0; i < group.size(); ++i)
+            std::cerr << "group[" << i << "]:" << group[i] << std::endl;
+    
+        std::unordered_set<size_t> moveNeighbors;
+        for (size_t i = 1; i < group.size(); ++i) {
+            for (const auto &neighbor: (*edgeConnectMap)[group[i]])
+                moveNeighbors.insert(neighbor);
+        }
+        moveNeighbors.erase(group[0]);
+
+        for (const auto &neighbor: moveNeighbors) {
+            (*edgeConnectMap)[group[0]].insert(neighbor);
+            (*edgeConnectMap)[neighbor].insert(group[0]);
+        }
+        
+        for (const auto &neighbor: moveNeighbors) {
+            for (size_t i = 1; i < group.size(); ++i) {
+                (*edgeConnectMap)[neighbor].erase(group[i]);
+                if ((*edgeConnectMap)[neighbor].empty())
+                    (*edgeConnectMap).erase(neighbor);
+            }
+        }
+        
+        for (size_t i = 1; i < group.size(); ++i) {
+            (*edgeConnectMap).erase(group[i]);
+            (*edgeConnectMap)[group[0]].erase(group[i]);
+        }
+        if ((*edgeConnectMap)[group[0]].empty())
+            (*edgeConnectMap).erase(group[0]);
+    }
+    
+    return true;
 }
 
 bool QuadExtractor::collapseShortEdges(std::vector<Vector3> *crossPoints,
@@ -406,9 +531,8 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
                     if (findLevel4 == edgeConnectMap.end())
                         continue;
                     for (const auto &level4: findLevel4->second) {
-                        if (level0 != level4) {
+                        if (level0 != level4)
                             continue;
-                        }
                         if (!isQuadCornerConflits(level0, level1, level2, level3)) {
                             auto faceNormal = calculateFaceNormal({level0, level1, level2, level3});
                             if (Vector3::dotProduct(faceNormal, triangleNormal) > 0) {
