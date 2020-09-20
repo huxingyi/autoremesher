@@ -21,17 +21,58 @@
 #include <exploragram/hexdom/quad_cover.h>
 #include <geogram/mesh/mesh_io.h>
 #include <geogram/mesh/mesh_frame_field.h>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace AutoRemesher
 {
 
 bool Parameterizer::parameterize()
 {
+    double averageEdgeLength = 0;
+    std::vector<Vector3> vertexNormals(m_vertices->size());
+    std::unordered_map<size_t, std::unordered_set<size_t>> neighborMap;
+    for (const auto &it: *m_triangles) {
+        for (size_t i = 0; i < it.size(); ++i) {
+            size_t j = (i + 1) % it.size();
+            averageEdgeLength += ((*m_vertices)[it[i]] - (*m_vertices)[it[j]]).length();
+            neighborMap[it[i]].insert(it[j]);
+            neighborMap[it[j]].insert(it[i]);
+        }
+        Vector3 triangleNormal = Vector3::normal((*m_vertices)[it[0]],
+            (*m_vertices)[it[1]],
+            (*m_vertices)[it[2]]);
+        vertexNormals[it[0]] += triangleNormal;
+        vertexNormals[it[1]] += triangleNormal;
+        vertexNormals[it[2]] += triangleNormal;
+    }
+    averageEdgeLength /= m_triangles->size() * 3;
+    for (auto &it: vertexNormals)
+        it.normalize();
+    
+    m_smoothedVertices = *m_vertices;
+    
+    for (size_t i = 0; i < m_smoothedVertices.size(); ++i) {
+        m_smoothedVertices[i] += vertexNormals[i] * averageEdgeLength;
+    }
+    
+    int smoothIterations = 5;
+    while (--smoothIterations >= 0) {
+        std::vector<Vector3> newSmoothedVertices(m_smoothedVertices.size());
+        for (const auto &it: neighborMap) {
+            for (const auto &neighbor: it.second) {
+                newSmoothedVertices[it.first] += m_smoothedVertices[neighbor];
+            }
+            newSmoothedVertices[it.first] /= it.second.size();
+        }
+        m_smoothedVertices = newSmoothedVertices;
+    }
+    
 #if AUTO_REMESHER_DEV
     {
         FILE *fp = fopen("debug-input-for-parameterization.obj", "wb");
         for (size_t i = 0; i < m_vertices->size(); ++i) {
-            const auto &vertex = (*m_vertices)[i];
+            const auto &vertex = m_smoothedVertices[i];
             fprintf(fp, "v %f %f %f\n", vertex[0], vertex[1], vertex[2]);
         }
         for (size_t i = 0; i < m_triangles->size(); ++i) {
@@ -42,45 +83,50 @@ bool Parameterizer::parameterize()
     }
 #endif
 
+    auto makeMesh = [](GEO::Mesh &M, const std::vector<Vector3> &vertices, const std::vector<std::vector<size_t>> &triangles) {
+        M.vertices.set_dimension(3);
+        std::vector<GEO::index_t> meshVertices(vertices.size());
+        for (size_t i = 0; i < vertices.size(); ++i) {
+            const auto &row = vertices[i];
+            auto v = M.vertices.create_vertex();
+            meshVertices[i] = v;
+            double coords[] = {row[0], row[1], row[2]};
+            if (M.vertices.single_precision()) {
+                float *p = M.vertices.single_precision_point_ptr(v);
+                for (GEO::index_t c = 0; c < 3; ++c) {
+                    p[c] = float(coords[c]);
+                }
+            } else {
+                double *p = M.vertices.point_ptr(v);
+                for (GEO::index_t c = 0; c < 3; ++c) {
+                    p[c] = coords[c];
+                }
+            }
+        }
+        
+        for (size_t i = 0; i < triangles.size(); ++i) {
+            const auto &row = triangles[i];
+            GEO::index_t f = M.facets.create_polygon(3);
+            for (GEO::index_t lv = 0; lv < 3; ++lv) {
+                M.facets.set_vertex(f, lv, meshVertices[row[lv]]);
+            }
+        }
+        
+        M.facets.connect();
+    };
+    
     GEO::Mesh M;
-    
-    M.vertices.set_dimension(3);
-    std::vector<GEO::index_t> meshVertices(m_vertices->size());
-    for (size_t i = 0; i < m_vertices->size(); ++i) {
-        const auto &row = (*m_vertices)[i];
-        auto v = M.vertices.create_vertex();
-        meshVertices[i] = v;
-        double coords[] = {row[0], row[1], row[2]};
-        if (M.vertices.single_precision()) {
-            float *p = M.vertices.single_precision_point_ptr(v);
-            for (GEO::index_t c = 0; c < 3; ++c) {
-                p[c] = float(coords[c]);
-            }
-        } else {
-            double *p = M.vertices.point_ptr(v);
-            for (GEO::index_t c = 0; c < 3; ++c) {
-                p[c] = coords[c];
-            }
-        }
-    }
-    
-    for (size_t i = 0; i < m_triangles->size(); ++i) {
-        const auto &row = (*m_triangles)[i];
-        GEO::index_t f = M.facets.create_polygon(3);
-        for (GEO::index_t lv = 0; lv < 3; ++lv) {
-            M.facets.set_vertex(f, lv, meshVertices[row[lv]]);
-        }
-    }
-    
-    M.facets.connect();
+    makeMesh(M, m_smoothedVertices, *m_triangles);
     
     GEO::Attribute<GEO::vec3> B(M.facets.attributes(), "B");
     if (nullptr == m_triangleFieldVectors) {
+        GEO::Mesh frameFieldM;
+        makeMesh(frameFieldM, *m_vertices, *m_triangles);
         GEO::FrameField FF;
         FF.set_use_spatial_search(false);
-        FF.create_from_surface_mesh(M, false, 45);
+        FF.create_from_surface_mesh(frameFieldM, false, 45);
         const auto &frames = FF.frames();
-        for (GEO::index_t f: M.facets) {
+        for (GEO::index_t f: frameFieldM.facets) {
             B[f] = GEO::vec3(
                 frames[9*f+0],
                 frames[9*f+1],

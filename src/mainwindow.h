@@ -80,7 +80,7 @@ private:
     AutoRemesher::AutoRemesher *m_autoRemesher = nullptr;
     bool m_inProgress = false;
     bool m_saved = true;
-    float m_targetDensity = 0.42;
+    float m_targetDensity = 0.0;
     float m_targetScaling = 1.0;
     AutoRemesher::ModelType m_modelType = AutoRemesher::ModelType::Organic;
     std::vector<AutoRemesher::Vector3> m_originalVertices;
