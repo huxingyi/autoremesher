@@ -61,6 +61,8 @@ bool QuadExtractor::extract()
     if (collapseShortEdges(&crossPoints, &edgeConnectMap))
         simplifyGraph(edgeConnectMap);
     collapseTriangles(&crossPoints, &edgeConnectMap);
+    if (removeSingleEndpoints(&crossPoints, &edgeConnectMap))
+        simplifyGraph(edgeConnectMap);
         
     std::cerr << "Extract edges done" << std::endl;
     
@@ -130,11 +132,11 @@ bool QuadExtractor::extract()
     }
 #endif
     
-    fixFlippedFaces();
-    removeIsolatedFaces();
-    while (removeNonManifoldFaces())
-        removeIsolatedFaces();
-    recordGoodQuads();
+    //fixFlippedFaces();
+    //removeIsolatedFaces();
+    //while (removeNonManifoldFaces())
+    //    removeIsolatedFaces();
+    //recordGoodQuads();
     
 #if AUTO_REMESHER_DEV
     {
@@ -153,8 +155,8 @@ bool QuadExtractor::extract()
     }
 #endif
 
-    fixHoles();
-    connectTvertices();
+    //fixHoles();
+    //connectTvertices();
     
 #if AUTO_REMESHER_DEV
     {
@@ -275,6 +277,38 @@ void QuadExtractor::simplifyGraph(std::unordered_map<size_t, std::unordered_set<
             graph[it.second.second].insert(it.second.first);
         }
     }
+}
+
+bool QuadExtractor::removeSingleEndpoints(std::vector<Vector3> *crossPoints,
+        std::unordered_map<size_t, std::unordered_set<size_t>> *edgeConnectMap)
+{
+    bool removed = false;
+    std::unordered_map<size_t, std::unordered_set<size_t>> &graph = *edgeConnectMap;
+    std::vector<size_t> endpoints;
+    for (auto it = graph.begin(); it != graph.end(); ++it) {
+        if (it->second.size() != 1)
+            continue;
+        endpoints.push_back(it->first);
+    }
+    for (const auto &endpoint: endpoints) {
+        size_t loopIndex = endpoint;
+        for (;;) {
+            auto findEndpoint = graph.find(loopIndex);
+            if (findEndpoint == graph.end())
+                break;
+            if (findEndpoint->second.size() != 1)
+                break;
+            size_t neighbor = *findEndpoint->second.begin();
+            graph.erase(loopIndex);
+            removed = true;
+            auto findNeighbor = graph.find(neighbor);
+            if (findNeighbor == graph.end())
+                break;
+            findNeighbor->second.erase(loopIndex);
+            loopIndex = neighbor;
+        }
+    }
+    return removed;
 }
 
 bool QuadExtractor::collapseTriangles(std::vector<Vector3> *crossPoints,
@@ -468,88 +502,164 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
             return true;
         return false;
     };
-    auto isQuadCornerConflits = [&](size_t level0, size_t level1, size_t level2, size_t level3) {
-        if (isConerUsed(level0, level1, level2))
-            return true;
-        if (isConerUsed(level1, level2, level3))
-            return true;
-        if (isConerUsed(level3, level0, level1))
-            return true;
+    auto isFaceCornerExist = [&](const std::vector<size_t> &vertices) {
+        for (size_t i = 0; i < vertices.size(); ++i) {
+            size_t j = (i + 1) % vertices.size();
+            size_t k = (i + 2) % vertices.size();
+            if (isConerUsed(vertices[i], vertices[j], vertices[k]))
+                return true;
+        }
         return false;
     };
-    auto addQuadCorners = [&](size_t level0, size_t level1, size_t level2, size_t level3) {
-        corners.insert(std::make_tuple(level0, level1, level2));
-        corners.insert(std::make_tuple(level2, level1, level0));
-        
-        corners.insert(std::make_tuple(level1, level2, level3));
-        corners.insert(std::make_tuple(level3, level2, level1));
-        
-        corners.insert(std::make_tuple(level3, level0, level1));
-        corners.insert(std::make_tuple(level1, level0, level3));
+    auto addFaceCorners = [&](const std::vector<size_t> &vertices) {
+        for (size_t i = 0; i < vertices.size(); ++i) {
+            size_t j = (i + 1) % vertices.size();
+            size_t k = (i + 2) % vertices.size();
+            corners.insert(std::make_tuple(vertices[i], vertices[j], vertices[k]));
+            corners.insert(std::make_tuple(vertices[k], vertices[j], vertices[i]));
+        }
     };
-    auto isQuadHalfEdgeConflits = [&](size_t level0, size_t level1, size_t level2, size_t level3) {
-        if (halfEdges.end() != halfEdges.find({level0, level1}))
-            return true;
-        if (halfEdges.end() != halfEdges.find({level1, level2}))
-            return true;
-        if (halfEdges.end() != halfEdges.find({level2, level3}))
-            return true;
-        if (halfEdges.end() != halfEdges.find({level3, level0}))
-            return true;
+    auto isFaceHalfEdgeExist = [&](const std::vector<size_t> &vertices) {
+        for (size_t i = 0; i < vertices.size(); ++i) {
+            size_t j = (i + 1) % vertices.size();
+            if (halfEdges.end() != halfEdges.find({vertices[i], vertices[j]}))
+                return true;
+        }
         return false;
     };
-    auto addQuadHalfEdges = [&](size_t level0, size_t level1, size_t level2, size_t level3) {
-        halfEdges.insert({level0, level1});
-        halfEdges.insert({level1, level2});
-        halfEdges.insert({level2, level3});
-        halfEdges.insert({level3, level0});
+    auto addFaceHalfEdges = [&](const std::vector<size_t> &vertices) {
+        for (size_t i = 0; i < vertices.size(); ++i) {
+            size_t j = (i + 1) % vertices.size();
+            halfEdges.insert({vertices[i], vertices[j]});
+        }
     };
     
-    for (const auto &level0It: edgeConnectMap) {
-        const auto &level0 = level0It.first;
-        auto findLevel1 = edgeConnectMap.find(level0);
-        if (findLevel1 == edgeConnectMap.end())
-            continue;
-        const auto &triangleVertices = (*m_triangles)[pointSourceTriangles[level0]];
-        auto triangleNormal = Vector3::normal((*m_vertices)[triangleVertices[0]],
-            (*m_vertices)[triangleVertices[1]], 
-            (*m_vertices)[triangleVertices[2]]);
-        for (const auto &level1: findLevel1->second) {
-            auto findLevel2 = edgeConnectMap.find(level1);
-            if (findLevel2 == edgeConnectMap.end())
+    for (size_t round = 0; round < 3; ++round) {
+        for (const auto &level0It: edgeConnectMap) {
+            const auto &level0 = level0It.first;
+            auto findLevel1 = edgeConnectMap.find(level0);
+            if (findLevel1 == edgeConnectMap.end())
                 continue;
-            for (const auto &level2: findLevel2->second) {
-                if (level0 == level2)
+            const auto &triangleVertices = (*m_triangles)[pointSourceTriangles[level0]];
+            auto triangleNormal = Vector3::normal((*m_vertices)[triangleVertices[0]],
+                (*m_vertices)[triangleVertices[1]], 
+                (*m_vertices)[triangleVertices[2]]);
+            for (const auto &level1: findLevel1->second) {
+                auto findLevel2 = edgeConnectMap.find(level1);
+                if (findLevel2 == edgeConnectMap.end())
                     continue;
-                auto findLevel3 = edgeConnectMap.find(level2);
-                if (findLevel3 == edgeConnectMap.end())
+                if (halfEdges.find({level0, level1}) != halfEdges.end() &&
+                        halfEdges.find({level1, level0}) != halfEdges.end())
                     continue;
-                for (const auto &level3: findLevel3->second) {
-                    if (level1 == level3)
+                for (const auto &level2: findLevel2->second) {
+                    if (level0 == level2)
                         continue;
-                    auto findLevel4 = edgeConnectMap.find(level3);
-                    if (findLevel4 == edgeConnectMap.end())
+                    auto findLevel3 = edgeConnectMap.find(level2);
+                    if (findLevel3 == edgeConnectMap.end())
                         continue;
-                    for (const auto &level4: findLevel4->second) {
-                        if (level0 != level4)
+                    if (halfEdges.find({level1, level2}) != halfEdges.end() &&
+                            halfEdges.find({level2, level1}) != halfEdges.end())
+                        continue;
+                    for (const auto &level3: findLevel3->second) {
+                        if (level1 == level3)
                             continue;
-                        if (!isQuadCornerConflits(level0, level1, level2, level3)) {
-                            auto faceNormal = calculateFaceNormal({level0, level1, level2, level3});
-                            if (Vector3::dotProduct(faceNormal, triangleNormal) > 0) {
-                                if (!isQuadHalfEdgeConflits(level0, level1, level2, level3)) {
-                                    quads->push_back({level0, level1, level2, level3});
-                                    addQuadCorners(level0, level1, level2, level3);
-                                    addQuadHalfEdges(level0, level1, level2, level3);
+                        auto findLevel4 = edgeConnectMap.find(level3);
+                        if (findLevel4 == edgeConnectMap.end())
+                            continue;
+                        if (halfEdges.find({level2, level3}) != halfEdges.end() &&
+                                halfEdges.find({level3, level2}) != halfEdges.end())
+                            continue;
+                        for (const auto &level4: findLevel4->second) {
+                            if (level0 != level4) {
+                                if (level2 == level4)
+                                    continue;
+                                if (round < 1)
+                                    continue;
+                                auto findLevel5 = edgeConnectMap.find(level4);
+                                if (findLevel5 == edgeConnectMap.end())
+                                    continue;
+                                if (halfEdges.find({level3, level4}) != halfEdges.end() &&
+                                        halfEdges.find({level4, level3}) != halfEdges.end())
+                                    continue;
+                                for (const auto &level5: findLevel5->second) {
+                                    if (level0 != level5) {
+                                        if (level3 == level5)
+                                            continue;
+                                        if (round < 2)
+                                            continue;
+                                        auto findLevel6 = edgeConnectMap.find(level5);
+                                        if (findLevel6 == edgeConnectMap.end())
+                                            continue;
+                                        if (halfEdges.find({level4, level5}) != halfEdges.end() &&
+                                                halfEdges.find({level5, level4}) != halfEdges.end())
+                                            continue;
+                                        for (const auto &level6: findLevel6->second) {
+                                            if (level0 != level6)
+                                                continue;
+                                            if (2 != round)
+                                                break;
+                                            if (!isFaceCornerExist({level0, level1, level2, level3, level4, level5})) {
+                                                auto faceNormal = calculateFaceNormal({level0, level1, level2, level3, level4, level5});
+                                                if (Vector3::dotProduct(faceNormal, triangleNormal) > 0) {
+                                                    if (!isFaceHalfEdgeExist({level0, level1, level2, level3, level4, level5})) {
+                                                        quads->push_back({level0, level1, level2, level3, level4, level5});
+                                                        addFaceCorners({level0, level1, level2, level3, level4, level5});
+                                                        addFaceHalfEdges({level0, level1, level2, level3, level4, level5});
+                                                    }
+                                                } else {
+                                                    if (!isFaceHalfEdgeExist({level5, level4, level3, level2, level1, level0})) {
+                                                        quads->push_back({level5, level4, level3, level2, level1, level0});
+                                                        addFaceCorners({level5, level4, level3, level2, level1, level0});
+                                                        addFaceHalfEdges({level5, level4, level3, level2, level1, level0});
+                                                    }
+                                                }
+                                            }
+                                            break;
+                                        }
+                                        continue;
+                                    }
+                                    if (1 != round)
+                                        break;
+                                    if (!isFaceCornerExist({level0, level1, level2, level3, level4})) {
+                                        auto faceNormal = calculateFaceNormal({level0, level1, level2, level3, level4});
+                                        if (Vector3::dotProduct(faceNormal, triangleNormal) > 0) {
+                                            if (!isFaceHalfEdgeExist({level0, level1, level2, level3, level4})) {
+                                                quads->push_back({level0, level1, level2, level3, level4});
+                                                addFaceCorners({level0, level1, level2, level3, level4});
+                                                addFaceHalfEdges({level0, level1, level2, level3, level4});
+                                            }
+                                        } else {
+                                            if (!isFaceHalfEdgeExist({level4, level3, level2, level1, level0})) {
+                                                quads->push_back({level4, level3, level2, level1, level0});
+                                                addFaceCorners({level4, level3, level2, level1, level0});
+                                                addFaceHalfEdges({level4, level3, level2, level1, level0});
+                                            }
+                                        }
+                                    }
+                                    break;
                                 }
-                            } else {
-                                if (!isQuadHalfEdgeConflits(level3, level2, level1, level0)) {
-                                    quads->push_back({level3, level2, level1, level0});
-                                    addQuadCorners(level3, level2, level1, level0);
-                                    addQuadHalfEdges(level3, level2, level1, level0);
+                                continue;
+                            }
+                            if (0 != round)
+                                break;
+                            if (!isFaceCornerExist({level0, level1, level2, level3})) {
+                                auto faceNormal = calculateFaceNormal({level0, level1, level2, level3});
+                                if (Vector3::dotProduct(faceNormal, triangleNormal) > 0) {
+                                    if (!isFaceHalfEdgeExist({level0, level1, level2, level3})) {
+                                        quads->push_back({level0, level1, level2, level3});
+                                        addFaceCorners({level0, level1, level2, level3});
+                                        addFaceHalfEdges({level0, level1, level2, level3});
+                                    }
+                                } else {
+                                    if (!isFaceHalfEdgeExist({level3, level2, level1, level0})) {
+                                        quads->push_back({level3, level2, level1, level0});
+                                        addFaceCorners({level3, level2, level1, level0});
+                                        addFaceHalfEdges({level3, level2, level1, level0});
+                                    }
                                 }
                             }
+                            break;
                         }
-                        break;
                     }
                 }
             }
