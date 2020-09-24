@@ -96,25 +96,9 @@ bool QuadExtractor::extract()
 #endif
     
     std::cerr << "Extract mesh..." << std::endl;
-    extractMesh(crossPoints, crossPointSourceTriangles, edgeConnectMap, &m_remeshedQuads);
+    extractMesh(crossPoints, crossPointSourceTriangles, edgeConnectMap, &m_remeshedPolygons);
     std::cerr << "Extract mesh done" << std::endl;
-    
-    std::unordered_map<size_t, size_t> oldToNewMap;
-    auto addQuadVertex = [&](size_t vertexIndex) {
-        auto insertResult = oldToNewMap.insert({vertexIndex, m_remeshedVertices.size()});
-        if (insertResult.second)
-            m_remeshedVertices.push_back(crossPoints[vertexIndex]);
-        return insertResult.first->second;
-    };
-    for (const auto &it: m_remeshedQuads) {
-        for (const auto &v: it)
-            addQuadVertex(v);
-    }
-    for (auto &it: m_remeshedQuads) {
-        for (auto &v: it)
-            v = oldToNewMap[v];
-    }
-    
+
 #if AUTO_REMESHER_DEV
     {
         FILE *fp = fopen("debug-quadextractor-quads-withoutfix.obj", "wb");
@@ -122,25 +106,36 @@ bool QuadExtractor::extract()
             const auto &vertex = m_remeshedVertices[i];
             fprintf(fp, "v %f %f %f\n", vertex.x(), vertex.y(), vertex.z());
         }
-        for (const auto &it: m_remeshedQuads) {
+        for (const auto &it: m_remeshedPolygons) {
             fprintf(fp, "f");
-            for (const auto &v: it)
+            std::unordered_set<size_t> indices;
+            for (const auto &v: it) {
+                indices.insert(v);
                 fprintf(fp, " %zu", 1 + v);
+            }
+            if (indices.size() != it.size()) {
+                std::cerr << "Found repeated vertices in face:";
+                for (const auto &v: it) {
+                    std::cerr << v << " ";
+                }
+                std::cerr << std::endl;
+            }
             fprintf(fp, "\n");
         }
         fclose(fp);
     }
 #endif
+
+    /*
+
+    fixNonQuads();
+    fixTriangleHoles();
     
-    //fixFlippedFaces();
-    //removeIsolatedFaces();
-    //while (removeNonManifoldFaces())
-    //    removeIsolatedFaces();
-    //recordGoodQuads();
+    // TODO: Cleanup repeated vertices using position map
     
 #if AUTO_REMESHER_DEV
     {
-        FILE *fp = fopen("debug-quadextractor-quads-removed-bad.obj", "wb");
+        FILE *fp = fopen("debug-quadextractor-quads-withoutfix-tedges.obj", "wb");
         for (size_t i = 0; i < m_remeshedVertices.size(); ++i) {
             const auto &vertex = m_remeshedVertices[i];
             fprintf(fp, "v %f %f %f\n", vertex.x(), vertex.y(), vertex.z());
@@ -155,8 +150,7 @@ bool QuadExtractor::extract()
     }
 #endif
 
-    //fixHoles();
-    //connectTvertices();
+    connectTvertices();
     
 #if AUTO_REMESHER_DEV
     {
@@ -175,65 +169,9 @@ bool QuadExtractor::extract()
     }
 #endif
 
+    */
+
     return true;
-}
-
-bool QuadExtractor::removeIsolatedFaces()
-{
-    std::vector<std::vector<std::vector<size_t>>> quadsIslands;
-    MeshSeparator::splitToIslands(m_remeshedQuads, quadsIslands);
-    if (quadsIslands.empty())
-        return false;
-    m_remeshedQuads = *std::max_element(quadsIslands.begin(), quadsIslands.end(), [&](const std::vector<std::vector<size_t>> &first,
-            const std::vector<std::vector<size_t>> &second) {
-        return first.size() < second.size();
-    });
-    return true;
-}
-
-bool QuadExtractor::removeNonManifoldFaces()
-{
-    bool changed = false;
-    std::map<std::pair<size_t, size_t>, size_t> edgeToFaceMap;
-    MeshSeparator::buildEdgeToFaceMap(m_remeshedQuads, edgeToFaceMap);
-    std::unordered_map<size_t, size_t> vertexOpenBoundaryCountMap;
-    for (const auto &it: edgeToFaceMap) {
-        if (edgeToFaceMap.end() != edgeToFaceMap.find({it.first.second, it.first.first}))
-            continue;
-        vertexOpenBoundaryCountMap[it.first.first]++;
-        vertexOpenBoundaryCountMap[it.first.second]++;
-    }
-    std::vector<std::vector<size_t>> manifoldFaces;
-    for (const auto &it: m_remeshedQuads) {
-        bool isNonManifold = false;
-        for (size_t i = 0; i < it.size(); ++i) {
-            auto findCount = vertexOpenBoundaryCountMap.find(it[i]);
-            if (findCount == vertexOpenBoundaryCountMap.end())
-                continue;
-            if (findCount->second > 2) {
-                isNonManifold = true;
-                break;
-            }
-        }
-        if (isNonManifold) {
-            changed = true;
-            continue;
-        }
-        manifoldFaces.push_back(it);
-    }
-    m_remeshedQuads = manifoldFaces;
-    return changed;
-}
-
-void QuadExtractor::recordGoodQuads()
-{
-    m_goodQuadHalfEdges.clear();
-    for (const auto &it: m_remeshedQuads) {
-        for (size_t i = 0; i < it.size(); ++i) {
-            size_t j = (i + 1) % it.size();
-            m_goodQuadHalfEdges.insert({it[i], it[j]});
-        }
-    }
 }
 
 void QuadExtractor::extractEdges(const std::set<std::pair<size_t, size_t>> &connections,
@@ -483,18 +421,47 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
         std::unordered_map<size_t, std::unordered_set<size_t>> &edgeConnectMap,
         std::vector<std::vector<size_t>> *quads)
 {
+    std::unordered_map<size_t, Vector3> triangleNormals;
+    for (size_t pointIndex = 0; pointIndex < pointSourceTriangles.size(); ++pointIndex) {
+        const auto &it = pointSourceTriangles[pointIndex];
+        const auto &triangleVertices = (*m_triangles)[it];
+        auto triangleNormal = Vector3::normal((*m_vertices)[triangleVertices[0]],
+                (*m_vertices)[triangleVertices[1]], 
+                (*m_vertices)[triangleVertices[2]]);
+        triangleNormals.insert({pointIndex, triangleNormal});
+    }
+    
     auto calculateFaceNormal = [&](const std::vector<size_t> &corners) {
+        Vector3 center;
+        for (size_t i = 0; i < corners.size(); ++i) {
+            center += points[corners[i]];
+        }
+        center /= corners.size();
         Vector3 normals;
         for (size_t i = 0; i < corners.size(); ++i) {
             normals += Vector3::normal(points[corners[(i + 0) % corners.size()]], 
                 points[corners[(i + 1) % corners.size()]], 
-                points[corners[(i + 2) % corners.size()]]);
+                center);
         }
         return normals.normalized();
     };
     
+    auto calculateSide = [&](const std::vector<size_t> &corners) {
+        auto ringNormal = calculateFaceNormal(corners);
+        Vector3 originalNormal;
+        for (const auto &it: corners)
+            originalNormal += triangleNormals[it];
+        auto dot = Vector3::dotProduct(ringNormal, originalNormal.normalized());
+        const double dotThreshold = 0.259; // > 75 or < 105 degrees
+        if (dot > dotThreshold)
+            return (int)1;
+        else if (dot < -dotThreshold)
+            return (int)-1;
+        return (int)0;
+    };
+    
     std::set<std::tuple<size_t, size_t, size_t>> corners;
-    std::set<std::pair<size_t, size_t>> halfEdges;
+    auto &halfEdges = m_halfEdges;
     auto isConerUsed = [&](size_t previous, size_t current, size_t next) {
         if (corners.end() != corners.find(std::make_tuple(previous, current, next)))
             return true;
@@ -534,7 +501,8 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
         }
     };
     
-    for (size_t round = 0; round < 3; ++round) {
+    size_t triangleRound = 4;
+    for (size_t round = 0; round < 5; ++round) {
         for (const auto &level0It: edgeConnectMap) {
             const auto &level0 = level0It.first;
             auto findLevel1 = edgeConnectMap.find(level0);
@@ -561,7 +529,31 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
                             halfEdges.find({level2, level1}) != halfEdges.end())
                         continue;
                     for (const auto &level3: findLevel3->second) {
-                        if (level1 == level3)
+                        if (level0 == level3) {
+                            if (triangleRound == round) {
+                                if (!isFaceCornerExist({level0, level1, level2})) {
+                                    auto side = calculateSide({level0, level1, level2});
+                                    if (side > 0) {
+                                        if (!isFaceHalfEdgeExist({level0, level1, level2})) {
+                                            quads->push_back({level0, level1, level2});
+                                            addFaceCorners({level0, level1, level2});
+                                            addFaceHalfEdges({level0, level1, level2});
+                                        }
+                                    } else if (side < 0) {
+                                        if (!isFaceHalfEdgeExist({level2, level1, level0})) {
+                                            quads->push_back({level2, level1, level0});
+                                            addFaceCorners({level2, level1, level0});
+                                            addFaceHalfEdges({level2, level1, level0});
+                                        }
+                                    }
+                                }
+                                break;
+                            }
+                        } else {
+                            if (triangleRound == round)
+                                break;
+                        }
+                        if (level1 == level3 || level0 == level3)
                             continue;
                         auto findLevel4 = edgeConnectMap.find(level3);
                         if (findLevel4 == edgeConnectMap.end())
@@ -571,7 +563,7 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
                             continue;
                         for (const auto &level4: findLevel4->second) {
                             if (level0 != level4) {
-                                if (level2 == level4)
+                                if (level2 == level4 || level1 == level4)
                                     continue;
                                 if (round < 1)
                                     continue;
@@ -583,7 +575,7 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
                                     continue;
                                 for (const auto &level5: findLevel5->second) {
                                     if (level0 != level5) {
-                                        if (level3 == level5)
+                                        if (level3 == level5 || level2 == level5 || level1 == level5)
                                             continue;
                                         if (round < 2)
                                             continue;
@@ -594,19 +586,53 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
                                                 halfEdges.find({level5, level4}) != halfEdges.end())
                                             continue;
                                         for (const auto &level6: findLevel6->second) {
-                                            if (level0 != level6)
+                                            if (level0 != level6) {
+                                                if (level4 == level6 || level3 == level6 || level2 == level6 || level1 == level6)
+                                                    continue;
+                                                if (round < 3)
+                                                    continue;
+                                                auto findLevel7 = edgeConnectMap.find(level6);
+                                                if (findLevel7 == edgeConnectMap.end())
+                                                    continue;
+                                                if (halfEdges.find({level5, level6}) != halfEdges.end() &&
+                                                        halfEdges.find({level6, level5}) != halfEdges.end())
+                                                    continue;
+                                                for (const auto &level7: findLevel7->second) {
+                                                    if (level0 != level7)
+                                                        continue;
+                                                    if (3 != round)
+                                                        break;
+                                                    if (!isFaceCornerExist({level0, level1, level2, level3, level4, level5, level6})) {
+                                                        auto side = calculateSide({level0, level1, level2, level3, level4, level5, level6});
+                                                        if (side > 0) {
+                                                            if (!isFaceHalfEdgeExist({level0, level1, level2, level3, level4, level5, level6})) {
+                                                                quads->push_back({level0, level1, level2, level3, level4, level5, level6});
+                                                                addFaceCorners({level0, level1, level2, level3, level4, level5, level6});
+                                                                addFaceHalfEdges({level0, level1, level2, level3, level4, level5, level6});
+                                                            }
+                                                        } else if (side < 0) {
+                                                            if (!isFaceHalfEdgeExist({level6, level5, level4, level3, level2, level1, level0})) {
+                                                                quads->push_back({level6, level5, level4, level3, level2, level1, level0});
+                                                                addFaceCorners({level6, level5, level4, level3, level2, level1, level0});
+                                                                addFaceHalfEdges({level6, level5, level4, level3, level2, level1, level0});
+                                                            }
+                                                        }
+                                                    }
+                                                    break;
+                                                }
                                                 continue;
+                                            }
                                             if (2 != round)
                                                 break;
                                             if (!isFaceCornerExist({level0, level1, level2, level3, level4, level5})) {
-                                                auto faceNormal = calculateFaceNormal({level0, level1, level2, level3, level4, level5});
-                                                if (Vector3::dotProduct(faceNormal, triangleNormal) > 0) {
+                                                auto side = calculateSide({level0, level1, level2, level3, level4, level5});
+                                                if (side > 0) {
                                                     if (!isFaceHalfEdgeExist({level0, level1, level2, level3, level4, level5})) {
                                                         quads->push_back({level0, level1, level2, level3, level4, level5});
                                                         addFaceCorners({level0, level1, level2, level3, level4, level5});
                                                         addFaceHalfEdges({level0, level1, level2, level3, level4, level5});
                                                     }
-                                                } else {
+                                                } else if (side < 0) {
                                                     if (!isFaceHalfEdgeExist({level5, level4, level3, level2, level1, level0})) {
                                                         quads->push_back({level5, level4, level3, level2, level1, level0});
                                                         addFaceCorners({level5, level4, level3, level2, level1, level0});
@@ -621,14 +647,14 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
                                     if (1 != round)
                                         break;
                                     if (!isFaceCornerExist({level0, level1, level2, level3, level4})) {
-                                        auto faceNormal = calculateFaceNormal({level0, level1, level2, level3, level4});
-                                        if (Vector3::dotProduct(faceNormal, triangleNormal) > 0) {
+                                        auto side = calculateSide({level0, level1, level2, level3, level4});
+                                        if (side > 0) {
                                             if (!isFaceHalfEdgeExist({level0, level1, level2, level3, level4})) {
                                                 quads->push_back({level0, level1, level2, level3, level4});
                                                 addFaceCorners({level0, level1, level2, level3, level4});
                                                 addFaceHalfEdges({level0, level1, level2, level3, level4});
                                             }
-                                        } else {
+                                        } else if (side < 0) {
                                             if (!isFaceHalfEdgeExist({level4, level3, level2, level1, level0})) {
                                                 quads->push_back({level4, level3, level2, level1, level0});
                                                 addFaceCorners({level4, level3, level2, level1, level0});
@@ -643,14 +669,14 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
                             if (0 != round)
                                 break;
                             if (!isFaceCornerExist({level0, level1, level2, level3})) {
-                                auto faceNormal = calculateFaceNormal({level0, level1, level2, level3});
-                                if (Vector3::dotProduct(faceNormal, triangleNormal) > 0) {
+                                auto side = calculateSide({level0, level1, level2, level3});
+                                if (side > 0) {
                                     if (!isFaceHalfEdgeExist({level0, level1, level2, level3})) {
                                         quads->push_back({level0, level1, level2, level3});
                                         addFaceCorners({level0, level1, level2, level3});
                                         addFaceHalfEdges({level0, level1, level2, level3});
                                     }
-                                } else {
+                                } else if (side < 0) {
                                     if (!isFaceHalfEdgeExist({level3, level2, level1, level0})) {
                                         quads->push_back({level3, level2, level1, level0});
                                         addFaceCorners({level3, level2, level1, level0});
@@ -664,6 +690,21 @@ void QuadExtractor::extractMesh(std::vector<Vector3> &points,
                 }
             }
         }
+    }
+    
+    m_remeshedVertices = points;
+    
+    std::vector<std::vector<size_t>> loops;
+    searchBoundaries(halfEdges, &loops);
+    for (auto &loop: loops) {
+        if (loop.size() > 65) {
+            std::cerr << "Ignore long hole at length:" << loop.size() << std::endl;
+            continue;
+        }
+        std::cerr << "Fixing hole at length:" << loop.size() << "..." << std::endl;
+        fixHoleWithQuads(loop, true);
+        if (loop.size() >= 4)
+            fixHoleWithQuads(loop, false);
     }
 }
 
@@ -837,30 +878,6 @@ void QuadExtractor::extractConnections(std::vector<Vector3> *crossPoints,
     }
 }
 
-void QuadExtractor::fixFlippedFaces()
-{
-    std::map<std::pair<size_t, size_t>, std::vector<size_t>> halfEdgeToFaceMap;
-    for (size_t i = 0; i < m_remeshedQuads.size(); ++i) {
-        const auto &face = m_remeshedQuads[i];
-        for (size_t j = 0; j < face.size(); ++j) {
-            size_t k = (j + 1) % face.size();
-            halfEdgeToFaceMap[{face[j], face[k]}].push_back(i);
-        }
-    }
-    std::unordered_map<size_t, size_t> faceConflicts;
-    for (const auto &it: halfEdgeToFaceMap) {
-        if (it.second.size() == 1)
-            continue;
-        for (const auto &conflictFace: it.second)
-            faceConflicts[conflictFace]++;
-    }
-    for (const auto &it: faceConflicts) {
-        if (it.second >= 3) {
-            std::reverse(m_remeshedQuads[it.first].begin(), m_remeshedQuads[it.first].end());
-        }
-    }
-}
-
 bool QuadExtractor::testPointInTriangle(const std::vector<Vector3> &points, 
         const std::vector<size_t> &triangle,
         const std::vector<size_t> &testPoints)
@@ -886,6 +903,8 @@ bool QuadExtractor::testPointInTriangle(const std::vector<Vector3> &points,
     return false;
 }
 
+/*
+
 void QuadExtractor::buildVertexNeighborMap(std::unordered_map<size_t, std::vector<size_t>> *vertexNeighborMap)
 {
     for (const auto &it: m_remeshedQuads) {
@@ -897,41 +916,177 @@ void QuadExtractor::buildVertexNeighborMap(std::unordered_map<size_t, std::vecto
     }
 }
 
-void QuadExtractor::connectTwoTvertices(size_t startVertex, const std::vector<size_t> &path)
+bool QuadExtractor::connectTwoTvertices(size_t startVertex, const std::pair<size_t, size_t> &startHalfEdge,
+    size_t stopVertex, const std::pair<size_t, size_t> &stopHalfEdge,
+    const std::vector<size_t> &path)
 {
-    std::cerr << "Connecting t-vertices, start:" << startVertex << std::endl;
+    std::cerr << "Connecting t-vertices, startV:" << startVertex << " startE:" << startHalfEdge.first << "~" << startHalfEdge.second << " stopV:" << stopVertex << " stopE:" << stopHalfEdge.first << "~" << stopHalfEdge.second << std::endl;
     for (size_t i = 0; i < path.size(); ++i)
         std::cerr << "path["<<i<<"]:" << path[i] << std::endl;
     
-    std::unordered_set<size_t> needRemoveVertices;
-    needRemoveVertices.insert(startVertex);
-    for (const auto &it: path)
-        needRemoveVertices.insert(it);
-    
-    bool changed = false;
-    std::vector<std::vector<size_t>> remainFaces;
-    for (const auto &it: m_remeshedQuads) {
-        bool needRemoveFace = false;
+    std::map<std::pair<size_t, size_t>, std::pair<size_t, int>> halfEdgeToQuadMap;
+    auto addQuadHalfEdges = [&](size_t quadIndex) {
+        const auto &it = m_remeshedQuads[quadIndex];
         for (size_t i = 0; i < it.size(); ++i) {
-            auto findNeedRemove = needRemoveVertices.find(it[i]);
-            if (findNeedRemove == needRemoveVertices.end())
-                continue;
-            needRemoveFace = true;
-            break;
+            size_t j = (i + 1) % it.size();
+            halfEdgeToQuadMap.insert({{it[i], it[j]}, {quadIndex, (int)i}});
         }
-        if (needRemoveFace) {
-            changed = true;
+    };
+    auto removeQuadHalfEdges = [&](size_t quadIndex) {
+        const auto &it = m_remeshedQuads[quadIndex];
+        for (size_t i = 0; i < it.size(); ++i) {
+            size_t j = (i + 1) % it.size();
+            halfEdgeToQuadMap.erase({it[i], it[j]});
+        }
+    };
+    for (size_t quadIndex = 0; quadIndex < m_remeshedQuads.size(); ++quadIndex)
+        addQuadHalfEdges(quadIndex);
+    
+    auto findCornerFromQuad = [&](const std::vector<size_t> &quad, size_t vertex) {
+        for (size_t i = 0; i < quad.size(); ++i) {
+            if (quad[i] == vertex)
+                return (int)i;
+        }
+        return (int)-1;
+    };
+    
+    auto insertQuadCenterPoint = [&](const std::vector<size_t> &quad) {
+        auto newPosition = (m_remeshedVertices[quad[0]] +
+            m_remeshedVertices[quad[1]] +
+            m_remeshedVertices[quad[2]] +
+            m_remeshedVertices[quad[3]]) / 4;
+        size_t newVertexIndex = m_remeshedVertices.size();
+        m_remeshedVertices.push_back(newPosition);
+        return newVertexIndex;
+    };
+    
+    std::unordered_set<size_t> erasedQuads;
+    size_t fromVertex = startVertex;
+    std::pair<size_t, size_t> fromHalfEdge = startHalfEdge;
+    std::cerr << "Start:" << std::endl;
+    for (size_t i = 0; i < path.size(); ++i) {
+        size_t toVertex = path[i];
+        std::cerr << "path["<<i<<"]:" << path[i] << " fromVertex:" << fromVertex << " fromHalfEdge:" << fromHalfEdge.first << "~" << fromHalfEdge.second << std::endl;
+        auto findFrom = halfEdgeToQuadMap.find(fromHalfEdge);
+        if (findFrom == halfEdgeToQuadMap.end()) {
+            // TODO: check if reached target t-edge
+            std::cerr << "connectTwoTvertices find from half edge failed:" << fromHalfEdge.first << "~" << fromHalfEdge.second << std::endl;
+            return false;
+        }
+        size_t fromQuadIndex = findFrom->second.first;
+        int fromCornerIndex = findFrom->second.second;
+        auto quad = m_remeshedQuads[fromQuadIndex];
+        std::cerr << "quad:" << quad[0] << "," << quad[1] << "," << quad[2] << "," << quad[3] << std::endl;
+        std::cerr << "fromCornerIndex:" << fromCornerIndex << std::endl;
+        int toCornerIndex = findCornerFromQuad(quad, toVertex);
+        std::cerr << "toCornerIndex:" << toCornerIndex << std::endl;
+        if (-1 == toCornerIndex) {
+            auto findLeft = halfEdgeToQuadMap.find({fromVertex, toVertex});
+            if (findLeft == halfEdgeToQuadMap.end()) {
+                // TODO: check if reached target t-edge
+                std::cerr << "connectTwoTvertices findCornerFromQuad and findLeft failed:" << toVertex << std::endl;
+                return false;
+            }
+            auto findRight = halfEdgeToQuadMap.find({toVertex, fromVertex});
+            if (findRight == halfEdgeToQuadMap.end()) {
+                // TODO: check if reached target t-edge
+                std::cerr << "connectTwoTvertices findCornerFromQuad and findRight failed:" << toVertex << std::endl;
+                return false;
+            }
+            size_t leftQuadIndex = findLeft->second.first;
+            size_t rightQuadIndex = findRight->second.first;
+            size_t leftBorderEdgeIndex = findLeft->second.second;
+            size_t rightBorderEdgeIndex = findRight->second.second;
+            removeQuadHalfEdges(leftQuadIndex);
+            removeQuadHalfEdges(rightQuadIndex);
+            auto leftQuad = m_remeshedQuads[leftQuadIndex];
+            auto rightQuad = m_remeshedQuads[rightQuadIndex];
+            m_remeshedQuads.push_back({leftQuad[(leftBorderEdgeIndex + 2) % 4], 
+                leftQuad[(leftBorderEdgeIndex + 3) % 4],
+                rightQuad[(rightBorderEdgeIndex + 2) % 4],
+                rightQuad[(rightBorderEdgeIndex + 3) % 4]});
+            addQuadHalfEdges(m_remeshedQuads.size() - 1);
+            fromVertex = toVertex;
+            fromHalfEdge = {rightQuad[(rightBorderEdgeIndex + 3) % 4], leftQuad[(leftBorderEdgeIndex + 2) % 4]};
+            std::cerr << "Stepback combine two quads left:" << leftQuad[0] << "," << leftQuad[1] << "," << leftQuad[2] << "," << leftQuad[3] << " right:" << rightQuad[0] << "," << rightQuad[1] << "," << rightQuad[2] << "," << rightQuad[3] << std::endl;
+            erasedQuads.erase(leftQuadIndex);
+            erasedQuads.erase(rightQuadIndex);
             continue;
         }
-        remainFaces.push_back(it);
+        removeQuadHalfEdges(fromQuadIndex);
+        if (toCornerIndex == fromCornerIndex) {
+            size_t centerVertex = insertQuadCenterPoint(quad);
+            int breakEdgeIndex = (toCornerIndex + 4 - 1) % 4;
+            auto breakPointPosition = (m_remeshedVertices[quad[breakEdgeIndex]] + m_remeshedVertices[quad[toCornerIndex]]) * 0.5;
+            size_t breakPointIndex = m_remeshedVertices.size();
+            m_remeshedVertices.push_back(breakPointPosition);
+            m_remeshedQuads.push_back({centerVertex, breakPointIndex, quad[toCornerIndex], fromVertex});
+            addQuadHalfEdges(m_remeshedQuads.size() - 1);
+            m_remeshedQuads.push_back({centerVertex, fromVertex, quad[(fromCornerIndex + 1) % 4], quad[(fromCornerIndex + 2) % 4]});
+            addQuadHalfEdges(m_remeshedQuads.size() - 1);
+            m_remeshedQuads.push_back({centerVertex, quad[(fromCornerIndex + 2) % 4], quad[(fromCornerIndex + 3) % 4], breakPointIndex});
+            addQuadHalfEdges(m_remeshedQuads.size() - 1);
+            fromVertex = breakPointIndex;
+            fromHalfEdge = {quad[toCornerIndex], quad[breakEdgeIndex]};
+        } else if (toCornerIndex == (fromCornerIndex + 1) % 4) {
+            size_t centerVertex = insertQuadCenterPoint(quad);
+            int breakEdgeIndex = toCornerIndex;
+            auto breakPointPosition = (m_remeshedVertices[quad[breakEdgeIndex]], m_remeshedVertices[quad[(toCornerIndex + 1) % 4]]) * 0.5;
+            size_t breakPointIndex = m_remeshedVertices.size();
+            m_remeshedVertices.push_back(breakPointPosition);
+            m_remeshedQuads.push_back({centerVertex, fromVertex, quad[toCornerIndex], breakPointIndex});
+            addQuadHalfEdges(m_remeshedQuads.size() - 1);
+            m_remeshedQuads.push_back({centerVertex, breakPointIndex, quad[(toCornerIndex + 1) % 4], quad[(toCornerIndex + 2) % 4]});
+            addQuadHalfEdges(m_remeshedQuads.size() - 1);
+            m_remeshedQuads.push_back({centerVertex, quad[(toCornerIndex + 2) % 4], quad[(toCornerIndex + 3) % 4], fromVertex});
+            addQuadHalfEdges(m_remeshedQuads.size() - 1);
+            fromVertex = breakPointIndex;
+            fromHalfEdge = {quad[(toCornerIndex + 1) % 4], quad[breakEdgeIndex]};
+        } else if (toCornerIndex == (fromCornerIndex + 2) % 4) {
+            int breakEdgeIndex = toCornerIndex;
+            auto breakPointPosition = (m_remeshedVertices[quad[breakEdgeIndex]], m_remeshedVertices[quad[(toCornerIndex + 1) % 4]]) * 0.5;
+            size_t breakPointIndex = m_remeshedVertices.size();
+            m_remeshedVertices.push_back(breakPointPosition);
+            m_remeshedQuads.push_back({breakPointIndex, quad[(breakEdgeIndex + 1) % 4], quad[(breakEdgeIndex + 2) % 4], fromVertex});
+            addQuadHalfEdges(m_remeshedQuads.size() - 1);
+            m_remeshedQuads.push_back({breakPointIndex, fromVertex, quad[(breakEdgeIndex + 3) % 4], quad[breakEdgeIndex]});
+            addQuadHalfEdges(m_remeshedQuads.size() - 1);
+            fromVertex = breakPointIndex;
+            fromHalfEdge = {quad[(toCornerIndex + 1) % 4], quad[breakEdgeIndex]};
+        } else if (toCornerIndex == (fromCornerIndex + 3) % 4) {
+            size_t centerVertex = insertQuadCenterPoint(quad);
+            int breakEdgeIndex = toCornerIndex;
+            auto breakPointPosition = (m_remeshedVertices[quad[breakEdgeIndex]], m_remeshedVertices[quad[(toCornerIndex + 1) % 4]]) * 0.5;
+            size_t breakPointIndex = m_remeshedVertices.size();
+            m_remeshedVertices.push_back(breakPointPosition);
+            m_remeshedQuads.push_back({centerVertex, breakPointIndex, quad[(toCornerIndex + 1) % 4], fromVertex});
+            addQuadHalfEdges(m_remeshedQuads.size() - 1);
+            m_remeshedQuads.push_back({centerVertex, fromVertex, quad[(toCornerIndex + 2) % 4], quad[(toCornerIndex + 3) % 4]});
+            addQuadHalfEdges(m_remeshedQuads.size() - 1);
+            m_remeshedQuads.push_back({centerVertex, quad[(toCornerIndex + 3) % 4], quad[toCornerIndex], breakPointIndex});
+            addQuadHalfEdges(m_remeshedQuads.size() - 1);
+            fromVertex = breakPointIndex;
+            fromHalfEdge = {quad[(toCornerIndex + 1) % 4], quad[breakEdgeIndex]};
+        } else {
+            std::cerr << "connectTwoTvertices relate from and to corner failed" << std::endl;
+            return false;
+        }
+        erasedQuads.insert(fromQuadIndex);
     }
-    if (!changed)
-        return;
     
-    m_remeshedQuads = remainFaces;
-    std::cerr << "Fixing holes for removed t-vertices from:" << startVertex << std::endl;
-    recordGoodQuads();
-    fixHoles();
+    if (!erasedQuads.empty()) {
+        auto quads = m_remeshedQuads;
+        m_remeshedQuads.clear();
+        m_remeshedQuads.reserve(quads.size());
+        for (size_t i = 0; i < quads.size(); ++i) {
+            if (erasedQuads.find(i) != erasedQuads.end())
+                continue;
+            m_remeshedQuads.push_back(quads[i]);
+        }
+    }
+    // TODO:
+    
+    return true;
 }
 
 void QuadExtractor::connectTvertices()
@@ -942,7 +1097,9 @@ void QuadExtractor::connectTvertices()
         
         std::unordered_map<size_t, size_t> parentMap;
         
-        size_t startVertex = *m_tVertices.begin();
+        auto startIt = m_tVertices.begin();
+        size_t startVertex = startIt->first;
+        std::pair<size_t, size_t> startHalfEdge = startIt->second;
         std::cerr << "Searching nearest t-vertex, start:" << startVertex << std::endl;
         m_tVertices.erase(startVertex);
         std::queue<size_t> q;
@@ -962,16 +1119,19 @@ void QuadExtractor::connectTvertices()
             q.pop();
             if (visited.end() != visited.find(v))
                 continue;
-            if (m_tVertices.end() != m_tVertices.find(v)) {
+            auto findStopVertex = m_tVertices.find(v);
+            if (m_tVertices.end() != findStopVertex) {
                 std::vector<size_t> path;
                 size_t stopVertex = v;
+                auto stopHalfEdge = findStopVertex->second;
                 while (startVertex != v) {
                     path.push_back(v);
                     v = parentMap[v];
                 }
                 std::reverse(path.begin(), path.end());
                 m_tVertices.erase(stopVertex);
-                connectTwoTvertices(startVertex, path);
+                connectTwoTvertices(startVertex, startHalfEdge, stopVertex, stopHalfEdge, path);
+                std::cerr << "===================================" << std::endl;
                 break;
             }
             visited.insert(v);
@@ -1002,15 +1162,19 @@ void QuadExtractor::makeTedge(const std::vector<size_t> &triangle)
         return first.second < second.second;
     })->first;
     Vector3 collapseTo;
+    std::vector<size_t> edgeVertices;
     for (size_t i = 0; i < triangle.size(); ++i) {
         if (i == collapseIndex)
             continue;
+        edgeVertices.push_back(triangle[i]);
         collapseTo += m_remeshedVertices[triangle[i]];
     }
     collapseTo /= 2;
     m_remeshedVertices[triangle[collapseIndex]] = collapseTo;
-    m_tVertices.insert(triangle[collapseIndex]);
+    m_tVertices.insert({triangle[collapseIndex], {edgeVertices[0], edgeVertices[1]}});
 }
+
+*/
 
 void QuadExtractor::fixHoleWithQuads(std::vector<size_t> &hole, bool checkScore)
 {
@@ -1021,17 +1185,20 @@ void QuadExtractor::fixHoleWithQuads(std::vector<size_t> &hole, bool checkScore)
         }
         
         if (3 == hole.size()) {
-            std::cerr << "fixHoleWithQuads make t-edge" << std::endl;
-            makeTedge(hole);
+            //std::cerr << "fixHoleWithQuads make t-edge" << std::endl;
+            //makeTedge(hole);
+            //m_triangleHoles.push_back(hole);
+            m_remeshedPolygons.push_back({(size_t)hole[2], (size_t)hole[1], (size_t)hole[0]});
             return;
         }
         
         if (4 == hole.size()) {
-            m_remeshedQuads.push_back({(size_t)hole[3], (size_t)hole[2], (size_t)hole[1], (size_t)hole[0]});
-            std::cerr << "fixHoleWithQuads new quad:{" << m_remeshedQuads[m_remeshedQuads.size() - 1][0] << "," <<
-                m_remeshedQuads[m_remeshedQuads.size() - 1][1] << "," <<
-                m_remeshedQuads[m_remeshedQuads.size() - 1][2] << "," <<
-                m_remeshedQuads[m_remeshedQuads.size() - 1][3] << "}" << std::endl;
+            //m_remeshedQuads.push_back({(size_t)hole[3], (size_t)hole[2], (size_t)hole[1], (size_t)hole[0]});
+            //std::cerr << "fixHoleWithQuads new quad:{" << m_remeshedQuads[m_remeshedQuads.size() - 1][0] << "," <<
+            //    m_remeshedQuads[m_remeshedQuads.size() - 1][1] << "," <<
+            //    m_remeshedQuads[m_remeshedQuads.size() - 1][2] << "," <<
+            //    m_remeshedQuads[m_remeshedQuads.size() - 1][3] << "}" << std::endl;
+            m_remeshedPolygons.push_back({(size_t)hole[3], (size_t)hole[2], (size_t)hole[1], (size_t)hole[0]});
             return;
         }
         
@@ -1063,13 +1230,6 @@ void QuadExtractor::fixHoleWithQuads(std::vector<size_t> &hole, bool checkScore)
             int j = (i + 1) % hole.size();
             int k = (j + 1) % hole.size();
             std::vector<size_t> candidate = {(size_t)hole[k], (size_t)hole[j], (size_t)hole[i], (size_t)hole[h]};
-            if (m_goodQuadHalfEdges.end() != m_goodQuadHalfEdges.find({candidate[0], candidate[1]}) ||
-                    m_goodQuadHalfEdges.end() != m_goodQuadHalfEdges.find({candidate[1], candidate[2]}) ||
-                    m_goodQuadHalfEdges.end() != m_goodQuadHalfEdges.find({candidate[2], candidate[3]}) ||
-                    m_goodQuadHalfEdges.end() != m_goodQuadHalfEdges.find({candidate[3], candidate[0]})) {
-                std::cerr << "fixHoleWithQuads ignore score:" << score.second << " because conflicts with good quads" << std::endl;
-                continue;
-            }
             std::vector<size_t> remainPoints;
             for (int w = 0; w < hole.size(); ++w) {
                 if (w == i || w == j || w == h || w == k)
@@ -1081,11 +1241,12 @@ void QuadExtractor::fixHoleWithQuads(std::vector<size_t> &hole, bool checkScore)
                 std::cerr << "fixHoleWithQuads ignore score:" << score.second << " because other point in the same loop fall into quad plane" << std::endl;
                 continue;
             }
-            m_remeshedQuads.push_back(candidate);
-            std::cerr << "fixHoleWithQuads new quad:{" << m_remeshedQuads[m_remeshedQuads.size() - 1][0] << "," <<
-                m_remeshedQuads[m_remeshedQuads.size() - 1][1] << "," <<
-                m_remeshedQuads[m_remeshedQuads.size() - 1][2] << "," <<
-                m_remeshedQuads[m_remeshedQuads.size() - 1][3] << "}" << std::endl;
+            //m_remeshedQuads.push_back(candidate);
+            //std::cerr << "fixHoleWithQuads new quad:{" << m_remeshedQuads[m_remeshedQuads.size() - 1][0] << "," <<
+            //    m_remeshedQuads[m_remeshedQuads.size() - 1][1] << "," <<
+            //    m_remeshedQuads[m_remeshedQuads.size() - 1][2] << "," <<
+            //    m_remeshedQuads[m_remeshedQuads.size() - 1][3] << "}" << std::endl;
+            m_remeshedPolygons.push_back(candidate);
                 
             std::vector<size_t> newHole;
             for (int w = 0; w < hole.size(); ++w) {
@@ -1102,31 +1263,115 @@ void QuadExtractor::fixHoleWithQuads(std::vector<size_t> &hole, bool checkScore)
     }
 }
 
-void QuadExtractor::fixHoles()
+/*
+void QuadExtractor::fixNonQuads()
 {
-    Eigen::MatrixXi F(m_remeshedQuads.size() * 2, 3);
-    for (size_t i = 0, j = 0; i < m_remeshedQuads.size(); ++i) {
-        const auto &quad = m_remeshedQuads[i];
-        F.row(j++) << quad[0], quad[1], quad[2];
-        F.row(j++) << quad[2], quad[3], quad[0];
-    }
-    std::vector<std::vector<size_t>> loops;
-    igl::boundary_loop(F, loops);
-    
-    std::cerr << "Detected holes:" << loops.size() << std::endl;
-    
-    for (auto &loop: loops) {
-        if (loop.size() > 65) {
-            std::cerr << "Ignore long hole at length:" << loop.size() << std::endl;
+    m_remeshedQuads.reserve(m_remeshedPolygons.size());
+    std::vector<std::vector<size_t>> holes;
+    for (size_t i = 0; i < m_remeshedPolygons.size(); ++i) {
+        const auto &it = m_remeshedPolygons[i];
+        if (it.size() == 4) {
+            m_remeshedQuads.push_back(it);
             continue;
         }
-        if (loop.size() == 1)
-            continue;
-        std::cerr << "Fixing hole at length:" << loop.size() << "..." << std::endl;
+        std::vector<size_t> hole = it;
+        std::reverse(hole.begin(), hole.end());
+        holes.push_back(hole);
+    }
+    for (auto &loop: holes) {
         fixHoleWithQuads(loop, true);
         if (loop.size() >= 4)
             fixHoleWithQuads(loop, false);
     }
+}
+
+void QuadExtractor::fixTriangleHoles()
+{
+    std::map<std::pair<size_t, size_t>, size_t> halfEdgeToTriangleMap;
+    for (size_t triangleIndex = 0; triangleIndex < m_triangleHoles.size(); ++triangleIndex) {
+        const auto &it = m_triangleHoles[triangleIndex];
+        for (size_t i = 0; i < it.size(); ++i) {
+            size_t j = (i + 1) % it.size();
+            halfEdgeToTriangleMap.insert({{it[i], it[j]}, triangleIndex});
+        }
+    }
+    
+    auto otherPointInTriangle = [&](size_t triangleIndex, const std::pair<size_t, size_t> &halfEdge) {
+        const auto &it = m_triangleHoles[triangleIndex];
+        for (size_t i = 0; i < it.size(); ++i) {
+            const auto &v = it[i];
+            if (v == halfEdge.first || v == halfEdge.second)
+                continue;
+            return v;
+        }
+        return it[0];
+    };
+    
+    std::unordered_set<size_t> collapsed;
+    for (const auto &it: halfEdgeToTriangleMap) {
+        auto findOpposite = halfEdgeToTriangleMap.find({it.first.second, it.first.first});
+        if (findOpposite == halfEdgeToTriangleMap.end())
+            continue;
+        auto insertResult = collapsed.insert(it.second);
+        if (!insertResult.second)
+            continue;
+        auto insertOppositeResult = collapsed.insert(findOpposite->second);
+        if (!insertOppositeResult.second)
+            continue;
+        size_t v0 = otherPointInTriangle(it.second, it.first);
+        size_t v2 = otherPointInTriangle(findOpposite->second, findOpposite->first);
+        std::cerr << "Combine two triangles, v0:" << v0 << " e1:" << it.first.second << " v2:" << v2 << " e0:" << it.first.first << std::endl;
+        m_remeshedQuads.push_back({v0, it.first.second, v2, it.first.first});
+    }
+    
+    for (size_t triangleIndex = 0; triangleIndex < m_triangleHoles.size(); ++triangleIndex) {
+        if (collapsed.end() != collapsed.find(triangleIndex))
+            continue;
+        const auto &it = m_triangleHoles[triangleIndex];
+        makeTedge(it);
+    }
+}
+*/
+
+void QuadExtractor::searchBoundaries(const std::set<std::pair<size_t, size_t>> &halfEdges,
+        std::vector<std::vector<size_t>> *loops)
+{
+    std::cerr << "Searching boundaries..." << std::endl;
+    
+    std::unordered_map<size_t, std::unordered_set<size_t>> nextMap;
+    for (const auto &it: halfEdges) {
+        if (halfEdges.end() != halfEdges.find({it.second, it.first}))
+            continue;
+        nextMap[it.first].insert(it.second);
+    }
+    
+    while (!nextMap.empty()) {
+        auto it = nextMap.begin();
+        std::vector<size_t> loop;
+        size_t startVertex = it->first;
+        bool validate = false;
+        std::cerr << "Searching loop from:" << startVertex << std::endl;
+        while (it != nextMap.end()) {
+            if (startVertex == it->first && loop.size() >= 3) {
+                std::cerr << "Found valid loop, size:" << loop.size() << std::endl;
+                validate = true;
+                break;
+            }
+            std::cerr << "Loop add vertex:" << it->first << std::endl;
+            loop.push_back(it->first);
+            if (it->second.size() != 1) {
+                std::cerr << "Break loop, because of next size:" << it->second.size() << std::endl;
+                break;
+            }
+            it = nextMap.find(*it->second.begin());
+        }
+        for (const auto &v: loop)
+            nextMap.erase(v);
+        if (validate)
+            loops->push_back(loop);
+    }
+    
+    std::cerr << "Searching boundaries done" << std::endl;
 }
 
 }

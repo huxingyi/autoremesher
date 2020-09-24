@@ -2,9 +2,6 @@ QT += core widgets opengl network
 win32 {
     QT += winextras
 }
-
-DEFINES += AUTO_REMESHER_DEV
-
 CONFIG += release
 CONFIG(release, debug|release) DEFINES += NDEBUG
 DEFINES += AUTO_REMESHER_DEBUG

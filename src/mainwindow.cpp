@@ -39,7 +39,6 @@
 #include <QTextStream>
 #include <QFile>
 #include <QComboBox>
-#include <QLabel>
 #include <QUuid>
 #ifdef Q_OS_WIN32
 #include <QWinTaskbarButton>
@@ -185,6 +184,18 @@ MainWindow::MainWindow()
     
     //m_modelTypeSelectBox->setCurrentIndex(AutoRemesher::ModelType::HardSurface == m_modelType ? 1 : 0);
     
+    QLabel *edgeScalingLabel = new QLabel(tr("Edge scaling:"));
+    
+    m_edgeScalingSelectBox = new QComboBox;
+    m_edgeScalingSelectBox->addItem(tr("1.0"));
+    m_edgeScalingSelectBox->addItem(tr("2.0"));
+    m_edgeScalingSelectBox->addItem(tr("3.0"));
+    m_edgeScalingSelectBox->addItem(tr("4.0"));
+    m_edgeScalingSelectBox->setCurrentIndex((int)m_targetScaling - 1);
+    connect(m_edgeScalingSelectBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, [&](int index) {
+        m_targetScaling = (float)(index + 1);
+    });
+    
     SpinnableAwesomeButton *loadModelButton = new SpinnableAwesomeButton();
     loadModelButton->setAwesomeIcon(QChar(fa::folderopeno));
     connect(loadModelButton->button(), &QPushButton::clicked, this, &MainWindow::loadModel);
@@ -200,6 +211,9 @@ MainWindow::MainWindow()
     
     toolLayout->addStretch();
     toolLayout->addWidget(m_targetTriangleCountWidget);
+    toolLayout->addSpacing(5);
+    toolLayout->addWidget(edgeScalingLabel);
+    toolLayout->addWidget(m_edgeScalingSelectBox);
     //toolLayout->addWidget(m_targetScalingWidget);
     //toolLayout->addWidget(m_modelTypeSelectBox);
     toolLayout->addSpacing(10);
@@ -247,6 +261,7 @@ void MainWindow::updateButtonStates()
         m_loadModelButton->showSpinner(false);
         //m_targetScalingWidget->setEnabled(true);
         m_targetTriangleCountWidget->setEnabled(true);
+        m_edgeScalingSelectBox->setEnabled(true);
         //m_modelTypeSelectBox->setEnabled(true);
         if (nullptr != m_remeshedQuads) {
             m_saveMeshButton->show();
@@ -258,6 +273,7 @@ void MainWindow::updateButtonStates()
         m_saveMeshButton->hide();
         //m_targetScalingWidget->setDisabled(true);
         m_targetTriangleCountWidget->setDisabled(true);
+        m_edgeScalingSelectBox->setDisabled(true);
         //m_modelTypeSelectBox->setDisabled(true);
     }
 }

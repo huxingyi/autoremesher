@@ -1,3 +1,10 @@
+1.0.0-beta.3
+- Remesh isolated meshes separately   
+- Improve quad extractor  
+- Add edge scaling setting for generating low poly  
+- Add rough progress reporting (Windows only)  
+- Generate quad dominated mesh    
+
 1.0.0-beta.2
 - Fix holes  
 - Replace Poly budget with density setting  

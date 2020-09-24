@@ -48,7 +48,7 @@ public:
     
     const std::vector<std::vector<size_t>> &remeshedQuads()
     {
-        return m_remeshedQuads;
+        return m_remeshedPolygons;
     }
     
     bool extract();
@@ -58,10 +58,11 @@ private:
     const std::vector<std::vector<size_t>> *m_triangles = nullptr;
     const std::vector<std::vector<Vector2>> *m_triangleUvs = nullptr;
     std::vector<Vector3> m_remeshedVertices;
-    std::vector<std::vector<size_t>> m_remeshedQuads;
-    std::set<std::pair<size_t, size_t>> m_goodQuadHalfEdges;
-    std::unordered_set<size_t> m_tVertices;
-    
+    std::vector<std::vector<size_t>> m_remeshedPolygons;
+    std::vector<std::vector<size_t>> m_triangleHoles;
+    std::set<std::pair<size_t, size_t>> m_halfEdges;
+    std::unordered_map<size_t, std::pair<size_t, size_t>> m_tVertices;
+
     void extractConnections(std::vector<Vector3> *crossPoints, 
         std::vector<size_t> *sourceTriangles,
         std::set<std::pair<size_t, size_t>> *connections);
@@ -81,19 +82,20 @@ private:
         std::unordered_map<size_t, std::unordered_set<size_t>> &edgeConnectMap,
         std::vector<std::vector<size_t>> *quads);
     void simplifyGraph(std::unordered_map<size_t, std::unordered_set<size_t>> &graph);
-    void fixFlippedFaces();
-    bool removeIsolatedFaces();
-    bool removeNonManifoldFaces();
     void makeTedge(const std::vector<size_t> &triangle);
-    void fixHoles();
+    void searchBoundaries(const std::set<std::pair<size_t, size_t>> &halfEdges,
+            std::vector<std::vector<size_t>> *loops);
     void fixHoleWithQuads(std::vector<size_t> &hole, bool checkScore=true);
-    void recordGoodQuads();
     bool testPointInTriangle(const std::vector<Vector3> &points, 
         const std::vector<size_t> &triangle,
         const std::vector<size_t> &testPoints);
     void connectTvertices();
     void buildVertexNeighborMap(std::unordered_map<size_t, std::vector<size_t>> *vertexNeighborMap);
-    void connectTwoTvertices(size_t startVertex, const std::vector<size_t> &path);
+    bool connectTwoTvertices(size_t startVertex, const std::pair<size_t, size_t> &startHalfEdge, 
+        size_t stopVertex, const std::pair<size_t, size_t> &stopHalfEdge,
+        const std::vector<size_t> &path);
+    void fixNonQuads();
+    void fixTriangleHoles();
 };
     
 }

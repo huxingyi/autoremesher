@@ -83,17 +83,29 @@ void RenderMeshGenerator::generate()
     normalizeVertices();
     
     std::vector<AutoRemesher::Vector3> vertexNormals(m_vertices->size());
+    std::vector<AutoRemesher::Vector3> faceCenters(m_faces->size());
+    std::vector<AutoRemesher::Vector3> faceNormals(m_faces->size());
     for (size_t i = 0; i < m_faces->size(); ++i) {
         const auto &sourceFace = (*m_faces)[i];
-        auto normal = AutoRemesher::Vector3::normal((*m_vertices)[sourceFace[0]],
-            (*m_vertices)[sourceFace[1]], 
-            (*m_vertices)[sourceFace[2]]);
-        if (sourceFace.size() == 4) {
-            normal += AutoRemesher::Vector3::normal((*m_vertices)[sourceFace[2]],
-                (*m_vertices)[sourceFace[3]], 
-                (*m_vertices)[sourceFace[0]]);
-            normal.normalize();
+        
+        AutoRemesher::Vector3 center;
+        for (const auto &it: sourceFace) {
+            center += (*m_vertices)[it];
         }
+        center /= sourceFace.size();
+        faceCenters[i] = center;
+        
+        AutoRemesher::Vector3 normal;
+        for (size_t corner = 0; corner < sourceFace.size(); ++corner) {
+            size_t nextCorner = (corner + 1) % sourceFace.size();
+            normal += AutoRemesher::Vector3::normal(center,
+                (*m_vertices)[sourceFace[corner]],
+                (*m_vertices)[sourceFace[nextCorner]]);
+        }
+        normal.normalize();
+        
+        faceNormals[i] = normal;
+
         for (size_t j = 0; j < sourceFace.size(); ++j)
             vertexNormals[sourceFace[j]] += normal;
     }
@@ -104,13 +116,11 @@ void RenderMeshGenerator::generate()
     int edgeVertexCount = 0;
     for (size_t i = 0; i < m_faces->size(); ++i) {
         const auto &sourceFace = (*m_faces)[i];
-        if (sourceFace.size() == 4) {
-            vertexNum += 6;
-            edgeVertexCount += 12;
-        } else if (sourceFace.size() == 3) {
+        if (3 == sourceFace.size())
             vertexNum += 3;
-            edgeVertexCount += 6;
-        }
+        else
+            vertexNum += sourceFace.size() * 3;
+        edgeVertexCount += sourceFace.size() * 2;
     }
     PbrShaderVertex *triangleVertices = new PbrShaderVertex[vertexNum];
     PbrShaderVertex *edgeVertices = new PbrShaderVertex[edgeVertexCount];
@@ -121,12 +131,14 @@ void RenderMeshGenerator::generate()
     vertexNum = 0;
     edgeVertexCount = 0;
     
-    auto addTriangle = [&](const std::vector<size_t> &sourceFace, size_t startIndex) {
-        for (size_t j = 0; j < 3; ++j) {
+    auto addTriangle = [&](const std::vector<size_t> &sourceFace, 
+            size_t startIndex, 
+            const AutoRemesher::Vector3 &normal,
+            const AutoRemesher::Vector3 &center) {
+        for (size_t j = 0; j < 2; ++j) {
             auto &v = triangleVertices[vertexNum++];
             auto index = sourceFace[(startIndex + j) % sourceFace.size()];
             const auto &src = (*m_vertices)[index];
-            const auto &normal = vertexNormals[index];
             v.posX = (float)src.x();
             v.posY = (float)src.y();
             v.posZ = (float)src.z();
@@ -139,6 +151,19 @@ void RenderMeshGenerator::generate()
             v.roughness = 1.0f;
             v.alpha = 1.0f;
         }
+
+        auto &v = triangleVertices[vertexNum++];
+        v.posX = (float)center.x();
+        v.posY = (float)center.y();
+        v.posZ = (float)center.z();
+        v.normX = (float)normal.x();
+        v.normY = (float)normal.y();
+        v.normZ = (float)normal.z();
+        v.colorR = 1.0f;
+        v.colorG = 1.0f;
+        v.colorB = 1.0f;
+        v.roughness = 1.0f;
+        v.alpha = 1.0f;
     };
     
     auto addEdge = [&](const std::vector<size_t> &sourceFace, size_t startIndex) {
@@ -163,19 +188,16 @@ void RenderMeshGenerator::generate()
     
     for (size_t i = 0; i < m_faces->size(); ++i) {
         const auto &sourceFace = (*m_faces)[i];
-        if (sourceFace.size() == 4) {
-            addTriangle(sourceFace, 0);
-            addEdge(sourceFace, 0);
-            addEdge(sourceFace, 1);
-
-            addTriangle(sourceFace, 2);
-            addEdge(sourceFace, 2);
-            addEdge(sourceFace, 3);
-        } else if (sourceFace.size() == 3) {
-            addTriangle(sourceFace, 0);
-            addEdge(sourceFace, 0);
-            addEdge(sourceFace, 1);
-            addEdge(sourceFace, 2);
+        if (sourceFace.size() == 3) {
+            for (size_t j = 0; j < sourceFace.size(); ++j) {
+                addEdge(sourceFace, j);
+            }
+            addTriangle(sourceFace, 0, faceNormals[i], (*m_vertices)[sourceFace[2]]);
+            continue;
+        }
+        for (size_t j = 0; j < sourceFace.size(); ++j) {
+            addEdge(sourceFace, j);
+            addTriangle(sourceFace, j, faceNormals[i], faceCenters[i]);
         }
     }
     

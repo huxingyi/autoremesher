@@ -325,38 +325,16 @@ bool AutoRemesher::remesh()
             m_remeshedVertices.push_back(it);
         }
         for (const auto &it: quads) {
-            m_remeshedQuads.push_back({
-                vertexStartIndex + it[0], 
-                vertexStartIndex + it[1], 
-                vertexStartIndex + it[2], 
-                vertexStartIndex + it[3]
-            });
+            std::vector<size_t> quad;
+            quad.reserve(it.size());
+            for (const auto &v: it)
+                quad.push_back(vertexStartIndex + v);
+            m_remeshedQuads.push_back(quad);
         }
     }
 
 #if AUTO_REMESHER_DEBUG
     qDebug() << "Remesh done";
-#endif
-#if AUTO_REMESHER_DEV
-    {
-        FILE *fp = fopen("autoremesher-debug.obj", "wb");
-        for (size_t i = 0; i < m_remeshedVertices.size(); ++i) {
-            const auto &v = m_remeshedVertices[i];
-            fprintf(fp, "v %f %f %f\n", v.x(), v.y(), v.z());
-        }
-        for (size_t i = 0; i < m_remeshedQuads.size(); ++i) {
-            const auto &f = m_remeshedQuads[i];
-            fprintf(fp, "f %zu %zu %zu %zu\n", 
-                1 + f[0],
-                1 + f[1],
-                1 + f[2],
-                1 + f[3]);
-        }
-        fclose(fp);
-    }
-#endif
-#if AUTO_REMESHER_DEBUG
-    qDebug() << "Remesh debug result saved";
 #endif
 
     if (nullptr != m_progressHandler)
