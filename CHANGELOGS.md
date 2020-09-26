@@ -4,6 +4,7 @@
 - Add edge scaling setting for generating low poly  
 - Add rough progress reporting (Windows only)  
 - Generate quad dominated mesh    
+- Improve parameterization for thin surfaces  
 
 1.0.0-beta.2
 - Fix holes  

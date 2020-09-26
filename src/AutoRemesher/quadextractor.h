@@ -59,9 +59,7 @@ private:
     const std::vector<std::vector<Vector2>> *m_triangleUvs = nullptr;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedPolygons;
-    std::vector<std::vector<size_t>> m_triangleHoles;
     std::set<std::pair<size_t, size_t>> m_halfEdges;
-    std::unordered_map<size_t, std::pair<size_t, size_t>> m_tVertices;
 
     void extractConnections(std::vector<Vector3> *crossPoints, 
         std::vector<size_t> *sourceTriangles,
@@ -82,20 +80,16 @@ private:
         std::unordered_map<size_t, std::unordered_set<size_t>> &edgeConnectMap,
         std::vector<std::vector<size_t>> *quads);
     void simplifyGraph(std::unordered_map<size_t, std::unordered_set<size_t>> &graph);
-    void makeTedge(const std::vector<size_t> &triangle);
     void searchBoundaries(const std::set<std::pair<size_t, size_t>> &halfEdges,
             std::vector<std::vector<size_t>> *loops);
     void fixHoleWithQuads(std::vector<size_t> &hole, bool checkScore=true);
     bool testPointInTriangle(const std::vector<Vector3> &points, 
         const std::vector<size_t> &triangle,
         const std::vector<size_t> &testPoints);
-    void connectTvertices();
-    void buildVertexNeighborMap(std::unordered_map<size_t, std::vector<size_t>> *vertexNeighborMap);
-    bool connectTwoTvertices(size_t startVertex, const std::pair<size_t, size_t> &startHalfEdge, 
-        size_t stopVertex, const std::pair<size_t, size_t> &stopHalfEdge,
-        const std::vector<size_t> &path);
-    void fixNonQuads();
-    void fixTriangleHoles();
+    bool removeIsolatedFaces();
+    bool removeNonManifoldFaces();
+    void rebuildHalfEdges();
+    void fixHoles();
 };
     
 }

@@ -21,6 +21,7 @@
 #include <exploragram/hexdom/quad_cover.h>
 #include <geogram/mesh/mesh_io.h>
 #include <geogram/mesh/mesh_frame_field.h>
+#include <AutoRemesher/RelativeHeight>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -43,6 +44,115 @@ bool Parameterizer::parameterize()
         fclose(fp);
     }
 #endif
+    
+    RelativeHeight relativeHeight(m_vertices, m_triangles);
+    relativeHeight.calculate();
+    std::vector<double> *vertexRelativeHeights = relativeHeight.takeVertexRelativeHeights();
+    std::vector<Vector3> *vertexNormals = relativeHeight.takeVertexNormals();
+    std::map<size_t, std::vector<size_t>> *faceAroundVertexMap = relativeHeight.takeFaceAroundVertexMap();
+#if AUTO_REMESHER_DEV
+    {
+        FILE *fp = fopen("debug-relativeheights.ply", "wb");
+        fprintf(fp, "ply\n");
+        fprintf(fp, "format ascii 1.0\n");
+        fprintf(fp, "element vertex %zu\n", m_vertices->size());
+        fprintf(fp, "property float x\n");
+        fprintf(fp, "property float y\n");
+        fprintf(fp, "property float z\n");
+        fprintf(fp, "property uchar red\n");
+        fprintf(fp, "property uchar green\n");
+        fprintf(fp, "property uchar blue\n");
+        fprintf(fp, "element face %zu\n", m_triangles->size());
+        fprintf(fp, "property list uchar uint vertex_indices\n");
+        fprintf(fp, "end_header\n");
+        for (size_t vertexIndex = 0; vertexIndex < m_vertices->size(); ++vertexIndex) {
+            const auto &vertex = (*m_vertices)[vertexIndex];
+            int r = 255 * (*vertexRelativeHeights)[vertexIndex];
+            if (r >= 0) {
+                fprintf(fp, "%f %f %f %d %d %d\n", 
+                    vertex.x(), vertex.y(), vertex.z(),
+                    r, 0, 0);
+            } else {
+                fprintf(fp, "%f %f %f %d %d %d\n", 
+                    vertex.x(), vertex.y(), vertex.z(),
+                    0, r, 0);
+            }
+        }
+        for (const auto &it: *m_triangles) {
+            fprintf(fp, "3 %zu %zu %zu\n",
+                it[0], it[1], it[2]);
+        }
+        fclose(fp);
+    }
+#endif
+    double averageEdgeLength = relativeHeight.averageEdgeLength();
+    std::vector<Vector3> deformedVertices = *m_vertices;
+    for (size_t i = 0; i < deformedVertices.size(); ++i) {
+        const auto &height = (*vertexRelativeHeights)[i];
+        if (height <= 0)
+            continue;
+        deformedVertices[i] += (*vertexNormals)[i] * averageEdgeLength;
+    }
+    int deformRound = 2;
+    while (--deformRound >= 0) {
+        std::vector<Vector3> newPositions = deformedVertices;
+        for (size_t i = 0; i < deformedVertices.size(); ++i) {
+            const auto &height = (*vertexRelativeHeights)[i];
+            if (height <= 0)
+                continue;
+            Vector3 position = deformedVertices[i];
+            size_t vertexCount = 1;
+            for (const auto &face: (*faceAroundVertexMap)[i]) {
+                for (const auto &it: (*m_triangles)[face]) {
+                    position += deformedVertices[it];
+                    ++vertexCount;
+                }
+            }
+            newPositions[i] = position / vertexCount;
+        }
+        deformedVertices = newPositions;
+    }
+#if AUTO_REMESHER_DEV
+    {
+        FILE *fp = fopen("debug-relativeheights-deformed.ply", "wb");
+        fprintf(fp, "ply\n");
+        fprintf(fp, "format ascii 1.0\n");
+        fprintf(fp, "element vertex %zu\n", deformedVertices.size());
+        fprintf(fp, "property float x\n");
+        fprintf(fp, "property float y\n");
+        fprintf(fp, "property float z\n");
+        fprintf(fp, "property uchar red\n");
+        fprintf(fp, "property uchar green\n");
+        fprintf(fp, "property uchar blue\n");
+        fprintf(fp, "element face %zu\n", m_triangles->size());
+        fprintf(fp, "property list uchar uint vertex_indices\n");
+        fprintf(fp, "end_header\n");
+        for (size_t vertexIndex = 0; vertexIndex < deformedVertices.size(); ++vertexIndex) {
+            const auto &vertex = deformedVertices[vertexIndex];
+            int r = 255 * (*vertexRelativeHeights)[vertexIndex];
+            if (r >= 0) {
+                fprintf(fp, "%f %f %f %d %d %d\n", 
+                    vertex.x(), vertex.y(), vertex.z(),
+                    r, 0, 0);
+            } else {
+                fprintf(fp, "%f %f %f %d %d %d\n", 
+                    vertex.x(), vertex.y(), vertex.z(),
+                    0, r, 0);
+            }
+        }
+        for (const auto &it: *m_triangles) {
+            fprintf(fp, "3 %zu %zu %zu\n",
+                it[0], it[1], it[2]);
+        }
+        fclose(fp);
+    }
+#endif
+    delete vertexRelativeHeights;
+    vertexRelativeHeights = nullptr;
+    delete vertexNormals;
+    vertexNormals = nullptr;
+    delete faceAroundVertexMap;
+    faceAroundVertexMap = nullptr;
 
     auto makeMesh = [](GEO::Mesh &M, const std::vector<Vector3> &vertices, const std::vector<std::vector<size_t>> &triangles) {
         M.vertices.set_dimension(3);
@@ -77,15 +187,18 @@ bool Parameterizer::parameterize()
     };
     
     GEO::Mesh M;
-    makeMesh(M, *m_vertices, *m_triangles);
+    makeMesh(M, deformedVertices, *m_triangles);
     
     GEO::Attribute<GEO::vec3> B(M.facets.attributes(), "B");
     if (nullptr == m_triangleFieldVectors) {
+        GEO::Mesh originalM;
+        makeMesh(originalM, *m_vertices, *m_triangles);
+    
         GEO::FrameField FF;
         FF.set_use_spatial_search(false);
-        FF.create_from_surface_mesh(M, false, 45);
+        FF.create_from_surface_mesh(originalM, false, 45);
         const auto &frames = FF.frames();
-        for (GEO::index_t f: M.facets) {
+        for (GEO::index_t f: originalM.facets) {
             B[f] = GEO::vec3(
                 frames[9*f+0],
                 frames[9*f+1],

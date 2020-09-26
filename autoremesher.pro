@@ -190,6 +190,9 @@ HEADERS += src/AutoRemesher/positionkey.h
 SOURCES += src/AutoRemesher/meshseparator.cpp
 HEADERS += src/AutoRemesher/meshseparator.h
 
+SOURCES += src/AutoRemesher/relativeheight.cpp
+HEADERS += src/AutoRemesher/relativeheight.h
+
 INCLUDEPATH += thirdparty/openvdb/openvdb-7.0.0
 INCLUDEPATH += thirdparty/openexr/openexr-2.4.1
 unix {
