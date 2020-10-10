@@ -48,7 +48,13 @@ bool Parameterizer::parameterize()
     RelativeHeight relativeHeight(m_vertices, m_triangles);
     relativeHeight.calculate();
     std::vector<double> *vertexRelativeHeights = relativeHeight.takeVertexRelativeHeights();
+    if (!vertexRelativeHeights) {
+        return false;
+    }
     std::vector<Vector3> *vertexNormals = relativeHeight.takeVertexNormals();
+    if (!vertexNormals) {
+        return false;
+    }
     std::map<size_t, std::vector<size_t>> *faceAroundVertexMap = relativeHeight.takeFaceAroundVertexMap();
 #if AUTO_REMESHER_DEV
     {
