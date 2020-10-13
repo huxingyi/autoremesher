@@ -435,7 +435,7 @@ void MainWindow::showSupporters()
     if (!g_supportersWidget) {
         g_supportersWidget = new QTextBrowser;
         g_supportersWidget->setWindowTitle(unifiedWindowTitle(tr("Supporters")));
-        g_supportersWidget->setMinimumSize(QSize(320, 250));
+        g_supportersWidget->setMinimumSize(QSize(320, 280));
         QFile supporters(":/SUPPORTERS");
         supporters.open(QFile::ReadOnly | QFile::Text);
         g_supportersWidget->setHtml("<h1>SUPPORTERS</h1><pre>" + supporters.readAll() + "</pre>");
