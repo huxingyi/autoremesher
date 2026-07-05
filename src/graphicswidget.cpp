@@ -27,7 +27,7 @@ GraphicsWidget::GraphicsWidget()
     setStyleSheet("background-color:#3D3D3D;");
     setContentsMargins(0, 0, 0, 0);
     setFrameStyle(QFrame::NoFrame);
-    
+
     setAlignment(Qt::AlignCenter);
 
     setMouseTracking(true);
@@ -37,40 +37,38 @@ GraphicsWidget::~GraphicsWidget()
 {
 }
 
-void GraphicsWidget::setModelWidget(ModelShaderWidget *modelWidget)
+void GraphicsWidget::setModelWidget(ModelShaderWidget* modelWidget)
 {
     m_modelWidget = modelWidget;
 }
 
-void GraphicsWidget::mouseMoveEvent(QMouseEvent *event)
+void GraphicsWidget::mouseMoveEvent(QMouseEvent* event)
 {
     if (m_modelWidget && m_modelWidget->inputMouseMoveEventFromOtherWidget(event))
         return;
 }
 
-bool GraphicsWidget::inputWheelEventFromOtherWidget(QWheelEvent *event)
+bool GraphicsWidget::inputWheelEventFromOtherWidget(QWheelEvent* event)
 {
     if (m_modelWidget && m_modelWidget->inputWheelEventFromOtherWidget(event))
         return true;
     return true;
 }
 
-void GraphicsWidget::wheelEvent(QWheelEvent *event)
+void GraphicsWidget::wheelEvent(QWheelEvent* event)
 {
     if (m_modelWidget && m_modelWidget->inputWheelEventFromOtherWidget(event))
         return;
 }
 
-void GraphicsWidget::mouseReleaseEvent(QMouseEvent *event)
+void GraphicsWidget::mouseReleaseEvent(QMouseEvent* event)
 {
     if (m_modelWidget && m_modelWidget->inputMouseReleaseEventFromOtherWidget(event))
         return;
 }
 
-void GraphicsWidget::mousePressEvent(QMouseEvent *event)
+void GraphicsWidget::mousePressEvent(QMouseEvent* event)
 {
     if (m_modelWidget && m_modelWidget->inputMousePressEventFromOtherWidget(event))
         return;
 }
-
-

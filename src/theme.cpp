@@ -19,11 +19,11 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
+#include "theme.h"
 #include <QApplication>
-#include <QGuiApplication>
 #include <QDebug>
 #include <QFontMetrics>
-#include "theme.h"
+#include <QGuiApplication>
 
 // Green (primary accent)
 // 0xaa, 0xeb, 0xc4
@@ -41,10 +41,10 @@ QColor Theme::green = QColor(0xaa, 0xeb, 0xc4);
 QColor Theme::blue = QColor(0x0d, 0xa9, 0xf1);
 //QColor Theme::white = QColor(0xf7, 0xd9, 0xc8);
 QColor Theme::white = QColor(0xff, 0xff, 0xff);
-QColor Theme::black = QColor(0x1F,0x1F,0x24);
-QColor Theme::dark = QColor(0x19,0x19,0x19);
-QColor Theme::altDark = QColor(0x16,0x16,0x16);
-QColor Theme::broken = QColor(0xff,0xff,0xff);
+QColor Theme::black = QColor(0x1F, 0x1F, 0x24);
+QColor Theme::dark = QColor(0x19, 0x19, 0x19);
+QColor Theme::altDark = QColor(0x16, 0x16, 0x16);
+QColor Theme::broken = QColor(0xff, 0xff, 0xff);
 float Theme::normalAlpha = 96.0 / 255;
 float Theme::branchAlpha = 64.0 / 255;
 float Theme::checkedAlpha = 1.0;
@@ -68,7 +68,7 @@ void Theme::initAwsomeBaseSizes()
 {
     QFontMetrics fontMetrics(QApplication::font());
     Theme::toolIconFontSize = fontMetrics.height();
-    
+
     Theme::toolIconSize = (int)(Theme::toolIconFontSize * 1.5);
     Theme::miniIconFontSize = (int)(Theme::toolIconFontSize * 0.7);
     Theme::miniIconSize = (int)(Theme::miniIconFontSize * 1.67);
@@ -81,9 +81,9 @@ void Theme::initAwsomeBaseSizes()
     Theme::normalButtonSize = Theme::toolIconSize * 2;
 }
 
-QtAwesome *Theme::awesome()
+QtAwesome* Theme::awesome()
 {
-    static QtAwesome *s_awesome = nullptr;
+    static QtAwesome* s_awesome = nullptr;
     if (nullptr == s_awesome) {
         s_awesome = new QtAwesome();
         s_awesome->initFontAwesome();
@@ -95,14 +95,16 @@ QtAwesome *Theme::awesome()
     return s_awesome;
 }
 
-std::map<QString, QString> createSideColorNameMap() {
+std::map<QString, QString> createSideColorNameMap()
+{
     std::map<QString, QString> map;
     map["red"] = "green";
     map["green"] = "red";
     return map;
 }
 
-std::map<QString, QColor> createSideColorNameToColorMap() {
+std::map<QString, QColor> createSideColorNameToColorMap()
+{
     std::map<QString, QColor> map;
     map["red"] = Theme::red;
     map["green"] = Theme::green;
@@ -115,7 +117,7 @@ std::map<QString, QColor> Theme::sideColorNameToColorMap = createSideColorNameTo
 QString Theme::tabButtonSelectedStylesheet = "QPushButton { color: " + Theme::green.name() + "; background-color: #353535; border: 0px; padding-top: 2px; padding-bottom: 2px; padding-left: 25px; padding-right: 25px;}";
 QString Theme::tabButtonStylesheet = "QPushButton { color: " + Theme::white.name() + "; background-color: transparent; border: 0px; padding-top: 2px; padding-bottom: 2px; padding-left: 25px; padding-right: 25px;}";
 
-void Theme::initAwesomeButton(QPushButton *button)
+void Theme::initAwesomeButton(QPushButton* button)
 {
     button->setFont(Theme::awesome()->font(Theme::toolIconFontSize));
     button->setFixedSize(Theme::toolIconSize, Theme::toolIconSize);
@@ -123,7 +125,7 @@ void Theme::initAwesomeButton(QPushButton *button)
     button->setFocusPolicy(Qt::NoFocus);
 }
 
-void Theme::initAwesomeSmallButton(QPushButton *button)
+void Theme::initAwesomeSmallButton(QPushButton* button)
 {
     button->setFont(Theme::awesome()->font(Theme::toolIconFontSize * 0.7));
     button->setFixedSize(Theme::toolIconSize * 0.75, Theme::toolIconSize * 0.75);
@@ -131,25 +133,25 @@ void Theme::initAwesomeSmallButton(QPushButton *button)
     button->setFocusPolicy(Qt::NoFocus);
 }
 
-void Theme::initAwesomeLabel(QLabel *label)
+void Theme::initAwesomeLabel(QLabel* label)
 {
     label->setFont(Theme::awesome()->font(Theme::toolIconFontSize));
     label->setStyleSheet("QLabel {color: " + Theme::white.name() + "}");
 }
 
-void Theme::initAwesomeMiniButton(QPushButton *button)
+void Theme::initAwesomeMiniButton(QPushButton* button)
 {
     button->setFont(Theme::awesome()->font(Theme::miniIconFontSize));
     button->setFixedSize(Theme::miniIconSize, Theme::miniIconSize);
     button->setFocusPolicy(Qt::NoFocus);
 }
 
-void Theme::updateAwesomeMiniButton(QPushButton *button, QChar icon, bool highlighted, bool enabled, bool unnormal)
+void Theme::updateAwesomeMiniButton(QPushButton* button, QChar icon, bool highlighted, bool enabled, bool unnormal)
 {
     button->setText(icon);
     QColor color;
     bool needDesaturation = true;
-    
+
     if (highlighted) {
         if (unnormal) {
             color = Theme::blue;
@@ -160,13 +162,13 @@ void Theme::updateAwesomeMiniButton(QPushButton *button, QChar icon, bool highli
     } else {
         color = QColor("#525252");
     }
-    
+
     if (needDesaturation) {
         color = color.toHsv();
         color.setHsv(color.hue(), color.saturation() / 5, color.value() * 2 / 3);
         color = color.toRgb();
     }
-    
+
     if (!enabled) {
         color = QColor(42, 42, 42);
     }
@@ -174,20 +176,20 @@ void Theme::updateAwesomeMiniButton(QPushButton *button, QChar icon, bool highli
     button->setStyleSheet("QPushButton {border: none; background: none; color: " + color.name() + ";}");
 }
 
-void Theme::initAwesomeToolButtonWithoutFont(QPushButton *button)
+void Theme::initAwesomeToolButtonWithoutFont(QPushButton* button)
 {
     button->setFixedSize(Theme::toolIconSize / 2, Theme::toolIconSize / 2);
     button->setStyleSheet("QPushButton {color: " + Theme::white.name() + "}");
     button->setFocusPolicy(Qt::NoFocus);
 }
 
-void Theme::initAwesomeToolButton(QPushButton *button)
+void Theme::initAwesomeToolButton(QPushButton* button)
 {
     button->setFont(Theme::awesome()->font(Theme::toolIconFontSize / 2));
     Theme::initAwesomeToolButtonWithoutFont(button);
 }
 
-void Theme::initToolButton(QPushButton *button)
+void Theme::initToolButton(QPushButton* button)
 {
     QFont font = button->font();
     font.setWeight(QFont::Light);
@@ -198,7 +200,7 @@ void Theme::initToolButton(QPushButton *button)
     button->setFocusPolicy(Qt::NoFocus);
 }
 
-void Theme::initCheckbox(QCheckBox *checkbox)
+void Theme::initCheckbox(QCheckBox* checkbox)
 {
     QPalette palette = checkbox->palette();
     palette.setColor(QPalette::Window, Theme::white);
@@ -210,8 +212,8 @@ QString Theme::compactStylesheet()
     // MongoDB Compass / LeafyGreen-inspired compact theme
     // Colors kept from existing dark palette
     const QString trackBg = "#4A4A4A";
-    const QString accent = Theme::green.name();        // #aaebc4
-    const QString text = Theme::white.name();         // #f7d9c8
+    const QString accent = Theme::green.name(); // #aaebc4
+    const QString text = Theme::white.name(); // #f7d9c8
     const QString handle = Theme::white.name();
     const QString inputBg = "#252525";
     const QString border = "#353535";
@@ -323,13 +325,13 @@ QString Theme::compactStylesheet()
         "  background-color: #2a2a2a;"
         "  border-color: #2a2a2a;"
         "  color: #525252;"
-        "}"
-    ).arg(trackBg, text, accent, inputBg, border);
+        "}")
+        .arg(trackBg, text, accent, inputBg, border);
 }
 
-QWidget *Theme::createHorizontalLineWidget()
+QWidget* Theme::createHorizontalLineWidget()
 {
-    QWidget *hrLightWidget = new QWidget;
+    QWidget* hrLightWidget = new QWidget;
     hrLightWidget->setFixedHeight(1);
     hrLightWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     hrLightWidget->setStyleSheet(QString("background-color: #565656;"));
@@ -337,9 +339,9 @@ QWidget *Theme::createHorizontalLineWidget()
     return hrLightWidget;
 }
 
-QWidget *Theme::createVerticalLineWidget()
+QWidget* Theme::createVerticalLineWidget()
 {
-    QWidget *hrLightWidget = new QWidget;
+    QWidget* hrLightWidget = new QWidget;
     hrLightWidget->setFixedWidth(1);
     hrLightWidget->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
     hrLightWidget->setStyleSheet(QString("background-color: #565656;"));

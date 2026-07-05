@@ -19,38 +19,36 @@
  */
 #ifndef AUTO_REMESHER_PARAMETERIZER_H
 #define AUTO_REMESHER_PARAMETERIZER_H
-#include <AutoRemesher/Vector3>
 #include <AutoRemesher/Vector2>
-#include <vector>
+#include <AutoRemesher/Vector3>
 #include <map>
+#include <vector>
 
-namespace AutoRemesher
-{
-    
-class Parameterizer
-{
+namespace AutoRemesher {
+
+class Parameterizer {
 public:
-    Parameterizer(const std::vector<Vector3> *vertices,
-            const std::vector<std::vector<size_t>> *triangles,
-            const std::vector<Vector3> *triangleFieldVectors) :
-        m_vertices(vertices),
-        m_triangles(triangles),
-        m_triangleFieldVectors(triangleFieldVectors)
+    Parameterizer(const std::vector<Vector3>* vertices,
+        const std::vector<std::vector<size_t>>* triangles,
+        const std::vector<Vector3>* triangleFieldVectors)
+        : m_vertices(vertices)
+        , m_triangles(triangles)
+        , m_triangleFieldVectors(triangleFieldVectors)
     {
     }
-    
+
     ~Parameterizer()
     {
         delete m_triangleUvs;
     }
-    
-    std::vector<std::vector<Vector2>> *takeTriangleUvs()
+
+    std::vector<std::vector<Vector2>>* takeTriangleUvs()
     {
-        std::vector<std::vector<Vector2>> *triangleUvs = m_triangleUvs;
+        std::vector<std::vector<Vector2>>* triangleUvs = m_triangleUvs;
         m_triangleUvs = nullptr;
         return triangleUvs;
     }
-    
+
     void setScaling(double scaling)
     {
         m_scaling = scaling;
@@ -67,21 +65,22 @@ public:
     }
 
     bool parameterize();
+
 private:
-    const std::vector<Vector3> *m_vertices = nullptr;
-    const std::vector<std::vector<size_t>> *m_triangles = nullptr;
-    const std::vector<Vector3> *m_triangleFieldVectors = nullptr;
-    std::vector<std::vector<Vector2>> *m_triangleUvs = nullptr;
+    const std::vector<Vector3>* m_vertices = nullptr;
+    const std::vector<std::vector<size_t>>* m_triangles = nullptr;
+    const std::vector<Vector3>* m_triangleFieldVectors = nullptr;
+    std::vector<std::vector<Vector2>>* m_triangleUvs = nullptr;
     double m_scaling = 1.0;
     double m_adaptivity = 0.5;
     double m_sharpEdgeDegrees = 90.0;
 
-    std::vector<double> computeFaceScalingField(const std::vector<Vector3> &vertices,
-        const std::vector<std::vector<size_t>> &triangles,
-        const std::vector<Vector3> &vertexNormals,
-        const std::map<size_t, std::vector<size_t>> &faceAroundVertexMap) const;
+    std::vector<double> computeFaceScalingField(const std::vector<Vector3>& vertices,
+        const std::vector<std::vector<size_t>>& triangles,
+        const std::vector<Vector3>& vertexNormals,
+        const std::map<size_t, std::vector<size_t>>& faceAroundVertexMap) const;
 };
-    
+
 }
 
 #endif

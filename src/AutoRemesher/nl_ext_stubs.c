@@ -3,9 +3,9 @@
  * dependencies (SUPERLU, CHOLMOD, MKL, CUDA) are not available.
  * Every return value is NL_FALSE or NULL so the solver degrades gracefully.
  */
-#include <geogram/nl/nl.h>
-#include <geogram/nl/nl_private.h>
-#include <geogram/nl/nl_matrix.h>
+#include <geogram/NL/nl.h>
+#include <geogram/NL/nl_private.h>
+#include <geogram/NL/nl_matrix.h>
 
 /* SuperLU stubs */
 NLboolean nlInitExtension_SUPERLU(void) { return NL_FALSE; }

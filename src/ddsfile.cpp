@@ -19,13 +19,13 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#include <QtGlobal>
-#include <QFile>
-#include <QDebug>
-#include <QtEndian>
-#include <QByteArray>
-#include <QOpenGLPixelTransferOptions>
 #include "ddsfile.h"
+#include <QByteArray>
+#include <QDebug>
+#include <QFile>
+#include <QOpenGLPixelTransferOptions>
+#include <QtEndian>
+#include <QtGlobal>
 
 #ifndef _WIN32
 typedef quint32 DWORD;
@@ -58,20 +58,20 @@ typedef enum {
 } DDS_CAPS2_FLAGS;
 
 typedef struct {
-    DWORD           dwSize;
-    DWORD           dwFlags;
-    DWORD           dwHeight;
-    DWORD           dwWidth;
-    DWORD           dwPitchOrLinearSize;
-    DWORD           dwDepth;
-    DWORD           dwMipMapCount;
-    DWORD           dwReserved1[11];
+    DWORD dwSize;
+    DWORD dwFlags;
+    DWORD dwHeight;
+    DWORD dwWidth;
+    DWORD dwPitchOrLinearSize;
+    DWORD dwDepth;
+    DWORD dwMipMapCount;
+    DWORD dwReserved1[11];
     DDS_PIXELFORMAT ddspf;
-    DWORD           dwCaps;
-    DWORD           dwCaps2;
-    DWORD           dwCaps3;
-    DWORD           dwCaps4;
-    DWORD           dwReserved2;
+    DWORD dwCaps;
+    DWORD dwCaps2;
+    DWORD dwCaps3;
+    DWORD dwCaps4;
+    DWORD dwReserved2;
 } DDS_HEADER;
 
 typedef enum {
@@ -197,9 +197,9 @@ typedef enum {
     DXGI_FORMAT_FORCE_UINT
 } DXGI_FORMAT;
 
-static const char *DxgiFormatToString(DXGI_FORMAT dxgiFormat)
+static const char* DxgiFormatToString(DXGI_FORMAT dxgiFormat)
 {
-    static const char *names[] = {
+    static const char* names[] = {
         "DXGI_FORMAT_UNKNOWN",
         "DXGI_FORMAT_R32G32B32A32_TYPELESS",
         "DXGI_FORMAT_R32G32B32A32_FLOAT",
@@ -335,9 +335,9 @@ typedef enum {
     D3D10_RESOURCE_DIMENSION_TEXTURE3D
 } D3D10_RESOURCE_DIMENSION;
 
-static const char *ResourceDimensionToString(D3D10_RESOURCE_DIMENSION resourceDimension)
+static const char* ResourceDimensionToString(D3D10_RESOURCE_DIMENSION resourceDimension)
 {
-    static const char *names[] = {
+    static const char* names[] = {
         "D3D10_RESOURCE_DIMENSION_UNKNOWN",
         "D3D10_RESOURCE_DIMENSION_BUFFER",
         "D3D10_RESOURCE_DIMENSION_TEXTURE1D",
@@ -358,9 +358,9 @@ typedef enum {
     D3D10_RESOURCE_MISC_GDI_COMPATIBLE
 } D3D10_RESOURCE_MISC_FLAG;
 
-static const char *MiscFlagToString(UINT miscFlag)
+static const char* MiscFlagToString(UINT miscFlag)
 {
-    static const char *names[] = {
+    static const char* names[] = {
         "D3D10_RESOURCE_MISC_GENERATE_MIPS",
         "D3D10_RESOURCE_MISC_SHARED",
         "D3D10_RESOURCE_MISC_TEXTURECUBE",
@@ -374,64 +374,64 @@ static const char *MiscFlagToString(UINT miscFlag)
 }
 
 typedef struct {
-    DXGI_FORMAT              dxgiFormat;
+    DXGI_FORMAT dxgiFormat;
     D3D10_RESOURCE_DIMENSION resourceDimension;
-    UINT                     miscFlag;
-    UINT                     arraySize;
-    UINT                     miscFlags2;
+    UINT miscFlag;
+    UINT arraySize;
+    UINT miscFlags2;
 } DDS_HEADER_DXT10;
 
 typedef struct {
-    DWORD               dwMagic;
-    DDS_HEADER          header;
-    DDS_HEADER_DXT10    header10;
+    DWORD dwMagic;
+    DDS_HEADER header;
+    DDS_HEADER_DXT10 header10;
 } DDS_FILE_HEADER;
 
-DdsFileReader::DdsFileReader(const QString &filename) :
-    m_filename(filename)
-{     
+DdsFileReader::DdsFileReader(const QString& filename)
+    : m_filename(filename)
+{
 }
 
-QOpenGLTexture *DdsFileReader::createOpenGLTexture()
+QOpenGLTexture* DdsFileReader::createOpenGLTexture()
 {
     QFile file(m_filename);
-    
+
     if (!file.open(QIODevice::ReadOnly)) {
         qDebug() << "Open" << m_filename << "failed";
         return nullptr;
     }
-    
+
     DDS_FILE_HEADER fileHeader;
-    if (sizeof(fileHeader) != file.read((char *)&fileHeader, sizeof(fileHeader))) {
+    if (sizeof(fileHeader) != file.read((char*)&fileHeader, sizeof(fileHeader))) {
         qDebug() << "Read DDS file hader failed";
         return nullptr;
     }
-    
+
     if (0x20534444 != qFromLittleEndian<quint32>(&fileHeader.dwMagic)) {
         qDebug() << "Not a DDS file";
         return nullptr;
     }
-    
+
     if (0x30315844 != qFromLittleEndian<quint32>(&fileHeader.header.ddspf.dwFourCC)) {
         qDebug() << "Unsupported DDS file, expected DX10 file";
         return nullptr;
     }
-    
+
     auto caps2 = qFromLittleEndian<quint32>(&fileHeader.header.dwCaps2);
     if (!(DDSCAPS2_CUBEMAP & caps2)) {
         qDebug() << "Unsupported DDS file, expected CUBEMAP file";
         return nullptr;
     }
-    
+
     int width = qFromLittleEndian<quint32>(&fileHeader.header.dwWidth);
     int height = qFromLittleEndian<quint32>(&fileHeader.header.dwHeight);
-    
+
     auto arraySize = qFromLittleEndian<quint32>(&fileHeader.header10.arraySize);
-    
+
     auto mipMapCount = qFromLittleEndian<quint32>(&fileHeader.header.dwMipMapCount);
-    
+
     DXGI_FORMAT dxgiFormat = (DXGI_FORMAT)qFromLittleEndian<quint32>(&fileHeader.header10.dxgiFormat);
-    
+
     auto faces = 0;
     if (DDSCAPS2_CUBEMAP_POSITIVEX & caps2) {
         ++faces;
@@ -451,20 +451,20 @@ QOpenGLTexture *DdsFileReader::createOpenGLTexture()
     if (DDSCAPS2_CUBEMAP_NEGATIVEZ & caps2) {
         ++faces;
     }
-    
+
     if (6 != faces) {
         qDebug() << "Unsupported DDS file, expected six faces";
         return nullptr;
     }
-    
+
     if (1 != arraySize) {
         qDebug() << "Unsupported DDS file, expected one layer";
         return nullptr;
     }
-    
+
     if (DXGI_FORMAT_R16G16B16A16_FLOAT != dxgiFormat) {
         qDebug() << "Unsupported DDS file, expected dxgi format: DXGI_FORMAT_R16G16B16A16_FLOAT";
-        return nullptr; 
+        return nullptr;
     }
     int components = 8;
     int oneFaceSize = 0;
@@ -480,9 +480,9 @@ QOpenGLTexture *DdsFileReader::createOpenGLTexture()
         qDebug() << "DDS file invalid, expected total size:" << totalSize << "read size:" << data.size();
         return nullptr;
     }
-    
+
     int depth = 1;
-    
+
     QOpenGLTexture* texture = new QOpenGLTexture(QOpenGLTexture::TargetCubeMap);
     texture->setFormat(QOpenGLTexture::RGBA16F);
     texture->setSize(width, height, depth);
@@ -490,37 +490,37 @@ QOpenGLTexture *DdsFileReader::createOpenGLTexture()
     texture->setMipBaseLevel(0);
     texture->setMipMaxLevel(mipMapCount - 1);
     texture->setMipLevels(mipMapCount);
-    
+
     if (!texture->create()) {
         qDebug() << "QOpenGLTexture::create failed";
         delete texture;
         return nullptr;
     }
-    
+
     texture->allocateStorage();
     if (!texture->isStorageAllocated()) {
         qDebug() << "QOpenGLTexture::isStorageAllocated false";
         delete texture;
         return nullptr;
     }
-    
+
     uint64_t dataOffset = 0;
     for (quint32 layer = 0; layer < arraySize; ++layer) {
         for (int face = 0; face < faces; ++face) {
             for (quint32 level = 0; level < mipMapCount; ++level) {
                 QOpenGLPixelTransferOptions uploadOptions;
                 uploadOptions.setAlignment(1);
-                texture->setData(level, 
-                    layer, 
-                    static_cast<QOpenGLTexture::CubeMapFace>(QOpenGLTexture::CubeMapPositiveX + face), 
-                    QOpenGLTexture::RGBA, 
-                    QOpenGLTexture::Float16, 
-                    data.constData() + dataOffset, 
+                texture->setData(level,
+                    layer,
+                    static_cast<QOpenGLTexture::CubeMapFace>(QOpenGLTexture::CubeMapPositiveX + face),
+                    QOpenGLTexture::RGBA,
+                    QOpenGLTexture::Float16,
+                    data.constData() + dataOffset,
                     &uploadOptions);
                 dataOffset += calculateOneFaceSizeAtLevel(level);
             }
         }
     }
-    
+
     return texture;
 }

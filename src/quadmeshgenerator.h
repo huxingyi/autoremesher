@@ -21,15 +21,13 @@
  */
 #ifndef AUTO_REMESHER_QUAD_MESH_GENERATOR_H
 #define AUTO_REMESHER_QUAD_MESH_GENERATOR_H
-#include <QObject>
 #include <AutoRemesher/AutoRemesher>
+#include <QObject>
 
-class QuadMeshGenerator: public QObject
-{
+class QuadMeshGenerator : public QObject {
     Q_OBJECT
 public:
-    struct Parameters
-    {
+    struct Parameters {
         double scaling = 0.0;
         size_t targetTriangleCount = 0;
         AutoRemesher::ModelType modelType = AutoRemesher::ModelType::Organic;
@@ -38,10 +36,10 @@ public:
         double smoothNormalDegrees = 0.0;
     };
 
-    QuadMeshGenerator(const std::vector<AutoRemesher::Vector3> &vertices,
-            const std::vector<std::vector<size_t>> &triangles) :
-        m_vertices(vertices),
-        m_triangles(triangles)
+    QuadMeshGenerator(const std::vector<AutoRemesher::Vector3>& vertices,
+        const std::vector<std::vector<size_t>>& triangles)
+        : m_vertices(vertices)
+        , m_triangles(triangles)
     {
     }
 
@@ -52,32 +50,32 @@ public:
         delete m_autoRemesher;
     }
 
-    void setParameters(const Parameters &parameters)
+    void setParameters(const Parameters& parameters)
     {
         m_parameters = parameters;
     }
 
-    std::vector<AutoRemesher::Vector3> *takeRemeshedVertices()
+    std::vector<AutoRemesher::Vector3>* takeRemeshedVertices()
     {
-        std::vector<AutoRemesher::Vector3> *remeshedVertices = m_remeshedVertices;
+        std::vector<AutoRemesher::Vector3>* remeshedVertices = m_remeshedVertices;
         m_remeshedVertices = nullptr;
         return remeshedVertices;
     }
 
-    std::vector<std::vector<size_t>> *takeRemeshedQuads()
+    std::vector<std::vector<size_t>>* takeRemeshedQuads()
     {
-        std::vector<std::vector<size_t>> *remeshedQuads = m_remeshedQuads;
+        std::vector<std::vector<size_t>>* remeshedQuads = m_remeshedQuads;
         m_remeshedQuads = nullptr;
         return remeshedQuads;
     }
 
     void generate();
     void emitProgress(float progress);
-    void emitProgress(float progress, const QString &status);
+    void emitProgress(float progress, const QString& status);
 
 signals:
     void reportProgress(float progress);
-    void reportProgressDetailed(float progress, const QString &status);
+    void reportProgressDetailed(float progress, const QString& status);
     void finished();
 
 public slots:
@@ -86,9 +84,9 @@ public slots:
 private:
     std::vector<AutoRemesher::Vector3> m_vertices;
     std::vector<std::vector<size_t>> m_triangles;
-    std::vector<AutoRemesher::Vector3> *m_remeshedVertices = nullptr;
-    std::vector<std::vector<size_t>> *m_remeshedQuads = nullptr;
-    AutoRemesher::AutoRemesher *m_autoRemesher = nullptr;
+    std::vector<AutoRemesher::Vector3>* m_remeshedVertices = nullptr;
+    std::vector<std::vector<size_t>>* m_remeshedQuads = nullptr;
+    AutoRemesher::AutoRemesher* m_autoRemesher = nullptr;
     Parameters m_parameters;
 };
 

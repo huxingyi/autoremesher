@@ -26,47 +26,47 @@ GraphicsContainerWidget::GraphicsContainerWidget()
     setMouseTracking(true);
 }
 
-void GraphicsContainerWidget::resizeEvent(QResizeEvent *event)
+void GraphicsContainerWidget::resizeEvent(QResizeEvent* event)
 {
     if (m_graphicsWidget && m_graphicsWidget->size() != event->size())
         emit containerSizeChanged(event->size());
 }
 
-void GraphicsContainerWidget::mousePressEvent(QMouseEvent *event)
+void GraphicsContainerWidget::mousePressEvent(QMouseEvent* event)
 {
     if (m_modelWidget)
         m_modelWidget->inputMousePressEventFromOtherWidget(event);
 }
 
-void GraphicsContainerWidget::mouseMoveEvent(QMouseEvent *event)
+void GraphicsContainerWidget::mouseMoveEvent(QMouseEvent* event)
 {
     if (m_modelWidget)
         m_modelWidget->inputMouseMoveEventFromOtherWidget(event);
 }
 
-void GraphicsContainerWidget::mouseReleaseEvent(QMouseEvent *event)
+void GraphicsContainerWidget::mouseReleaseEvent(QMouseEvent* event)
 {
     if (m_modelWidget)
         m_modelWidget->inputMouseReleaseEventFromOtherWidget(event);
 }
 
-void GraphicsContainerWidget::wheelEvent(QWheelEvent *event)
+void GraphicsContainerWidget::wheelEvent(QWheelEvent* event)
 {
     if (m_graphicsWidget) {
         m_graphicsWidget->inputWheelEventFromOtherWidget(event);
         return;
     }
-    
+
     if (m_modelWidget)
         m_modelWidget->inputWheelEventFromOtherWidget(event);
 }
 
-void GraphicsContainerWidget::setGraphicsWidget(GraphicsWidget *graphicsWidget)
+void GraphicsContainerWidget::setGraphicsWidget(GraphicsWidget* graphicsWidget)
 {
     m_graphicsWidget = graphicsWidget;
 }
 
-void GraphicsContainerWidget::setModelWidget(ModelShaderWidget *modelWidget)
+void GraphicsContainerWidget::setModelWidget(ModelShaderWidget* modelWidget)
 {
     m_modelWidget = modelWidget;
 }

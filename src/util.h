@@ -23,6 +23,6 @@
 #define AUTO_REMESHER_UTIL_H
 #include <QString>
 
-QString unifiedWindowTitle(const QString &text);
+QString unifiedWindowTitle(const QString& text);
 
 #endif

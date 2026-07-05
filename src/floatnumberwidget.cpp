@@ -19,14 +19,14 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#include <QtWidgets>
+#include "floatnumberwidget.h"
+#include "theme.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
-#include "theme.h"
-#include "floatnumberwidget.h"
+#include <QtWidgets>
 
-FloatNumberWidget::FloatNumberWidget(QWidget *parent, bool singleLine) :
-    QWidget(parent)
+FloatNumberWidget::FloatNumberWidget(QWidget* parent, bool singleLine)
+    : QWidget(parent)
 {
     m_slider = new QSlider(Qt::Horizontal, this);
     m_slider->setRange(0, 100);
@@ -42,7 +42,7 @@ FloatNumberWidget::FloatNumberWidget(QWidget *parent, bool singleLine) :
         emit valueChanged(fvalue);
     });
 
-    QBoxLayout *layout = nullptr;
+    QBoxLayout* layout = nullptr;
     if (singleLine) {
         layout = new QHBoxLayout(this);
         layout->setContentsMargins(0, 0, 0, 0);
@@ -54,7 +54,7 @@ FloatNumberWidget::FloatNumberWidget(QWidget *parent, bool singleLine) :
         layout->addWidget(m_label);
         layout->addWidget(m_slider);
     }
-    
+
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 }
 
@@ -67,7 +67,7 @@ void FloatNumberWidget::updateValueLabel(float value)
         m_label->setText(m_itemName + ": " + valueString);
 }
 
-void FloatNumberWidget::setItemName(const QString &name)
+void FloatNumberWidget::setItemName(const QString& name)
 {
     m_itemName = name;
     updateValueLabel(value());

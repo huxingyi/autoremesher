@@ -21,9 +21,9 @@
  */
 #include "preferences.h"
 
-Preferences &Preferences::instance()
+Preferences& Preferences::instance()
 {
-    static Preferences *s_preferences = nullptr;
+    static Preferences* s_preferences = nullptr;
     if (nullptr == s_preferences) {
         s_preferences = new Preferences;
     }

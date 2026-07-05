@@ -21,21 +21,21 @@
  */
 #ifndef DUST3D_SPINNABLE_AWESOME_BUTTON_H
 #define DUST3D_SPINNABLE_AWESOME_BUTTON_H
-#include <QWidget>
-#include <QPushButton>
 #include "waitingspinnerwidget.h"
+#include <QPushButton>
+#include <QWidget>
 
-class SpinnableAwesomeButton : public QWidget
-{
+class SpinnableAwesomeButton : public QWidget {
 public:
-    SpinnableAwesomeButton(QWidget *parent=nullptr);
+    SpinnableAwesomeButton(QWidget* parent = nullptr);
     void setAwesomeIcon(QChar c);
-    void showSpinner(bool showSpinner=true);
+    void showSpinner(bool showSpinner = true);
     bool isSpinning();
-    QPushButton *button();
+    QPushButton* button();
+
 private:
-    QPushButton *m_button = nullptr;
-    WaitingSpinnerWidget *m_spinner = nullptr;
+    QPushButton* m_button = nullptr;
+    WaitingSpinnerWidget* m_spinner = nullptr;
 };
 
 #endif

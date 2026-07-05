@@ -34,3 +34,7 @@
 # Build folder
 build/
 build2/
+
+.DS_Store
+
+moc/

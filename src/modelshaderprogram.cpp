@@ -19,11 +19,11 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
+#include "modelshaderprogram.h"
 #include <QFile>
 #include <map>
-#include "modelshaderprogram.h"
 
-const QString &ModelShaderProgram::loadShaderSource(const QString &name)
+const QString& ModelShaderProgram::loadShaderSource(const QString& name)
 {
     static std::map<QString, QString> s_shaderSources;
     auto findShader = s_shaderSources.find(name);
@@ -32,7 +32,7 @@ const QString &ModelShaderProgram::loadShaderSource(const QString &name)
     QFile file(name);
     file.open(QFile::ReadOnly | QFile::Text);
     QTextStream stream(&file);
-    auto insertResult = s_shaderSources.insert({name, stream.readAll()});
+    auto insertResult = s_shaderSources.insert({ name, stream.readAll() });
     return insertResult.first->second;
 }
 
@@ -160,7 +160,7 @@ int ModelShaderProgram::mousePickRadiusLoc()
     return m_mousePickRadiusLoc;
 }
 
-void ModelShaderProgram::setProjectionMatrixValue(const QMatrix4x4 &value)
+void ModelShaderProgram::setProjectionMatrixValue(const QMatrix4x4& value)
 {
     if (value == m_projectionMatrixValue)
         return;
@@ -168,7 +168,7 @@ void ModelShaderProgram::setProjectionMatrixValue(const QMatrix4x4 &value)
     setUniformValue(m_projectionMatrixLoc, m_projectionMatrixValue);
 }
 
-void ModelShaderProgram::setModelMatrixValue(const QMatrix4x4 &value)
+void ModelShaderProgram::setModelMatrixValue(const QMatrix4x4& value)
 {
     if (value == m_modelMatrixValue)
         return;
@@ -176,7 +176,7 @@ void ModelShaderProgram::setModelMatrixValue(const QMatrix4x4 &value)
     setUniformValue(m_modelMatrixLoc, m_modelMatrixValue);
 }
 
-void ModelShaderProgram::setNormalMatrixValue(const QMatrix3x3 &value)
+void ModelShaderProgram::setNormalMatrixValue(const QMatrix3x3& value)
 {
     if (value == m_normalMatrixValue)
         return;
@@ -184,7 +184,7 @@ void ModelShaderProgram::setNormalMatrixValue(const QMatrix3x3 &value)
     setUniformValue(m_normalMatrixLoc, m_normalMatrixValue);
 }
 
-void ModelShaderProgram::setViewMatrixValue(const QMatrix4x4 &value)
+void ModelShaderProgram::setViewMatrixValue(const QMatrix4x4& value)
 {
     if (value == m_viewMatrixValue)
         return;
@@ -192,7 +192,7 @@ void ModelShaderProgram::setViewMatrixValue(const QMatrix4x4 &value)
     setUniformValue(m_viewMatrixLoc, m_viewMatrixValue);
 }
 
-void ModelShaderProgram::setEyePositionValue(const QVector3D &value)
+void ModelShaderProgram::setEyePositionValue(const QVector3D& value)
 {
     if (qFuzzyCompare(value, m_eyePositionValue))
         return;
@@ -272,7 +272,7 @@ void ModelShaderProgram::setMousePickEnabledValue(int value)
     setUniformValue(m_mousePickEnabledLoc, m_mousePickEnabledValue);
 }
 
-void ModelShaderProgram::setMousePickTargetPositionValue(const QVector3D &value)
+void ModelShaderProgram::setMousePickTargetPositionValue(const QVector3D& value)
 {
     if (qFuzzyCompare(value, m_mousePickTargetPositionValue))
         return;

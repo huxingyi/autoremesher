@@ -19,24 +19,24 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
+#include "aboutwidget.h"
+#include "util.h"
+#include "version.h"
+#include <QOpenGLFunctions>
 #include <QTextEdit>
 #include <QVBoxLayout>
-#include <QOpenGLFunctions>
-#include "aboutwidget.h"
-#include "version.h"
-#include "util.h"
 
 AboutWidget::AboutWidget()
 {
-    QTextEdit *versionInfoLabel = new QTextEdit;
-    versionInfoLabel->setText(QString("%1 %2 (version: %3 build: %4 %5)\nopengl: %6 shader: %7 core: %8").arg(APP_NAME).arg(APP_HUMAN_VER).arg(APP_VER).arg(__DATE__).arg(__TIME__).arg((char *)glGetString(GL_VERSION)).arg((char *)glGetString(GL_SHADING_LANGUAGE_VERSION)).arg(QSurfaceFormat::defaultFormat().profile() == QSurfaceFormat::CoreProfile ? "true" : "false"));
+    QTextEdit* versionInfoLabel = new QTextEdit;
+    versionInfoLabel->setText(QString("%1 %2 (version: %3 build: %4 %5)\nopengl: %6 shader: %7 core: %8").arg(APP_NAME).arg(APP_HUMAN_VER).arg(APP_VER).arg(__DATE__).arg(__TIME__).arg((char*)glGetString(GL_VERSION)).arg((char*)glGetString(GL_SHADING_LANGUAGE_VERSION)).arg(QSurfaceFormat::defaultFormat().profile() == QSurfaceFormat::CoreProfile ? "true" : "false"));
     versionInfoLabel->setReadOnly(true);
-    
-    QVBoxLayout *mainLayout = new QVBoxLayout;
+
+    QVBoxLayout* mainLayout = new QVBoxLayout;
     mainLayout->addWidget(versionInfoLabel);
-    
+
     setLayout(mainLayout);
     setFixedSize(QSize(640, 380));
-    
+
     setWindowTitle(unifiedWindowTitle(tr("About")));
 }

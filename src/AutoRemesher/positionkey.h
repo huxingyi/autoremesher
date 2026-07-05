@@ -23,17 +23,15 @@
 #define AUTO_REMESHER_POSITION_KEY_H
 #include <AutoRemesher/Vector3>
 
-namespace AutoRemesher
-{
+namespace AutoRemesher {
 
-class PositionKey
-{
+class PositionKey {
 public:
-    PositionKey(const Vector3 &v);
+    PositionKey(const Vector3& v);
     PositionKey(double x, double y, double z);
-    const Vector3 &position() const;
-    bool operator<(const PositionKey &right) const;
-    bool operator==(const PositionKey &right) const;
+    const Vector3& position() const;
+    bool operator<(const PositionKey& right) const;
+    bool operator==(const PositionKey& right) const;
 
 private:
     long m_intX = 0;

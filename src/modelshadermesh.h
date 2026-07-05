@@ -21,39 +21,38 @@
  */
 #ifndef AUTO_REMESHER_MODEL_SHADER_MESH_H
 #define AUTO_REMESHER_MODEL_SHADER_MESH_H
-#include <QObject>
-#include <vector>
+#include "modelshadervertex.h"
 #include <AutoRemesher/Vector3>
 #include <QColor>
 #include <QImage>
+#include <QObject>
 #include <QTextStream>
-#include "modelshadervertex.h"
+#include <vector>
 
-class ModelShaderMesh
-{
+class ModelShaderMesh {
 public:
-    ModelShaderMesh(const std::vector<AutoRemesher::Vector3> &vertices, const std::vector<std::vector<size_t>> &triangles,
-        const std::vector<std::vector<AutoRemesher::Vector3>> &triangleVertexNormals,
-        const QColor &color=Qt::white);
-    ModelShaderMesh(ModelShaderVertex *triangleVertices, int vertexNum, ModelShaderVertex *edgeVertices=nullptr, int edgeVertexCount=0,
-        std::vector<AutoRemesher::Vector3> *vertices=nullptr, std::vector<std::vector<size_t>> *faces=nullptr);
-    ModelShaderMesh(const ModelShaderMesh &mesh);
+    ModelShaderMesh(const std::vector<AutoRemesher::Vector3>& vertices, const std::vector<std::vector<size_t>>& triangles,
+        const std::vector<std::vector<AutoRemesher::Vector3>>& triangleVertexNormals,
+        const QColor& color = Qt::white);
+    ModelShaderMesh(ModelShaderVertex* triangleVertices, int vertexNum, ModelShaderVertex* edgeVertices = nullptr, int edgeVertexCount = 0,
+        std::vector<AutoRemesher::Vector3>* vertices = nullptr, std::vector<std::vector<size_t>>* faces = nullptr);
+    ModelShaderMesh(const ModelShaderMesh& mesh);
     ModelShaderMesh();
     ~ModelShaderMesh();
-    ModelShaderVertex *triangleVertices();
+    ModelShaderVertex* triangleVertices();
     int triangleVertexCount();
-    ModelShaderVertex *edgeVertices();
+    ModelShaderVertex* edgeVertices();
     int edgeVertexCount();
-    ModelShaderVertex *toolVertices();
+    ModelShaderVertex* toolVertices();
     int toolVertexCount();
-    const std::vector<AutoRemesher::Vector3> &vertices();
-    const std::vector<std::vector<size_t>> &faces();
-    void setTextureImage(QImage *textureImage);
-    const QImage *textureImage();
-    void setNormalMapImage(QImage *normalMapImage);
-    const QImage *normalMapImage();
-    const QImage *metalnessRoughnessAmbientOcclusionImage();
-    void setMetalnessRoughnessAmbientOcclusionImage(QImage *image);
+    const std::vector<AutoRemesher::Vector3>& vertices();
+    const std::vector<std::vector<size_t>>& faces();
+    void setTextureImage(QImage* textureImage);
+    const QImage* textureImage();
+    void setNormalMapImage(QImage* normalMapImage);
+    const QImage* normalMapImage();
+    const QImage* metalnessRoughnessAmbientOcclusionImage();
+    void setMetalnessRoughnessAmbientOcclusionImage(QImage* image);
     bool hasMetalnessInImage();
     void setHasMetalnessInImage(bool hasInImage);
     bool hasRoughnessInImage();
@@ -62,24 +61,25 @@ public:
     void setHasAmbientOcclusionInImage(bool hasInImage);
     static float m_defaultMetalness;
     static float m_defaultRoughness;
-    void updateTool(ModelShaderVertex *toolVertices, int vertexNum);
-    void updateEdges(ModelShaderVertex *edgeVertices, int edgeVertexCount);
-    void updateTriangleVertices(ModelShaderVertex *triangleVertices, int triangleVertexCount);
+    void updateTool(ModelShaderVertex* toolVertices, int vertexNum);
+    void updateEdges(ModelShaderVertex* edgeVertices, int edgeVertexCount);
+    void updateTriangleVertices(ModelShaderVertex* triangleVertices, int triangleVertexCount);
     quint64 meshId() const;
     void setMeshId(quint64 id);
     void removeColor();
+
 private:
-    ModelShaderVertex *m_triangleVertices = nullptr;
+    ModelShaderVertex* m_triangleVertices = nullptr;
     int m_triangleVertexCount = 0;
-    ModelShaderVertex *m_edgeVertices = nullptr;
+    ModelShaderVertex* m_edgeVertices = nullptr;
     int m_edgeVertexCount = 0;
-    ModelShaderVertex *m_toolVertices = nullptr;
+    ModelShaderVertex* m_toolVertices = nullptr;
     int m_toolVertexCount = 0;
     std::vector<AutoRemesher::Vector3> m_vertices;
     std::vector<std::vector<size_t>> m_faces;
-    QImage *m_textureImage = nullptr;
-    QImage *m_normalMapImage = nullptr;
-    QImage *m_metalnessRoughnessAmbientOcclusionImage = nullptr;
+    QImage* m_textureImage = nullptr;
+    QImage* m_normalMapImage = nullptr;
+    QImage* m_metalnessRoughnessAmbientOcclusionImage = nullptr;
     bool m_hasMetalnessInImage = false;
     bool m_hasRoughnessInImage = false;
     bool m_hasAmbientOcclusionInImage = false;

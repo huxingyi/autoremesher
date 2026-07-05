@@ -2,7 +2,9 @@ QT += core widgets opengl network
 # QOpenGLWidget moved into its own module in Qt 6.
 greaterThan(QT_MAJOR_VERSION, 5): QT += openglwidgets
 win32 {
-    QT += winextras
+    qtHaveModule(winextras) {
+        QT += winextras
+    }
 }
 CONFIG += release
 CONFIG(release, debug|release) DEFINES += NDEBUG
@@ -414,31 +416,50 @@ HEADERS += thirdparty/geogram/geogram-1.8.3/src/lib/exploragram/hexdom/polygon.h
 SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/exploragram/hexdom/quad_cover.cpp
 HEADERS += thirdparty/geogram/geogram-1.8.3/src/lib/exploragram/hexdom/quad_cover.h
 HEADERS += thirdparty/geogram/geogram-1.8.3/src/lib/exploragram/hexdom/mixed_constrained_solver.h
-SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/nl/nl_api.c
-SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/nl/nl_matrix.c
-SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/nl/nl_context.c
-SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/nl/nl_blas.c
-SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/nl/nl_arpack.c
-SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/nl/nl_iterative_solvers.c
-SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/nl/nl_preconditioners.c
-SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/nl/nl_os.c
+SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/NL/nl_api.c
+SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/NL/nl_matrix.c
+SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/NL/nl_context.c
+SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/NL/nl_blas.c
+SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/NL/nl_arpack.c
+SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/NL/nl_iterative_solvers.c
+SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/NL/nl_preconditioners.c
+SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/NL/nl_os.c
 SOURCES += src/AutoRemesher/nl_ext_stubs.c
-INCLUDEPATH += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/nl
+INCLUDEPATH += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/NL
 SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/libMeshb/sources/libmeshb7.c
 HEADERS += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/libMeshb/sources/libmeshb7.h
 SOURCES += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/rply/rply.c
 HEADERS += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/rply/rply.h
 HEADERS += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/rply/rplyfile.h
 
-INCLUDEPATH += /opt/homebrew/opt/tbb/include
-unix {
-	LIBS += -L/opt/homebrew/opt/tbb/lib -ltbbmalloc_proxy -ltbbmalloc -ltbb
-    LIBS += -lz
-	unix:!macx {
-		LIBS += -ldl
-	}
+win32 {
+	INCLUDEPATH += thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/zlib
+	SOURCES += \
+		thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/zlib/adler32.c \
+		thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/zlib/compress.c \
+		thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/zlib/crc32.c \
+		thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/zlib/deflate.c \
+		thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/zlib/gzclose.c \
+		thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/zlib/gzlib.c \
+		thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/zlib/gzread.c \
+		thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/zlib/gzwrite.c \
+		thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/zlib/inffast.c \
+		thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/zlib/inflate.c \
+		thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/zlib/inftrees.c \
+		thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/zlib/trees.c \
+		thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/zlib/uncompr.c \
+		thirdparty/geogram/geogram-1.8.3/src/lib/geogram/third_party/zlib/zutil.c
+}
+
+macx {
+    INCLUDEPATH += /opt/homebrew/opt/tbb/include
+    LIBS += -L/opt/homebrew/opt/tbb/lib -ltbbmalloc_proxy -ltbbmalloc -ltbb
+}
+unix:!macx {
+    LIBS += -ltbb -lz -ldl
 }
 win32 {
+    INCLUDEPATH += thirdparty/tbb/include
     CONFIG(release, debug|release) LIBS += -Lthirdparty/tbb/build2/Release -ltbb
 }
 

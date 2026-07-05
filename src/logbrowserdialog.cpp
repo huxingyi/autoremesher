@@ -20,33 +20,33 @@
  *  SOFTWARE.
  */
 #include "logbrowserdialog.h"
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QTextBrowser>
-#include <QPushButton>
-#include <QFileDialog>
+#include "mainwindow.h"
+#include "util.h"
+#include "version.h"
+#include <QCloseEvent>
 #include <QDir>
 #include <QFile>
-#include <QMessageBox>
-#include <QTextStream>
-#include <QCloseEvent>
+#include <QFileDialog>
+#include <QHBoxLayout>
 #include <QKeyEvent>
-#include "version.h"
-#include "util.h"
-#include "mainwindow.h"
+#include <QMessageBox>
+#include <QPushButton>
+#include <QTextBrowser>
+#include <QTextStream>
+#include <QVBoxLayout>
 
-LogBrowserDialog::LogBrowserDialog(QWidget *parent) :
-    QDialog(parent)
+LogBrowserDialog::LogBrowserDialog(QWidget* parent)
+    : QDialog(parent)
 {
     setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);
-    
-    QVBoxLayout *layout = new QVBoxLayout;
+
+    QVBoxLayout* layout = new QVBoxLayout;
     setLayout(layout);
 
     m_browser = new QTextBrowser(this);
     layout->addWidget(m_browser);
 
-    QHBoxLayout *buttonLayout = new QHBoxLayout;
+    QHBoxLayout* buttonLayout = new QHBoxLayout;
     buttonLayout->setContentsMargins(0, 0, 0, 0);
     layout->addLayout(buttonLayout);
 
@@ -63,20 +63,17 @@ LogBrowserDialog::LogBrowserDialog(QWidget *parent) :
     connect(m_saveButton, SIGNAL(clicked()), this, SLOT(save()));
 
     resize(640, 480);
-    
+
     setWindowTitle(unifiedWindowTitle(tr("Debug")));
-    
+
     hide();
 }
 
-
 LogBrowserDialog::~LogBrowserDialog()
 {
-
 }
 
-
-void LogBrowserDialog::outputMessage(QtMsgType type, const QString &msg, const QString &source, int line)
+void LogBrowserDialog::outputMessage(QtMsgType type, const QString& msg, const QString& source, int line)
 {
     switch (type) {
     case QtDebugMsg:
@@ -101,7 +98,6 @@ void LogBrowserDialog::outputMessage(QtMsgType type, const QString &msg, const Q
     }
 }
 
-
 void LogBrowserDialog::save()
 {
     QString saveFileName = QFileDialog::getSaveFileName(this,
@@ -117,8 +113,8 @@ void LogBrowserDialog::save()
         QMessageBox::warning(this,
             tr("Error"),
             QString(tr("<nobr>File '%1'<br/>cannot be opened for writing.<br/><br/>"
-            "The log output could <b>not</b> be saved!</nobr>"))
-            .arg(saveFileName));
+                       "The log output could <b>not</b> be saved!</nobr>"))
+                .arg(saveFileName));
         return;
     }
 
@@ -127,7 +123,7 @@ void LogBrowserDialog::save()
     file.close();
 }
 
-void LogBrowserDialog::closeEvent(QCloseEvent *e)
+void LogBrowserDialog::closeEvent(QCloseEvent* e)
 {
     if (0 == MainWindow::total()) {
         e->accept();
@@ -137,7 +133,7 @@ void LogBrowserDialog::closeEvent(QCloseEvent *e)
     hide();
 }
 
-void LogBrowserDialog::keyPressEvent(QKeyEvent *e)
+void LogBrowserDialog::keyPressEvent(QKeyEvent* e)
 {
     // ignore all keyboard events
     // protects against accidentally closing of the dialog

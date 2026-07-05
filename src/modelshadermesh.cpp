@@ -19,32 +19,29 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#include <QTextStream>
-#include <QFile>
-#include <cmath>
 #include "modelshadermesh.h"
+#include <QFile>
+#include <QTextStream>
+#include <cmath>
 
 float ModelShaderMesh::m_defaultMetalness = 0.0;
 float ModelShaderMesh::m_defaultRoughness = 1.0;
 
-ModelShaderMesh::ModelShaderMesh(const ModelShaderMesh &mesh)
+ModelShaderMesh::ModelShaderMesh(const ModelShaderMesh& mesh)
 {
-    if (nullptr != mesh.m_triangleVertices &&
-            mesh.m_triangleVertexCount > 0) {
+    if (nullptr != mesh.m_triangleVertices && mesh.m_triangleVertexCount > 0) {
         this->m_triangleVertices = new ModelShaderVertex[mesh.m_triangleVertexCount];
         this->m_triangleVertexCount = mesh.m_triangleVertexCount;
         for (int i = 0; i < mesh.m_triangleVertexCount; i++)
             this->m_triangleVertices[i] = mesh.m_triangleVertices[i];
     }
-    if (nullptr != mesh.m_edgeVertices &&
-            mesh.m_edgeVertexCount > 0) {
+    if (nullptr != mesh.m_edgeVertices && mesh.m_edgeVertexCount > 0) {
         this->m_edgeVertices = new ModelShaderVertex[mesh.m_edgeVertexCount];
         this->m_edgeVertexCount = mesh.m_edgeVertexCount;
         for (int i = 0; i < mesh.m_edgeVertexCount; i++)
             this->m_edgeVertices[i] = mesh.m_edgeVertices[i];
     }
-    if (nullptr != mesh.m_toolVertices &&
-            mesh.m_toolVertexCount > 0) {
+    if (nullptr != mesh.m_toolVertices && mesh.m_toolVertexCount > 0) {
         this->m_toolVertices = new ModelShaderVertex[mesh.m_toolVertexCount];
         this->m_toolVertexCount = mesh.m_toolVertexCount;
         for (int i = 0; i < mesh.m_toolVertexCount; i++)
@@ -71,31 +68,31 @@ void ModelShaderMesh::removeColor()
 {
     delete this->m_textureImage;
     this->m_textureImage = nullptr;
-    
+
     delete this->m_normalMapImage;
     this->m_normalMapImage = nullptr;
-    
+
     delete this->m_metalnessRoughnessAmbientOcclusionImage;
     this->m_metalnessRoughnessAmbientOcclusionImage = nullptr;
-    
+
     this->m_hasMetalnessInImage = false;
     this->m_hasRoughnessInImage = false;
     this->m_hasAmbientOcclusionInImage = false;
-    
+
     for (int i = 0; i < this->m_triangleVertexCount; ++i) {
-        auto &vertex = this->m_triangleVertices[i];
+        auto& vertex = this->m_triangleVertices[i];
         vertex.colorR = 1.0;
         vertex.colorG = 0.996;
         vertex.colorB = 0.890;
     }
 }
 
-ModelShaderMesh::ModelShaderMesh(ModelShaderVertex *triangleVertices, int vertexNum, ModelShaderVertex *edgeVertices, int edgeVertexCount,
-        std::vector<AutoRemesher::Vector3> *vertices, std::vector<std::vector<size_t>> *faces) :
-    m_triangleVertices(triangleVertices),
-    m_triangleVertexCount(vertexNum),
-    m_edgeVertices(edgeVertices),
-    m_edgeVertexCount(edgeVertexCount)
+ModelShaderMesh::ModelShaderMesh(ModelShaderVertex* triangleVertices, int vertexNum, ModelShaderVertex* edgeVertices, int edgeVertexCount,
+    std::vector<AutoRemesher::Vector3>* vertices, std::vector<std::vector<size_t>>* faces)
+    : m_triangleVertices(triangleVertices)
+    , m_triangleVertexCount(vertexNum)
+    , m_edgeVertices(edgeVertices)
+    , m_edgeVertexCount(edgeVertexCount)
 {
     if (nullptr != vertices)
         m_vertices = *vertices;
@@ -103,22 +100,22 @@ ModelShaderMesh::ModelShaderMesh(ModelShaderVertex *triangleVertices, int vertex
         m_faces = *faces;
 }
 
-ModelShaderMesh::ModelShaderMesh(const std::vector<AutoRemesher::Vector3> &vertices, const std::vector<std::vector<size_t>> &triangles,
-    const std::vector<std::vector<AutoRemesher::Vector3>> &triangleVertexNormals,
-    const QColor &color)
+ModelShaderMesh::ModelShaderMesh(const std::vector<AutoRemesher::Vector3>& vertices, const std::vector<std::vector<size_t>>& triangles,
+    const std::vector<std::vector<AutoRemesher::Vector3>>& triangleVertexNormals,
+    const QColor& color)
 {
     m_vertices = vertices;
     m_faces = triangles;
-    
+
     m_triangleVertexCount = (int)triangles.size() * 3;
     m_triangleVertices = new ModelShaderVertex[m_triangleVertexCount];
     int destIndex = 0;
     for (size_t i = 0; i < triangles.size(); ++i) {
         for (auto j = 0; j < 3; j++) {
             int vertexIndex = (int)triangles[i][j];
-            const AutoRemesher::Vector3 *srcVert = &vertices[vertexIndex];
-            const AutoRemesher::Vector3 *srcNormal = &(triangleVertexNormals)[i][j];
-            ModelShaderVertex *dest = &m_triangleVertices[destIndex];
+            const AutoRemesher::Vector3* srcVert = &vertices[vertexIndex];
+            const AutoRemesher::Vector3* srcNormal = &(triangleVertexNormals)[i][j];
+            ModelShaderVertex* dest = &m_triangleVertices[destIndex];
             dest->colorR = color.redF();
             dest->colorG = color.greenF();
             dest->colorB = color.blueF();
@@ -159,17 +156,17 @@ ModelShaderMesh::~ModelShaderMesh()
     delete m_metalnessRoughnessAmbientOcclusionImage;
 }
 
-const std::vector<AutoRemesher::Vector3> &ModelShaderMesh::vertices()
+const std::vector<AutoRemesher::Vector3>& ModelShaderMesh::vertices()
 {
     return m_vertices;
 }
 
-const std::vector<std::vector<size_t>> &ModelShaderMesh::faces()
+const std::vector<std::vector<size_t>>& ModelShaderMesh::faces()
 {
     return m_faces;
 }
 
-ModelShaderVertex *ModelShaderMesh::triangleVertices()
+ModelShaderVertex* ModelShaderMesh::triangleVertices()
 {
     return m_triangleVertices;
 }
@@ -179,7 +176,7 @@ int ModelShaderMesh::triangleVertexCount()
     return m_triangleVertexCount;
 }
 
-ModelShaderVertex *ModelShaderMesh::edgeVertices()
+ModelShaderVertex* ModelShaderMesh::edgeVertices()
 {
     return m_edgeVertices;
 }
@@ -189,7 +186,7 @@ int ModelShaderMesh::edgeVertexCount()
     return m_edgeVertexCount;
 }
 
-ModelShaderVertex *ModelShaderMesh::toolVertices()
+ModelShaderVertex* ModelShaderMesh::toolVertices()
 {
     return m_toolVertices;
 }
@@ -199,32 +196,32 @@ int ModelShaderMesh::toolVertexCount()
     return m_toolVertexCount;
 }
 
-void ModelShaderMesh::setTextureImage(QImage *textureImage)
+void ModelShaderMesh::setTextureImage(QImage* textureImage)
 {
     m_textureImage = textureImage;
 }
 
-const QImage *ModelShaderMesh::textureImage()
+const QImage* ModelShaderMesh::textureImage()
 {
     return m_textureImage;
 }
 
-void ModelShaderMesh::setNormalMapImage(QImage *normalMapImage)
+void ModelShaderMesh::setNormalMapImage(QImage* normalMapImage)
 {
     m_normalMapImage = normalMapImage;
 }
 
-const QImage *ModelShaderMesh::normalMapImage()
+const QImage* ModelShaderMesh::normalMapImage()
 {
     return m_normalMapImage;
 }
 
-const QImage *ModelShaderMesh::metalnessRoughnessAmbientOcclusionImage()
+const QImage* ModelShaderMesh::metalnessRoughnessAmbientOcclusionImage()
 {
     return m_metalnessRoughnessAmbientOcclusionImage;
 }
 
-void ModelShaderMesh::setMetalnessRoughnessAmbientOcclusionImage(QImage *image)
+void ModelShaderMesh::setMetalnessRoughnessAmbientOcclusionImage(QImage* image)
 {
     m_metalnessRoughnessAmbientOcclusionImage = image;
 }
@@ -259,32 +256,32 @@ void ModelShaderMesh::setHasAmbientOcclusionInImage(bool hasInImage)
     m_hasAmbientOcclusionInImage = hasInImage;
 }
 
-void ModelShaderMesh::updateTool(ModelShaderVertex *toolVertices, int vertexNum)
+void ModelShaderMesh::updateTool(ModelShaderVertex* toolVertices, int vertexNum)
 {
     delete[] m_toolVertices;
     m_toolVertices = nullptr;
     m_toolVertexCount = 0;
-    
+
     m_toolVertices = toolVertices;
     m_toolVertexCount = vertexNum;
 }
 
-void ModelShaderMesh::updateEdges(ModelShaderVertex *edgeVertices, int edgeVertexCount)
+void ModelShaderMesh::updateEdges(ModelShaderVertex* edgeVertices, int edgeVertexCount)
 {
     delete[] m_edgeVertices;
     m_edgeVertices = nullptr;
     m_edgeVertexCount = 0;
-    
+
     m_edgeVertices = edgeVertices;
     m_edgeVertexCount = edgeVertexCount;
 }
 
-void ModelShaderMesh::updateTriangleVertices(ModelShaderVertex *triangleVertices, int triangleVertexCount)
+void ModelShaderMesh::updateTriangleVertices(ModelShaderVertex* triangleVertices, int triangleVertexCount)
 {
     delete[] m_triangleVertices;
     m_triangleVertices = 0;
     m_triangleVertexCount = 0;
-    
+
     m_triangleVertices = triangleVertices;
     m_triangleVertexCount = triangleVertexCount;
 }

@@ -1,0 +1,29 @@
+name: development
+
+on:
+  push:
+    branches:
+      - master
+      - ci
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  clang-format-check:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang-format
+        run: |
+          brew update
+          brew install clang-format
+      - name: Run clang-format
+        run: cd ${GITHUB_WORKSPACE}/ci && sh ./lint.sh && cd ${GITHUB_WORKSPACE}
+      - name: Check for changes
+        run: |
+          if ! git diff --ignore-space-at-eol --exit-code; then
+            exit 1
+          fi

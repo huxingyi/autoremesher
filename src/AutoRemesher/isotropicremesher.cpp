@@ -19,21 +19,20 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#include <cstdio>
-#include <AutoRemesher/Vector3>
 #include <AutoRemesher/IsotropicRemesher>
+#include <AutoRemesher/Vector3>
+#include <cstdio>
 
-#include <isotropicremesher.h>
 #include <isotropichalfedgemesh.h>
+#include <isotropicremesher.h>
 
-namespace AutoRemesher
-{
+namespace AutoRemesher {
 
 bool IsotropicRemesher::remesh()
 {
     std::vector<::Vector3> inputVertices;
     inputVertices.reserve(m_vertices.size());
-    for (const auto &position: m_vertices)
+    for (const auto& position : m_vertices)
         inputVertices.push_back(::Vector3(position.x(), position.y(), position.z()));
 
     ::IsotropicRemesher remesher(&inputVertices, &m_triangles);
@@ -45,42 +44,40 @@ bool IsotropicRemesher::remesh()
     remesher.setSmoothNormalDegrees(m_smoothNormalDegrees);
     remesher.remesh(m_remeshIterations);
 
-    IsotropicHalfedgeMesh *halfedgeMesh = remesher.remeshedHalfedgeMesh();
+    IsotropicHalfedgeMesh* halfedgeMesh = remesher.remeshedHalfedgeMesh();
     if (nullptr == halfedgeMesh)
         return false;
 
     size_t outputIndex = 0;
-    for (IsotropicHalfedgeMesh::Vertex *vertex = halfedgeMesh->moveToNextVertex(nullptr);
-            nullptr != vertex;
-            vertex = halfedgeMesh->moveToNextVertex(vertex)) {
+    for (IsotropicHalfedgeMesh::Vertex* vertex = halfedgeMesh->moveToNextVertex(nullptr);
+        nullptr != vertex;
+        vertex = halfedgeMesh->moveToNextVertex(vertex)) {
         vertex->outputIndex = outputIndex++;
         m_remeshedVertices.push_back(Vector3 {
             vertex->position.x(),
             vertex->position.y(),
-            vertex->position.z()
-        });
+            vertex->position.z() });
     }
-    for (IsotropicHalfedgeMesh::Face *face = halfedgeMesh->moveToNextFace(nullptr);
-            nullptr != face;
-            face = halfedgeMesh->moveToNextFace(face)) {
+    for (IsotropicHalfedgeMesh::Face* face = halfedgeMesh->moveToNextFace(nullptr);
+        nullptr != face;
+        face = halfedgeMesh->moveToNextFace(face)) {
         m_remeshedTriangles.push_back(std::vector<size_t> {
             face->halfedge->previousHalfedge->startVertex->outputIndex,
             face->halfedge->startVertex->outputIndex,
-            face->halfedge->nextHalfedge->startVertex->outputIndex
-        });
+            face->halfedge->nextHalfedge->startVertex->outputIndex });
     }
 
     return true;
 }
 
-void IsotropicRemesher::debugExportObj(const char *filename)
+void IsotropicRemesher::debugExportObj(const char* filename)
 {
-    FILE *fp = fopen(filename, "wb");
-    for (const auto &it: m_remeshedVertices) {
+    FILE* fp = fopen(filename, "wb");
+    for (const auto& it : m_remeshedVertices) {
         fprintf(fp, "v %f %f %f\n",
             it[0], it[1], it[2]);
     }
-    for (const auto &it: m_remeshedTriangles) {
+    for (const auto& it : m_remeshedTriangles) {
         fprintf(fp, "f %zu %zu %zu\n",
             it[0] + 1, it[1] + 1, it[2] + 1);
     }

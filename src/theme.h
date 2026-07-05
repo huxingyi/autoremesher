@@ -21,16 +21,15 @@
  */
 #ifndef AUTO_REMESHER_THEME_H
 #define AUTO_REMESHER_THEME_H
+#include "QtAwesome.h"
+#include <QCheckBox>
 #include <QColor>
+#include <QLabel>
+#include <QPushButton>
 #include <QString>
 #include <map>
-#include <QPushButton>
-#include <QLabel>
-#include <QCheckBox>
-#include "QtAwesome.h"
 
-class Theme
-{
+class Theme {
 public:
     static QColor red;
     static QColor green;
@@ -51,9 +50,9 @@ public:
     static QString tabButtonStylesheet;
     static std::map<QString, QString> nextSideColorNameMap;
     static std::map<QString, QColor> sideColorNameToColorMap;
-    static QtAwesome *awesome();
-    static QWidget *createHorizontalLineWidget();
-    static QWidget *createVerticalLineWidget();
+    static QtAwesome* awesome();
+    static QWidget* createHorizontalLineWidget();
+    static QWidget* createVerticalLineWidget();
     static int toolIconFontSize;
     static int toolIconSize;
     static int materialPreviewImageSize;
@@ -65,17 +64,18 @@ public:
     static int miniIconSize;
     static int sidebarPreferredWidth;
     static int normalButtonSize;
+
 public:
-    static void initAwesomeButton(QPushButton *button);
-    static void initAwesomeLabel(QLabel *label);
-    static void initAwesomeSmallButton(QPushButton *button);
-    static void initAwesomeMiniButton(QPushButton *button);
-    static void updateAwesomeMiniButton(QPushButton *button, QChar icon, bool highlighted, bool enabled, bool unnormal=false);
-    static void initAwesomeToolButton(QPushButton *button);
-    static void initAwesomeToolButtonWithoutFont(QPushButton *button);
+    static void initAwesomeButton(QPushButton* button);
+    static void initAwesomeLabel(QLabel* label);
+    static void initAwesomeSmallButton(QPushButton* button);
+    static void initAwesomeMiniButton(QPushButton* button);
+    static void updateAwesomeMiniButton(QPushButton* button, QChar icon, bool highlighted, bool enabled, bool unnormal = false);
+    static void initAwesomeToolButton(QPushButton* button);
+    static void initAwesomeToolButtonWithoutFont(QPushButton* button);
     static void initAwsomeBaseSizes();
-    static void initToolButton(QPushButton *button);
-    static void initCheckbox(QCheckBox *checkbox);
+    static void initToolButton(QPushButton* button);
+    static void initCheckbox(QCheckBox* checkbox);
     static QString compactStylesheet();
 };
 

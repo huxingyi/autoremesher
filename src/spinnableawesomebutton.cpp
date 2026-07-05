@@ -22,14 +22,14 @@
 #include "spinnableawesomebutton.h"
 #include "theme.h"
 
-SpinnableAwesomeButton::SpinnableAwesomeButton(QWidget *parent) :
-    QWidget(parent)
+SpinnableAwesomeButton::SpinnableAwesomeButton(QWidget* parent)
+    : QWidget(parent)
 {
     setFixedSize(Theme::toolIconSize, Theme::toolIconSize);
 
     m_button = new QPushButton(this);
     Theme::initAwesomeButton(m_button);
-    
+
     m_spinner = new WaitingSpinnerWidget(this);
     m_spinner->setColor(Theme::white);
     m_spinner->setInnerRadius(Theme::toolIconSize / 8);
@@ -56,11 +56,10 @@ void SpinnableAwesomeButton::showSpinner(bool showSpinner)
     }
 }
 
-QPushButton *SpinnableAwesomeButton::button()
+QPushButton* SpinnableAwesomeButton::button()
 {
     return m_button;
 }
-
 
 bool SpinnableAwesomeButton::isSpinning()
 {

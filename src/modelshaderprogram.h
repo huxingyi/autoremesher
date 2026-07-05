@@ -24,8 +24,7 @@
 #include <QOpenGLShaderProgram>
 #include <QString>
 
-class ModelShaderProgram : public QOpenGLShaderProgram
-{
+class ModelShaderProgram : public QOpenGLShaderProgram {
 public:
     ModelShaderProgram(bool isCoreProfile);
     int projectionMatrixLoc();
@@ -45,12 +44,12 @@ public:
     int mousePickTargetPositionLoc();
     int mousePickRadiusLoc();
     bool isCoreProfile();
-    static const QString &loadShaderSource(const QString &name);
-    void setProjectionMatrixValue(const QMatrix4x4 &value);
-    void setModelMatrixValue(const QMatrix4x4 &value);
-    void setNormalMatrixValue(const QMatrix3x3 &value);
-    void setViewMatrixValue(const QMatrix4x4 &value);
-    void setEyePositionValue(const QVector3D &value);
+    static const QString& loadShaderSource(const QString& name);
+    void setProjectionMatrixValue(const QMatrix4x4& value);
+    void setModelMatrixValue(const QMatrix4x4& value);
+    void setNormalMatrixValue(const QMatrix3x3& value);
+    void setViewMatrixValue(const QMatrix4x4& value);
+    void setEyePositionValue(const QVector3D& value);
     void setTextureIdValue(int value);
     void setTextureEnabledValue(int value);
     void setNormalMapEnabledValue(int value);
@@ -60,8 +59,9 @@ public:
     void setAoMapEnabledValue(int value);
     void setMetalnessRoughnessAoMapIdValue(int value);
     void setMousePickEnabledValue(int value);
-    void setMousePickTargetPositionValue(const QVector3D &value);
+    void setMousePickTargetPositionValue(const QVector3D& value);
     void setMousePickRadiusValue(float value);
+
 private:
     bool m_isCoreProfile = false;
     int m_projectionMatrixLoc = 0;

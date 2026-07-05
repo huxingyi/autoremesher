@@ -1,9 +1,9 @@
 #include "monochromeopenglprogram.h"
+#include <QDebug>
 #include <QFile>
 #include <QTextStream>
-#include <QDebug>
 
-static const QString &loadShaderSource(const QString &name)
+static const QString& loadShaderSource(const QString& name)
 {
     static std::map<QString, QString> s_shaderSources;
     auto findShader = s_shaderSources.find(name);
@@ -48,7 +48,7 @@ void MonochromeOpenGLProgram::load(bool isCoreProfile)
     m_isLoaded = true;
 }
 
-int MonochromeOpenGLProgram::getUniformLocationByName(const std::string &name)
+int MonochromeOpenGLProgram::getUniformLocationByName(const std::string& name)
 {
     auto findLocation = m_uniformLocationMap.find(name);
     if (findLocation != m_uniformLocationMap.end())

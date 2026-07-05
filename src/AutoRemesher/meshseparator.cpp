@@ -19,19 +19,18 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#include <unordered_set>
-#include <queue>
 #include <AutoRemesher/MeshSeparator>
+#include <queue>
+#include <unordered_set>
 
-namespace AutoRemesher
-{
-    
-void MeshSeparator::splitToIslands(const std::vector<std::vector<size_t>> &faces, 
-        std::vector<std::vector<std::vector<size_t>>> &islands)
+namespace AutoRemesher {
+
+void MeshSeparator::splitToIslands(const std::vector<std::vector<size_t>>& faces,
+    std::vector<std::vector<std::vector<size_t>>>& islands)
 {
     std::map<std::pair<size_t, size_t>, size_t> edgeToFaceMap;
     buildEdgeToFaceMap(faces, edgeToFaceMap);
-    
+
     std::unordered_set<size_t> processedFaces;
     std::queue<size_t> waitFaces;
     for (size_t indexInGroup = 0; indexInGroup < faces.size(); ++indexInGroup) {
@@ -44,10 +43,10 @@ void MeshSeparator::splitToIslands(const std::vector<std::vector<size_t>> &faces
             waitFaces.pop();
             if (processedFaces.find(index) != processedFaces.end())
                 continue;
-            const auto &face = faces[index];
+            const auto& face = faces[index];
             for (size_t i = 0; i < face.size(); i++) {
                 size_t j = (i + 1) % face.size();
-                auto findOppositeFaceResult = edgeToFaceMap.find({face[j], face[i]});
+                auto findOppositeFaceResult = edgeToFaceMap.find({ face[j], face[i] });
                 if (findOppositeFaceResult == edgeToFaceMap.end())
                     continue;
                 waitFaces.push(findOppositeFaceResult->second);
@@ -60,18 +59,18 @@ void MeshSeparator::splitToIslands(const std::vector<std::vector<size_t>> &faces
         islands.push_back(island);
     }
 }
-    
-void MeshSeparator::buildEdgeToFaceMap(const std::vector<std::vector<size_t>> &faces, 
-        std::map<std::pair<size_t, size_t>, size_t> &edgeToFaceMap)
+
+void MeshSeparator::buildEdgeToFaceMap(const std::vector<std::vector<size_t>>& faces,
+    std::map<std::pair<size_t, size_t>, size_t>& edgeToFaceMap)
 {
     edgeToFaceMap.clear();
     for (size_t index = 0; index < faces.size(); ++index) {
-        const auto &face = faces[index];
+        const auto& face = faces[index];
         for (size_t i = 0; i < face.size(); i++) {
             size_t j = (i + 1) % face.size();
-            edgeToFaceMap[{face[i], face[j]}] = index;
+            edgeToFaceMap[{ face[i], face[j] }] = index;
         }
     }
 }
-    
+
 }

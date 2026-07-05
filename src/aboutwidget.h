@@ -23,8 +23,7 @@
 #define AUTO_REMESHER_ABOUT_WIDGET_H
 #include <QDialog>
 
-class AboutWidget : public QDialog
-{
+class AboutWidget : public QDialog {
     Q_OBJECT
 public:
     AboutWidget();

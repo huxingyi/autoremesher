@@ -21,49 +21,48 @@
  */
 #ifndef AUTO_REMESHER_RENDER_MESH_GENERATOR_H
 #define AUTO_REMESHER_RENDER_MESH_GENERATOR_H
-#include <QObject>
-#include <AutoRemesher/Vector3>
 #include "modelshadermesh.h"
+#include <AutoRemesher/Vector3>
+#include <QObject>
 
-class RenderMeshGenerator: public QObject
-{
+class RenderMeshGenerator : public QObject {
     Q_OBJECT
 public:
-    RenderMeshGenerator(const std::vector<AutoRemesher::Vector3> &vertices,
-            const std::vector<std::vector<size_t>> &faces) :
-        m_vertices(new std::vector<AutoRemesher::Vector3>(vertices)),
-        m_faces(new std::vector<std::vector<size_t>>(faces))
+    RenderMeshGenerator(const std::vector<AutoRemesher::Vector3>& vertices,
+        const std::vector<std::vector<size_t>>& faces)
+        : m_vertices(new std::vector<AutoRemesher::Vector3>(vertices))
+        , m_faces(new std::vector<std::vector<size_t>>(faces))
     {
     }
-    
+
     ~RenderMeshGenerator()
     {
         delete m_renderMesh;
     }
 
-    ModelShaderMesh *takeRenderMesh()
+    ModelShaderMesh* takeRenderMesh()
     {
-        ModelShaderMesh *renderMesh = m_renderMesh;
+        ModelShaderMesh* renderMesh = m_renderMesh;
         m_renderMesh = nullptr;
         return renderMesh;
     }
-    
+
     void generate();
-    
+
 signals:
     void finished();
 public slots:
     void process();
-    
+
 private:
-    std::vector<AutoRemesher::Vector3> *m_vertices = nullptr;
-    std::vector<std::vector<size_t>> *m_faces = nullptr;
-    ModelShaderMesh *m_renderMesh = nullptr;
-    
+    std::vector<AutoRemesher::Vector3>* m_vertices = nullptr;
+    std::vector<std::vector<size_t>>* m_faces = nullptr;
+    ModelShaderMesh* m_renderMesh = nullptr;
+
     void normalizeVertices();
-    static void calculateNormalizedFactors(const std::vector<AutoRemesher::Vector3> &vertices, 
-        AutoRemesher::Vector3 *origin, 
-        double *maxLength);
+    static void calculateNormalizedFactors(const std::vector<AutoRemesher::Vector3>& vertices,
+        AutoRemesher::Vector3* origin,
+        double* maxLength);
 };
 
 #endif

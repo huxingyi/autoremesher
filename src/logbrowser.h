@@ -26,25 +26,24 @@
 
 class LogBrowserDialog;
 
-class LogBrowser : public QObject
-{
+class LogBrowser : public QObject {
     Q_OBJECT
 public:
-    explicit LogBrowser(QObject *parent=0);
+    explicit LogBrowser(QObject* parent = 0);
     ~LogBrowser();
 
 public slots:
-    void outputMessage(QtMsgType type, const QString &msg, const QString &source, int line);
+    void outputMessage(QtMsgType type, const QString& msg, const QString& source, int line);
     void showDialog();
     void hideDialog();
     bool isDialogVisible();
 
 signals:
-    void sendMessage(QtMsgType type, const QString &msg, const QString &source, int line);
+    void sendMessage(QtMsgType type, const QString& msg, const QString& source, int line);
 
 private:
-    LogBrowserDialog *m_browserDialog = nullptr;
-    FILE *m_outputTo = nullptr;
+    LogBrowserDialog* m_browserDialog = nullptr;
+    FILE* m_outputTo = nullptr;
     static bool m_enableOutputToFile;
 };
 

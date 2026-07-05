@@ -7,8 +7,9 @@
 class MonochromeOpenGLProgram : public QOpenGLShaderProgram {
 public:
     void load(bool isCoreProfile = false);
-    int getUniformLocationByName(const std::string &name);
+    int getUniformLocationByName(const std::string& name);
     bool isCoreProfile() const;
+
 private:
     bool m_isLoaded = false;
     bool m_isCoreProfile = false;

@@ -20,22 +20,21 @@
  *  SOFTWARE.
  */
 #include <AutoRemesher/Parameterizer>
-#include <exploragram/hexdom/quad_cover.h>
-#include <geogram/mesh/mesh_io.h>
-#include <geogram/mesh/mesh_frame_field.h>
-#include <map>
 #include <cmath>
-#include <tbb/parallel_for.h>
+#include <exploragram/hexdom/quad_cover.h>
+#include <geogram/mesh/mesh_frame_field.h>
+#include <geogram/mesh/mesh_io.h>
+#include <map>
 #include <tbb/blocked_range.h>
 #include <tbb/combinable.h>
+#include <tbb/parallel_for.h>
 
-namespace AutoRemesher
-{
+namespace AutoRemesher {
 
-std::vector<double> Parameterizer::computeFaceScalingField(const std::vector<Vector3> &vertices,
-        const std::vector<std::vector<size_t>> &triangles,
-        const std::vector<Vector3> &vertexNormals,
-        const std::map<size_t, std::vector<size_t>> &faceAroundVertexMap) const
+std::vector<double> Parameterizer::computeFaceScalingField(const std::vector<Vector3>& vertices,
+    const std::vector<std::vector<size_t>>& triangles,
+    const std::vector<Vector3>& vertexNormals,
+    const std::map<size_t, std::vector<size_t>>& faceAroundVertexMap) const
 {
     std::vector<double> faceScaling(triangles.size(), 1.0);
     if (m_adaptivity <= 0.0 || vertices.empty())
@@ -43,15 +42,15 @@ std::vector<double> Parameterizer::computeFaceScalingField(const std::vector<Vec
 
     std::vector<double> vertexCurvature(vertices.size(), 0.0);
     tbb::parallel_for(tbb::blocked_range<size_t>(0, vertices.size()),
-        [&](const tbb::blocked_range<size_t> &range) {
+        [&](const tbb::blocked_range<size_t>& range) {
             for (size_t v = range.begin(); v != range.end(); ++v) {
                 auto findFaces = faceAroundVertexMap.find(v);
                 if (findFaces == faceAroundVertexMap.end())
                     continue;
-                const auto &normalV = vertexNormals[v];
+                const auto& normalV = vertexNormals[v];
                 double maxCurvature = 0.0;
-                for (const auto &faceIndex: findFaces->second) {
-                    for (const auto &u: triangles[faceIndex]) {
+                for (const auto& faceIndex : findFaces->second) {
+                    for (const auto& u : triangles[faceIndex]) {
                         if (u == v)
                             continue;
                         double distance = (vertices[u] - vertices[v]).length();
@@ -72,7 +71,7 @@ std::vector<double> Parameterizer::computeFaceScalingField(const std::vector<Vec
         });
 
     double sumCurvature = 0.0;
-    for (const auto &it: vertexCurvature)
+    for (const auto& it : vertexCurvature)
         sumCurvature += it;
     double averageCurvature = sumCurvature / vertexCurvature.size();
     if (averageCurvature <= 0.0)
@@ -81,11 +80,11 @@ std::vector<double> Parameterizer::computeFaceScalingField(const std::vector<Vec
     const double minRatio = 0.3;
     const double maxRatio = 3.0;
     tbb::parallel_for(tbb::blocked_range<size_t>(0, triangles.size()),
-        [&](const tbb::blocked_range<size_t> &range) {
+        [&](const tbb::blocked_range<size_t>& range) {
             for (size_t i = range.begin(); i != range.end(); ++i) {
-                const auto &triangle = triangles[i];
+                const auto& triangle = triangles[i];
                 double faceCurvature = 0.0;
-                for (const auto &v: triangle)
+                for (const auto& v : triangle)
                     faceCurvature += vertexCurvature[v];
                 faceCurvature /= triangle.size();
                 double normalized = faceCurvature / averageCurvature;
@@ -107,13 +106,13 @@ bool Parameterizer::parameterize()
 {
 #if AUTO_REMESHER_DEV
     {
-        FILE *fp = fopen("debug-input-for-parameterization.obj", "wb");
+        FILE* fp = fopen("debug-input-for-parameterization.obj", "wb");
         for (size_t i = 0; i < m_vertices->size(); ++i) {
-            const auto &vertex = (*m_vertices)[i];
+            const auto& vertex = (*m_vertices)[i];
             fprintf(fp, "v %f %f %f\n", vertex[0], vertex[1], vertex[2]);
         }
         for (size_t i = 0; i < m_triangles->size(); ++i) {
-            const auto &indices = (*m_triangles)[i];
+            const auto& indices = (*m_triangles)[i];
             fprintf(fp, "f %zu %zu %zu\n", indices[0] + 1, indices[1] + 1, indices[2] + 1);
         }
         fclose(fp);
@@ -125,10 +124,10 @@ bool Parameterizer::parameterize()
         tbb::combinable<std::vector<Vector3>> perThreadNormals(
             [&]() { return std::vector<Vector3>(m_vertices->size()); });
         tbb::parallel_for(tbb::blocked_range<size_t>(0, m_triangles->size()),
-            [&](const tbb::blocked_range<size_t> &range) {
-                auto &local = perThreadNormals.local();
+            [&](const tbb::blocked_range<size_t>& range) {
+                auto& local = perThreadNormals.local();
                 for (size_t i = range.begin(); i != range.end(); ++i) {
-                    const auto &it = (*m_triangles)[i];
+                    const auto& it = (*m_triangles)[i];
                     Vector3 n = Vector3::normal(
                         (*m_vertices)[it[0]], (*m_vertices)[it[1]], (*m_vertices)[it[2]]);
                     local[it[0]] += n;
@@ -136,12 +135,12 @@ bool Parameterizer::parameterize()
                     local[it[2]] += n;
                 }
             });
-        perThreadNormals.combine_each([&](const std::vector<Vector3> &local) {
+        perThreadNormals.combine_each([&](const std::vector<Vector3>& local) {
             for (size_t i = 0; i < vertexNormals.size(); ++i)
                 vertexNormals[i] += local[i];
         });
         tbb::parallel_for(tbb::blocked_range<size_t>(0, vertexNormals.size()),
-            [&](const tbb::blocked_range<size_t> &range) {
+            [&](const tbb::blocked_range<size_t>& range) {
                 for (size_t i = range.begin(); i != range.end(); ++i)
                     vertexNormals[i].normalize();
             });
@@ -149,7 +148,7 @@ bool Parameterizer::parameterize()
 
     std::map<size_t, std::vector<size_t>> faceAroundVertexMap;
     for (size_t i = 0; i < m_triangles->size(); ++i) {
-        const auto &it = (*m_triangles)[i];
+        const auto& it = (*m_triangles)[i];
         faceAroundVertexMap[it[0]].push_back(i);
         faceAroundVertexMap[it[1]].push_back(i);
         faceAroundVertexMap[it[2]].push_back(i);
@@ -159,26 +158,26 @@ bool Parameterizer::parameterize()
         *m_triangles, vertexNormals, faceAroundVertexMap);
 
     GEO::Mesh M;
-    auto makeMesh = [](GEO::Mesh &M, const std::vector<Vector3> &vertices, const std::vector<std::vector<size_t>> &triangles) {
+    auto makeMesh = [](GEO::Mesh& M, const std::vector<Vector3>& vertices, const std::vector<std::vector<size_t>>& triangles) {
         M.vertices.set_dimension(3);
         std::vector<GEO::index_t> meshVertices(vertices.size());
         for (size_t i = 0; i < vertices.size(); ++i) {
-            const auto &row = vertices[i];
+            const auto& row = vertices[i];
             auto v = M.vertices.create_vertex();
             meshVertices[i] = v;
-            double coords[] = {row[0], row[1], row[2]};
+            double coords[] = { row[0], row[1], row[2] };
             if (M.vertices.single_precision()) {
-                float *p = M.vertices.single_precision_point_ptr(v);
+                float* p = M.vertices.single_precision_point_ptr(v);
                 for (GEO::index_t c = 0; c < 3; ++c)
                     p[c] = float(coords[c]);
             } else {
-                double *p = M.vertices.point_ptr(v);
+                double* p = M.vertices.point_ptr(v);
                 for (GEO::index_t c = 0; c < 3; ++c)
                     p[c] = coords[c];
             }
         }
         for (size_t i = 0; i < triangles.size(); ++i) {
-            const auto &row = triangles[i];
+            const auto& row = triangles[i];
             GEO::index_t f = M.facets.create_polygon(3);
             for (GEO::index_t lv = 0; lv < 3; ++lv)
                 M.facets.set_vertex(f, lv, meshVertices[row[lv]]);
@@ -214,17 +213,16 @@ bool Parameterizer::parameterize()
         GEO::FrameField FF;
         FF.set_use_spatial_search(false);
         FF.create_from_surface_mesh(originalM, false, m_sharpEdgeDegrees);
-        const auto &frames = FF.frames();
-        for (GEO::index_t f: originalM.facets) {
+        const auto& frames = FF.frames();
+        for (GEO::index_t f : originalM.facets) {
             B[f] = GEO::vec3(
-                frames[9*f+0],
-                frames[9*f+1],
-                frames[9*f+2]
-            );
+                frames[9 * f + 0],
+                frames[9 * f + 1],
+                frames[9 * f + 2]);
         }
     } else {
         for (size_t i = 0; i < m_triangleFieldVectors->size(); ++i) {
-            const auto &row = (*m_triangleFieldVectors)[i];
+            const auto& row = (*m_triangleFieldVectors)[i];
             B[i] = GEO::vec3(row[0], row[1], row[2]);
         }
     }
@@ -244,21 +242,19 @@ bool Parameterizer::parameterize()
     m_triangleUvs->reserve(m_triangles->size());
     size_t faceCornerIndex = 0;
     for (size_t i = 0; i < m_triangles->size(); ++i) {
-        const auto &v0 = U[faceCornerIndex++];
-        const auto &v1 = U[faceCornerIndex++];
-        const auto &v2 = U[faceCornerIndex++];
-        m_triangleUvs->push_back({
-            Vector2 {v0[0], v0[1]},
-            Vector2 {v1[0], v1[1]},
-            Vector2 {v2[0], v2[1]}
-        });
+        const auto& v0 = U[faceCornerIndex++];
+        const auto& v1 = U[faceCornerIndex++];
+        const auto& v2 = U[faceCornerIndex++];
+        m_triangleUvs->push_back({ Vector2 { v0[0], v0[1] },
+            Vector2 { v1[0], v1[1] },
+            Vector2 { v2[0], v2[1] } });
     }
 
 #if AUTO_REMESHER_DEV
     {
-        FILE *fp = fopen("debug-uv.obj", "wb");
+        FILE* fp = fopen("debug-uv.obj", "wb");
         for (size_t i = 0; i < m_triangles->size(); ++i) {
-            const auto &uv = (*m_triangleUvs)[i];
+            const auto& uv = (*m_triangleUvs)[i];
             fprintf(fp, "v %f %f %f\n", uv[0][0], 0.0, uv[0][1]);
             fprintf(fp, "v %f %f %f\n", uv[1][0], 0.0, uv[1][1]);
             fprintf(fp, "v %f %f %f\n", uv[2][0], 0.0, uv[2][1]);
@@ -273,25 +269,25 @@ bool Parameterizer::parameterize()
         return 0.5 + x * 0.5;
     };
     {
-        FILE *fp = fopen("quadcover.obj", "wb");
+        FILE* fp = fopen("quadcover.obj", "wb");
         fprintf(fp, "mtllib quadcover.mtl\n");
         fprintf(fp, "usemtl quadcover\n");
         for (size_t i = 0; i < m_vertices->size(); ++i) {
-            const auto &row = (*m_vertices)[i];
+            const auto& row = (*m_vertices)[i];
             fprintf(fp, "v %f %f %f\n", row[0], row[1], row[2]);
         }
         size_t faceCornerIndex = 0;
         for (size_t i = 0; i < m_triangles->size(); ++i) {
-            const auto &v0 = U[faceCornerIndex++];
-            const auto &v1 = U[faceCornerIndex++];
-            const auto &v2 = U[faceCornerIndex++];
+            const auto& v0 = U[faceCornerIndex++];
+            const auto& v1 = U[faceCornerIndex++];
+            const auto& v2 = U[faceCornerIndex++];
             fprintf(fp, "vt %f %f\n", normalizeUv(v0[0]), normalizeUv(v0[1]));
             fprintf(fp, "vt %f %f\n", normalizeUv(v1[0]), normalizeUv(v1[1]));
             fprintf(fp, "vt %f %f\n", normalizeUv(v2[0]), normalizeUv(v2[1]));
         }
 
         for (size_t i = 0; i < m_triangles->size(); ++i) {
-            const auto &row = (*m_triangles)[i];
+            const auto& row = (*m_triangles)[i];
             fprintf(fp, "f %zu/%zu %zu/%zu %zu/%zu\n",
                 1 + row[0], i * 3 + 1,
                 1 + row[1], i * 3 + 2,
@@ -300,7 +296,7 @@ bool Parameterizer::parameterize()
         fclose(fp);
     }
     {
-        FILE *fp = fopen("quadcover.mtl", "wb");
+        FILE* fp = fopen("quadcover.mtl", "wb");
         fprintf(fp, "newmtl quadcover\n");
         fprintf(fp, "Ka 1.000 1.000 1.000\n");
         fprintf(fp, "Kd 1.000 1.000 1.000\n");

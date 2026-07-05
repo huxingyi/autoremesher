@@ -8,10 +8,11 @@
 
 class MonochromeOpenGLObject {
 public:
-    void update(const MonochromeOpenGLVertex *vertices, int vertexCount);
+    void update(const MonochromeOpenGLVertex* vertices, int vertexCount);
     void draw();
     void cleanup();
     int vertexCount() const { return m_meshVertexCount; }
+
 private:
     void copyMeshToOpenGL();
     QOpenGLVertexArrayObject m_vertexArrayObject;

@@ -21,25 +21,26 @@
  */
 #ifndef AUTO_REMESHER_GRAPHICS_WIDGET_H
 #define AUTO_REMESHER_GRAPHICS_WIDGET_H
-#include <QGraphicsView>
-#include "theme.h"
 #include "modelshaderwidget.h"
+#include "theme.h"
+#include <QGraphicsView>
 
-class GraphicsWidget : public QGraphicsView
-{
+class GraphicsWidget : public QGraphicsView {
     Q_OBJECT
 public:
     GraphicsWidget();
     ~GraphicsWidget();
-    void setModelWidget(ModelShaderWidget *modelWidget);
-    bool inputWheelEventFromOtherWidget(QWheelEvent *event);
+    void setModelWidget(ModelShaderWidget* modelWidget);
+    bool inputWheelEventFromOtherWidget(QWheelEvent* event);
+
 protected:
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void wheelEvent(QWheelEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
-    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+
 private:
-    ModelShaderWidget *m_modelWidget = nullptr;
+    ModelShaderWidget* m_modelWidget = nullptr;
 };
 
 #endif

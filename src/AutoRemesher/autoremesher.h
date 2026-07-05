@@ -21,55 +21,52 @@
  */
 #ifndef AUTO_REMESHER_AUTO_REMESHER_H
 #define AUTO_REMESHER_AUTO_REMESHER_H
-#include <vector>
+#include <AutoRemesher/Vector3>
 #include <cstddef>
 #include <map>
 #include <mutex>
-#include <AutoRemesher/Vector3>
+#include <vector>
 
-namespace AutoRemesher
-{
-    
+namespace AutoRemesher {
+
 class IsotropicRemesher;
 
-enum class ModelType
-{
+enum class ModelType {
     Organic,
     HardSurface
 };
 
-typedef void (*AutoRemesherProgressHandler)(void *tag, float progress, const char *status);
+typedef void (*AutoRemesherProgressHandler)(void* tag, float progress, const char* status);
 
-class AutoRemesher
-{
+class AutoRemesher {
 public:
-    AutoRemesher(const std::vector<Vector3> &vertices,
-            const std::vector<std::vector<size_t>> &triangles) :
-        m_vertices(vertices),
-        m_triangles(triangles)
+    AutoRemesher(const std::vector<Vector3>& vertices,
+        const std::vector<std::vector<size_t>>& triangles)
+        : m_vertices(vertices)
+        , m_triangles(triangles)
     {
     }
-    
+
     void setTargetTriangleCount(size_t targetTriangleCount)
     {
         m_targetTriangleCount = targetTriangleCount;
     }
-    
+
     void setScaling(double scaling)
     {
         m_scaling = scaling;
     }
-    
+
     void setProgressHandler(AutoRemesherProgressHandler progressHandler)
     {
         m_progressHandler = progressHandler;
     }
-    
-    void setTag(void *tag)
+
+    void setTag(void* tag)
     {
         m_tag = tag;
     }
-    
+
     void setModelType(ModelType modelType)
     {
         m_modelType = modelType;
@@ -79,7 +76,7 @@ public:
     {
         m_adaptivity = adaptivity;
     }
-    
+
     void setSharpEdgeDegrees(double degrees)
     {
         m_sharpEdgeDegrees = degrees;
@@ -90,21 +87,21 @@ public:
         m_smoothNormalDegrees = degrees;
     }
 
-    const std::vector<Vector3> &remeshedVertices()
+    const std::vector<Vector3>& remeshedVertices()
     {
         return m_remeshedVertices;
     }
-    
-    const std::vector<std::vector<size_t>> &remeshedQuads()
+
+    const std::vector<std::vector<size_t>>& remeshedQuads()
     {
         return m_remeshedQuads;
     }
-    
+
     bool remesh();
 
     void updateProgress(size_t threadIndex, float progress);
 
-    void setCurrentStatus(const std::string &status)
+    void setCurrentStatus(const std::string& status)
     {
         std::lock_guard<std::mutex> lock(m_currentStatusMutex);
         m_currentStatus = status;
@@ -116,6 +113,7 @@ public:
     }
 
     static const double m_defaultSharpEdgeDegrees;
+
 private:
     std::vector<Vector3> m_vertices;
     std::vector<std::vector<size_t>> m_triangles;
@@ -131,24 +129,24 @@ private:
     double m_smoothNormalDegrees = 0.0;
     ModelType m_modelType = ModelType::Organic;
     AutoRemesherProgressHandler m_progressHandler = nullptr;
-    void *m_tag = nullptr;
+    void* m_tag = nullptr;
     std::string m_currentStatus;
     mutable std::mutex m_currentStatusMutex;
 
-    static double calculateAverageEdgeLength(const std::vector<Vector3> &vertices,
-        const std::vector<std::vector<size_t>> &faces);
+    static double calculateAverageEdgeLength(const std::vector<Vector3>& vertices,
+        const std::vector<std::vector<size_t>>& faces);
     void initializeVoxelSize();
-    static void resample(std::vector<Vector3> &vertices,
-        std::vector<std::vector<size_t>> &triangles,
+    static void resample(std::vector<Vector3>& vertices,
+        std::vector<std::vector<size_t>>& triangles,
         double voxelSize,
         double adaptivity,
         double sharpEdgeDegrees,
         double smoothNormalDegrees,
         size_t islandIndex);
-    static double calculateMeshArea(const std::vector<Vector3> &vertices,
-        const std::vector<std::vector<size_t>> &triangles);
+    static double calculateMeshArea(const std::vector<Vector3>& vertices,
+        const std::vector<std::vector<size_t>>& triangles);
 };
-    
+
 }
 
 #endif

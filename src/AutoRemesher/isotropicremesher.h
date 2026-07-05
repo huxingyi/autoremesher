@@ -21,36 +21,35 @@
  */
 #ifndef AUTO_REMESHER_ISOTROPIC_REMESHER_H
 #define AUTO_REMESHER_ISOTROPIC_REMESHER_H
+#include <AutoRemesher/Vector3>
 #include <unordered_set>
 
-namespace AutoRemesher
-{
-    
-class IsotropicRemesher
-{
+namespace AutoRemesher {
+
+class IsotropicRemesher {
 public:
-    IsotropicRemesher(const std::vector<Vector3> &vertices,
-            const std::vector<std::vector<size_t>> &triangles) :
-        m_vertices(vertices),
-        m_triangles(triangles)
+    IsotropicRemesher(const std::vector<Vector3>& vertices,
+        const std::vector<std::vector<size_t>>& triangles)
+        : m_vertices(vertices)
+        , m_triangles(triangles)
     {
     }
-    
-    void setConstraintVertices(const std::unordered_set<size_t> *constraintVertices)
+
+    void setConstraintVertices(const std::unordered_set<size_t>* constraintVertices)
     {
         m_constraintVertices = constraintVertices;
     }
 
-    void setVertexTargetEdgeLengths(const std::vector<double> *targetLengths)
+    void setVertexTargetEdgeLengths(const std::vector<double>* targetLengths)
     {
         m_vertexTargetEdgeLengths = targetLengths;
     }
-    
+
     void setTargetEdgeLength(double edgeLength)
     {
         m_targetEdgeLength = edgeLength;
     }
-    
+
     void setSharpEdgeDegrees(double degrees)
     {
         m_sharpEdgeDegrees = degrees;
@@ -60,25 +59,26 @@ public:
     {
         m_smoothNormalDegrees = degrees;
     }
-    
-    const std::vector<Vector3> &remeshedVertices()
+
+    const std::vector<Vector3>& remeshedVertices()
     {
         return m_remeshedVertices;
     }
-    
-    const std::vector<std::vector<size_t>> &remeshedTriangles()
+
+    const std::vector<std::vector<size_t>>& remeshedTriangles()
     {
         return m_remeshedTriangles;
     }
-    
+
     bool remesh();
-    
-    void debugExportObj(const char *filename);
+
+    void debugExportObj(const char* filename);
+
 private:
     std::vector<Vector3> m_vertices;
     std::vector<std::vector<size_t>> m_triangles;
-    const std::unordered_set<size_t> *m_constraintVertices = nullptr;
-    const std::vector<double> *m_vertexTargetEdgeLengths = nullptr;
+    const std::unordered_set<size_t>* m_constraintVertices = nullptr;
+    const std::vector<double>* m_vertexTargetEdgeLengths = nullptr;
     double m_targetEdgeLength = 0;
     double m_sharpEdgeDegrees = 60;
     double m_smoothNormalDegrees = 0.0;
@@ -86,7 +86,7 @@ private:
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedTriangles;
 };
-    
+
 }
 
 #endif

@@ -21,14 +21,14 @@
  */
 #ifndef AUTO_REMESHER_DDS_FILE_H
 #define AUTO_REMESHER_DDS_FILE_H
-#include <QString>
 #include <QOpenGLTexture>
+#include <QString>
 
-class DdsFileReader
-{
+class DdsFileReader {
 public:
-    DdsFileReader(const QString &filename);
-    QOpenGLTexture *createOpenGLTexture();
+    DdsFileReader(const QString& filename);
+    QOpenGLTexture* createOpenGLTexture();
+
 private:
     QString m_filename;
 };

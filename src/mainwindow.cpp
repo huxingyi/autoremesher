@@ -19,56 +19,56 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QGridLayout>
-#include <QTextBrowser>
 #include <QAction>
-#include <QMenuBar>
+#include <QApplication>
+#include <QComboBox>
+#include <QDebug>
 #include <QDesktopServices>
-#include <QUrl>
+#include <QDockWidget>
+#include <QFile>
+#include <QFileDialog>
+#include <QGridLayout>
+#include <QHBoxLayout>
+#include <QImage>
+#include <QLabel>
+#include <QMenuBar>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QDockWidget>
-#include <QLabel>
-#include <QImage>
-#include <QFileDialog>
-#include <QApplication>
-#include <QThread>
-#include <QDebug>
+#include <QTextBrowser>
 #include <QTextStream>
-#include <QFile>
-#include <QComboBox>
+#include <QThread>
+#include <QUrl>
 #include <QUuid>
+#include <QVBoxLayout>
 #include <cmath>
 #ifdef Q_OS_WIN32
 #include <QWinTaskbarButton>
 #include <QWinTaskbarProgress>
 #endif
-#include "mainwindow.h"
-#include "graphicscontainerwidget.h"
 #include "aboutwidget.h"
+#include "floatnumberwidget.h"
+#include "graphicscontainerwidget.h"
+#include "intnumberwidget.h"
+#include "logbrowser.h"
+#include "mainwindow.h"
+#include "preferences.h"
+#include "quadmeshgenerator.h"
+#include "rendermeshgenerator.h"
+#include "theme.h"
 #include "updatescheckwidget.h"
 #include "util.h"
 #include "version.h"
-#include "preferences.h"
-#include "theme.h"
-#include "rendermeshgenerator.h"
-#include "quadmeshgenerator.h"
-#include "logbrowser.h"
-#include "floatnumberwidget.h"
-#include "intnumberwidget.h"
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
-LogBrowser *g_logBrowser = nullptr;
-QTextBrowser *g_acknowlegementsWidget = nullptr;
-QTextBrowser *g_supportersWidget = nullptr;
-AboutWidget *g_aboutWidget = nullptr;
-UpdatesCheckWidget *g_updatesCheckWidget = nullptr;
-std::map<MainWindow *, QUuid> g_windows;
+LogBrowser* g_logBrowser = nullptr;
+QTextBrowser* g_acknowlegementsWidget = nullptr;
+QTextBrowser* g_supportersWidget = nullptr;
+AboutWidget* g_aboutWidget = nullptr;
+UpdatesCheckWidget* g_updatesCheckWidget = nullptr;
+std::map<MainWindow*, QUuid> g_windows;
 
-void outputMessage(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+void outputMessage(QtMsgType type, const QMessageLogContext& context, const QString& msg)
 {
     if (g_logBrowser)
         g_logBrowser->outputMessage(type, msg, context.file, context.line);
@@ -86,58 +86,58 @@ MainWindow::MainWindow()
         qInstallMessageHandler(&outputMessage);
     }
 
-    g_windows.insert({this, QUuid::createUuid()});
+    g_windows.insert({ this, QUuid::createUuid() });
 
 #ifdef Q_OS_WIN32
     m_taskbarButton = new QWinTaskbarButton(this);
 #endif
 
-    GraphicsWidget *graphicsWidget = new GraphicsWidget;
+    GraphicsWidget* graphicsWidget = new GraphicsWidget;
 
-    GraphicsContainerWidget *containerWidget = new GraphicsContainerWidget;
+    GraphicsContainerWidget* containerWidget = new GraphicsContainerWidget;
     containerWidget->setGraphicsWidget(graphicsWidget);
-    QGridLayout *containerLayout = new QGridLayout;
+    QGridLayout* containerLayout = new QGridLayout;
     containerLayout->setSpacing(0);
     containerLayout->setContentsMargins(1, 0, 0, 0);
     containerLayout->addWidget(graphicsWidget);
     containerWidget->setLayout(containerLayout);
     containerWidget->setMinimumSize(400, 400);
 
-    QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
+    QMenu* helpMenu = menuBar()->addMenu(tr("&Help"));
 
-    QAction *gotoHomepageAction = new QAction(tr("Homepage"), this);
+    QAction* gotoHomepageAction = new QAction(tr("Homepage"), this);
     connect(gotoHomepageAction, &QAction::triggered, this, &MainWindow::gotoHomepage);
     helpMenu->addAction(gotoHomepageAction);
 
-    QAction *viewSourceAction = new QAction(tr("Source Code"), this);
+    QAction* viewSourceAction = new QAction(tr("Source Code"), this);
     connect(viewSourceAction, &QAction::triggered, this, &MainWindow::viewSource);
     helpMenu->addAction(viewSourceAction);
 
-    QAction *checkForUpdatesAction = new QAction(tr("Check for Updates..."), this);
+    QAction* checkForUpdatesAction = new QAction(tr("Check for Updates..."), this);
     connect(checkForUpdatesAction, &QAction::triggered, this, &MainWindow::checkForUpdates);
     helpMenu->addAction(checkForUpdatesAction);
 
     helpMenu->addSeparator();
 
-    QAction *aboutAction = new QAction(tr("About"), this);
+    QAction* aboutAction = new QAction(tr("About"), this);
     connect(aboutAction, &QAction::triggered, this, &MainWindow::showAbout);
     helpMenu->addAction(aboutAction);
 
-    QAction *reportIssuesAction = new QAction(tr("Report Issues"), this);
+    QAction* reportIssuesAction = new QAction(tr("Report Issues"), this);
     connect(reportIssuesAction, &QAction::triggered, this, &MainWindow::reportIssues);
     helpMenu->addAction(reportIssuesAction);
 
-    QAction *showDebugDialogAction = new QAction(tr("Debug"), this);
+    QAction* showDebugDialogAction = new QAction(tr("Debug"), this);
     connect(showDebugDialogAction, &QAction::triggered, g_logBrowser, &LogBrowser::showDialog);
     helpMenu->addAction(showDebugDialogAction);
 
     helpMenu->addSeparator();
 
-    QAction *seeSupportersAction = new QAction(tr("Supporters"), this);
+    QAction* seeSupportersAction = new QAction(tr("Supporters"), this);
     connect(seeSupportersAction, &QAction::triggered, this, &MainWindow::showSupporters);
     helpMenu->addAction(seeSupportersAction);
 
-    QAction *showAcknowlegementsAction = new QAction(tr("Acknowlegements"), this);
+    QAction* showAcknowlegementsAction = new QAction(tr("Acknowlegements"), this);
     connect(showAcknowlegementsAction, &QAction::triggered, this, &MainWindow::showAcknowlegements);
     helpMenu->addAction(showAcknowlegementsAction);
 
@@ -168,7 +168,7 @@ MainWindow::MainWindow()
 
     m_progressContainer = new QWidget;
     m_progressContainer->setFixedHeight(2);
-    QVBoxLayout *progressLayout = new QVBoxLayout(m_progressContainer);
+    QVBoxLayout* progressLayout = new QVBoxLayout(m_progressContainer);
     progressLayout->setContentsMargins(0, 0, 0, 0);
     progressLayout->setSpacing(0);
     progressLayout->addWidget(m_progressBar);
@@ -229,27 +229,26 @@ MainWindow::MainWindow()
     //});
     //m_modelTypeSelectBox->setCurrentIndex(AutoRemesher::ModelType::HardSurface == m_modelType ? 1 : 0);
 
-    
     // --- Action buttons ---
-    QPushButton *loadModelButton = new QPushButton(tr("Open"));
+    QPushButton* loadModelButton = new QPushButton(tr("Open"));
     loadModelButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     connect(loadModelButton, &QPushButton::clicked, this, &MainWindow::loadModel);
     m_loadModelButton = loadModelButton;
 
-    QPushButton *saveMeshButton = new QPushButton(tr("Save"));
+    QPushButton* saveMeshButton = new QPushButton(tr("Save"));
     saveMeshButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     saveMeshButton->hide();
     connect(saveMeshButton, &QPushButton::clicked, this, &MainWindow::saveMesh);
     m_saveMeshButton = saveMeshButton;
 
-    QPushButton *regenerateButton = new QPushButton(tr("Regenerate"));
+    QPushButton* regenerateButton = new QPushButton(tr("Regenerate"));
     regenerateButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     regenerateButton->hide();
     connect(regenerateButton, &QPushButton::clicked, this, &MainWindow::generateQuadMesh);
     m_regenerateButton = regenerateButton;
 
     // --- Controls panel layout ---
-    QVBoxLayout *controlsLayout = new QVBoxLayout;
+    QVBoxLayout* controlsLayout = new QVBoxLayout;
     controlsLayout->setSpacing(2);
     controlsLayout->setContentsMargins(6, 6, 6, 6);
 
@@ -274,14 +273,14 @@ MainWindow::MainWindow()
     m_vertexCountLabel->hide();
 
     // Toolbar rows at bottom
-    QHBoxLayout *toolbarLayout = new QHBoxLayout;
+    QHBoxLayout* toolbarLayout = new QHBoxLayout;
     toolbarLayout->setSpacing(4);
     toolbarLayout->setContentsMargins(0, 12, 0, 0);
     toolbarLayout->addWidget(loadModelButton, 1);
     toolbarLayout->addWidget(regenerateButton, 1);
     controlsLayout->addLayout(toolbarLayout);
 
-    QHBoxLayout *saveLayout = new QHBoxLayout;
+    QHBoxLayout* saveLayout = new QHBoxLayout;
     saveLayout->setSpacing(0);
     saveLayout->setContentsMargins(0, 2, 0, 0);
     saveLayout->addWidget(saveMeshButton, 1);
@@ -291,10 +290,9 @@ MainWindow::MainWindow()
     controlsLayout->addWidget(m_nonQuadCountLabel);
     controlsLayout->addWidget(m_vertexCountLabel);
 
-    
     controlsLayout->addStretch();
 
-    QWidget *controlsPanel = new QWidget;
+    QWidget* controlsPanel = new QWidget;
     controlsPanel->setLayout(controlsLayout);
     controlsPanel->setFixedWidth(220);
     controlsPanel->setObjectName("controlsPanel");
@@ -303,30 +301,29 @@ MainWindow::MainWindow()
         "  background-color: #242424;"
         "  border: 1px solid #2a2a2a;"
         "  border-radius: 4px;"
-        "}"
-    );
+        "}");
 
     // ============================================================
     // CANVAS AREA
     // ============================================================
 
-    QLabel *verticalLogoLabel = new QLabel;
+    QLabel* verticalLogoLabel = new QLabel;
     QImage verticalLogoImage;
     verticalLogoImage.load(":/resources/dust3d-vertical.png");
     verticalLogoLabel->setPixmap(QPixmap::fromImage(verticalLogoImage));
 
-    QHBoxLayout *logoLayout = new QHBoxLayout;
+    QHBoxLayout* logoLayout = new QHBoxLayout;
     logoLayout->addWidget(verticalLogoLabel);
     logoLayout->setContentsMargins(0, 0, 0, 0);
 
-    QVBoxLayout *mainLeftLayout = new QVBoxLayout;
+    QVBoxLayout* mainLeftLayout = new QVBoxLayout;
     mainLeftLayout->setSpacing(0);
     mainLeftLayout->setContentsMargins(0, 0, 0, 0);
     mainLeftLayout->addStretch();
     mainLeftLayout->addLayout(logoLayout);
     mainLeftLayout->addSpacing(10);
 
-    QHBoxLayout *canvasLayout = new QHBoxLayout;
+    QHBoxLayout* canvasLayout = new QHBoxLayout;
     canvasLayout->setSpacing(0);
     canvasLayout->setContentsMargins(0, 4, 8, 4);
     canvasLayout->addLayout(mainLeftLayout);
@@ -338,13 +335,13 @@ MainWindow::MainWindow()
     // MAIN LAYOUT
     // ============================================================
 
-    QVBoxLayout *mainLayout = new QVBoxLayout;
+    QVBoxLayout* mainLayout = new QVBoxLayout;
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
     mainLayout->addWidget(m_progressContainer);
     mainLayout->addLayout(canvasLayout, 1);
 
-    QWidget *centralWidget = new QWidget;
+    QWidget* centralWidget = new QWidget;
     centralWidget->setLayout(mainLayout);
 
     setCentralWidget(centralWidget);
@@ -353,8 +350,7 @@ MainWindow::MainWindow()
 
 void MainWindow::updateButtonStates()
 {
-    if (nullptr == m_quadMeshGenerator &&
-            !m_quadMeshResultIsDirty) {
+    if (nullptr == m_quadMeshGenerator && !m_quadMeshResultIsDirty) {
         m_loadModelButton->setEnabled(true);
         m_targetScalingWidget->setEnabled(true);
         m_targetQuadCountWidget->setEnabled(true);
@@ -387,7 +383,7 @@ void MainWindow::updateButtonStates()
     }
 }
 
-bool MainWindow::loadObj(const QString &filename)
+bool MainWindow::loadObj(const QString& filename)
 {
     tinyobj::attrib_t attributes;
     std::vector<tinyobj::shape_t> shapes;
@@ -409,30 +405,27 @@ bool MainWindow::loadObj(const QString &filename)
 
     m_originalVertices.resize(attributes.vertices.size() / 3);
     for (size_t i = 0, j = 0; i < m_originalVertices.size(); ++i) {
-        auto &dest = m_originalVertices[i];
+        auto& dest = m_originalVertices[i];
         dest.setX(attributes.vertices[j++]);
         dest.setY(attributes.vertices[j++]);
         dest.setZ(attributes.vertices[j++]);
     }
 
     m_originalTriangles.clear();
-    for (const auto &shape: shapes) {
+    for (const auto& shape : shapes) {
         for (size_t i = 0; i < shape.mesh.indices.size(); i += 3) {
             m_originalTriangles.push_back(std::vector<size_t> {
                 (size_t)shape.mesh.indices[i + 0].vertex_index,
                 (size_t)shape.mesh.indices[i + 1].vertex_index,
-                (size_t)shape.mesh.indices[i + 2].vertex_index
-            });
+                (size_t)shape.mesh.indices[i + 2].vertex_index });
         }
     }
 
     qDebug() << "m_originalVertices.size():" << m_originalVertices.size();
     qDebug() << "m_originalTriangles.size():" << m_originalTriangles.size();
 
-    m_renderQueue.push({
-        m_originalVertices,
-        m_originalTriangles
-    });
+    m_renderQueue.push({ m_originalVertices,
+        m_originalTriangles });
     checkRenderQueue();
 
     return true;
@@ -477,7 +470,7 @@ void MainWindow::loadModel()
     }
 }
 
-void MainWindow::setCurrentFilename(const QString &filename)
+void MainWindow::setCurrentFilename(const QString& filename)
 {
     m_currentFilename = filename;
     m_saved = true;
@@ -490,7 +483,7 @@ void MainWindow::saveMesh()
         return;
 
     QString filename = QFileDialog::getSaveFileName(this, QString(), QString(),
-       tr("Wavefront (*.obj)"));
+        tr("Wavefront (*.obj)"));
     if (filename.isEmpty()) {
         return;
     }
@@ -503,12 +496,12 @@ void MainWindow::saveMesh()
         QTextStream stream(&file);
         stream << "# " << APP_NAME << " " << APP_HUMAN_VER << "\n";
         stream << "# " << APP_HOMEPAGE_URL << "\n";
-        for (std::vector<AutoRemesher::Vector3>::const_iterator it = m_remeshedVertices->begin() ; it != m_remeshedVertices->end(); ++it) {
+        for (std::vector<AutoRemesher::Vector3>::const_iterator it = m_remeshedVertices->begin(); it != m_remeshedVertices->end(); ++it) {
             stream << "v " << (*it).x() << " " << (*it).y() << " " << (*it).z() << "\n";
         }
-        for (std::vector<std::vector<size_t>>::const_iterator it = m_remeshedQuads->begin() ; it != m_remeshedQuads->end(); ++it) {
+        for (std::vector<std::vector<size_t>>::const_iterator it = m_remeshedQuads->begin(); it != m_remeshedQuads->end(); ++it) {
             stream << "f";
-            for (std::vector<size_t>::const_iterator subIt = (*it).begin() ; subIt != (*it).end(); ++subIt) {
+            for (std::vector<size_t>::const_iterator subIt = (*it).begin(); subIt != (*it).end(); ++subIt) {
                 stream << " " << (1 + *subIt);
             }
             stream << "\n";
@@ -530,7 +523,7 @@ void MainWindow::updateProgress(float progress)
 #endif
 }
 
-void MainWindow::updateProgressDetailed(float progress, const QString &status)
+void MainWindow::updateProgressDetailed(float progress, const QString& status)
 {
     m_progressBar->setValue((int)(progress * 100));
     m_progressBar->show();
@@ -545,7 +538,7 @@ MainWindow::~MainWindow()
     g_windows.erase(this);
 }
 
-ModelShaderWidget *MainWindow::modelRenderWidget() const
+ModelShaderWidget* MainWindow::modelRenderWidget() const
 {
     return m_modelRenderWidget;
 }
@@ -623,7 +616,7 @@ void MainWindow::checkForUpdates()
     g_updatesCheckWidget->raise();
 }
 
-void MainWindow::showEvent(QShowEvent *event)
+void MainWindow::showEvent(QShowEvent* event)
 {
 #ifdef Q_OS_WIN32
     m_taskbarButton->setWindow(windowHandle());
@@ -633,7 +626,7 @@ void MainWindow::showEvent(QShowEvent *event)
     event->accept();
 }
 
-void MainWindow::closeEvent(QCloseEvent *event)
+void MainWindow::closeEvent(QCloseEvent* event)
 {
     if (!m_saved) {
         QMessageBox::StandardButton answer = QMessageBox::question(this,
@@ -677,9 +670,9 @@ void MainWindow::checkRenderQueue()
 
     qDebug() << "Generate render mesh...";
 
-    QThread *thread = new QThread;
+    QThread* thread = new QThread;
 
-    const auto &item = m_renderQueue.front();
+    const auto& item = m_renderQueue.front();
     m_renderMeshGenerator = new RenderMeshGenerator(item.vertices, item.faces);
     m_renderQueue.pop();
     m_renderMeshGenerator->moveToThread(thread);
@@ -692,7 +685,7 @@ void MainWindow::checkRenderQueue()
 
 void MainWindow::renderMeshReady()
 {
-    ModelShaderMesh *renderMesh = m_renderMeshGenerator->takeRenderMesh();
+    ModelShaderMesh* renderMesh = m_renderMeshGenerator->takeRenderMesh();
 
     qDebug() << "Render mesh ready";
 
@@ -718,11 +711,11 @@ void MainWindow::generateQuadMesh()
     m_quadCountLabel->hide();
     m_nonQuadCountLabel->hide();
     m_vertexCountLabel->hide();
-    
+
     m_progressBar->setValue(0);
     m_progressBar->show();
 
-    QThread *thread = new QThread;
+    QThread* thread = new QThread;
 
     QuadMeshGenerator::Parameters parameters;
 
@@ -765,7 +758,7 @@ void MainWindow::quadMeshReady()
     if (nullptr != m_remeshedVertices && nullptr != m_remeshedQuads) {
         size_t quadCount = 0;
         size_t nonQuadCount = 0;
-        for (const auto &face : *m_remeshedQuads) {
+        for (const auto& face : *m_remeshedQuads) {
             if (face.size() == 4)
                 ++quadCount;
             else
@@ -781,16 +774,12 @@ void MainWindow::quadMeshReady()
         m_nonQuadCountLabel->show();
         m_vertexCountLabel->show();
 
-        m_renderQueue.push({
-            *m_remeshedVertices,
-            *m_remeshedQuads
-        });
+        m_renderQueue.push({ *m_remeshedVertices,
+            *m_remeshedQuads });
         checkRenderQueue();
     } else {
-        m_renderQueue.push({
-            std::vector<AutoRemesher::Vector3>(),
-            std::vector<std::vector<size_t>>()
-        });
+        m_renderQueue.push({ std::vector<AutoRemesher::Vector3>(),
+            std::vector<std::vector<size_t>>() });
         checkRenderQueue();
     }
 
@@ -800,4 +789,3 @@ void MainWindow::quadMeshReady()
     updateButtonStates();
     updateTitle();
 }
-

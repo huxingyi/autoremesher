@@ -21,13 +21,12 @@
  */
 #include <AutoRemesher/PositionKey>
 
-namespace AutoRemesher
-{
+namespace AutoRemesher {
 
 long PositionKey::m_toIntFactor = 100000;
 
-PositionKey::PositionKey(const Vector3 &v) :
-    PositionKey(v.x(), v.y(), v.z())
+PositionKey::PositionKey(const Vector3& v)
+    : PositionKey(v.x(), v.y(), v.z())
 {
 }
 
@@ -36,18 +35,18 @@ PositionKey::PositionKey(double x, double y, double z)
     m_position.setX(x);
     m_position.setY(y);
     m_position.setZ(z);
-    
+
     m_intX = (long)(x * m_toIntFactor);
     m_intY = (long)(y * m_toIntFactor);
     m_intZ = (long)(z * m_toIntFactor);
 }
 
-const Vector3 &PositionKey::position() const
+const Vector3& PositionKey::position() const
 {
     return m_position;
 }
 
-bool PositionKey::operator<(const PositionKey &right) const
+bool PositionKey::operator<(const PositionKey& right) const
 {
     if (m_intX < right.m_intX)
         return true;
@@ -64,11 +63,9 @@ bool PositionKey::operator<(const PositionKey &right) const
     return false;
 }
 
-bool PositionKey::operator==(const PositionKey &right) const
+bool PositionKey::operator==(const PositionKey& right) const
 {
-    return m_intX == right.m_intX &&
-        m_intY == right.m_intY &&
-        m_intZ == right.m_intZ;
+    return m_intX == right.m_intX && m_intY == right.m_intY && m_intZ == right.m_intZ;
 }
 
 }

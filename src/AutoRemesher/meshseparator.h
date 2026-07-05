@@ -21,21 +21,20 @@
  */
 #ifndef AUTO_REMESHER_MESH_SEPARATOR_H
 #define AUTO_REMESHER_MESH_SEPARATOR_H
+#include <cstddef>
 #include <map>
 #include <vector>
 
-namespace AutoRemesher
-{
-    
-class MeshSeparator
-{
+namespace AutoRemesher {
+
+class MeshSeparator {
 public:
-    static void splitToIslands(const std::vector<std::vector<size_t>> &faces, 
-        std::vector<std::vector<std::vector<size_t>>> &islands);
-    static void buildEdgeToFaceMap(const std::vector<std::vector<size_t>> &faces, 
-        std::map<std::pair<size_t, size_t>, size_t> &edgeToFaceMap);
+    static void splitToIslands(const std::vector<std::vector<size_t>>& faces,
+        std::vector<std::vector<std::vector<size_t>>>& islands);
+    static void buildEdgeToFaceMap(const std::vector<std::vector<size_t>>& faces,
+        std::map<std::pair<size_t, size_t>, size_t>& edgeToFaceMap);
 };
-    
+
 }
 
 #endif

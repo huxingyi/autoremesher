@@ -21,31 +21,33 @@
  */
 #ifndef AUTO_REMESHER_GRAPHICS_CONTAINER_WIDGET_H
 #define AUTO_REMESHER_GRAPHICS_CONTAINER_WIDGET_H
-#include <QWidget>
-#include <QResizeEvent>
-#include <QMouseEvent>
-#include <QWheelEvent>
-#include "modelshaderwidget.h"
 #include "graphicswidget.h"
+#include "modelshaderwidget.h"
+#include <QMouseEvent>
+#include <QResizeEvent>
+#include <QWheelEvent>
+#include <QWidget>
 
-class GraphicsContainerWidget : public QWidget
-{
+class GraphicsContainerWidget : public QWidget {
     Q_OBJECT
 signals:
     void containerSizeChanged(QSize size);
+
 public:
     GraphicsContainerWidget();
-    void setGraphicsWidget(GraphicsWidget *graphicsWidget);
-    void setModelWidget(ModelShaderWidget *modelWidget);
+    void setGraphicsWidget(GraphicsWidget* graphicsWidget);
+    void setModelWidget(ModelShaderWidget* modelWidget);
+
 protected:
-    void resizeEvent(QResizeEvent *event) override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
-    void wheelEvent(QWheelEvent *event) override;
+    void resizeEvent(QResizeEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
+
 private:
-    ModelShaderWidget *m_modelWidget = nullptr;
-    GraphicsWidget *m_graphicsWidget = nullptr;
+    ModelShaderWidget* m_modelWidget = nullptr;
+    GraphicsWidget* m_graphicsWidget = nullptr;
 };
 
 #endif

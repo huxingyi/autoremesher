@@ -19,9 +19,9 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#include <QXmlStreamReader>
 #include "updateschecker.h"
 #include "version.h"
+#include <QXmlStreamReader>
 
 UpdatesChecker::UpdatesChecker()
 {
@@ -35,7 +35,7 @@ void UpdatesChecker::start()
     m_networkAccessManager.get(request);
 }
 
-const QString &UpdatesChecker::message() const
+const QString& UpdatesChecker::message() const
 {
     return m_message;
 }
@@ -50,7 +50,7 @@ bool UpdatesChecker::hasError() const
     return m_hasError;
 }
 
-bool UpdatesChecker::parseUpdateInfoXml(const QByteArray &updateInfoXml, std::vector<UpdateItem> *updateItems)
+bool UpdatesChecker::parseUpdateInfoXml(const QByteArray& updateInfoXml, std::vector<UpdateItem>* updateItems)
 {
     std::vector<QString> elementNameStack;
     QXmlStreamReader reader(updateInfoXml);
@@ -70,7 +70,7 @@ bool UpdatesChecker::parseUpdateInfoXml(const QByteArray &updateInfoXml, std::ve
             }
         }
         QStringList nameItems;
-        for (const auto &nameItem: elementNameStack) {
+        for (const auto& nameItem : elementNameStack) {
             nameItems.append(nameItem);
         }
         QString fullName = nameItems.join(".");
@@ -83,10 +83,7 @@ bool UpdatesChecker::parseUpdateInfoXml(const QByteArray &updateInfoXml, std::ve
                 updateItem.version = reader.attributes().value("version").toString();
                 updateItem.humanVersion = reader.attributes().value("humanVersion").toString();
                 updateItem.descriptionUrl = reader.attributes().value("descriptionUrl").toString();
-                if (!updateItem.forTags.isEmpty() &&
-                        !updateItem.version.isEmpty() &&
-                        !updateItem.humanVersion.isEmpty() &&
-                        !updateItem.descriptionUrl.isEmpty()) {
+                if (!updateItem.forTags.isEmpty() && !updateItem.version.isEmpty() && !updateItem.humanVersion.isEmpty() && !updateItem.descriptionUrl.isEmpty()) {
                     if (updateItems->size() >= 100)
                         return false;
                     updateItem.forTags = "," + updateItem.forTags + ",";
@@ -98,7 +95,7 @@ bool UpdatesChecker::parseUpdateInfoXml(const QByteArray &updateInfoXml, std::ve
     return true;
 }
 
-bool UpdatesChecker::isVersionLessThan(const QString &version, const QString &compareWith)
+bool UpdatesChecker::isVersionLessThan(const QString& version, const QString& compareWith)
 {
     auto versionTokens = version.split(".");
     auto compareWithTokens = compareWith.split(".");
@@ -123,12 +120,12 @@ bool UpdatesChecker::isVersionLessThan(const QString &version, const QString &co
     return false;
 }
 
-const UpdatesChecker::UpdateItem &UpdatesChecker::matchedUpdateItem() const
+const UpdatesChecker::UpdateItem& UpdatesChecker::matchedUpdateItem() const
 {
     return m_matchedUpdateItem;
 }
 
-void UpdatesChecker::downloadFinished(QNetworkReply *reply)
+void UpdatesChecker::downloadFinished(QNetworkReply* reply)
 {
     if (reply->error()) {
         qDebug() << "Download update info failed:" << qPrintable(reply->errorString());
@@ -149,7 +146,7 @@ void UpdatesChecker::downloadFinished(QNetworkReply *reply)
                 QString platform = QString(APP_PLATFORM).toLower();
                 if (!platform.isEmpty()) {
                     platform = "," + platform + ",";
-                    for (const auto &it: updateItems) {
+                    for (const auto& it : updateItems) {
                         if (-1 == it.forTags.indexOf(platform))
                             continue;
                         if (isVersionLessThan(APP_VER, it.version)) {

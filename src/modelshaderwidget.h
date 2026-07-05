@@ -21,24 +21,23 @@
  */
 #ifndef AUTO_REMESHER_MODEL_SHADER_WIDGET_H
 #define AUTO_REMESHER_MODEL_SHADER_WIDGET_H
-#include <QOpenGLWidget>
-#include <QOpenGLFunctions>
-#include <QOpenGLVertexArrayObject>
-#include <QOpenGLBuffer>
+#include "modelshadermesh.h"
+#include "modelshadermeshbinder.h"
+#include "modelshaderprogram.h"
+#include "monochromeopenglprogram.h"
 #include <QMatrix4x4>
 #include <QMutex>
-#include <QVector2D>
+#include <QOpenGLBuffer>
+#include <QOpenGLFunctions>
+#include <QOpenGLVertexArrayObject>
+#include <QOpenGLWidget>
 #include <QTimer>
-#include "modelshadermesh.h"
-#include "modelshaderprogram.h"
-#include "modelshadermeshbinder.h"
-#include "monochromeopenglprogram.h"
+#include <QVector2D>
 
-class ModelShaderWidget : public QOpenGLWidget, protected QOpenGLFunctions
-{
+class ModelShaderWidget : public QOpenGLWidget, protected QOpenGLFunctions {
     Q_OBJECT
 signals:
-    void mouseRayChanged(const QVector3D &near, const QVector3D &far);
+    void mouseRayChanged(const QVector3D& near, const QVector3D& far);
     void mousePressed(QPoint globalPos);
     void mouseReleased(QPoint globalPos);
     void addMouseRadius(float radius);
@@ -46,10 +45,11 @@ signals:
     void xRotationChanged(int angle);
     void yRotationChanged(int angle);
     void zRotationChanged(int angle);
-    void eyePositionChanged(const QVector3D &eyePosition);
-    void moveToPositionChanged(const QVector3D &moveToPosition);
+    void eyePositionChanged(const QVector3D& eyePosition);
+    void moveToPositionChanged(const QVector3D& moveToPosition);
+
 public:
-    ModelShaderWidget(QWidget *parent = 0);
+    ModelShaderWidget(QWidget* parent = 0);
     ~ModelShaderWidget();
     static bool isTransparent()
     {
@@ -59,7 +59,7 @@ public:
     {
         m_transparent = t;
     }
-    void updateMesh(ModelShaderMesh *mesh);
+    void updateMesh(ModelShaderMesh* mesh);
     void toggleWireframe();
     bool isWireframeVisible();
     void toggleRotation();
@@ -69,47 +69,49 @@ public:
     void enableMousePicking(bool enabled);
     void setMoveAndZoomByWindow(bool byWindow);
     void disableCullFace();
-    void setMoveToPosition(const QVector3D &moveToPosition);
-    bool inputMousePressEventFromOtherWidget(QMouseEvent *event);
-    bool inputMouseMoveEventFromOtherWidget(QMouseEvent *event);
-    bool inputWheelEventFromOtherWidget(QWheelEvent *event);
-    bool inputMouseReleaseEventFromOtherWidget(QMouseEvent *event);
-    QPoint convertInputPosFromOtherWidget(QMouseEvent *event);
-    void fetchCurrentToonNormalAndDepthMaps(QImage *normalMap, QImage *depthMap);
-    void updateToonNormalAndDepthMaps(QImage *normalMap, QImage *depthMap);
+    void setMoveToPosition(const QVector3D& moveToPosition);
+    bool inputMousePressEventFromOtherWidget(QMouseEvent* event);
+    bool inputMouseMoveEventFromOtherWidget(QMouseEvent* event);
+    bool inputWheelEventFromOtherWidget(QWheelEvent* event);
+    bool inputMouseReleaseEventFromOtherWidget(QMouseEvent* event);
+    QPoint convertInputPosFromOtherWidget(QMouseEvent* event);
+    void fetchCurrentToonNormalAndDepthMaps(QImage* normalMap, QImage* depthMap);
+    void updateToonNormalAndDepthMaps(QImage* normalMap, QImage* depthMap);
     int widthInPixels();
     int heightInPixels();
     int xRotation();
     int yRotation();
     int zRotation();
-    const QVector3D &eyePosition();
-    const QVector3D &moveToPosition();
-    std::pair<QVector3D, QVector3D> mousePositionToMouseRay(const QPoint &mousePosition);
+    const QVector3D& eyePosition();
+    const QVector3D& moveToPosition();
+    std::pair<QVector3D, QVector3D> mousePositionToMouseRay(const QPoint& mousePosition);
 public slots:
     void setXRotation(int angle);
     void setYRotation(int angle);
     void setZRotation(int angle);
-    void setEyePosition(const QVector3D &eyePosition);
+    void setEyePosition(const QVector3D& eyePosition);
     void cleanup();
     void zoom(float delta);
     void setMousePickTargetPositionInModelSpace(QVector3D position);
     void setMousePickRadius(float radius);
     void reRender();
     void canvasResized();
+
 protected:
     void initializeGL() override;
     void paintGL() override;
     void resizeGL(int width, int height) override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void wheelEvent(QWheelEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+
 private:
     int m_xRotation = m_defaultXRotation;
     int m_yRotation = m_defaultYRotation;
     int m_zRotation = m_defaultZRotation;
-    ModelShaderProgram *m_program = nullptr;
-    MonochromeOpenGLProgram *m_monochromeProgram = nullptr;
+    ModelShaderProgram* m_program = nullptr;
+    MonochromeOpenGLProgram* m_monochromeProgram = nullptr;
     bool m_moveStarted = false;
     bool m_moveEnabled = true;
     bool m_zoomEnabled = true;
@@ -128,14 +130,15 @@ private:
     QPoint m_moveStartPos;
     QRect m_moveStartGeometry;
     int m_modelInitialHeight = 0;
-    QTimer *m_rotationTimer = nullptr;
+    QTimer* m_rotationTimer = nullptr;
     int m_widthInPixels = 0;
     int m_heightInPixels = 0;
     QVector3D m_moveToPosition;
     bool m_moveAndZoomByWindow = true;
     bool m_enableCullFace = true;
     void updateProjectionMatrix();
-    void normalizeAngle(int &angle);
+    void normalizeAngle(int& angle);
+
 public:
     static int m_defaultXRotation;
     static int m_defaultYRotation;

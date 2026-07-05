@@ -19,11 +19,11 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#include <QMetaType>
-#include <QDir>
-#include <stdio.h>
 #include "logbrowser.h"
 #include "logbrowserdialog.h"
+#include <QDir>
+#include <QMetaType>
+#include <stdio.h>
 
 #if AUTO_REMESHER_DEV
 bool LogBrowser::m_enableOutputToFile = true;
@@ -31,17 +31,17 @@ bool LogBrowser::m_enableOutputToFile = true;
 bool LogBrowser::m_enableOutputToFile = false;
 #endif
 
-LogBrowser::LogBrowser(QObject *parent) :
-    QObject(parent)
+LogBrowser::LogBrowser(QObject* parent)
+    : QObject(parent)
 {
     qRegisterMetaType<QtMsgType>("QtMsgType");
     m_browserDialog = new LogBrowserDialog;
     connect(this, &LogBrowser::sendMessage, m_browserDialog, &LogBrowserDialog::outputMessage, Qt::QueuedConnection);
-    
+
     if (m_enableOutputToFile) {
         QString filePath = "autoremesher.log";
         m_outputTo = fopen(filePath.toUtf8().constData(), "w");
-        
+
         freopen("autoremesher-stderr.log", "w", stderr);
         freopen("autoremesher-stdout.log", "w", stdout);
     }
@@ -71,7 +71,7 @@ bool LogBrowser::isDialogVisible()
     return m_browserDialog->isVisible();
 }
 
-void LogBrowser::outputMessage(QtMsgType type, const QString &msg, const QString &source, int line)
+void LogBrowser::outputMessage(QtMsgType type, const QString& msg, const QString& source, int line)
 {
     if (m_outputTo) {
         fprintf(m_outputTo, "[%s:%d]: %s\n", source.toUtf8().constData(), line, msg.toUtf8().constData());

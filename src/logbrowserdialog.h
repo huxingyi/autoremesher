@@ -26,26 +26,25 @@
 class QTextBrowser;
 class QPushButton;
 
-class LogBrowserDialog : public QDialog
-{
+class LogBrowserDialog : public QDialog {
     Q_OBJECT
 public:
-    LogBrowserDialog(QWidget *parent = 0);
+    LogBrowserDialog(QWidget* parent = 0);
     ~LogBrowserDialog();
 
 public slots:
-    void outputMessage(QtMsgType type, const QString &msg, const QString &source, int line);
+    void outputMessage(QtMsgType type, const QString& msg, const QString& source, int line);
 
 protected slots:
     void save();
 
 protected:
-    virtual void keyPressEvent(QKeyEvent *e);
-    virtual void closeEvent(QCloseEvent *e);
+    virtual void keyPressEvent(QKeyEvent* e);
+    virtual void closeEvent(QCloseEvent* e);
 
-    QTextBrowser *m_browser;
-    QPushButton *m_clearButton;
-    QPushButton *m_saveButton;
+    QTextBrowser* m_browser;
+    QPushButton* m_clearButton;
+    QPushButton* m_saveButton;
 };
 
 #endif

@@ -19,11 +19,11 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#include <QObject>
 #include "util.h"
 #include "version.h"
+#include <QObject>
 
-QString unifiedWindowTitle(const QString &text)
+QString unifiedWindowTitle(const QString& text)
 {
     return text + QObject::tr(" - ") + APP_NAME;
 }

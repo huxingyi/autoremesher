@@ -24,16 +24,16 @@
 #include <QSettings>
 #include <QSize>
 
-class Preferences : public QObject
-{
+class Preferences : public QObject {
     Q_OBJECT
 public:
-    static Preferences &instance();
+    static Preferences& instance();
     Preferences();
     QSize mainWindowSize() const;
     void setMainWindowSize(const QSize&);
 public slots:
     void reset();
+
 private:
     QSettings m_settings;
 };

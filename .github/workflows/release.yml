@@ -1,0 +1,311 @@
+name: release
+
+on:
+  push:
+    branches:
+      - master
+      - ci
+    tags:
+      - '*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  appimage-upload:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          aqtversion: '==3.3.*'
+          version: '5.15.2'
+          host: 'linux'
+          target: 'desktop'
+          archives: 'qttools qtsvg qtimageformats qtbase qtmultimedia icu'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libtbb-dev libgl1-mesa-dev libfuse2 libfontconfig1
+      - name: Build application
+        run: |
+          qmake
+          make -j`nproc`
+      - name: Generate AppImage
+        run: |
+          set -e
+          # Download AppImage tools from official upstream releases
+          LINUXDEPLOYQT_URL="https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
+          APPIMAGETOOL_URL="https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+          wget --no-verbose -O ./ci/linuxdeployqt.AppImage "$LINUXDEPLOYQT_URL"
+          wget --no-verbose -O ./ci/appimagetool.AppImage "$APPIMAGETOOL_URL"
+
+          # Create directories
+          mkdir -p appdir/usr/share/metainfo
+          mkdir -p appdir/usr/share/applications
+          mkdir -p appdir/usr/share/icons/hicolor/256x256/apps
+          mkdir -p appdir/usr/bin
+          mkdir -p appdir/usr/optional/libstdc++
+
+          # Copy libstdc++
+          cp /usr/lib/x86_64-linux-gnu/libstdc++.so.6 appdir/usr/optional/libstdc++/libstdc++.so.6
+
+          # Copy fontconfig (required for Qt xcb plugin)
+          if [ -f /usr/lib/x86_64-linux-gnu/libfontconfig.so.1 ]; then
+            mkdir -p appdir/usr/lib
+            cp /usr/lib/x86_64-linux-gnu/libfontconfig.so.1 appdir/usr/lib/
+            cp /usr/lib/x86_64-linux-gnu/libfreetype.so.6 appdir/usr/lib/ 2>/dev/null || true
+          fi
+
+          # Copy application related files
+          cp ${GITHUB_WORKSPACE}/ci/autoremesher.png appdir/usr/share/icons/hicolor/256x256/apps/autoremesher.png
+          cp ${GITHUB_WORKSPACE}/ci/autoremesher.appdata.xml appdir/usr/share/metainfo/autoremesher.appdata.xml
+          cp ${GITHUB_WORKSPACE}/ci/autoremesher.desktop appdir/usr/share/applications/autoremesher.desktop
+          cp ${GITHUB_WORKSPACE}/autoremesher appdir/usr/bin/autoremesher
+          chmod a+x appdir/usr/bin/autoremesher
+
+          # Verify binary was copied
+          if [ ! -f appdir/usr/bin/autoremesher ]; then
+            echo "ERROR: Binary not found at appdir/usr/bin/autoremesher"
+            exit 1
+          fi
+          if [ ! -x appdir/usr/bin/autoremesher ]; then
+            echo "ERROR: Binary is not executable at appdir/usr/bin/autoremesher"
+            exit 1
+          fi
+          echo "✓ Binary found at appdir/usr/bin/autoremesher"
+          ls -lh appdir/usr/bin/autoremesher
+
+          # Make bundle
+          chmod a+x ./ci/linuxdeployqt.AppImage
+          chmod a+x ./ci/appimagetool.AppImage
+          unset QTDIR; unset QT_PLUGIN_PATH
+
+          # Run linuxdeployqt on the desktop file to bundle non-Qt libs
+          ./ci/linuxdeployqt.AppImage appdir/usr/share/applications/autoremesher.desktop -bundle-non-qt-libs -verbose=2
+
+          # Verify binary still exists after linuxdeployqt
+          if [ ! -f appdir/usr/bin/autoremesher ]; then
+            echo "ERROR: Binary was removed by linuxdeployqt"
+            find appdir -type f -name "autoremesher*" | head -20
+            exit 1
+          fi
+          echo "✓ Binary still present after linuxdeployqt at appdir/usr/bin/autoremesher"
+
+          # Verify desktop file and icon are in place
+          if [ ! -f appdir/usr/share/applications/autoremesher.desktop ]; then
+            echo "ERROR: Desktop file missing"
+            exit 1
+          fi
+          echo "✓ Desktop file present"
+
+          if [ ! -f appdir/usr/share/icons/hicolor/256x256/apps/autoremesher.png ]; then
+            echo "ERROR: Icon missing"
+            exit 1
+          fi
+          echo "✓ Icon present"
+
+          # Verify no duplicate paths
+          if find appdir -path "*/usr/bin/usr/bin/*" 2>/dev/null | grep -q .; then
+            echo "ERROR: Duplicate path structure detected (usr/bin/usr/bin/)"
+            find appdir -path "*/usr/bin/usr/bin/*"
+            exit 1
+          fi
+          echo "✓ No duplicate paths detected"
+
+          # Verify AppRun created by linuxdeployqt
+          if [ ! -x appdir/AppRun ]; then
+            echo "ERROR: AppRun missing or not executable after linuxdeployqt"
+            exit 1
+          fi
+          echo "✓ AppRun present"
+
+          # Remove problematic DRI libs that can cause graphics conflicts
+          rm -f "./appdir/usr/lib/libxcb-dri2.so" "./appdir/usr/lib/libxcb-dri3.so"
+
+          # Create AppImage with appimagetool
+          echo "Creating AppImage..."
+          export ARCH=x86_64
+          export VERSION="${VERSION:-debug}"
+          ./ci/appimagetool.AppImage -g ./appdir/ AutoRemesher-x86_64.AppImage
+
+          # Verify AppImage was created
+          if [ ! -f AutoRemesher-x86_64.AppImage ]; then
+            echo "ERROR: AppImage creation failed"
+            exit 1
+          fi
+          echo "✓ AppImage created successfully"
+          file AutoRemesher-x86_64.AppImage
+
+          mv AutoRemesher-x86_64.AppImage autoremesher-${{ github.ref_name }}.AppImage
+      - name: Install screenshot dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb imagemagick
+      - name: Run AppImage and capture screenshot
+        run: |
+          set +e
+          chmod +x autoremesher-${{ github.ref_name }}.AppImage
+          export DISPLAY=:99
+          export XDG_RUNTIME_DIR=/tmp/runtime-root
+          mkdir -p "$XDG_RUNTIME_DIR"
+          chmod 700 "$XDG_RUNTIME_DIR"
+
+          Xvfb :99 -screen 0 1280x720x24 > /dev/null 2>&1 &
+          XVFB_PID=$!
+          sleep 2
+
+          timeout 12s ./autoremesher-${{ github.ref_name }}.AppImage > app-run-ubuntu.log 2>&1 &
+          APP_PID=$!
+          sleep 8
+
+          import -display :99 -window root autoremesher-${{ github.ref_name }}-ubuntu-22.04.png || true
+
+          wait $APP_PID || true
+          kill $APP_PID 2>/dev/null || true
+          kill $XVFB_PID 2>/dev/null || true
+      - name: Upload AppImage screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoremesher-${{ github.ref_name }}-ubuntu-22.04.png
+          path: autoremesher-${{ github.ref_name }}-ubuntu-22.04.png
+      - name: Upload Linux AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoremesher-${{ github.ref_name }}.AppImage
+          path: autoremesher-${{ github.ref_name }}.AppImage
+
+  win32-msvc-upload:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Visual Studio shell
+        uses: egor-tensin/vs-shell@v2
+        with:
+          arch: x64
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          aqtversion: '==2.1.*'
+          version: '5.15.2'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2019_64'
+          archives: 'qttools qtsvg qtimageformats qtbase qtmultimedia qtwinextras opengl32sw'
+      - name: Build TBB
+        run: |
+          cd $env:GITHUB_WORKSPACE\thirdparty\tbb
+          cmake -B build2 -DTBB_BUILD_SHARED=ON -DTBB_BUILD_STATIC=OFF -DTBB_BUILD_TBBMALLOC=OFF -DTBB_BUILD_TBBMALLOC_PROXY=OFF -DTBB_BUILD_TESTS=OFF
+          cmake --build build2 --config Release
+      - name: Build application
+        run: |
+          cd $env:GITHUB_WORKSPACE
+          qmake -spec win32-msvc
+          nmake -f Makefile.Release
+      - name: Deploy Qt dependencies
+        run: |
+          windeployqt release/autoremesher.exe --no-translations --release
+        shell: bash
+      - name: Copy TBB DLL
+        shell: bash
+        run: |
+          cp thirdparty/tbb/build2/Release/tbb.dll release/
+      - name: Set environment variable
+        run: |
+          set PATH="%PATH%;C:\Program Files\7-Zip"
+      - name: Package executable
+        run: |
+          cd release
+          7z a ../autoremesher-${{ github.ref_name }}-win32-x86_64.zip autoremesher.exe
+          for /d /r . %%d in (platforms) do if exist "%%d" 7z a ../autoremesher-${{ github.ref_name }}-win32-x86_64.zip "%%d\*"
+          for /d /r . %%d in (imageformats) do if exist "%%d" 7z a ../autoremesher-${{ github.ref_name }}-win32-x86_64.zip "%%d\*"
+          for /d /r . %%d in (styles) do if exist "%%d" 7z a ../autoremesher-${{ github.ref_name }}-win32-x86_64.zip "%%d\*"
+          for /d /r . %%d in (translations) do if exist "%%d" 7z a ../autoremesher-${{ github.ref_name }}-win32-x86_64.zip "%%d\*"
+          for %%f in (*.dll) do 7z a ../autoremesher-${{ github.ref_name }}-win32-x86_64.zip %%f
+          cd ..
+          7z l autoremesher-${{ github.ref_name }}-win32-x86_64.zip
+        shell: cmd
+      - name: Run application and capture screenshot
+        run: |
+          mkdir screenshot
+          cd release
+          $env:QT_OPENGL = 'software'
+          Start-Process -FilePath .\autoremesher.exe
+          Start-Sleep -Seconds 12
+          Add-Type -AssemblyName System.Windows.Forms
+          $bitmap = [System.Drawing.Bitmap]::new([System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width, [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Height)
+          $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+          $graphics.CopyFromScreen(0, 0, 0, 0, $bitmap.Size)
+          $bitmap.Save("$env:GITHUB_WORKSPACE\autoremesher-${{ github.ref_name }}-windows-2022.png")
+          Stop-Process -Name autoremesher -Force -ErrorAction SilentlyContinue
+        shell: powershell
+      - name: Upload Windows screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoremesher-${{ github.ref_name }}-windows-2022.png
+          path: autoremesher-${{ github.ref_name }}-windows-2022.png
+      - name: Upload Windows zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoremesher-${{ github.ref_name }}-win32-x86_64.zip
+          path: autoremesher-${{ github.ref_name }}-win32-x86_64.zip
+
+  macos-upload:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Qt
+        run: |
+          HOMEBREW_VERBOSE_USING_DOTS=1 brew reinstall --verbose qt@5
+          HOMEBREW_VERBOSE_USING_DOTS=1 brew link qt@5 --force
+      - name: Install TBB
+        run: |
+          brew install tbb
+      - name: Install create-dmg
+        run: |
+          brew install create-dmg
+      - name: Build application
+        run: |
+          export PATH="/usr/local/opt/qt@5/bin:$PATH"
+          qmake CONFIG+=sdk_no_version_check
+          CPU_COUNT=$(sysctl -n hw.logicalcpu)
+          make -j${CPU_COUNT}
+      - name: Generate DMG
+        run: |
+          export PATH="/usr/local/opt/qt@5/bin:$PATH"
+          # deploy Qt frameworks into the app bundle
+          macdeployqt ${GITHUB_WORKSPACE}/autoremesher.app
+          # ad-hoc sign so Gatekeeper doesn't report the app as damaged
+          codesign --force --deep --sign - ${GITHUB_WORKSPACE}/autoremesher.app
+          # prepare a staging folder containing the app bundle
+          STAGING_DIR=$(mktemp -d)
+          cp -R "${GITHUB_WORKSPACE}/autoremesher.app" "${STAGING_DIR}/"
+          # package into drag-to-Applications DMG
+          create-dmg \
+            --volname "AutoRemesher" \
+            --format UDZO \
+            --app-drop-link 520 145 \
+            --window-size 660 300 \
+            --icon "autoremesher.app" 140 145 \
+            --icon "Applications" 520 145 \
+            "${GITHUB_WORKSPACE}/autoremesher-${{ github.ref_name }}.dmg" \
+            "${STAGING_DIR}"
+          rm -rf "${STAGING_DIR}"
+      - name: Run application and capture screenshot
+        run: |
+          open ${GITHUB_WORKSPACE}/autoremesher.app
+          sleep 12
+          screencapture autoremesher-${{ github.ref_name }}-macos-latest.png || true
+          killall autoremesher || true
+      - name: Upload macOS screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoremesher-${{ github.ref_name }}-macos-latest.png
+          path: autoremesher-${{ github.ref_name }}-macos-latest.png
+      - name: Upload macOS DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoremesher-${{ github.ref_name }}.dmg
+          path: autoremesher-${{ github.ref_name }}.dmg

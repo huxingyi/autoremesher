@@ -19,17 +19,17 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#include <AutoRemesher/AutoRemesher>
 #include "rendermeshgenerator.h"
+#include <AutoRemesher/AutoRemesher>
 
 void RenderMeshGenerator::process()
 {
     generate();
-    
+
     emit finished();
 }
 
-void RenderMeshGenerator::calculateNormalizedFactors(const std::vector<AutoRemesher::Vector3> &vertices, AutoRemesher::Vector3 *origin, double *maxLength)
+void RenderMeshGenerator::calculateNormalizedFactors(const std::vector<AutoRemesher::Vector3>& vertices, AutoRemesher::Vector3* origin, double* maxLength)
 {
     double minX = std::numeric_limits<double>::max();
     double maxX = std::numeric_limits<double>::lowest();
@@ -37,7 +37,7 @@ void RenderMeshGenerator::calculateNormalizedFactors(const std::vector<AutoRemes
     double maxY = std::numeric_limits<double>::lowest();
     double minZ = std::numeric_limits<double>::max();
     double maxZ = std::numeric_limits<double>::lowest();
-    for (const auto &v: vertices) {
+    for (const auto& v : vertices) {
         if (v.x() < minX)
             minX = v.x();
         if (v.x() > maxX)
@@ -73,7 +73,7 @@ void RenderMeshGenerator::normalizeVertices()
     AutoRemesher::Vector3 origin;
     double maxLength = 1.0;
     calculateNormalizedFactors(*m_vertices, &origin, &maxLength);
-    for (auto &v: *m_vertices) {
+    for (auto& v : *m_vertices) {
         v = (v - origin) / maxLength;
     }
 }
@@ -81,20 +81,20 @@ void RenderMeshGenerator::normalizeVertices()
 void RenderMeshGenerator::generate()
 {
     normalizeVertices();
-    
+
     std::vector<AutoRemesher::Vector3> vertexNormals(m_vertices->size());
     std::vector<AutoRemesher::Vector3> faceCenters(m_faces->size());
     std::vector<AutoRemesher::Vector3> faceNormals(m_faces->size());
     for (size_t i = 0; i < m_faces->size(); ++i) {
-        const auto &sourceFace = (*m_faces)[i];
-        
+        const auto& sourceFace = (*m_faces)[i];
+
         AutoRemesher::Vector3 center;
-        for (const auto &it: sourceFace) {
+        for (const auto& it : sourceFace) {
             center += (*m_vertices)[it];
         }
         center /= sourceFace.size();
         faceCenters[i] = center;
-        
+
         AutoRemesher::Vector3 normal;
         for (size_t corner = 0; corner < sourceFace.size(); ++corner) {
             size_t nextCorner = (corner + 1) % sourceFace.size();
@@ -103,42 +103,42 @@ void RenderMeshGenerator::generate()
                 (*m_vertices)[sourceFace[nextCorner]]);
         }
         normal.normalize();
-        
+
         faceNormals[i] = normal;
 
         for (size_t j = 0; j < sourceFace.size(); ++j)
             vertexNormals[sourceFace[j]] += normal;
     }
-    for (auto &it: vertexNormals)
+    for (auto& it : vertexNormals)
         it.normalize();
-    
+
     int vertexNum = 0;
     int edgeVertexCount = 0;
     for (size_t i = 0; i < m_faces->size(); ++i) {
-        const auto &sourceFace = (*m_faces)[i];
+        const auto& sourceFace = (*m_faces)[i];
         if (3 == sourceFace.size())
             vertexNum += 3;
         else
             vertexNum += sourceFace.size() * 3;
         edgeVertexCount += sourceFace.size() * 2;
     }
-    ModelShaderVertex *triangleVertices = new ModelShaderVertex[vertexNum];
-    ModelShaderVertex *edgeVertices = new ModelShaderVertex[edgeVertexCount];
-    
+    ModelShaderVertex* triangleVertices = new ModelShaderVertex[vertexNum];
+    ModelShaderVertex* edgeVertices = new ModelShaderVertex[edgeVertexCount];
+
     memset(triangleVertices, 0, sizeof(ModelShaderVertex) * vertexNum);
     memset(edgeVertices, 0, sizeof(ModelShaderVertex) * edgeVertexCount);
-    
+
     vertexNum = 0;
     edgeVertexCount = 0;
-    
-    auto addTriangle = [&](const std::vector<size_t> &sourceFace, 
-            size_t startIndex, 
-            const AutoRemesher::Vector3 &normal,
-            const AutoRemesher::Vector3 &center) {
+
+    auto addTriangle = [&](const std::vector<size_t>& sourceFace,
+                           size_t startIndex,
+                           const AutoRemesher::Vector3& normal,
+                           const AutoRemesher::Vector3& center) {
         for (size_t j = 0; j < 2; ++j) {
-            auto &v = triangleVertices[vertexNum++];
+            auto& v = triangleVertices[vertexNum++];
             auto index = sourceFace[(startIndex + j) % sourceFace.size()];
-            const auto &src = (*m_vertices)[index];
+            const auto& src = (*m_vertices)[index];
             v.posX = (float)src.x();
             v.posY = (float)src.y();
             v.posZ = (float)src.z();
@@ -152,7 +152,7 @@ void RenderMeshGenerator::generate()
             v.alpha = 1.0f;
         }
 
-        auto &v = triangleVertices[vertexNum++];
+        auto& v = triangleVertices[vertexNum++];
         v.posX = (float)center.x();
         v.posY = (float)center.y();
         v.posZ = (float)center.z();
@@ -165,13 +165,13 @@ void RenderMeshGenerator::generate()
         v.roughness = 1.0f;
         v.alpha = 1.0f;
     };
-    
-    auto addEdge = [&](const std::vector<size_t> &sourceFace, size_t startIndex) {
+
+    auto addEdge = [&](const std::vector<size_t>& sourceFace, size_t startIndex) {
         for (size_t j = 0; j < 2; ++j) {
-            auto &v = edgeVertices[edgeVertexCount++];
+            auto& v = edgeVertices[edgeVertexCount++];
             auto index = sourceFace[(startIndex + j) % sourceFace.size()];
-            const auto &src = (*m_vertices)[index];
-            const auto &normal = vertexNormals[index];
+            const auto& src = (*m_vertices)[index];
+            const auto& normal = vertexNormals[index];
             v.posX = (float)src.x();
             v.posY = (float)src.y();
             v.posZ = (float)src.z();
@@ -185,9 +185,9 @@ void RenderMeshGenerator::generate()
             v.alpha = 1.0f;
         }
     };
-    
+
     for (size_t i = 0; i < m_faces->size(); ++i) {
-        const auto &sourceFace = (*m_faces)[i];
+        const auto& sourceFace = (*m_faces)[i];
         if (sourceFace.size() == 3) {
             for (size_t j = 0; j < sourceFace.size(); ++j) {
                 addEdge(sourceFace, j);
@@ -200,7 +200,7 @@ void RenderMeshGenerator::generate()
             addTriangle(sourceFace, j, faceNormals[i], faceCenters[i]);
         }
     }
-    
+
     delete m_renderMesh;
     m_renderMesh = new ModelShaderMesh(triangleVertices, vertexNum, edgeVertices, edgeVertexCount,
         m_vertices, m_faces);

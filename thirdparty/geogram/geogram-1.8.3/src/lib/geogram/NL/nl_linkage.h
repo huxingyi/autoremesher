@@ -80,4 +80,14 @@
 #define NL_DEPRECATED(func) func
 #endif
 
+/*
+ * MSVC's C compiler does not support the C11 _Thread_local keyword.
+ * Use __declspec(thread) instead, which is supported by MSVC.
+ */
+#if defined(_MSC_VER) && !defined(__clang__)
+#ifndef _Thread_local
+#define _Thread_local __declspec(thread)
+#endif
+#endif
+
 #endif

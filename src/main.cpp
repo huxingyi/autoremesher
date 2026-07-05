@@ -19,61 +19,61 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#include <QApplication>
-#include <QStyleFactory>
-#include <QFontDatabase>
-#include <QDebug>
-#include <QtGlobal>
-#include <QSurfaceFormat>
-#include <QSettings>
-#include <QScreen>
-#include <QTranslator>
-#include <geogram/basic/common.h>
 #include "mainwindow.h"
+#include "preferences.h"
 #include "theme.h"
 #include "version.h"
-#include "preferences.h"
+#include <QApplication>
+#include <QDebug>
+#include <QFontDatabase>
+#include <QScreen>
+#include <QSettings>
+#include <QStyleFactory>
+#include <QSurfaceFormat>
+#include <QTranslator>
+#include <QtGlobal>
+#include <geogram/basic/common.h>
 
-int main(int argc, char ** argv)
+int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
-    
+
     GEO::initialize();
 
     QSurfaceFormat format = QSurfaceFormat::defaultFormat();
     format.setProfile(QSurfaceFormat::OpenGLContextProfile::CoreProfile);
     format.setVersion(3, 3);
     QSurfaceFormat::setDefaultFormat(format);
-    
+
     qApp->setStyle(QStyleFactory::create("Fusion"));
     QPalette darkPalette;
     darkPalette.setColor(QPalette::Window, Theme::black);
     darkPalette.setColor(QPalette::WindowText, Theme::white);
-    darkPalette.setColor(QPalette::Base, QColor(25,25,25));
-    darkPalette.setColor(QPalette::AlternateBase, QColor(53,53,53));
+    darkPalette.setColor(QPalette::Base, QColor(25, 25, 25));
+    darkPalette.setColor(QPalette::AlternateBase, QColor(53, 53, 53));
     darkPalette.setColor(QPalette::Text, Theme::white);
     darkPalette.setColor(QPalette::Disabled, QPalette::Text, Theme::black);
-    darkPalette.setColor(QPalette::Button, QColor(53,53,53));
+    darkPalette.setColor(QPalette::Button, QColor(53, 53, 53));
     darkPalette.setColor(QPalette::ButtonText, Theme::white);
     darkPalette.setColor(QPalette::BrightText, Theme::green);
     darkPalette.setColor(QPalette::Link, QColor(42, 130, 218));
     darkPalette.setColor(QPalette::Highlight, Theme::green);
-    darkPalette.setColor(QPalette::HighlightedText, Theme::black);    
+    darkPalette.setColor(QPalette::HighlightedText, Theme::black);
     qApp->setPalette(darkPalette);
     qApp->setStyleSheet(Theme::compactStylesheet());
 
     QCoreApplication::setApplicationName(APP_NAME);
     QCoreApplication::setOrganizationName(APP_COMPANY);
     QCoreApplication::setOrganizationDomain(APP_HOMEPAGE_URL);
-    
+
     QFont font;
     font.setWeight(QFont::Light);
     font.setBold(false);
     QApplication::setFont(font);
-    
+
     Theme::initAwsomeBaseSizes();
-    
-    MainWindow *mainWindow = new MainWindow();
+
+    MainWindow* mainWindow = new MainWindow();
     mainWindow->setAttribute(Qt::WA_DeleteOnClose);
     QSize size = Preferences::instance().mainWindowSize();
     if (size.isValid()) {
@@ -83,13 +83,13 @@ int main(int argc, char ** argv)
     }
     mainWindow->show();
     if (!mainWindow->isMaximized()) {
-        QScreen *screen = QApplication::primaryScreen();
+        QScreen* screen = QApplication::primaryScreen();
         if (screen) {
             QRect screenRect = screen->availableGeometry();
             mainWindow->move((screenRect.width() - mainWindow->frameGeometry().width()) / 2,
-                             (screenRect.height() - mainWindow->frameGeometry().height()) / 2);
+                (screenRect.height() - mainWindow->frameGeometry().height()) / 2);
         }
     }
-    
+
     return app.exec();
 }

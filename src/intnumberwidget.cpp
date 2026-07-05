@@ -19,13 +19,13 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#include <QtWidgets>
+#include "intnumberwidget.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
-#include "intnumberwidget.h"
+#include <QtWidgets>
 
-IntNumberWidget::IntNumberWidget(QWidget *parent, bool singleLine) :
-    QWidget(parent)
+IntNumberWidget::IntNumberWidget(QWidget* parent, bool singleLine)
+    : QWidget(parent)
 {
     m_slider = new QSlider(Qt::Horizontal, this);
     m_slider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -39,7 +39,7 @@ IntNumberWidget::IntNumberWidget(QWidget *parent, bool singleLine) :
         emit valueChanged(value);
     });
 
-    QBoxLayout *layout = nullptr;
+    QBoxLayout* layout = nullptr;
     if (singleLine) {
         layout = new QHBoxLayout(this);
         layout->setContentsMargins(0, 0, 0, 0);
@@ -66,13 +66,13 @@ void IntNumberWidget::updateValueLabel(int value)
         m_label->setText(m_itemName + ": " + valueString);
 }
 
-void IntNumberWidget::setItemName(const QString &name)
+void IntNumberWidget::setItemName(const QString& name)
 {
     m_itemName = name;
     updateValueLabel(value());
 }
 
-void IntNumberWidget::setSuffix(const QString &suffix)
+void IntNumberWidget::setSuffix(const QString& suffix)
 {
     m_suffix = suffix;
     updateValueLabel(value());

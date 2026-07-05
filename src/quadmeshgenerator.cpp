@@ -19,9 +19,9 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#include <QElapsedTimer>
-#include <QDebug>
 #include "quadmeshgenerator.h"
+#include <QDebug>
+#include <QElapsedTimer>
 
 void QuadMeshGenerator::process()
 {
@@ -41,15 +41,15 @@ void QuadMeshGenerator::emitProgress(float progress)
     emit reportProgress(progress);
 }
 
-void QuadMeshGenerator::emitProgress(float progress, const QString &status)
+void QuadMeshGenerator::emitProgress(float progress, const QString& status)
 {
     emit reportProgressDetailed(progress, status);
     emit reportProgress(progress);
 }
 
-static void reportProgressHandler(void *tag, float progress, const char *status)
+static void reportProgressHandler(void* tag, float progress, const char* status)
 {
-    QuadMeshGenerator *generator = (QuadMeshGenerator *)tag;
+    QuadMeshGenerator* generator = (QuadMeshGenerator*)tag;
     generator->emitProgress(progress, QString::fromUtf8(status));
 }
 
