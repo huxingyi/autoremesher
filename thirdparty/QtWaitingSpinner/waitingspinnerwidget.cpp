@@ -260,7 +260,7 @@ void WaitingSpinnerWidget::updateSize() {
         setFixedSize(size, size);
     } else {
         QFontMetrics fm(font());
-        QSize textSize = QSize(fm.width(_text), fm.height());
+        QSize textSize = QSize(fm.horizontalAdvance(_text), fm.height());
         setFixedSize(std::max(size, textSize.width()), size + size / 4 + textSize.height());
     }
 }

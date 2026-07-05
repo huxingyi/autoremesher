@@ -25,7 +25,7 @@
 #include <QResizeEvent>
 #include <QMouseEvent>
 #include <QWheelEvent>
-#include "pbrshaderwidget.h"
+#include "modelshaderwidget.h"
 #include "graphicswidget.h"
 
 class GraphicsContainerWidget : public QWidget
@@ -36,7 +36,7 @@ signals:
 public:
     GraphicsContainerWidget();
     void setGraphicsWidget(GraphicsWidget *graphicsWidget);
-    void setModelWidget(PbrShaderWidget *modelWidget);
+    void setModelWidget(ModelShaderWidget *modelWidget);
 protected:
     void resizeEvent(QResizeEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
@@ -44,7 +44,7 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
 private:
-    PbrShaderWidget *m_modelWidget = nullptr;
+    ModelShaderWidget *m_modelWidget = nullptr;
     GraphicsWidget *m_graphicsWidget = nullptr;
 };
 

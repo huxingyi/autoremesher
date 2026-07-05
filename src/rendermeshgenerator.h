@@ -23,7 +23,7 @@
 #define AUTO_REMESHER_RENDER_MESH_GENERATOR_H
 #include <QObject>
 #include <AutoRemesher/Vector3>
-#include "pbrshadermesh.h"
+#include "modelshadermesh.h"
 
 class RenderMeshGenerator: public QObject
 {
@@ -41,9 +41,9 @@ public:
         delete m_renderMesh;
     }
 
-    PbrShaderMesh *takeRenderMesh()
+    ModelShaderMesh *takeRenderMesh()
     {
-        PbrShaderMesh *renderMesh = m_renderMesh;
+        ModelShaderMesh *renderMesh = m_renderMesh;
         m_renderMesh = nullptr;
         return renderMesh;
     }
@@ -58,7 +58,7 @@ public slots:
 private:
     std::vector<AutoRemesher::Vector3> *m_vertices = nullptr;
     std::vector<std::vector<size_t>> *m_faces = nullptr;
-    PbrShaderMesh *m_renderMesh = nullptr;
+    ModelShaderMesh *m_renderMesh = nullptr;
     
     void normalizeVertices();
     static void calculateNormalizedFactors(const std::vector<AutoRemesher::Vector3> &vertices, 

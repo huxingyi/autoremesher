@@ -1,10 +1,15 @@
 <RCC>
     <qresource prefix="/">
         <file>resources/dust3d-vertical.png</file>
-        <file>shaders/pbr.vert</file>
-        <file>shaders/pbr.frag</file>
-        <file>shaders/pbr.core.vert</file>
-        <file>shaders/pbr.core.frag</file>
+        <file>shaders/model.vert</file>
+        <file>shaders/model.frag</file>
+        <file>shaders/model.core.vert</file>
+        <file>shaders/model.core.frag</file>
+        <file>shaders/monochrome_core.vert</file>
+        <file>shaders/monochrome_core.geom</file>
+        <file>shaders/monochrome_core.frag</file>
+        <file>shaders/monochrome.vert</file>
+        <file>shaders/monochrome.frag</file>
         <file>ACKNOWLEDGEMENTS.html</file>
         <file>SUPPORTERS</file>
     </qresource>

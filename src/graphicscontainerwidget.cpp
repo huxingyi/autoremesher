@@ -66,7 +66,7 @@ void GraphicsContainerWidget::setGraphicsWidget(GraphicsWidget *graphicsWidget)
     m_graphicsWidget = graphicsWidget;
 }
 
-void GraphicsContainerWidget::setModelWidget(PbrShaderWidget *modelWidget)
+void GraphicsContainerWidget::setModelWidget(ModelShaderWidget *modelWidget)
 {
     m_modelWidget = modelWidget;
 }

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved. 
+ *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -7,10 +7,10 @@
  *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  *  copies of the Software, and to permit persons to whom the Software is
  *  furnished to do so, subject to the following conditions:
-
+ *
  *  The above copyright notice and this permission notice shall be included in all
  *  copies or substantial portions of the Software.
-
+ *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -25,16 +25,18 @@
 #include <QCloseEvent>
 #include <QShowEvent>
 #include <QString>
+#include <QProgressBar>
+#include <QPushButton>
 #include <queue>
 #include <AutoRemesher/AutoRemesher>
 #include <AutoRemesher/Vector3>
-#include "pbrshaderwidget.h"
+#include "modelshaderwidget.h"
 
 class RenderMeshGenerator;
 class QuadMeshGenerator;
-class SpinnableAwesomeButton;
 class FloatNumberWidget;
-class QComboBox;
+class IntNumberWidget;
+class QLabel;
 #ifdef Q_OS_WIN32
 class QWinTaskbarButton;
 #endif
@@ -51,7 +53,7 @@ public:
 
     MainWindow();
     ~MainWindow();
-    PbrShaderWidget *modelRenderWidget() const;
+    ModelShaderWidget *modelRenderWidget() const;
     static size_t total();
 protected:
     void closeEvent(QCloseEvent *event);
@@ -75,13 +77,17 @@ private slots:
     void quadMeshReady();
     void updateButtonStates();
     void updateProgress(float progress);
+    void updateProgressDetailed(float progress, const QString &status);
 private:
-    PbrShaderWidget *m_modelRenderWidget = nullptr;
+    ModelShaderWidget *m_modelRenderWidget = nullptr;
     AutoRemesher::AutoRemesher *m_autoRemesher = nullptr;
     bool m_inProgress = false;
     bool m_saved = true;
-    float m_targetDensity = 0.0;
-    float m_targetScaling = 2.0;
+    int m_targetQuadCount = 50000;
+    float m_targetScaling = 1.0;
+    float m_sharpEdgeDegrees = 90.0;
+    float m_smoothNormalDegrees = 0.0;
+    float m_adaptivity = 1.0;
     AutoRemesher::ModelType m_modelType = AutoRemesher::ModelType::Organic;
     std::vector<AutoRemesher::Vector3> m_originalVertices;
     std::vector<std::vector<size_t>> m_originalTriangles;
@@ -92,12 +98,20 @@ private:
     std::queue<ResultMesh> m_renderQueue;
     bool m_quadMeshResultIsDirty = false;
     QuadMeshGenerator *m_quadMeshGenerator = nullptr;
-    SpinnableAwesomeButton *m_loadModelButton = nullptr;
-    SpinnableAwesomeButton *m_saveMeshButton = nullptr;
-    FloatNumberWidget *m_targetTriangleCountWidget = nullptr;
+    QPushButton *m_loadModelButton = nullptr;
+    QPushButton *m_saveMeshButton = nullptr;
+    QPushButton *m_regenerateButton = nullptr;
+    IntNumberWidget *m_targetQuadCountWidget = nullptr;
     FloatNumberWidget *m_targetScalingWidget = nullptr;
     //QComboBox *m_modelTypeSelectBox = nullptr;
-    QComboBox *m_edgeScalingSelectBox = nullptr;
+    FloatNumberWidget *m_sharpEdgeDegreesWidget = nullptr;
+    FloatNumberWidget *m_smoothNormalDegreesWidget = nullptr;
+    FloatNumberWidget *m_adaptivityWidget = nullptr;
+    QLabel *m_quadCountLabel = nullptr;
+    QLabel *m_nonQuadCountLabel = nullptr;
+    QLabel *m_vertexCountLabel = nullptr;
+    QProgressBar *m_progressBar = nullptr;
+    QWidget *m_progressContainer = nullptr;
 #ifdef Q_OS_WIN32
     QWinTaskbarButton *m_taskbarButton = nullptr;
 #endif

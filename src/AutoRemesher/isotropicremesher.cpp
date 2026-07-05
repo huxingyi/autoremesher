@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved. 
+ *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -20,98 +20,56 @@
  *  SOFTWARE.
  */
 #include <cstdio>
-#include <cstdlib>
-#include <iostream>
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Surface_mesh.h>
-#include <CGAL/boost/graph/graph_traits_Surface_mesh.h>
-#include <CGAL/Polygon_mesh_processing/remesh.h>
-#include <CGAL/Polygon_mesh_processing/border.h>
-#include <CGAL/Polygon_mesh_processing/repair.h>
-#include <boost/function_output_iterator.hpp>
 #include <AutoRemesher/Vector3>
 #include <AutoRemesher/IsotropicRemesher>
 
-typedef CGAL::Exact_predicates_inexact_constructions_kernel     Kernel;
-typedef Kernel::Point_3                                         Point;
-typedef CGAL::Surface_mesh<Kernel::Point_3>                     Mesh;
-typedef boost::graph_traits<Mesh>::halfedge_descriptor          halfedge_descriptor;
-typedef boost::graph_traits<Mesh>::edge_descriptor              edge_descriptor;
-typedef boost::graph_traits<Mesh>::vertex_iterator              vertex_iterator;
-typedef boost::graph_traits<Mesh>::vertex_descriptor            vertex_descriptor;
+#include <isotropicremesher.h>
+#include <isotropichalfedgemesh.h>
 
 namespace AutoRemesher
 {
 
 bool IsotropicRemesher::remesh()
 {
-    Mesh mesh;
-    
-    std::vector<Mesh::Vertex_index> newVertices;
-    newVertices.reserve(m_vertices.size());
+    std::vector<::Vector3> inputVertices;
+    inputVertices.reserve(m_vertices.size());
     for (const auto &position: m_vertices)
-        newVertices.push_back(mesh.add_vertex(Point(position.x(), position.y(), position.z())));
-    for (const auto &face: m_triangles)
-        mesh.add_face(newVertices[face[0]], newVertices[face[1]], newVertices[face[2]]);
-    
-    CGAL::Polygon_mesh_processing::remove_degenerate_faces(mesh);
-    
-    std::map<vertex_descriptor, int> vertexDescriptorToIndexMap;
-    size_t vertexIndex = 0;
-    vertex_iterator vb, ve;
-    for (boost::tie(vb, ve) = vertices(mesh); vb != ve; ++ vb){
-        vertexDescriptorToIndexMap[*vb] = vertexIndex++;
-    }
-    
-    auto ecm = mesh.add_property_map<edge_descriptor, bool>("ecm").first;
-    CGAL::Polygon_mesh_processing::detect_sharp_edges(mesh, m_sharpEdgeDegrees, ecm);
-    
-    std::vector<edge_descriptor> border;
-    for (edge_descriptor e: edges(mesh)) {
-        if (ecm[e]) {
-            border.push_back(e);
-        } else if (nullptr != m_constraintVertices) {
-            if (m_constraintVertices->end() != m_constraintVertices->find(vertexDescriptorToIndexMap[source(e, mesh)]) ||
-                    m_constraintVertices->end() != m_constraintVertices->find(vertexDescriptorToIndexMap[target(e, mesh)])) {
-                ecm[e] = true;
-            }
-        }
-    }
-    CGAL::Polygon_mesh_processing::split_long_edges(border, 
-        m_targetEdgeLength, mesh, CGAL::Polygon_mesh_processing::parameters::edge_is_constrained_map(ecm));
-    
-    CGAL::Polygon_mesh_processing::isotropic_remeshing(faces(mesh),
-        m_targetEdgeLength,
-        mesh,
-        CGAL::Polygon_mesh_processing::parameters::number_of_iterations(m_remeshIterations)
-        .protect_constraints(true)
-        .edge_is_constrained_map(ecm));
-    
-    Mesh::Property_map<Mesh::Vertex_index, size_t> meshPropertyMap;
-    bool created;
-    boost::tie(meshPropertyMap, created) = mesh.add_property_map<Mesh::Vertex_index, size_t>("v:source", 0);
-    
-    for (auto vertexIt = mesh.vertices_begin(); vertexIt != mesh.vertices_end(); vertexIt++) {
-        auto point = mesh.point(*vertexIt);
-        meshPropertyMap[*vertexIt] = m_remeshedVertices.size();
+        inputVertices.push_back(::Vector3(position.x(), position.y(), position.z()));
+
+    ::IsotropicRemesher remesher(&inputVertices, &m_triangles);
+    if (m_targetEdgeLength > 0)
+        remesher.setTargetEdgeLength(m_targetEdgeLength);
+    if (m_vertexTargetEdgeLengths != nullptr)
+        remesher.setVertexTargetEdgeLengths(m_vertexTargetEdgeLengths);
+    remesher.setSharpEdgeIncludedAngle(180.0 - m_sharpEdgeDegrees);
+    remesher.setSmoothNormalDegrees(m_smoothNormalDegrees);
+    remesher.remesh(m_remeshIterations);
+
+    IsotropicHalfedgeMesh *halfedgeMesh = remesher.remeshedHalfedgeMesh();
+    if (nullptr == halfedgeMesh)
+        return false;
+
+    size_t outputIndex = 0;
+    for (IsotropicHalfedgeMesh::Vertex *vertex = halfedgeMesh->moveToNextVertex(nullptr);
+            nullptr != vertex;
+            vertex = halfedgeMesh->moveToNextVertex(vertex)) {
+        vertex->outputIndex = outputIndex++;
         m_remeshedVertices.push_back(Vector3 {
-            CGAL::to_double(point.x()),
-            CGAL::to_double(point.y()),
-            CGAL::to_double(point.z()),
+            vertex->position.x(),
+            vertex->position.y(),
+            vertex->position.z()
         });
     }
-    
-    for (const auto &faceIt: mesh.faces()) {
-        CGAL::Vertex_around_face_iterator<Mesh> vbegin, vend;
-        std::vector<size_t> faceIndices;
-        for (boost::tie(vbegin, vend) = CGAL::vertices_around_face(mesh.halfedge(faceIt), mesh);
-                vbegin != vend;
-                ++vbegin) {
-            faceIndices.push_back(meshPropertyMap[*vbegin]);
-        }
-        m_remeshedTriangles.push_back(faceIndices);
+    for (IsotropicHalfedgeMesh::Face *face = halfedgeMesh->moveToNextFace(nullptr);
+            nullptr != face;
+            face = halfedgeMesh->moveToNextFace(face)) {
+        m_remeshedTriangles.push_back(std::vector<size_t> {
+            face->halfedge->previousHalfedge->startVertex->outputIndex,
+            face->halfedge->startVertex->outputIndex,
+            face->halfedge->nextHalfedge->startVertex->outputIndex
+        });
     }
-        
+
     return true;
 }
 

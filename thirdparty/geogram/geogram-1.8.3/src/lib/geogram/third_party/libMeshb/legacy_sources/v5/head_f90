@@ -1,0 +1,36 @@
+! Generated automatically by libmesh5.2
+
+module M_libmesh5_api
+
+public
+
+interface
+  integer function gmfopenmeshf77(FilNam, mod, ver, dim)
+  character(len=*) :: FilNam
+  integer          :: mod, ver, dim
+  end function gmfopenmeshf77
+end interface
+
+interface
+  integer function gmfclosemeshf77(MshIdx)
+  integer   :: MshIdx
+  end function gmfclosemeshf77
+end interface
+
+interface
+  integer function gmfstatkwdf77(MshIdx, KwdIdx, NmbTyp, SolSiz, TypTab)
+  integer   :: MshIdx, NmbTyp, KwdIdx, SolSiz, TypTab(*)
+  end function gmfstatkwdf77
+end interface
+
+interface
+  integer function gmfsetkwdf77(MshIdx, KwdIdx, NmbLin, NmbTyp, TypTab)
+  integer   :: MshIdx, KwdIdx, NmbLin, NmbTyp, TypTab(*)
+  end function gmfsetkwdf77
+end interface
+
+interface
+  integer function gmfgotokwdf77(MshIdx, KwdIdx)
+  integer   :: MshIdx, KwdIdx
+  end function gmfgotokwdf77
+end interface

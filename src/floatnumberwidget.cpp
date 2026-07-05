@@ -1,3 +1,24 @@
+/*
+ *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved.
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ */
 #include <QtWidgets>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -9,27 +30,27 @@ FloatNumberWidget::FloatNumberWidget(QWidget *parent, bool singleLine) :
 {
     m_slider = new QSlider(Qt::Horizontal, this);
     m_slider->setRange(0, 100);
-    m_slider->setFixedWidth(240);
+    m_slider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     m_label = new QLabel(this);
     m_label->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-    m_label->setAlignment(Qt::AlignRight);
+    m_label->setAlignment(Qt::AlignLeft);
 
     connect(m_slider, &QAbstractSlider::valueChanged, [=](int value) {
         float fvalue = value / 100.0;
         updateValueLabel(fvalue);
         emit valueChanged(fvalue);
     });
-    
+
     QBoxLayout *layout = nullptr;
     if (singleLine) {
         layout = new QHBoxLayout(this);
-        layout->setMargin(2);
+        layout->setContentsMargins(0, 0, 0, 0);
         layout->addWidget(m_label);
         layout->addWidget(m_slider);
     } else {
         layout = new QVBoxLayout(this);
-        layout->setMargin(2);
+        layout->setContentsMargins(0, 0, 0, 0);
         layout->addWidget(m_label);
         layout->addWidget(m_slider);
     }
@@ -39,7 +60,7 @@ FloatNumberWidget::FloatNumberWidget(QWidget *parent, bool singleLine) :
 
 void FloatNumberWidget::updateValueLabel(float value)
 {
-    QString valueString = QString().sprintf("%.2f", value);
+    QString valueString = QString::asprintf("%.2f", value);
     if (m_itemName.isEmpty())
         m_label->setText(valueString);
     else

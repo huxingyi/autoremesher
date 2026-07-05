@@ -20,13 +20,13 @@
  *  SOFTWARE.
  */
 #include <QApplication>
-#include <QDesktopWidget>
 #include <QStyleFactory>
 #include <QFontDatabase>
 #include <QDebug>
 #include <QtGlobal>
 #include <QSurfaceFormat>
 #include <QSettings>
+#include <QScreen>
 #include <QTranslator>
 #include <geogram/basic/common.h>
 #include "mainwindow.h"
@@ -55,12 +55,13 @@ int main(int argc, char ** argv)
     darkPalette.setColor(QPalette::Disabled, QPalette::Text, Theme::black);
     darkPalette.setColor(QPalette::Button, QColor(53,53,53));
     darkPalette.setColor(QPalette::ButtonText, Theme::white);
-    darkPalette.setColor(QPalette::BrightText, Theme::red);
+    darkPalette.setColor(QPalette::BrightText, Theme::green);
     darkPalette.setColor(QPalette::Link, QColor(42, 130, 218));
-    darkPalette.setColor(QPalette::Highlight, Theme::red);
+    darkPalette.setColor(QPalette::Highlight, Theme::green);
     darkPalette.setColor(QPalette::HighlightedText, Theme::black);    
     qApp->setPalette(darkPalette);
-    
+    qApp->setStyleSheet(Theme::compactStylesheet());
+
     QCoreApplication::setApplicationName(APP_NAME);
     QCoreApplication::setOrganizationName(APP_COMPANY);
     QCoreApplication::setOrganizationDomain(APP_HOMEPAGE_URL);
@@ -77,9 +78,17 @@ int main(int argc, char ** argv)
     QSize size = Preferences::instance().mainWindowSize();
     if (size.isValid()) {
         mainWindow->resize(size);
-        mainWindow->show();
     } else {
         mainWindow->showMaximized();
+    }
+    mainWindow->show();
+    if (!mainWindow->isMaximized()) {
+        QScreen *screen = QApplication::primaryScreen();
+        if (screen) {
+            QRect screenRect = screen->availableGeometry();
+            mainWindow->move((screenRect.width() - mainWindow->frameGeometry().width()) / 2,
+                             (screenRect.height() - mainWindow->frameGeometry().height()) / 2);
+        }
     }
     
     return app.exec();

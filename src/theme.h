@@ -76,6 +76,7 @@ public:
     static void initAwsomeBaseSizes();
     static void initToolButton(QPushButton *button);
     static void initCheckbox(QCheckBox *checkbox);
+    static QString compactStylesheet();
 };
 
 #endif

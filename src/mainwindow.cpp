@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved. 
+ *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -7,10 +7,10 @@
  *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  *  copies of the Software, and to permit persons to whom the Software is
  *  furnished to do so, subject to the following conditions:
-
+ *
  *  The above copyright notice and this permission notice shall be included in all
  *  copies or substantial portions of the Software.
-
+ *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -40,6 +40,7 @@
 #include <QFile>
 #include <QComboBox>
 #include <QUuid>
+#include <cmath>
 #ifdef Q_OS_WIN32
 #include <QWinTaskbarButton>
 #include <QWinTaskbarProgress>
@@ -54,9 +55,9 @@
 #include "theme.h"
 #include "rendermeshgenerator.h"
 #include "quadmeshgenerator.h"
-#include "spinnableawesomebutton.h"
 #include "logbrowser.h"
 #include "floatnumberwidget.h"
+#include "intnumberwidget.h"
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
@@ -86,13 +87,13 @@ MainWindow::MainWindow()
     }
 
     g_windows.insert({this, QUuid::createUuid()});
-    
+
 #ifdef Q_OS_WIN32
     m_taskbarButton = new QWinTaskbarButton(this);
 #endif
-    
+
     GraphicsWidget *graphicsWidget = new GraphicsWidget;
-    
+
     GraphicsContainerWidget *containerWidget = new GraphicsContainerWidget;
     containerWidget->setGraphicsWidget(graphicsWidget);
     QGridLayout *containerLayout = new QGridLayout;
@@ -101,9 +102,9 @@ MainWindow::MainWindow()
     containerLayout->addWidget(graphicsWidget);
     containerWidget->setLayout(containerLayout);
     containerWidget->setMinimumSize(400, 400);
-    
+
     QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
-    
+
     QAction *gotoHomepageAction = new QAction(tr("Homepage"), this);
     connect(gotoHomepageAction, &QAction::triggered, this, &MainWindow::gotoHomepage);
     helpMenu->addAction(gotoHomepageAction);
@@ -111,7 +112,7 @@ MainWindow::MainWindow()
     QAction *viewSourceAction = new QAction(tr("Source Code"), this);
     connect(viewSourceAction, &QAction::triggered, this, &MainWindow::viewSource);
     helpMenu->addAction(viewSourceAction);
-    
+
     QAction *checkForUpdatesAction = new QAction(tr("Check for Updates..."), this);
     connect(checkForUpdatesAction, &QAction::triggered, this, &MainWindow::checkForUpdates);
     helpMenu->addAction(checkForUpdatesAction);
@@ -125,101 +126,190 @@ MainWindow::MainWindow()
     QAction *reportIssuesAction = new QAction(tr("Report Issues"), this);
     connect(reportIssuesAction, &QAction::triggered, this, &MainWindow::reportIssues);
     helpMenu->addAction(reportIssuesAction);
-    
+
     QAction *showDebugDialogAction = new QAction(tr("Debug"), this);
     connect(showDebugDialogAction, &QAction::triggered, g_logBrowser, &LogBrowser::showDialog);
     helpMenu->addAction(showDebugDialogAction);
-    
+
     helpMenu->addSeparator();
-    
+
     QAction *seeSupportersAction = new QAction(tr("Supporters"), this);
     connect(seeSupportersAction, &QAction::triggered, this, &MainWindow::showSupporters);
     helpMenu->addAction(seeSupportersAction);
-    
+
     QAction *showAcknowlegementsAction = new QAction(tr("Acknowlegements"), this);
     connect(showAcknowlegementsAction, &QAction::triggered, this, &MainWindow::showAcknowlegements);
     helpMenu->addAction(showAcknowlegementsAction);
-    
-    m_modelRenderWidget = new PbrShaderWidget(containerWidget);
+
+    m_modelRenderWidget = new ModelShaderWidget(containerWidget);
     m_modelRenderWidget->setMoveAndZoomByWindow(false);
     m_modelRenderWidget->move(0, 0);
     m_modelRenderWidget->setAttribute(Qt::WA_TransparentForMouseEvents);
     m_modelRenderWidget->toggleWireframe();
-    m_modelRenderWidget->enableEnvironmentLight();
     m_modelRenderWidget->disableCullFace();
     m_modelRenderWidget->setEyePosition(QVector3D(0.0, 0.0, -4.0));
-    
+
     connect(containerWidget, &GraphicsContainerWidget::containerSizeChanged,
-        m_modelRenderWidget, &PbrShaderWidget::canvasResized);
-    
+        m_modelRenderWidget, &ModelShaderWidget::canvasResized);
+
     graphicsWidget->setModelWidget(m_modelRenderWidget);
     containerWidget->setModelWidget(m_modelRenderWidget);
-    
-    QHBoxLayout *toolLayout = new QHBoxLayout;
-    
-    m_targetTriangleCountWidget = new FloatNumberWidget;
-    m_targetTriangleCountWidget->setItemName(tr("Density"));
-    m_targetTriangleCountWidget->setRange(0.0, 1.0);
-    m_targetTriangleCountWidget->setValue(m_targetDensity);
-    connect(m_targetTriangleCountWidget, &FloatNumberWidget::valueChanged, [=](float value) {
-        m_targetDensity = value;
+
+    // ============================================================
+    // PROGRESS BAR — thin micro-line at top of window
+    // ============================================================
+
+    m_progressBar = new QProgressBar;
+    m_progressBar->setRange(0, 100);
+    m_progressBar->setValue(0);
+    m_progressBar->setTextVisible(false);
+    m_progressBar->setFixedHeight(2);
+    m_progressBar->hide();
+
+    m_progressContainer = new QWidget;
+    m_progressContainer->setFixedHeight(2);
+    QVBoxLayout *progressLayout = new QVBoxLayout(m_progressContainer);
+    progressLayout->setContentsMargins(0, 0, 0, 0);
+    progressLayout->setSpacing(0);
+    progressLayout->addWidget(m_progressBar);
+
+    // ============================================================
+    // RIGHT-SIDE CONTROLS PANEL
+    // ============================================================
+
+    m_sharpEdgeDegreesWidget = new FloatNumberWidget(this, false);
+    m_sharpEdgeDegreesWidget->setItemName(tr("Sharp Edge"));
+    m_sharpEdgeDegreesWidget->setRange(30.0, 180.0);
+    m_sharpEdgeDegreesWidget->setValue(m_sharpEdgeDegrees);
+    m_sharpEdgeDegreesWidget->setToolTip(tr("Dihedral angle threshold (degrees). Edges sharper than this are preserved as feature edges."));
+    connect(m_sharpEdgeDegreesWidget, &FloatNumberWidget::valueChanged, [=](float value) {
+        m_sharpEdgeDegrees = value;
     });
-    
-    /*
-    m_targetScalingWidget = new FloatNumberWidget;
+
+    m_smoothNormalDegreesWidget = new FloatNumberWidget(this, false);
+    m_smoothNormalDegreesWidget->setItemName(tr("Smooth Normal"));
+    m_smoothNormalDegreesWidget->setRange(0.0, 180.0);
+    m_smoothNormalDegreesWidget->setValue(m_smoothNormalDegrees);
+    m_smoothNormalDegreesWidget->setToolTip(tr("Smooth normal angle threshold (degrees). 0 = faceted (current behavior), larger values produce a smoother surface during remeshing by respecting the original vertex normals."));
+    connect(m_smoothNormalDegreesWidget, &FloatNumberWidget::valueChanged, [=](float value) {
+        m_smoothNormalDegrees = value;
+    });
+
+    m_adaptivityWidget = new FloatNumberWidget(this, false);
+    m_adaptivityWidget->setItemName(tr("Adaptivity"));
+    m_adaptivityWidget->setRange(0.0, 1.0);
+    m_adaptivityWidget->setValue(m_adaptivity);
+    m_adaptivityWidget->setToolTip(tr("Curvature-adaptive quad density. 0 = uniform, 1 = full adaptivity (finer quads in high-curvature areas)."));
+    connect(m_adaptivityWidget, &FloatNumberWidget::valueChanged, [=](float value) {
+        m_adaptivity = value;
+    });
+
+    m_targetQuadCountWidget = new IntNumberWidget(this, false);
+    m_targetQuadCountWidget->setItemName(tr("Target Quads"));
+    m_targetQuadCountWidget->setRange(1000, 1000000);
+    m_targetQuadCountWidget->setValue(m_targetQuadCount);
+    m_targetQuadCountWidget->setSuffix(tr(" quads"));
+    connect(m_targetQuadCountWidget, &IntNumberWidget::valueChanged, [=](int value) {
+        m_targetQuadCount = value;
+    });
+
+    m_targetScalingWidget = new FloatNumberWidget(this, false);
     m_targetScalingWidget->setItemName(tr("Edge Scaling"));
-    m_targetScalingWidget->setRange(0.5, 5.0);
+    m_targetScalingWidget->setRange(1.0, 4.0);
     m_targetScalingWidget->setValue(m_targetScaling);
     connect(m_targetScalingWidget, &FloatNumberWidget::valueChanged, [=](float value) {
         m_targetScaling = value;
     });
-    */
-    
+
     //m_modelTypeSelectBox = new QComboBox;
     //m_modelTypeSelectBox->addItem(tr("Organic"));
     //m_modelTypeSelectBox->addItem(tr("Hard surface"));
     //connect(m_modelTypeSelectBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, [&](int index) {
     //    m_modelType = 1 == index ? AutoRemesher::ModelType::HardSurface : AutoRemesher::ModelType::Organic;
     //});
-    
     //m_modelTypeSelectBox->setCurrentIndex(AutoRemesher::ModelType::HardSurface == m_modelType ? 1 : 0);
+
     
-    QLabel *edgeScalingLabel = new QLabel(tr("Edge scaling:"));
-    
-    m_edgeScalingSelectBox = new QComboBox;
-    m_edgeScalingSelectBox->addItem(tr("1.0"));
-    m_edgeScalingSelectBox->addItem(tr("2.0"));
-    m_edgeScalingSelectBox->addItem(tr("3.0"));
-    m_edgeScalingSelectBox->addItem(tr("4.0"));
-    m_edgeScalingSelectBox->setCurrentIndex((int)m_targetScaling - 1);
-    connect(m_edgeScalingSelectBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, [&](int index) {
-        m_targetScaling = (float)(index + 1);
-    });
-    
-    SpinnableAwesomeButton *loadModelButton = new SpinnableAwesomeButton();
-    loadModelButton->setAwesomeIcon(QChar(fa::folderopeno));
-    connect(loadModelButton->button(), &QPushButton::clicked, this, &MainWindow::loadModel);
-    
+    // --- Action buttons ---
+    QPushButton *loadModelButton = new QPushButton(tr("Open"));
+    loadModelButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    connect(loadModelButton, &QPushButton::clicked, this, &MainWindow::loadModel);
     m_loadModelButton = loadModelButton;
-    
-    SpinnableAwesomeButton *saveMeshButton = new SpinnableAwesomeButton();
+
+    QPushButton *saveMeshButton = new QPushButton(tr("Save"));
+    saveMeshButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     saveMeshButton->hide();
-    saveMeshButton->setAwesomeIcon(QChar(fa::save));
-    connect(saveMeshButton->button(), &QPushButton::clicked, this, &MainWindow::saveMesh);
-    
+    connect(saveMeshButton, &QPushButton::clicked, this, &MainWindow::saveMesh);
     m_saveMeshButton = saveMeshButton;
+
+    QPushButton *regenerateButton = new QPushButton(tr("Regenerate"));
+    regenerateButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    regenerateButton->hide();
+    connect(regenerateButton, &QPushButton::clicked, this, &MainWindow::generateQuadMesh);
+    m_regenerateButton = regenerateButton;
+
+    // --- Controls panel layout ---
+    QVBoxLayout *controlsLayout = new QVBoxLayout;
+    controlsLayout->setSpacing(2);
+    controlsLayout->setContentsMargins(6, 6, 6, 6);
+
+    controlsLayout->addWidget(m_sharpEdgeDegreesWidget);
+    controlsLayout->addWidget(m_smoothNormalDegreesWidget);
+    controlsLayout->addWidget(m_adaptivityWidget);
+    controlsLayout->addWidget(m_targetQuadCountWidget);
+    controlsLayout->addWidget(m_targetScalingWidget);
+    //controlsLayout->addWidget(m_modelTypeSelectBox);
+
+    // Result mesh stats (hidden until a mesh is generated)
+    m_quadCountLabel = new QLabel(this);
+    m_quadCountLabel->setStyleSheet("color: #ffffff; font-size: 11px; padding: 2px 0;");
+    m_quadCountLabel->hide();
+
+    m_nonQuadCountLabel = new QLabel(this);
+    m_nonQuadCountLabel->setStyleSheet("color: #ffffff; font-size: 11px; padding: 2px 0;");
+    m_nonQuadCountLabel->hide();
+
+    m_vertexCountLabel = new QLabel(this);
+    m_vertexCountLabel->setStyleSheet("color: #ffffff; font-size: 11px; padding: 2px 0;");
+    m_vertexCountLabel->hide();
+
+    // Toolbar rows at bottom
+    QHBoxLayout *toolbarLayout = new QHBoxLayout;
+    toolbarLayout->setSpacing(4);
+    toolbarLayout->setContentsMargins(0, 12, 0, 0);
+    toolbarLayout->addWidget(loadModelButton, 1);
+    toolbarLayout->addWidget(regenerateButton, 1);
+    controlsLayout->addLayout(toolbarLayout);
+
+    QHBoxLayout *saveLayout = new QHBoxLayout;
+    saveLayout->setSpacing(0);
+    saveLayout->setContentsMargins(0, 2, 0, 0);
+    saveLayout->addWidget(saveMeshButton, 1);
+    controlsLayout->addLayout(saveLayout);
+
+    controlsLayout->addWidget(m_quadCountLabel);
+    controlsLayout->addWidget(m_nonQuadCountLabel);
+    controlsLayout->addWidget(m_vertexCountLabel);
+
     
-    toolLayout->addStretch();
-    toolLayout->addWidget(m_targetTriangleCountWidget);
-    toolLayout->addSpacing(5);
-    toolLayout->addWidget(edgeScalingLabel);
-    toolLayout->addWidget(m_edgeScalingSelectBox);
-    //toolLayout->addWidget(m_targetScalingWidget);
-    //toolLayout->addWidget(m_modelTypeSelectBox);
-    toolLayout->addSpacing(10);
-    toolLayout->addWidget(loadModelButton);
-    toolLayout->addWidget(saveMeshButton);
-    
+    controlsLayout->addStretch();
+
+    QWidget *controlsPanel = new QWidget;
+    controlsPanel->setLayout(controlsLayout);
+    controlsPanel->setFixedWidth(220);
+    controlsPanel->setObjectName("controlsPanel");
+    controlsPanel->setStyleSheet(
+        "#controlsPanel {"
+        "  background-color: #242424;"
+        "  border: 1px solid #2a2a2a;"
+        "  border-radius: 4px;"
+        "}"
+    );
+
+    // ============================================================
+    // CANVAS AREA
+    // ============================================================
+
     QLabel *verticalLogoLabel = new QLabel;
     QImage verticalLogoImage;
     verticalLogoImage.load(":/resources/dust3d-vertical.png");
@@ -235,17 +325,24 @@ MainWindow::MainWindow()
     mainLeftLayout->addStretch();
     mainLeftLayout->addLayout(logoLayout);
     mainLeftLayout->addSpacing(10);
-    
+
     QHBoxLayout *canvasLayout = new QHBoxLayout;
     canvasLayout->setSpacing(0);
-    canvasLayout->setContentsMargins(0, 0, 0, 0);
+    canvasLayout->setContentsMargins(0, 4, 8, 4);
     canvasLayout->addLayout(mainLeftLayout);
     canvasLayout->addWidget(containerWidget);
-    canvasLayout->addSpacing(3);
-    
+    canvasLayout->addSpacing(6);
+    canvasLayout->addWidget(controlsPanel);
+
+    // ============================================================
+    // MAIN LAYOUT
+    // ============================================================
+
     QVBoxLayout *mainLayout = new QVBoxLayout;
-    mainLayout->addLayout(toolLayout);
-    mainLayout->addLayout(canvasLayout);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(0);
+    mainLayout->addWidget(m_progressContainer);
+    mainLayout->addLayout(canvasLayout, 1);
 
     QWidget *centralWidget = new QWidget;
     centralWidget->setLayout(mainLayout);
@@ -258,22 +355,34 @@ void MainWindow::updateButtonStates()
 {
     if (nullptr == m_quadMeshGenerator &&
             !m_quadMeshResultIsDirty) {
-        m_loadModelButton->showSpinner(false);
-        //m_targetScalingWidget->setEnabled(true);
-        m_targetTriangleCountWidget->setEnabled(true);
-        m_edgeScalingSelectBox->setEnabled(true);
+        m_loadModelButton->setEnabled(true);
+        m_targetScalingWidget->setEnabled(true);
+        m_targetQuadCountWidget->setEnabled(true);
+        m_sharpEdgeDegreesWidget->setEnabled(true);
+        m_smoothNormalDegreesWidget->setEnabled(true);
+        m_adaptivityWidget->setEnabled(true);
         //m_modelTypeSelectBox->setEnabled(true);
         if (nullptr != m_remeshedQuads) {
             m_saveMeshButton->show();
         } else {
             m_saveMeshButton->hide();
         }
+        if (!m_originalVertices.empty()) {
+            m_regenerateButton->show();
+            m_regenerateButton->setEnabled(true);
+        } else {
+            m_regenerateButton->hide();
+        }
+        m_progressBar->hide();
     } else {
-        m_loadModelButton->showSpinner(true);
+        m_loadModelButton->setEnabled(false);
         m_saveMeshButton->hide();
-        //m_targetScalingWidget->setDisabled(true);
-        m_targetTriangleCountWidget->setDisabled(true);
-        m_edgeScalingSelectBox->setDisabled(true);
+        m_regenerateButton->setEnabled(false);
+        m_targetScalingWidget->setDisabled(true);
+        m_targetQuadCountWidget->setDisabled(true);
+        m_sharpEdgeDegreesWidget->setDisabled(true);
+        m_smoothNormalDegreesWidget->setDisabled(true);
+        m_adaptivityWidget->setDisabled(true);
         //m_modelTypeSelectBox->setDisabled(true);
     }
 }
@@ -284,7 +393,7 @@ bool MainWindow::loadObj(const QString &filename)
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
     std::string warn, err;
-    
+
     qDebug() << "loadObj:" << filename;
 
     bool loadSuccess = tinyobj::LoadObj(&attributes, &shapes, &materials, &warn, &err, filename.toUtf8().constData());
@@ -297,7 +406,7 @@ bool MainWindow::loadObj(const QString &filename)
     if (!loadSuccess) {
         return false;
     }
-    
+
     m_originalVertices.resize(attributes.vertices.size() / 3);
     for (size_t i = 0, j = 0; i < m_originalVertices.size(); ++i) {
         auto &dest = m_originalVertices[i];
@@ -305,7 +414,7 @@ bool MainWindow::loadObj(const QString &filename)
         dest.setY(attributes.vertices[j++]);
         dest.setZ(attributes.vertices[j++]);
     }
-    
+
     m_originalTriangles.clear();
     for (const auto &shape: shapes) {
         for (size_t i = 0; i < shape.mesh.indices.size(); i += 3) {
@@ -316,16 +425,16 @@ bool MainWindow::loadObj(const QString &filename)
             });
         }
     }
-    
+
     qDebug() << "m_originalVertices.size():" << m_originalVertices.size();
     qDebug() << "m_originalTriangles.size():" << m_originalTriangles.size();
-    
+
     m_renderQueue.push({
         m_originalVertices,
         m_originalTriangles
     });
     checkRenderQueue();
-    
+
     return true;
 }
 
@@ -340,7 +449,7 @@ void MainWindow::loadModel()
         if (answer != QMessageBox::Yes)
             return;
     }
-    
+
     if (m_inProgress) {
         QMessageBox::StandardButton answer = QMessageBox::question(this,
             APP_NAME,
@@ -351,18 +460,19 @@ void MainWindow::loadModel()
             return;
         }
     }
-    
+
     QString filename = QFileDialog::getOpenFileName(this, QString(), QString(),
         tr("Wavefront (*.obj)"));
     if (filename.isEmpty())
         return;
-    
+
     QApplication::setOverrideCursor(Qt::WaitCursor);
     bool objLoaded = loadObj(filename);
     QApplication::restoreOverrideCursor();
-    
+
     if (objLoaded) {
         setCurrentFilename(filename);
+
         generateQuadMesh();
     }
 }
@@ -378,30 +488,30 @@ void MainWindow::saveMesh()
 {
     if (nullptr == m_remeshedVertices || nullptr == m_remeshedQuads)
         return;
-    
+
     QString filename = QFileDialog::getSaveFileName(this, QString(), QString(),
        tr("Wavefront (*.obj)"));
     if (filename.isEmpty()) {
         return;
     }
-    
+
     if (!filename.endsWith(".obj"))
         filename += ".obj";
-    
+
     QFile file(filename);
     if (file.open(QIODevice::WriteOnly)) {
         QTextStream stream(&file);
-        stream << "# " << APP_NAME << " " << APP_HUMAN_VER << endl;
-        stream << "# " << APP_HOMEPAGE_URL << endl;
+        stream << "# " << APP_NAME << " " << APP_HUMAN_VER << "\n";
+        stream << "# " << APP_HOMEPAGE_URL << "\n";
         for (std::vector<AutoRemesher::Vector3>::const_iterator it = m_remeshedVertices->begin() ; it != m_remeshedVertices->end(); ++it) {
-            stream << "v " << (*it).x() << " " << (*it).y() << " " << (*it).z() << endl;
+            stream << "v " << (*it).x() << " " << (*it).y() << " " << (*it).z() << "\n";
         }
         for (std::vector<std::vector<size_t>>::const_iterator it = m_remeshedQuads->begin() ; it != m_remeshedQuads->end(); ++it) {
             stream << "f";
             for (std::vector<size_t>::const_iterator subIt = (*it).begin() ; subIt != (*it).end(); ++subIt) {
                 stream << " " << (1 + *subIt);
             }
-            stream << endl;
+            stream << "\n";
         }
     }
 }
@@ -420,12 +530,22 @@ void MainWindow::updateProgress(float progress)
 #endif
 }
 
+void MainWindow::updateProgressDetailed(float progress, const QString &status)
+{
+    m_progressBar->setValue((int)(progress * 100));
+    m_progressBar->show();
+
+    if (progress >= 1.0f) {
+        m_progressBar->hide();
+    }
+}
+
 MainWindow::~MainWindow()
 {
     g_windows.erase(this);
 }
 
-PbrShaderWidget *MainWindow::modelRenderWidget() const
+ModelShaderWidget *MainWindow::modelRenderWidget() const
 {
     return m_modelRenderWidget;
 }
@@ -526,7 +646,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
             return;
         }
     }
-    
+
     if (m_inProgress) {
         QMessageBox::StandardButton answer = QMessageBox::question(this,
             APP_NAME,
@@ -538,7 +658,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
             return;
         }
     }
-    
+
     QSize saveSize;
     if (!isMaximized())
         saveSize = size();
@@ -551,14 +671,14 @@ void MainWindow::checkRenderQueue()
 {
     if (nullptr != m_renderMeshGenerator)
         return;
-    
+
     if (m_renderQueue.empty())
         return;
-    
+
     qDebug() << "Generate render mesh...";
-    
+
     QThread *thread = new QThread;
-    
+
     const auto &item = m_renderQueue.front();
     m_renderMeshGenerator = new RenderMeshGenerator(item.vertices, item.faces);
     m_renderQueue.pop();
@@ -572,15 +692,15 @@ void MainWindow::checkRenderQueue()
 
 void MainWindow::renderMeshReady()
 {
-    PbrShaderMesh *renderMesh = m_renderMeshGenerator->takeRenderMesh();
-    
+    ModelShaderMesh *renderMesh = m_renderMeshGenerator->takeRenderMesh();
+
     qDebug() << "Render mesh ready";
-    
+
     delete m_renderMeshGenerator;
     m_renderMeshGenerator = nullptr;
-    
+
     m_modelRenderWidget->updateMesh(renderMesh);
-    
+
     checkRenderQueue();
 }
 
@@ -590,27 +710,32 @@ void MainWindow::generateQuadMesh()
         m_quadMeshResultIsDirty = true;
         return;
     }
-    
+
     m_quadMeshResultIsDirty = false;
     m_saved = true;
     m_inProgress = true;
+
+    m_quadCountLabel->hide();
+    m_nonQuadCountLabel->hide();
+    m_vertexCountLabel->hide();
     
+    m_progressBar->setValue(0);
+    m_progressBar->show();
+
     QThread *thread = new QThread;
-    
+
     QuadMeshGenerator::Parameters parameters;
-    
-    {
-        const int base = 100000;
-        const int range = 500000;
-        parameters.targetTriangleCount = base + range * m_targetDensity;
-    }
-    {
-        parameters.scaling = m_targetScaling;
-    }
+
+    parameters.targetTriangleCount = m_targetQuadCount * 2;
+    parameters.scaling = m_targetScaling;
     parameters.modelType = m_modelType;
-    
+    parameters.adaptivity = m_adaptivity;
+    parameters.sharpEdgeDegrees = m_sharpEdgeDegrees;
+    parameters.smoothNormalDegrees = m_smoothNormalDegrees;
+
     m_quadMeshGenerator = new QuadMeshGenerator(m_originalVertices, m_originalTriangles);
     connect(m_quadMeshGenerator, &QuadMeshGenerator::reportProgress, this, &MainWindow::updateProgress);
+    connect(m_quadMeshGenerator, &QuadMeshGenerator::reportProgressDetailed, this, &MainWindow::updateProgressDetailed);
     m_quadMeshGenerator->setParameters(parameters);
     m_quadMeshGenerator->moveToThread(thread);
     connect(thread, &QThread::started, m_quadMeshGenerator, &QuadMeshGenerator::process);
@@ -618,7 +743,7 @@ void MainWindow::generateQuadMesh()
     connect(m_quadMeshGenerator, &QuadMeshGenerator::finished, thread, &QThread::quit);
     connect(thread, &QThread::finished, thread, &QThread::deleteLater);
     thread->start();
-    
+
     updateButtonStates();
     updateTitle();
 }
@@ -627,17 +752,35 @@ void MainWindow::quadMeshReady()
 {
     delete m_remeshedVertices;
     m_remeshedVertices = m_quadMeshGenerator->takeRemeshedVertices();
-    
+
     delete m_remeshedQuads;
     m_remeshedQuads = m_quadMeshGenerator->takeRemeshedQuads();
-    
+
     m_saved = false;
     m_inProgress = false;
-    
+
     delete m_quadMeshGenerator;
     m_quadMeshGenerator = nullptr;
-    
+
     if (nullptr != m_remeshedVertices && nullptr != m_remeshedQuads) {
+        size_t quadCount = 0;
+        size_t nonQuadCount = 0;
+        for (const auto &face : *m_remeshedQuads) {
+            if (face.size() == 4)
+                ++quadCount;
+            else
+                ++nonQuadCount;
+        }
+        size_t vertexCount = m_remeshedVertices->size();
+
+        m_quadCountLabel->setText(QString("Quads: %1").arg(quadCount));
+        m_nonQuadCountLabel->setText(QString("Non-quads: %1").arg(nonQuadCount));
+        m_vertexCountLabel->setText(QString("Vertices: %1").arg(vertexCount));
+
+        m_quadCountLabel->show();
+        m_nonQuadCountLabel->show();
+        m_vertexCountLabel->show();
+
         m_renderQueue.push({
             *m_remeshedVertices,
             *m_remeshedQuads
@@ -650,10 +793,11 @@ void MainWindow::quadMeshReady()
         });
         checkRenderQueue();
     }
-    
+
     if (m_quadMeshResultIsDirty)
         generateQuadMesh();
-    
+
     updateButtonStates();
     updateTitle();
 }
+

@@ -22,6 +22,7 @@
 #include <AutoRemesher/Vector3>
 #include <AutoRemesher/Vector2>
 #include <vector>
+#include <map>
 
 namespace AutoRemesher
 {
@@ -54,7 +55,17 @@ public:
     {
         m_scaling = scaling;
     }
-    
+
+    void setGradientAdaptivity(double adaptivity)
+    {
+        m_adaptivity = adaptivity;
+    }
+
+    void setSharpEdgeDegrees(double degrees)
+    {
+        m_sharpEdgeDegrees = degrees;
+    }
+
     bool parameterize();
 private:
     const std::vector<Vector3> *m_vertices = nullptr;
@@ -62,6 +73,13 @@ private:
     const std::vector<Vector3> *m_triangleFieldVectors = nullptr;
     std::vector<std::vector<Vector2>> *m_triangleUvs = nullptr;
     double m_scaling = 1.0;
+    double m_adaptivity = 0.5;
+    double m_sharpEdgeDegrees = 90.0;
+
+    std::vector<double> computeFaceScalingField(const std::vector<Vector3> &vertices,
+        const std::vector<std::vector<size_t>> &triangles,
+        const std::vector<Vector3> &vertexNormals,
+        const std::map<size_t, std::vector<size_t>> &faceAroundVertexMap) const;
 };
     
 }

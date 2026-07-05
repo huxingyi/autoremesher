@@ -1,0 +1,63 @@
+#include "libmesh5.h"
+#include <string.h>
+char *GmfKwdFmt[ GmfMaxKwd + 1 ][4];
+
+
+/*----------------------------------------------------------*/
+/* Fortran 77 API											*/
+/*----------------------------------------------------------*/
+
+#if defined(F77_NO_UNDER_SCORE)
+#define call(x) x
+#else
+#define call(x) x ## _
+#endif
+
+
+/*----------------------------------------------------------*/
+/* Fortran 77 API											*/
+/*----------------------------------------------------------*/
+
+int call(gmfopenmeshf77)(char *FilNam, int *mod, int *ver, int *dim, int StrSiz)
+{
+	int i;
+	char TmpNam[ GmfStrSiz ];
+
+	for(i=0;i<StrSiz;i++)
+		TmpNam[i] = FilNam[i];
+
+	TmpNam[ StrSiz ] = 0;
+
+	if(*mod == GmfRead)
+		return(GmfOpenMesh(TmpNam, *mod, ver, dim));
+	else
+		return(GmfOpenMesh(TmpNam, *mod, *ver, *dim));
+}
+
+int call(gmfclosemeshf77)(int *idx)
+{
+	return(GmfCloseMesh(*idx));
+}
+
+int call(gmfstatkwdf77)(int *MshIdx, int *KwdIdx, int *NmbTyp, int *SolSiz, int *TypTab)
+{
+	if(!strcmp(GmfKwdFmt[ *KwdIdx ][3], "sr"))
+		return(GmfStatKwd(*MshIdx, *KwdIdx, NmbTyp, SolSiz, TypTab));
+	else
+		return(GmfStatKwd(*MshIdx, *KwdIdx));
+}
+
+int call(gmfgotokwdf77)(int *MshIdx, int *KwdIdx)
+{
+	return(GmfGotoKwd(*MshIdx, *KwdIdx));
+}
+
+int call(gmfsetkwdf77)(int *MshIdx, int *KwdIdx, int *NmbLin, int *NmbTyp, int *TypTab)
+{
+	if(!strcmp(GmfKwdFmt[ *KwdIdx ][3], "sr"))
+		return(GmfSetKwd(*MshIdx, *KwdIdx, *NmbLin, *NmbTyp, TypTab));
+	else if(strlen(GmfKwdFmt[ *KwdIdx ][2]))
+		return(GmfSetKwd(*MshIdx, *KwdIdx, *NmbLin));
+	else
+		return(GmfSetKwd(*MshIdx, *KwdIdx));
+}

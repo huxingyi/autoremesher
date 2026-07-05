@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved. 
+ *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -7,10 +7,10 @@
  *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  *  copies of the Software, and to permit persons to whom the Software is
  *  furnished to do so, subject to the following conditions:
-
+ *
  *  The above copyright notice and this permission notice shall be included in all
  *  copies or substantial portions of the Software.
-
+ *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -23,28 +23,53 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <queue>
+#include <chrono>
+#include <atomic>
 #include <AutoRemesher/AutoRemesher>
 #include <AutoRemesher/IsotropicRemesher>
 #include <AutoRemesher/Parameterizer>
 #include <AutoRemesher/QuadExtractor>
-#include <AutoRemesher/VdbRemesher>
 #include <AutoRemesher/MeshSeparator>
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
-#include <tbb/tbb_thread.h>
+#include <tbb/mutex.h>
 #include <geogram_report_progress.h>
+#include <QDebug>
 
 thread_local void *geogram_report_progress_tag;
 thread_local int geogram_report_progress_round;
+thread_local int geogram_report_miq_iter = 0;
 thread_local geogram_report_progress_handler geogram_report_progress_callback;
 
-#if AUTO_REMESHER_DEBUG
-#include <QDebug>
-#endif
+static std::atomic_flag s_geogramProgressLock = ATOMIC_FLAG_INIT;
+
+struct GeogramProgressLockGuard {
+    GeogramProgressLockGuard() {
+        constexpr int kMaxAttempts = 6000;
+        int attempts = 0;
+        while (s_geogramProgressLock.test_and_set(std::memory_order_acquire)) {
+            if (++attempts > kMaxAttempts) {
+                std::cerr
+                    << "Warning: Geogram progress lock appears abandoned "
+                    << "(previous run may have crashed). Recovering."
+                    << std::endl;
+                s_geogramProgressLock.clear(std::memory_order_release);
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                attempts = 0;
+            } else {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+        }
+    }
+    ~GeogramProgressLockGuard() {
+        s_geogramProgressLock.clear(std::memory_order_release);
+    }
+};
+
 
 namespace AutoRemesher
 {
-    
+
 const double AutoRemesher::m_defaultSharpEdgeDegrees = 90;
 
 double AutoRemesher::calculateAverageEdgeLength(const std::vector<Vector3> &vertices,
@@ -96,105 +121,212 @@ static void ReportProgress(void *tag, float progress)
 #if AUTO_REMESHER_DEBUG
     //qDebug() << "Island[" << context->islandIndex << "]: round(" << geogram_report_progress_round << ") progress(" << (100 * progress) << "%)";
 #endif
-    context->autoRemesher->updateProgress(context->islandIndex, (float)geogram_report_progress_round / 8 + progress / 8);
+    static const char *qc_stages[] = {
+        "brush + cross-field alignment",
+        "singular vertex detection",
+        "cut graph construction",
+        "constraint building",
+        "solver passes 0-1",
+        "solver passes 2-3",
+        "mixed-integer solve",
+        "result extraction"
+    };
+    int r = geogram_report_progress_round;
+    if (r >= 0 && r < 8) {
+        context->autoRemesher->setCurrentStatus(
+            "Island " + std::to_string(context->islandIndex + 1) +
+            ": " + qc_stages[r]);
+    }
+    float base = 0.0f;
+    float span = 0.0f;
+    switch (r) {
+        case 0: base = 0.0f;   span = 0.015f; break;
+        case 1: base = 0.015f; span = 0.01f;  break;
+        case 2: base = 0.025f; span = 0.015f; break;
+        case 3: base = 0.04f;  span = 0.02f;  break;
+        default: base = 0.06f; span = 0.94f;  break;
+    }
+    float totalProgress = 0.3f + 0.6f * (base + span * progress);
+    context->autoRemesher->updateProgress(context->islandIndex, totalProgress);
 }
 
-void AutoRemesher::resample(std::vector<Vector3> &vertices, 
-    std::vector<std::vector<size_t>> &triangles, 
+void AutoRemesher::resample(std::vector<Vector3> &vertices,
+    std::vector<std::vector<size_t>> &triangles,
     double voxelSize,
+    double adaptivity,
+    double sharpEdgeDegrees,
+    double smoothNormalDegrees,
     size_t islandIndex)
 {
-    std::vector<Vector3> *vdbVertices = nullptr;
-    std::vector<std::vector<size_t>> *vdbTriangles = nullptr;
-    
-#if AUTO_REMESHER_DEBUG
-    qDebug() << "Island[" << islandIndex << "]: Vdb remeshing on voxel size:" << voxelSize;
-#endif
-    double areaBeforeVdbRemesh = calculateMeshArea(vertices, triangles);
-    VdbRemesher vdbRemesher(&vertices, &triangles);
-    vdbRemesher.setVoxelSize(voxelSize);
-    vdbRemesher.remesh();
-    delete vdbVertices;
-    delete vdbTriangles;
-    vdbVertices = vdbRemesher.takeVdbVertices();
-    vdbTriangles = vdbRemesher.takeVdbTriangles();
-    double areaAfterVdbRemesh = calculateMeshArea(*vdbVertices, *vdbTriangles);
-#if AUTO_REMESHER_DEBUG
-    qDebug() << "Island[" << islandIndex << "]: Vdb remeshed to vertex count:" << vdbVertices->size() << "triangle count:" << vdbTriangles->size() << "on voxel size:" << voxelSize;
-    qDebug() << "Island[" << islandIndex << "]: Area before vdb remesh:" << areaBeforeVdbRemesh;
-    qDebug() << "Island[" << islandIndex << "]: Area after vdb remesh:" << areaAfterVdbRemesh;
-#endif
-    bool isVdbGood = (vdbTriangles->size() >= 100 && std::abs(areaAfterVdbRemesh - areaBeforeVdbRemesh) < areaBeforeVdbRemesh * 0.5);
-    
-#if AUTO_REMESHER_DEBUG
-    qDebug() << "Island[" << islandIndex << "]: Uniformly remeshing... isVdbGood:" << isVdbGood;
-#endif
-    IsotropicRemesher *isotropicRemesher = nullptr;
-    if (isVdbGood) {
-        isotropicRemesher = new IsotropicRemesher(*vdbVertices, *vdbTriangles);
-        isotropicRemesher->setTargetEdgeLength(calculateAverageEdgeLength(*vdbVertices, *vdbTriangles));
-    } else {
-        isotropicRemesher = new IsotropicRemesher(vertices, triangles);
-        isotropicRemesher->setTargetEdgeLength(voxelSize);
+    std::vector<double> vertexTargetLengths;
+    if (adaptivity > 0.0 && !vertices.empty()) {
+        const double isoAdaptivity = adaptivity;
+        const double minRatio = 0.3;
+        const double maxRatio = 3.0;
+
+        std::vector<Vector3> normals(vertices.size());
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, triangles.size()),
+            [&](const tbb::blocked_range<size_t> &range) {
+                for (size_t i = range.begin(); i != range.end(); ++i) {
+                    const auto &tri = triangles[i];
+                    Vector3 n = Vector3::normal(
+                        vertices[tri[0]], vertices[tri[1]], vertices[tri[2]]);
+                    normals[tri[0]] += n;
+                    normals[tri[1]] += n;
+                    normals[tri[2]] += n;
+                }
+            });
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, normals.size()),
+            [&](const tbb::blocked_range<size_t> &range) {
+                for (size_t i = range.begin(); i != range.end(); ++i)
+                    normals[i].normalize();
+            });
+
+        std::vector<std::vector<size_t>> faceAroundVertex(vertices.size());
+        for (size_t i = 0; i < triangles.size(); ++i) {
+            for (size_t j = 0; j < 3; ++j)
+                faceAroundVertex[triangles[i][j]].push_back(i);
+        }
+
+        std::vector<double> vertexCurvature(vertices.size(), 0.0);
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, vertices.size()),
+            [&](const tbb::blocked_range<size_t> &range) {
+                for (size_t v = range.begin(); v != range.end(); ++v) {
+                    const auto &faces = faceAroundVertex[v];
+                    if (faces.empty())
+                        continue;
+                    const auto &normalV = normals[v];
+                    double maxCurvature = 0.0;
+                    for (const auto &faceIndex: faces) {
+                        for (const auto &u: triangles[faceIndex]) {
+                            if (u == v)
+                                continue;
+                            double dist = (vertices[u] - vertices[v]).length();
+                            if (dist <= 0.0)
+                                continue;
+                            double cosA = Vector3::dotProduct(normalV, normals[u]);
+                            if (cosA > 1.0) cosA = 1.0;
+                            else if (cosA < -1.0) cosA = -1.0;
+                            double curv = std::acos(cosA) / dist;
+                            if (curv > maxCurvature)
+                                maxCurvature = curv;
+                        }
+                    }
+                    vertexCurvature[v] = maxCurvature;
+                }
+            });
+
+        double sumCurvature = 0.0;
+        for (const auto &c: vertexCurvature)
+            sumCurvature += c;
+        double avgCurvature = sumCurvature / vertexCurvature.size();
+
+        if (avgCurvature > 0.0) {
+            vertexTargetLengths.resize(vertices.size());
+            tbb::parallel_for(tbb::blocked_range<size_t>(0, vertices.size()),
+                [&](const tbb::blocked_range<size_t> &range) {
+                    for (size_t v = range.begin(); v != range.end(); ++v) {
+                        double normalized = vertexCurvature[v] / avgCurvature;
+                        if (normalized < 1e-3)
+                            normalized = 1e-3;
+                        double multiplier = std::pow(normalized, -isoAdaptivity);
+                        if (multiplier < minRatio)
+                            multiplier = minRatio;
+                        else if (multiplier > maxRatio)
+                            multiplier = maxRatio;
+                        vertexTargetLengths[v] = voxelSize * multiplier;
+                    }
+                });
+        }
     }
-    isotropicRemesher->setSharpEdgeDegrees(m_defaultSharpEdgeDegrees);
-    isotropicRemesher->remesh();
-    vertices = isotropicRemesher->remeshedVertices();
-    triangles = isotropicRemesher->remeshedTriangles();
-    delete isotropicRemesher;
+
+    #if AUTO_REMESHER_DEBUG
+    qDebug() << "Island[" << islandIndex << "]: Uniformly remeshing on target edge length:" << voxelSize;
+#endif
+    IsotropicRemesher isotropicRemesher(vertices, triangles);
+    isotropicRemesher.setTargetEdgeLength(voxelSize);
+    if (!vertexTargetLengths.empty())
+        isotropicRemesher.setVertexTargetEdgeLengths(&vertexTargetLengths);
+    isotropicRemesher.setSharpEdgeDegrees(sharpEdgeDegrees);
+    isotropicRemesher.setSmoothNormalDegrees(smoothNormalDegrees);
+    isotropicRemesher.remesh();
+    vertices = isotropicRemesher.remeshedVertices();
+    triangles = isotropicRemesher.remeshedTriangles();
 #if AUTO_REMESHER_DEBUG
     qDebug() << "Island[" << islandIndex << "]: Uniformly remesh done, vertex count:" << vertices.size() << " triangle count:" << triangles.size();
 #endif
-    
-    delete vdbVertices;
-    delete vdbTriangles;
 }
 
 void AutoRemesher::updateProgress(size_t threadIndex, float progress)
 {
     if (nullptr == m_progressHandler)
         return;
-    
-    m_threadProgress[threadIndex] = progress;
-    float totalProgress = 0.0;
+
+    if (progress > m_threadProgress[threadIndex])
+        m_threadProgress[threadIndex] = progress;
+    float islandWeightedAvg = 0.0;
     for (size_t i = 0; i < m_threadProgress.size(); ++i)
-        totalProgress += m_threadProgress[i] * m_threadProgressWeights[i];
-    m_progressHandler(m_tag, totalProgress);
+        islandWeightedAvg += m_threadProgress[i] * m_threadProgressWeights[i];
+    std::string statusCopy;
+    {
+        std::lock_guard<std::mutex> lock(m_currentStatusMutex);
+        statusCopy = m_currentStatus;
+    }
+    m_progressHandler(m_tag, islandWeightedAvg, statusCopy.c_str());
 }
 
 bool AutoRemesher::remesh()
 {
+    geogram_report_progress_tag = nullptr;
+    geogram_report_progress_round = 0;
+    geogram_report_progress_callback = nullptr;
+
     if (nullptr != m_progressHandler)
-        m_progressHandler(m_tag, 0.0);
-    
+        m_progressHandler(m_tag, 0.0, "Initializing...");
+
+    auto t_start = std::chrono::high_resolution_clock::now();
+
+    auto t_voxelStart = std::chrono::high_resolution_clock::now();
+    setCurrentStatus("Computing voxel size...");
     initializeVoxelSize();
-    
-    std::vector<std::vector<std::vector<size_t>>> m_trianglesIslands;
-    MeshSeparator::splitToIslands(m_triangles, m_trianglesIslands);
-    
-    if (m_trianglesIslands.empty()) {
+    if (nullptr != m_progressHandler)
+        m_progressHandler(m_tag, 0.01f, "Computing voxel size...");
+    auto t_voxelEnd = std::chrono::high_resolution_clock::now();
+
+    std::vector<std::vector<std::vector<size_t>>> trianglesIslands;
+    auto t_splitStart = std::chrono::high_resolution_clock::now();
+    setCurrentStatus("Splitting mesh into islands...");
+    MeshSeparator::splitToIslands(m_triangles, trianglesIslands);
+    if (nullptr != m_progressHandler)
+        m_progressHandler(m_tag, 0.02f, "Splitting mesh into islands...");
+    auto t_afterSplit = std::chrono::high_resolution_clock::now();
+
+    if (trianglesIslands.empty()) {
         std::cerr << "Input mesh is empty" << std::endl;
         if (nullptr != m_progressHandler)
-            m_progressHandler(m_tag, 1.0);
+            m_progressHandler(m_tag, 1.0, "Input mesh is empty");
         return false;
     }
-    
+
 #if AUTO_REMESHER_DEBUG
-    qDebug() << "Split to islands:" << m_trianglesIslands.size();
+    qDebug() << "Split to islands:" << trianglesIslands.size();
 #endif
-    
+
     struct IslandContext
     {
         std::vector<Vector3> vertices;
         std::vector<std::vector<size_t>> triangles;
         double voxelSize;
         double scaling;
+        double adaptivity;
+        double sharpEdgeDegrees;
+        double smoothNormalDegrees;
     };
 
     std::vector<IslandContext> islandContexes;
-    islandContexes.reserve(m_trianglesIslands.size());
-    for (size_t islandIndex = 0; islandIndex < m_trianglesIslands.size(); ++islandIndex) {
-        const auto &island = m_trianglesIslands[islandIndex];
+    islandContexes.reserve(trianglesIslands.size());
+    for (size_t islandIndex = 0; islandIndex < trianglesIslands.size(); ++islandIndex) {
+        const auto &island = trianglesIslands[islandIndex];
         IslandContext context;
         std::unordered_set<size_t> addedIndices;
         std::unordered_map<size_t, size_t> oldToNewVertexMap;
@@ -213,10 +345,62 @@ bool AutoRemesher::remesh()
 
         context.scaling = m_scaling;
         context.voxelSize = m_voxelSize;
+        context.adaptivity = m_adaptivity;
+        context.sharpEdgeDegrees = m_sharpEdgeDegrees;
+        context.smoothNormalDegrees = m_smoothNormalDegrees;
 
         islandContexes.push_back(context);
     }
-    
+    setCurrentStatus("Building island contexts...");
+    if (nullptr != m_progressHandler)
+        m_progressHandler(m_tag, 0.03f, "Building island contexts...");
+    auto t_buildEnd = std::chrono::high_resolution_clock::now();
+
+    {
+        m_threadProgressWeights.resize(islandContexes.size(), 1.0);
+        for (size_t i = 0; i < islandContexes.size(); ++i) {
+            if (!m_triangles.empty())
+                m_threadProgressWeights[i] = (float)(((double)islandContexes[i].triangles.size() / m_triangles.size()));
+        }
+        m_threadProgress.resize(islandContexes.size());
+
+        struct IsotropicPhase
+        {
+            IsotropicPhase(std::vector<IslandContext> *contexts,
+                           AutoRemesher *remesher,
+                           std::atomic<long long> *resampleTime)
+                : m_contexts(contexts), m_remesher(remesher), m_resampleTime(resampleTime) {}
+
+            void operator()(const tbb::blocked_range<size_t> &range) const
+            {
+                for (size_t i = range.begin(); i != range.end(); ++i) {
+                    auto &ctx = (*m_contexts)[i];
+
+                    m_remesher->setCurrentStatus(
+                        "Island " + std::to_string(i + 1) + ": isotropic remeshing...");
+                    m_remesher->updateProgress(i, 0.0f);
+
+                    auto t0 = std::chrono::high_resolution_clock::now();
+                    resample(ctx.vertices, ctx.triangles, ctx.voxelSize, ctx.adaptivity, ctx.sharpEdgeDegrees, ctx.smoothNormalDegrees, i);
+                    auto t1 = std::chrono::high_resolution_clock::now();
+                    *m_resampleTime += std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+
+                    m_remesher->updateProgress(i, 0.3f);
+                }
+            }
+
+        private:
+            std::vector<IslandContext> *m_contexts = nullptr;
+            AutoRemesher *m_remesher = nullptr;
+            std::atomic<long long> *m_resampleTime = nullptr;
+        };
+
+        std::atomic<long long> resampleTime(0);
+
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, islandContexes.size()),
+            IsotropicPhase(&islandContexes, this, &resampleTime));
+    }
+
     class ParameterizationThread
     {
     public:
@@ -225,16 +409,14 @@ bool AutoRemesher::remesh()
             delete parameterizer;
             delete remesher;
         }
-        
+
         size_t islandIndex = 0;
         IslandContext *island = nullptr;
         Parameterizer *parameterizer = nullptr;
         QuadExtractor *remesher = nullptr;
         AutoRemesher *autoRemesher = nullptr;
-        float progressWeight = 1.0;
     };
-    
-    m_threadProgressWeights.resize(islandContexes.size(), 1.0);
+
     std::vector<ParameterizationThread> parameterizationThreads(islandContexes.size());
     for (size_t i = 0; i < islandContexes.size(); ++i) {
         auto &thread = parameterizationThreads[i];
@@ -242,75 +424,97 @@ bool AutoRemesher::remesh()
         thread.islandIndex = i;
         thread.island = &context;
         thread.autoRemesher = this;
-        if (!m_triangles.empty())
-            m_threadProgressWeights[i] = (float)(((double)context.triangles.size() / m_triangles.size()));
     }
-    m_threadProgress.resize(parameterizationThreads.size());
 
     class SurfaceParameterizer
     {
     public:
-        SurfaceParameterizer(std::vector<ParameterizationThread> *parameterizationThreads) :
-            m_parameterizationThreads(parameterizationThreads)
-        {   
+        SurfaceParameterizer(std::vector<ParameterizationThread> *parameterizationThreads,
+                             std::atomic<long long> *parameterizeTime,
+                             std::atomic<long long> *extractTime) :
+            m_parameterizationThreads(parameterizationThreads),
+            m_parameterizeTime(parameterizeTime),
+            m_extractTime(extractTime)
+        {
         }
+
         void operator()(const tbb::blocked_range<size_t> &range) const
         {
             for (size_t i = range.begin(); i != range.end(); ++i) {
                 auto &thread = (*m_parameterizationThreads)[i];
-                
-#if AUTO_REMESHER_DEBUG
-                qDebug() << "Island[" << thread.islandIndex << "]: resampling...";
-#endif
-                
-                resample(thread.island->vertices, thread.island->triangles, thread.island->voxelSize, thread.islandIndex);
+
+                auto t0 = std::chrono::high_resolution_clock::now();
 
                 const auto &vertices = thread.island->vertices;
                 const auto &triangles = thread.island->triangles;
-                
-#if AUTO_REMESHER_DEBUG
-                qDebug() << "Island[" << thread.islandIndex << "]: parameterizing...";
-#endif
+
+                if (vertices.empty() || triangles.empty())
+                    continue;
+
                 ReportProgressContext reportProgressContext;
                 reportProgressContext.islandIndex = i;
                 reportProgressContext.autoRemesher = thread.autoRemesher;
                 geogram_report_progress_tag = &reportProgressContext;
                 geogram_report_progress_round = 0;
                 geogram_report_progress_callback = ReportProgress;
-                
-                thread.parameterizer = new Parameterizer(&vertices, 
+
+                thread.autoRemesher->setCurrentStatus(
+                    "Island " + std::to_string(thread.islandIndex + 1) +
+                    ": computing normals & frame field...");
+                thread.autoRemesher->updateProgress(thread.islandIndex, 0.3f);
+                thread.parameterizer = new Parameterizer(&vertices,
                     &triangles,
                     nullptr);
                 thread.parameterizer->setScaling(thread.island->scaling);
-                thread.parameterizer->parameterize();
-                
+                thread.parameterizer->setGradientAdaptivity(thread.island->adaptivity);
+                thread.parameterizer->setSharpEdgeDegrees(thread.island->sharpEdgeDegrees);
+                {
+                    GeogramProgressLockGuard lock;
+                    thread.parameterizer->parameterize();
+                }
+
+                auto t1 = std::chrono::high_resolution_clock::now();
+                *m_parameterizeTime += std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+
+                thread.autoRemesher->setCurrentStatus(
+                    "Island " + std::to_string(thread.islandIndex + 1) +
+                    ": extracting quads...");
+                thread.autoRemesher->updateProgress(thread.islandIndex, 0.9f);
                 std::vector<std::vector<Vector2>> *uvs = thread.parameterizer->takeTriangleUvs();
-#if AUTO_REMESHER_DEBUG
-                qDebug() << "Island[" << thread.islandIndex << "]: quad extracting...";
-#endif
-                thread.remesher = new QuadExtractor(&vertices, 
-                    &triangles, 
+                thread.remesher = new QuadExtractor(&vertices,
+                    &triangles,
                     uvs);
                 if (!thread.remesher->extract()) {
                     delete thread.remesher;
                     thread.remesher = nullptr;
                 }
-#if AUTO_REMESHER_DEBUG
-                if (nullptr != thread.remesher) {
-                    qDebug() << "Island[" << thread.islandIndex << "]: remesh done, vertices:" << thread.remesher->remeshedVertices().size() << " quads:" << thread.remesher->remeshedQuads().size();
-                } else {
-                    qDebug() << "Island[" << thread.islandIndex << "]: remesh failed";
-                }
-#endif
+                thread.autoRemesher->updateProgress(thread.islandIndex, 1.0f);
+                thread.autoRemesher->setCurrentStatus(
+                    "Island " + std::to_string(thread.islandIndex + 1) +
+                    ": done");
+                auto t2 = std::chrono::high_resolution_clock::now();
+                *m_extractTime += std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+
                 delete uvs;
             }
         }
     private:
         std::vector<ParameterizationThread> *m_parameterizationThreads = nullptr;
+        std::atomic<long long> *m_parameterizeTime = nullptr;
+        std::atomic<long long> *m_extractTime = nullptr;
     };
+    std::atomic<long long> parameterizeTimeAccumulated(0);
+    std::atomic<long long> extractTimeAccumulated(0);
+
     tbb::parallel_for(tbb::blocked_range<size_t>(0, parameterizationThreads.size()),
-        SurfaceParameterizer(&parameterizationThreads));
-        
+        SurfaceParameterizer(&parameterizationThreads,
+            &parameterizeTimeAccumulated,
+            &extractTimeAccumulated));
+    auto t_parallelEnd = std::chrono::high_resolution_clock::now();
+
+    setCurrentStatus("Merging mesh islands...");
+    if (nullptr != m_progressHandler)
+        m_progressHandler(m_tag, 0.95f, "Merging mesh islands...");
     for (size_t i = 0; i < parameterizationThreads.size(); ++i) {
         auto &thread = parameterizationThreads[i];
         if (nullptr == thread.remesher)
@@ -333,12 +537,30 @@ bool AutoRemesher::remesh()
         }
     }
 
+    auto t_mergeEnd = std::chrono::high_resolution_clock::now();
+
+    auto t_voxelMs = std::chrono::duration_cast<std::chrono::milliseconds>(t_voxelEnd - t_voxelStart).count();
+    auto t_splitMs = std::chrono::duration_cast<std::chrono::milliseconds>(t_afterSplit - t_splitStart).count();
+    auto t_buildMs = std::chrono::duration_cast<std::chrono::milliseconds>(t_buildEnd - t_afterSplit).count();
+    auto t_parallelWallMs = std::chrono::duration_cast<std::chrono::milliseconds>(t_parallelEnd - t_buildEnd).count();
+    auto t_mergeMs = std::chrono::duration_cast<std::chrono::milliseconds>(t_mergeEnd - t_parallelEnd).count();
+    auto t_totalMs = std::chrono::duration_cast<std::chrono::milliseconds>(t_mergeEnd - t_start).count();
+
+    qDebug() << "Quad mesh breakdown: total" << t_totalMs << "ms"
+             << "| voxel" << t_voxelMs << "ms"
+             << "| split" << t_splitMs << "ms"
+             << "| build" << t_buildMs << "ms"
+             << "| parallel" << t_parallelWallMs << "ms"
+             << "  (param" << parameterizeTimeAccumulated.load() << "ms"
+             << "| extract" << extractTimeAccumulated.load() << "ms)"
+             << "| merge" << t_mergeMs << "ms";
+
 #if AUTO_REMESHER_DEBUG
     qDebug() << "Remesh done";
 #endif
 
     if (nullptr != m_progressHandler)
-        m_progressHandler(m_tag, 1.0);
+        m_progressHandler(m_tag, 1.0, "Done");
 
     return true;
 }

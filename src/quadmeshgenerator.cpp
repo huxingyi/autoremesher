@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved. 
+ *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -7,10 +7,10 @@
  *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  *  copies of the Software, and to permit persons to whom the Software is
  *  furnished to do so, subject to the following conditions:
-
+ *
  *  The above copyright notice and this permission notice shall be included in all
  *  copies or substantial portions of the Software.
-
+ *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,12 +27,12 @@ void QuadMeshGenerator::process()
 {
     QElapsedTimer timer;
     timer.start();
-    
+
     generate();
-    
+
     auto timeUsed = timer.elapsed();
     qDebug() << "Quad mesh generation took" << timeUsed << "milliseconds";
-    
+
     emit finished();
 }
 
@@ -41,10 +41,16 @@ void QuadMeshGenerator::emitProgress(float progress)
     emit reportProgress(progress);
 }
 
-static void reportProgressHandler(void *tag, float progress)
+void QuadMeshGenerator::emitProgress(float progress, const QString &status)
+{
+    emit reportProgressDetailed(progress, status);
+    emit reportProgress(progress);
+}
+
+static void reportProgressHandler(void *tag, float progress, const char *status)
 {
     QuadMeshGenerator *generator = (QuadMeshGenerator *)tag;
-    generator->emitProgress(progress);
+    generator->emitProgress(progress, QString::fromUtf8(status));
 }
 
 void QuadMeshGenerator::generate()
@@ -56,14 +62,17 @@ void QuadMeshGenerator::generate()
     if (m_parameters.targetTriangleCount > 0)
         m_autoRemesher->setTargetTriangleCount(m_parameters.targetTriangleCount);
     m_autoRemesher->setModelType(m_parameters.modelType);
+    m_autoRemesher->setGradientAdaptivity(m_parameters.adaptivity);
+    m_autoRemesher->setSharpEdgeDegrees(m_parameters.sharpEdgeDegrees);
+    m_autoRemesher->setSmoothNormalDegrees(m_parameters.smoothNormalDegrees);
     m_autoRemesher->setTag(this);
     m_autoRemesher->setProgressHandler(reportProgressHandler);
     if (!m_autoRemesher->remesh())
         return;
-    
+
     delete m_remeshedVertices;
     m_remeshedVertices = new std::vector<AutoRemesher::Vector3>(m_autoRemesher->remeshedVertices());
-    
+
     delete m_remeshedQuads;
     m_remeshedQuads = new std::vector<std::vector<size_t>>(m_autoRemesher->remeshedQuads());
 }

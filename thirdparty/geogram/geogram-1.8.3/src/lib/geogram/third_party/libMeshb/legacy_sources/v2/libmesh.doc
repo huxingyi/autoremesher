@@ -1,0 +1,76 @@
+
+
+    --- LIBMESH ---     --- 1997  Loic MARECHAL ---
+
+
+1/ Presentation:
+
+ LIBMESH est une librairie de fonctions permetant une gestion aissee des
+fichiers MESH dans un programme en C.
+ Elle propose des fonctions de lectures et d'ecritures fonctionnant aussi bien
+sur des fichiers ASCIIS que BINAIRES ,et ce, de maniere transparente pour le
+programmeur.
+
+
+2/ Utilisation:
+
+ Afin d'utiliser ces routines dans votre code il vous faudra inclure
+libmesh.h et lier avec libmesh.a (-lmesh dans la ligne de commande par exemple).
+
+ Voici la liste des fonctions disponibles:
+
+ ouvrir_mesh(nom_fichier,action,&meshversion)
+   Cette fonction est la premiere a appeler avant de travailler sur un mesh.
+   Si "action" vaut "r" le fichier sera ouvert en lecture,si "action" vaut "w" il sera
+   ouvert en ecriture.Quand a "meshverion",il contiendra la version du fichier
+   mesh en lecture,et vous devrez fournir celle-ci en ecriture.
+   Il est important de noter que le nom du fichier devra obligatoirement se
+   terminer par ".mesh",auquel cas LIBMESH considerera que celui-ci est
+   ASCII, ou ".meshb",auquel cas LIBMESH considerera que celui-ci est BINAIRE.
+
+ fermer_mesh(handle)
+   Cette fonction ne fait que refermer le fichier.
+
+ lire_mot_clef(handle)
+   Lecture d'un mot clef a la position courante du fichier et retour du code
+   associe a ce mot clef,une liste des codes sous forme d'enum est automatiquement
+   incluse par libmesh.h
+
+ ecrire_mot_clef(handle,code)
+   Ecriture du mot clef dont on a passe le code.
+
+ lire_int(handle)
+   Un entier est lu et retourne.
+
+ ecrire_int(handle,entier)
+   Comme son nom l'indique.
+
+ lire_double(handle)
+   Comme son nom l'indique.
+
+ ecrire_double(handle,double)
+   Comme son nom l'indique.
+
+ lire_chaine(handle,chaine)
+   Lecture d'une chaine de caracteres au format mesh,ne pas se soucier de ce format
+   la fonction retourne une chaine C standard.
+
+ ecrire_chaine(handle,chaine)
+   Lecture d'une chaine de caracteres au format mesh,ne pas se soucier de ce format
+   et fournir une chaine C  standard.
+
+ chercher_mot_clef(handle,code,pos_depart)
+   Recherche dans tout le fichier si le mot clef associe au code s'y trouve
+   et retourne la position des donnees immediatement apres celui-ci.
+   Attention cette fonction peut etre tres lente en ASCII car tout le fichier
+   est lu.Il est neanmoins possible d'optimiser un peu la recherche en 
+
+ formater(handle)
+   Si le fichier dans lequel on ecrit est ASCII cela ajoute un retour chariot,
+   dans le cas du binaire la fonction ne fait rien.Cette fonction n'a rien
+   d'indispensable mais servira seulement a ameliorer la lisibilite des fichier
+   ASCIIS dans le cas d'une edition manuelle.
+
+ lire_commentaire(handle)
+   Permet de sauter une ligne de commentaire commencant par un #.Valable seulement
+   en ASCII,aucun effet en binaire.

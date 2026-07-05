@@ -25,12 +25,7 @@
 #include <QFontMetrics>
 #include "theme.h"
 
-// Red
-// 0xfc, 0x66, 0x21
-// 252, 102, 33
-// 0.99, 0.4, 0.13
-
-// Green
+// Green (primary accent)
 // 0xaa, 0xeb, 0xc4
 
 // Blue
@@ -44,8 +39,9 @@ QColor Theme::red = QColor(0xfc, 0x66, 0x21);
 QColor Theme::green = QColor(0xaa, 0xeb, 0xc4);
 //QColor Theme::blue = QColor(0x2a, 0x5a, 0xac);
 QColor Theme::blue = QColor(0x0d, 0xa9, 0xf1);
-QColor Theme::white = QColor(0xf7, 0xd9, 0xc8);
-QColor Theme::black = QColor(0x25,0x25,0x25);
+//QColor Theme::white = QColor(0xf7, 0xd9, 0xc8);
+QColor Theme::white = QColor(0xff, 0xff, 0xff);
+QColor Theme::black = QColor(0x1F,0x1F,0x24);
 QColor Theme::dark = QColor(0x19,0x19,0x19);
 QColor Theme::altDark = QColor(0x16,0x16,0x16);
 QColor Theme::broken = QColor(0xff,0xff,0xff);
@@ -116,7 +112,7 @@ std::map<QString, QColor> createSideColorNameToColorMap() {
 std::map<QString, QString> Theme::nextSideColorNameMap = createSideColorNameMap();
 std::map<QString, QColor> Theme::sideColorNameToColorMap = createSideColorNameToColorMap();
 
-QString Theme::tabButtonSelectedStylesheet = "QPushButton { color: " + Theme::red.name() + "; background-color: #353535; border: 0px; padding-top: 2px; padding-bottom: 2px; padding-left: 25px; padding-right: 25px;}";
+QString Theme::tabButtonSelectedStylesheet = "QPushButton { color: " + Theme::green.name() + "; background-color: #353535; border: 0px; padding-top: 2px; padding-bottom: 2px; padding-left: 25px; padding-right: 25px;}";
 QString Theme::tabButtonStylesheet = "QPushButton { color: " + Theme::white.name() + "; background-color: transparent; border: 0px; padding-top: 2px; padding-bottom: 2px; padding-left: 25px; padding-right: 25px;}";
 
 void Theme::initAwesomeButton(QPushButton *button)
@@ -159,7 +155,7 @@ void Theme::updateAwesomeMiniButton(QPushButton *button, QChar icon, bool highli
             color = Theme::blue;
             needDesaturation = false;
         } else {
-            color = Theme::red;
+            color = Theme::green;
         }
     } else {
         color = QColor("#525252");
@@ -205,8 +201,130 @@ void Theme::initToolButton(QPushButton *button)
 void Theme::initCheckbox(QCheckBox *checkbox)
 {
     QPalette palette = checkbox->palette();
-    palette.setColor(QPalette::Background, Theme::white);
+    palette.setColor(QPalette::Window, Theme::white);
     checkbox->setPalette(palette);
+}
+
+QString Theme::compactStylesheet()
+{
+    // MongoDB Compass / LeafyGreen-inspired compact theme
+    // Colors kept from existing dark palette
+    const QString trackBg = "#4A4A4A";
+    const QString accent = Theme::green.name();        // #aaebc4
+    const QString text = Theme::white.name();         // #f7d9c8
+    const QString handle = Theme::white.name();
+    const QString inputBg = "#252525";
+    const QString border = "#353535";
+
+    return QStringLiteral(
+        // === SLIDERS — flat, geometric, thin tracks ===
+        "QSlider::groove:horizontal {"
+        "  border: none;"
+        "  background: %1;"
+        "  height: 3px;"
+        "  border-radius: 2px;"
+        "}"
+        "QSlider::handle:horizontal {"
+        "  background: %2;"
+        "  border: 1px solid #6a6a6a;"
+        "  width: 11px;"
+        "  height: 11px;"
+        "  margin: -4px 0;"
+        "  border-radius: 2px;"
+        "}"
+        "QSlider::sub-page:horizontal {"
+        "  background: %3;"
+        "  border-radius: 2px;"
+        "}"
+        "QSlider::add-page:horizontal {"
+        "  background: %1;"
+        "  border-radius: 2px;"
+        "}"
+
+        // === COMBO BOX — compact ===
+        "QComboBox {"
+        "  background-color: %4;"
+        "  border: 1px solid #2a2a2a;"
+        "  border-radius: 3px;"
+        "  padding: 2px 4px;"
+        "  min-height: 18px;"
+        "  font-size: 11px;"
+        "  color: %2;"
+        "}"
+        "QComboBox:hover {"
+        "  border-color: #4a4a4a;"
+        "}"
+        "QComboBox::drop-down {"
+        "  border: none;"
+        "  width: 14px;"
+        "}"
+        "QComboBox QAbstractItemView {"
+        "  background-color: #2a2a2a;"
+        "  border: 1px solid #1a1a1a;"
+        "  selection-background-color: %3;"
+        "  selection-color: #191919;"
+        "  outline: none;"
+        "  font-size: 11px;"
+        "}"
+
+        // === CHECKBOX — compact indicator ===
+        "QCheckBox {"
+        "  spacing: 3px;"
+        "  font-size: 11px;"
+        "  color: %2;"
+        "}"
+        "QCheckBox::indicator {"
+        "  width: 11px;"
+        "  height: 11px;"
+        "  border: 1px solid #4A4A4A;"
+        "  border-radius: 2px;"
+        "  background-color: #252525;"
+        "}"
+        "QCheckBox::indicator:checked {"
+        "  background-color: %3;"
+        "  border-color: %3;"
+        "}"
+
+        // === LABELS ===
+        "QLabel {"
+        "  font-size: 11px;"
+        "  color: %2;"
+        "}"
+
+        // === PROGRESS BAR — thin micro-line, no background box ===
+        "QProgressBar {"
+        "  border: none;"
+        "  background: transparent;"
+        "  text-align: left;"
+        "}"
+        "QProgressBar::chunk {"
+        "  background-color: %3;"
+        "}"
+
+        // === PUSH BUTTONS — flat rectangle with subtle radius ===
+        "QPushButton {"
+        "  padding: 1px 14px;"
+        "  min-height: 16px;"
+        "  font-size: 11px;"
+        "  color: #191919;"
+        "  background-color: %3;"
+        "  border: 1px solid #2a2a2a;"
+        "  border-radius: 3px;"
+        "}"
+        "QPushButton:hover {"
+        "  background-color: #8ad4a8;"
+        "  border-color: #4a4a4a;"
+        "}"
+        "QPushButton:pressed {"
+        "  background-color: #6dbe8e;"
+        "  border-color: #1a1a1a;"
+        "}"
+        "QPushButton:disabled {"
+        "  background-color: #2a2a2a;"
+        "  border-color: #2a2a2a;"
+        "  color: #525252;"
+        "}"
+    ).arg(trackBg, text, accent, inputBg, border);
 }
 
 QWidget *Theme::createHorizontalLineWidget()

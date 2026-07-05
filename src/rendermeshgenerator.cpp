@@ -122,11 +122,11 @@ void RenderMeshGenerator::generate()
             vertexNum += sourceFace.size() * 3;
         edgeVertexCount += sourceFace.size() * 2;
     }
-    PbrShaderVertex *triangleVertices = new PbrShaderVertex[vertexNum];
-    PbrShaderVertex *edgeVertices = new PbrShaderVertex[edgeVertexCount];
+    ModelShaderVertex *triangleVertices = new ModelShaderVertex[vertexNum];
+    ModelShaderVertex *edgeVertices = new ModelShaderVertex[edgeVertexCount];
     
-    memset(triangleVertices, 0, sizeof(PbrShaderVertex) * vertexNum);
-    memset(edgeVertices, 0, sizeof(PbrShaderVertex) * edgeVertexCount);
+    memset(triangleVertices, 0, sizeof(ModelShaderVertex) * vertexNum);
+    memset(edgeVertices, 0, sizeof(ModelShaderVertex) * edgeVertexCount);
     
     vertexNum = 0;
     edgeVertexCount = 0;
@@ -146,8 +146,8 @@ void RenderMeshGenerator::generate()
             v.normY = (float)normal.y();
             v.normZ = (float)normal.z();
             v.colorR = 1.0f;
-            v.colorG = 1.0f;
-            v.colorB = 1.0f;
+            v.colorG = 0.996f;
+            v.colorB = 0.890f;
             v.roughness = 1.0f;
             v.alpha = 1.0f;
         }
@@ -160,8 +160,8 @@ void RenderMeshGenerator::generate()
         v.normY = (float)normal.y();
         v.normZ = (float)normal.z();
         v.colorR = 1.0f;
-        v.colorG = 1.0f;
-        v.colorB = 1.0f;
+        v.colorG = 0.996f;
+        v.colorB = 0.890f;
         v.roughness = 1.0f;
         v.alpha = 1.0f;
     };
@@ -202,7 +202,7 @@ void RenderMeshGenerator::generate()
     }
     
     delete m_renderMesh;
-    m_renderMesh = new PbrShaderMesh(triangleVertices, vertexNum, edgeVertices, edgeVertexCount,
+    m_renderMesh = new ModelShaderMesh(triangleVertices, vertexNum, edgeVertices, edgeVertexCount,
         m_vertices, m_faces);
     m_vertices = nullptr;
     m_faces = nullptr;

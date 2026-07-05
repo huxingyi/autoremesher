@@ -26,7 +26,6 @@
 #include <queue>
 #include <map>
 #include <set>
-#include <igl/boundary_loop.h>
 #include <exploragram/hexdom/polygon.h>
 
 namespace AutoRemesher
@@ -140,7 +139,29 @@ bool QuadExtractor::extract()
         rebuildHalfEdges();
         fixHoles();
     }
-    
+
+    {
+        std::set<size_t> usedVertices;
+        for (const auto &face : m_remeshedPolygons) {
+            for (const auto &v : face)
+                usedVertices.insert(v);
+        }
+        if (usedVertices.size() < m_remeshedVertices.size()) {
+            std::vector<Vector3> compactedVertices;
+            std::unordered_map<size_t, size_t> oldToNew;
+            compactedVertices.reserve(usedVertices.size());
+            for (const auto &oldIndex : usedVertices) {
+                oldToNew[oldIndex] = compactedVertices.size();
+                compactedVertices.push_back(m_remeshedVertices[oldIndex]);
+            }
+            for (auto &face : m_remeshedPolygons) {
+                for (auto &v : face)
+                    v = oldToNew[v];
+            }
+            m_remeshedVertices = std::move(compactedVertices);
+        }
+    }
+
 #if AUTO_REMESHER_DEV
     {
         FILE *fp = fopen("debug-quadextractor-quads.obj", "wb");

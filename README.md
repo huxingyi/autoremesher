@@ -3,7 +3,7 @@
 Buy me a coffee for staying up late coding :-) [![](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=GHALWLWXYGCU6&item_name=Support+me+coding+in+my+spare+time&currency_code=AUD&source=url)  
 
 # Overview
-Automatic quad remeshing software based on state of the art libraries: [Geogram](http://alice.loria.fr/index.php/software/4-library/75-geogram.html), [libigl](https://github.com/libigl), [OpenVDB](https://www.openvdb.org/), [CGAL](https://www.cgal.org/) and [others](https://github.com/huxingyi/autoremesher/blob/master/ACKNOWLEDGEMENTS.html).
+Automatic quad remeshing software based on state of the art libraries: [Geogram](http://alice.loria.fr/index.php/software/4-library/75-geogram.html), [libigl](https://github.com/libigl), [isotropicremesher](https://github.com/huxingyi/isotropicremesher) and [others](https://github.com/huxingyi/autoremesher/blob/master/ACKNOWLEDGEMENTS.html).
 
 Introduction:
 https://blogs.dust3d.org/2020/09/11/auto-remesher-1.0.0-beta.1-released/

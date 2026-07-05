@@ -23,7 +23,7 @@
 #define AUTO_REMESHER_GRAPHICS_WIDGET_H
 #include <QGraphicsView>
 #include "theme.h"
-#include "pbrshaderwidget.h"
+#include "modelshaderwidget.h"
 
 class GraphicsWidget : public QGraphicsView
 {
@@ -31,7 +31,7 @@ class GraphicsWidget : public QGraphicsView
 public:
     GraphicsWidget();
     ~GraphicsWidget();
-    void setModelWidget(PbrShaderWidget *modelWidget);
+    void setModelWidget(ModelShaderWidget *modelWidget);
     bool inputWheelEventFromOtherWidget(QWheelEvent *event);
 protected:
     void mouseMoveEvent(QMouseEvent *event) override;
@@ -39,7 +39,7 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
 private:
-    PbrShaderWidget *m_modelWidget = nullptr;
+    ModelShaderWidget *m_modelWidget = nullptr;
 };
 
 #endif

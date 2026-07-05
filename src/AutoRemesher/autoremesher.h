@@ -24,6 +24,7 @@
 #include <vector>
 #include <cstddef>
 #include <map>
+#include <mutex>
 #include <AutoRemesher/Vector3>
 
 namespace AutoRemesher
@@ -37,7 +38,7 @@ enum class ModelType
     HardSurface
 };
 
-typedef void (*AutoRemesherProgressHandler)(void *tag, float progress);
+typedef void (*AutoRemesherProgressHandler)(void *tag, float progress, const char *status);
 
 class AutoRemesher
 {
@@ -73,7 +74,22 @@ public:
     {
         m_modelType = modelType;
     }
+
+    void setGradientAdaptivity(double adaptivity)
+    {
+        m_adaptivity = adaptivity;
+    }
     
+    void setSharpEdgeDegrees(double degrees)
+    {
+        m_sharpEdgeDegrees = degrees;
+    }
+
+    void setSmoothNormalDegrees(double degrees)
+    {
+        m_smoothNormalDegrees = degrees;
+    }
+
     const std::vector<Vector3> &remeshedVertices()
     {
         return m_remeshedVertices;
@@ -85,8 +101,20 @@ public:
     }
     
     bool remesh();
+
     void updateProgress(size_t threadIndex, float progress);
-    
+
+    void setCurrentStatus(const std::string &status)
+    {
+        std::lock_guard<std::mutex> lock(m_currentStatusMutex);
+        m_currentStatus = status;
+    }
+    std::string currentStatus() const
+    {
+        std::lock_guard<std::mutex> lock(m_currentStatusMutex);
+        return m_currentStatus;
+    }
+
     static const double m_defaultSharpEdgeDegrees;
 private:
     std::vector<Vector3> m_vertices;
@@ -98,16 +126,24 @@ private:
     double m_scaling = 0.0;
     size_t m_targetTriangleCount = 0;
     double m_voxelSize = 0.0;
+    double m_adaptivity = 1.0;
+    double m_sharpEdgeDegrees = m_defaultSharpEdgeDegrees;
+    double m_smoothNormalDegrees = 0.0;
     ModelType m_modelType = ModelType::Organic;
     AutoRemesherProgressHandler m_progressHandler = nullptr;
     void *m_tag = nullptr;
-    
+    std::string m_currentStatus;
+    mutable std::mutex m_currentStatusMutex;
+
     static double calculateAverageEdgeLength(const std::vector<Vector3> &vertices,
         const std::vector<std::vector<size_t>> &faces);
     void initializeVoxelSize();
-    static void resample(std::vector<Vector3> &vertices, 
-        std::vector<std::vector<size_t>> &triangles, 
+    static void resample(std::vector<Vector3> &vertices,
+        std::vector<std::vector<size_t>> &triangles,
         double voxelSize,
+        double adaptivity,
+        double sharpEdgeDegrees,
+        double smoothNormalDegrees,
         size_t islandIndex);
     static double calculateMeshArea(const std::vector<Vector3> &vertices,
         const std::vector<std::vector<size_t>> &triangles);

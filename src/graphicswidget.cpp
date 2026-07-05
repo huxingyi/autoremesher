@@ -24,7 +24,7 @@
 
 GraphicsWidget::GraphicsWidget()
 {
-    setStyleSheet("background-color:#252525;");
+    setStyleSheet("background-color:#3D3D3D;");
     setContentsMargins(0, 0, 0, 0);
     setFrameStyle(QFrame::NoFrame);
     
@@ -37,7 +37,7 @@ GraphicsWidget::~GraphicsWidget()
 {
 }
 
-void GraphicsWidget::setModelWidget(PbrShaderWidget *modelWidget)
+void GraphicsWidget::setModelWidget(ModelShaderWidget *modelWidget)
 {
     m_modelWidget = modelWidget;
 }
