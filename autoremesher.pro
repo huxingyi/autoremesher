@@ -8,8 +8,8 @@ win32 {
 }
 CONFIG += release
 CONFIG(release, debug|release) DEFINES += NDEBUG
-DEFINES += AUTO_REMESHER_DEBUG
-DEFINES += QT_MESSAGELOGCONTEXT
+CONFIG(debug, debug|release) DEFINES += AUTO_REMESHER_DEBUG
+CONFIG(debug, debug|release) DEFINES += QT_MESSAGELOGCONTEXT
 RESOURCES += resources.qrc
 
 CONFIG += object_parallel_to_source
@@ -78,6 +78,9 @@ macx {
 	QMAKE_CXXFLAGS_RELEASE -= -O2
 
 	QMAKE_CXXFLAGS_RELEASE += -O3
+	# LTO and aggressive loop optimizations — trade code size for speed
+	QMAKE_CXXFLAGS_RELEASE += -flto -funroll-loops
+	QMAKE_LFLAGS_RELEASE += -flto
 }
 
 unix:!macx {
@@ -86,11 +89,15 @@ unix:!macx {
 	QMAKE_CXXFLAGS_RELEASE -= -O2
 
 	QMAKE_CXXFLAGS_RELEASE += -O3
+	# LTO, aggressive loop unrolling, and modern x86-64 baseline (AVX2, FMA, BMI)
+	QMAKE_CXXFLAGS_RELEASE += -flto -funroll-loops -march=x86-64-v3
+	QMAKE_LFLAGS_RELEASE += -flto
 }
 
 win32 {
 	CONFIG(debug, debug|release) QMAKE_CXXFLAGS += /Od
-    CONFIG(release, debug|release) QMAKE_CXXFLAGS += /O2
+    CONFIG(release, debug|release) QMAKE_CXXFLAGS += /O2 /GL /Qpar /fp:fast
+	CONFIG(release, debug|release) QMAKE_LFLAGS += /LTCG
 	QMAKE_CXXFLAGS += /bigobj
 }
 

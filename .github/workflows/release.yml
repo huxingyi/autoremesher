@@ -203,6 +203,7 @@ jobs:
         run: |
           cd $env:GITHUB_WORKSPACE
           qmake -spec win32-msvc
+          set CL=/MP
           nmake -f Makefile.Release
       - name: Deploy Qt dependencies
         run: |
