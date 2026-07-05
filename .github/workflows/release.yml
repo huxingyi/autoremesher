@@ -140,10 +140,69 @@ jobs:
           file AutoRemesher-x86_64.AppImage
 
           mv AutoRemesher-x86_64.AppImage autoremesher-${{ github.ref_name }}.AppImage
-      - name: Install screenshot dependencies
+      - name: Checkout test models
+        uses: actions/checkout@v4
+        with:
+          repository: alecjacobson/common-3d-test-models
+          path: test-models
+      - name: Install test dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb imagemagick
+      - name: Run CLI test with armadillo.obj
+        run: |
+          set -e
+          chmod +x autoremesher-${{ github.ref_name }}.AppImage
+          export DISPLAY=:99
+          export XDG_RUNTIME_DIR=/tmp/runtime-root
+          mkdir -p "$XDG_RUNTIME_DIR"
+          chmod 700 "$XDG_RUNTIME_DIR"
+
+          Xvfb :99 -screen 0 1280x720x24 > /dev/null 2>&1 &
+          XVFB_PID=$!
+          sleep 2
+
+          echo "Running CLI test..."
+          ./autoremesher-${{ github.ref_name }}.AppImage \
+            --input test-models/data/armadillo.obj \
+            --output autoremesher-${{ github.ref_name }}-ubuntu-22.04-remeshed.obj \
+            --report autoremesher-${{ github.ref_name }}-ubuntu-22.04-remeshed_report.txt \
+            --target-quads 50000 \
+            --edge-scaling 1.0 \
+            --sharp-edge 90.0 \
+            --smooth-normal 0.0 \
+            --adaptivity 1.0 \
+            > cli-test-output.txt 2>&1
+
+          APP_EXIT_CODE=$?
+          echo "--- CLI Test Output ---"
+          cat cli-test-output.txt
+          echo "---"
+
+          if [ $APP_EXIT_CODE -ne 0 ]; then
+            echo "ERROR: CLI test failed with exit code $APP_EXIT_CODE"
+            exit 1
+          fi
+
+          if [ ! -f autoremesher-${{ github.ref_name }}-ubuntu-22.04-remeshed.obj ]; then
+            echo "ERROR: Output file autoremesher-${{ github.ref_name }}-ubuntu-22.04-remeshed.obj was not created"
+            exit 1
+          fi
+
+          echo "✓ CLI test passed: remeshed .obj created"
+          ls -lh autoremesher-${{ github.ref_name }}-ubuntu-22.04-remeshed.obj
+
+          kill $XVFB_PID 2>/dev/null || true
+      - name: Upload CLI test result
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoremesher-${{ github.ref_name }}-ubuntu-22.04-remeshed.obj
+          path: autoremesher-${{ github.ref_name }}-ubuntu-22.04-remeshed.obj
+      - name: Upload CLI test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoremesher-${{ github.ref_name }}-ubuntu-22.04-remeshed_report.txt
+          path: autoremesher-${{ github.ref_name }}-ubuntu-22.04-remeshed_report.txt
       - name: Run AppImage and capture screenshot
         run: |
           set +e
@@ -213,6 +272,11 @@ jobs:
         shell: bash
         run: |
           cp thirdparty/tbb/build2/Release/tbb.dll release/
+      - name: Copy offscreen platform plugin and opengl32sw
+        shell: bash
+        run: |
+          cp "$Qt5_Dir/plugins/platforms/qoffscreen.dll" release/platforms/
+          cp "$Qt5_Dir/bin/opengl32sw.dll" release/
       - name: Set environment variable
         run: |
           set PATH="%PATH%;C:\Program Files\7-Zip"
@@ -228,12 +292,85 @@ jobs:
           cd ..
           7z l autoremesher-${{ github.ref_name }}-win32-x86_64.zip
         shell: cmd
-      - name: Run application and capture screenshot
+      - name: Checkout test models
+        uses: actions/checkout@v4
+        with:
+          repository: alecjacobson/common-3d-test-models
+          path: test-models
+      - name: Extract release zip to test directory
+        shell: bash
         run: |
-          mkdir screenshot
-          cd release
+          ZIP_FILE="autoremesher-${{ github.ref_name }}-win32-x86_64.zip"
+          TEST_DIR="$GITHUB_WORKSPACE/test_release"
+          mkdir -p "$TEST_DIR"
+          7z x "$GITHUB_WORKSPACE/$ZIP_FILE" -o"$TEST_DIR" -y
+          echo "Extracted release zip to $TEST_DIR:"
+          ls -la "$TEST_DIR"
+      - name: Run CLI test with armadillo.obj (from release zip)
+        timeout-minutes: 30
+        run: |
+          set -e
+          export QT_OPENGL=software
+          export QT_QPA_PLATFORM=offscreen
+
+          outputFile="autoremesher-${{ github.ref_name }}-windows-2022-remeshed.obj"
+          reportFile="autoremesher-${{ github.ref_name }}-windows-2022-remeshed_report.txt"
+          logFile="$GITHUB_WORKSPACE/cli-test-output.txt"
+          TEST_EXE="$GITHUB_WORKSPACE/test_release/autoremesher.exe"
+
+          if [ ! -f "$TEST_EXE" ]; then
+            echo "ERROR: Release exe not found at $TEST_EXE"
+            ls -la "$GITHUB_WORKSPACE/test_release/"
+            exit 1
+          fi
+          echo "Testing against release zip version: $TEST_EXE"
+
+          echo "Running CLI test..."
+          "$TEST_EXE" \
+            --input test-models/data/armadillo.obj \
+            --output "$outputFile" \
+            --report "$reportFile" \
+            --target-quads 50000 \
+            --edge-scaling 1.0 \
+            --sharp-edge 90.0 \
+            --smooth-normal 0.0 \
+            --adaptivity 1.0 \
+            > "$logFile" 2>&1
+
+          echo "--- CLI Test Output ---"
+          cat "$logFile"
+          echo "---"
+
+          if [ ! -f "$GITHUB_WORKSPACE/$outputFile" ]; then
+            echo "ERROR: Output file $outputFile was not created"
+            ls -la "$GITHUB_WORKSPACE/"
+            exit 1
+          fi
+          echo "OK. CLI test passed: $outputFile created"
+        shell: bash
+      - name: Upload CLI test result
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoremesher-${{ github.ref_name }}-windows-2022-remeshed.obj
+          path: autoremesher-${{ github.ref_name }}-windows-2022-remeshed.obj
+      - name: Upload CLI test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoremesher-${{ github.ref_name }}-windows-2022-remeshed_report.txt
+          path: autoremesher-${{ github.ref_name }}-windows-2022-remeshed_report.txt
+      - name: Run application and capture screenshot (from release zip)
+        timeout-minutes: 3
+        run: |
+          $testDir = "$env:GITHUB_WORKSPACE\test_release"
+          if (-not (Test-Path "$testDir\autoremesher.exe")) {
+            Write-Error "ERROR: Release exe not found at $testDir\autoremesher.exe"
+            exit 1
+          }
+          Write-Host "Testing against release zip version: $testDir\autoremesher.exe"
+
           $env:QT_OPENGL = 'software'
-          Start-Process -FilePath .\autoremesher.exe
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          Start-Process -FilePath "$testDir\autoremesher.exe"
           Start-Sleep -Seconds 12
           Add-Type -AssemblyName System.Windows.Forms
           $bitmap = [System.Drawing.Bitmap]::new([System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width, [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Height)
@@ -294,12 +431,80 @@ jobs:
             "${GITHUB_WORKSPACE}/autoremesher-${{ github.ref_name }}.dmg" \
             "${STAGING_DIR}"
           rm -rf "${STAGING_DIR}"
-      - name: Run application and capture screenshot
+      - name: Mount DMG for testing
         run: |
-          open ${GITHUB_WORKSPACE}/autoremesher.app
+          DMG_PATH="${GITHUB_WORKSPACE}/autoremesher-${{ github.ref_name }}.dmg"
+          if [ ! -f "$DMG_PATH" ]; then
+            echo "ERROR: DMG not found at $DMG_PATH"
+            ls -la "${GITHUB_WORKSPACE}/"
+            exit 1
+          fi
+          echo "Mounting DMG: $DMG_PATH"
+          hdiutil attach "$DMG_PATH" -mountpoint /Volumes/AutoRemesher -nobrowse -verbose
+          echo "DMG mounted at /Volumes/AutoRemesher"
+          ls -la /Volumes/AutoRemesher/
+      - name: Checkout test models
+        uses: actions/checkout@v4
+        with:
+          repository: alecjacobson/common-3d-test-models
+          path: test-models
+      - name: Run CLI test with armadillo.obj (from DMG)
+        run: |
+          set -e
+          DMG_APP="/Volumes/AutoRemesher/autoremesher.app"
+          echo "Running CLI test from DMG: $DMG_APP"
+
+          if [ ! -d "$DMG_APP" ]; then
+            echo "ERROR: App bundle not found in DMG at $DMG_APP"
+            ls -la /Volumes/AutoRemesher/
+            hdiutil detach /Volumes/AutoRemesher -force || true
+            exit 1
+          fi
+
+          "$DMG_APP/Contents/MacOS/autoremesher" \
+            --input test-models/data/armadillo.obj \
+            --output autoremesher-${{ github.ref_name }}-macos-latest-remeshed.obj \
+            --report autoremesher-${{ github.ref_name }}-macos-latest-remeshed_report.txt \
+            --target-quads 50000 \
+            --edge-scaling 1.0 \
+            --sharp-edge 90.0 \
+            --smooth-normal 0.0 \
+            --adaptivity 1.0
+
+          if [ ! -f autoremesher-${{ github.ref_name }}-macos-latest-remeshed.obj ]; then
+            echo "ERROR: Output file was not created"
+            hdiutil detach /Volumes/AutoRemesher -force || true
+            exit 1
+          fi
+          echo "✓ CLI test passed: remeshed .obj created"
+          ls -lh autoremesher-${{ github.ref_name }}-macos-latest-remeshed.obj
+      - name: Upload CLI test result
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoremesher-${{ github.ref_name }}-macos-latest-remeshed.obj
+          path: autoremesher-${{ github.ref_name }}-macos-latest-remeshed.obj
+      - name: Upload CLI test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoremesher-${{ github.ref_name }}-macos-latest-remeshed_report.txt
+          path: autoremesher-${{ github.ref_name }}-macos-latest-remeshed_report.txt
+      - name: Run application and capture screenshot (from DMG)
+        run: |
+          DMG_APP="/Volumes/AutoRemesher/autoremesher.app"
+          if [ ! -d "$DMG_APP" ]; then
+            echo "ERROR: App bundle not found in DMG at $DMG_APP"
+            exit 1
+          fi
+          echo "Running GUI test from DMG: $DMG_APP"
+
+          open "$DMG_APP"
           sleep 12
           screencapture autoremesher-${{ github.ref_name }}-macos-latest.png || true
           killall autoremesher || true
+      - name: Detach DMG
+        if: always()
+        run: |
+          hdiutil detach /Volumes/AutoRemesher -force || echo "Note: DMG detach completed (or was not mounted)"
       - name: Upload macOS screenshot
         uses: actions/upload-artifact@v4
         with:

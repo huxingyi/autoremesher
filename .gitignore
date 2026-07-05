@@ -35,6 +35,11 @@
 build/
 build2/
 
+# Generated build artifacts
+.qmake.stash
+Makefile
+qrc_*.cpp
+
 .DS_Store
 
 moc/

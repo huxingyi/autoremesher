@@ -41,6 +41,7 @@
 #include <QUuid>
 #include <QVBoxLayout>
 #include <cmath>
+#include <iostream>
 #ifdef Q_OS_WIN32
 #include <QWinTaskbarButton>
 #include <QWinTaskbarProgress>
@@ -697,6 +698,92 @@ void MainWindow::renderMeshReady()
     checkRenderQueue();
 }
 
+void MainWindow::setHeadlessParams(const QString& inputPath, const QString& outputPath,
+    int targetQuads, double edgeScaling,
+    double sharpEdgeDegrees, double smoothNormalDegrees,
+    double adaptivity)
+{
+    m_headlessMode = true;
+    m_headlessOutputPath = outputPath;
+    m_currentFilename = inputPath;
+    m_targetQuadCount = targetQuads;
+    m_targetScaling = static_cast<float>(edgeScaling);
+    m_sharpEdgeDegrees = static_cast<float>(sharpEdgeDegrees);
+    m_smoothNormalDegrees = static_cast<float>(smoothNormalDegrees);
+    m_adaptivity = static_cast<float>(adaptivity);
+}
+
+void MainWindow::saveMeshToFile(const QString& filename)
+{
+    if (nullptr == m_remeshedVertices || nullptr == m_remeshedQuads)
+        return;
+
+    QFile file(filename);
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream stream(&file);
+        stream << "# " << APP_NAME << " " << APP_HUMAN_VER << "\n";
+        stream << "# " << APP_HOMEPAGE_URL << "\n";
+        for (std::vector<AutoRemesher::Vector3>::const_iterator it = m_remeshedVertices->begin(); it != m_remeshedVertices->end(); ++it) {
+            stream << "v " << (*it).x() << " " << (*it).y() << " " << (*it).z() << "\n";
+        }
+        for (std::vector<std::vector<size_t>>::const_iterator it = m_remeshedQuads->begin(); it != m_remeshedQuads->end(); ++it) {
+            stream << "f";
+            for (std::vector<size_t>::const_iterator subIt = (*it).begin(); subIt != (*it).end(); ++subIt) {
+                stream << " " << (1 + *subIt);
+            }
+            stream << "\n";
+        }
+    }
+}
+
+void MainWindow::runHeadless()
+{
+    m_headlessTimer.start();
+
+    // Load the input file and generate the quad mesh without UI dialogs
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    bool objLoaded = loadObj(m_currentFilename);
+    QApplication::restoreOverrideCursor();
+
+    if (!objLoaded) {
+        std::cerr << "Error: Failed to load " << m_currentFilename.toStdString() << std::endl;
+        QCoreApplication::quit();
+        return;
+    }
+
+    // Start generation
+    if (nullptr != m_quadMeshGenerator) {
+        m_quadMeshResultIsDirty = true;
+        return;
+    }
+
+    m_quadMeshResultIsDirty = false;
+    m_saved = true;
+    m_inProgress = true;
+
+    QThread* thread = new QThread;
+
+    QuadMeshGenerator::Parameters parameters;
+
+    parameters.targetTriangleCount = m_targetQuadCount * 2;
+    parameters.scaling = m_targetScaling;
+    parameters.modelType = m_modelType;
+    parameters.adaptivity = m_adaptivity;
+    parameters.sharpEdgeDegrees = m_sharpEdgeDegrees;
+    parameters.smoothNormalDegrees = m_smoothNormalDegrees;
+
+    m_quadMeshGenerator = new QuadMeshGenerator(m_originalVertices, m_originalTriangles);
+    connect(m_quadMeshGenerator, &QuadMeshGenerator::reportProgress, this, &MainWindow::updateProgress);
+    connect(m_quadMeshGenerator, &QuadMeshGenerator::reportProgressDetailed, this, &MainWindow::updateProgressDetailed);
+    m_quadMeshGenerator->setParameters(parameters);
+    m_quadMeshGenerator->moveToThread(thread);
+    connect(thread, &QThread::started, m_quadMeshGenerator, &QuadMeshGenerator::process);
+    connect(m_quadMeshGenerator, &QuadMeshGenerator::finished, this, &MainWindow::quadMeshReady);
+    connect(m_quadMeshGenerator, &QuadMeshGenerator::finished, thread, &QThread::quit);
+    connect(thread, &QThread::finished, thread, &QThread::deleteLater);
+    thread->start();
+}
+
 void MainWindow::generateQuadMesh()
 {
     if (nullptr != m_quadMeshGenerator) {
@@ -766,6 +853,13 @@ void MainWindow::quadMeshReady()
         }
         size_t vertexCount = m_remeshedVertices->size();
 
+        if (m_headlessMode) {
+            double elapsed = m_headlessTimer.elapsed() / 1000.0;
+            saveMeshToFile(m_headlessOutputPath);
+            emit headlessFinished(quadCount, nonQuadCount, vertexCount, elapsed);
+            return;
+        }
+
         m_quadCountLabel->setText(QString("Quads: %1").arg(quadCount));
         m_nonQuadCountLabel->setText(QString("Non-quads: %1").arg(nonQuadCount));
         m_vertexCountLabel->setText(QString("Vertices: %1").arg(vertexCount));
@@ -778,6 +872,11 @@ void MainWindow::quadMeshReady()
             *m_remeshedQuads });
         checkRenderQueue();
     } else {
+        if (m_headlessMode) {
+            std::cerr << "Error: Remeshing produced no result" << std::endl;
+            emit headlessFinished(0, 0, 0, m_headlessTimer.elapsed() / 1000.0);
+            return;
+        }
         m_renderQueue.push({ std::vector<AutoRemesher::Vector3>(),
             std::vector<std::vector<size_t>>() });
         checkRenderQueue();

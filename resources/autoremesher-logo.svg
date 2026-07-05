@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- black disc -->
+  <circle cx="256" cy="256" r="244" fill="#000000"/>
+
+  <!-- silk thread -->
+  <line x1="256" y1="14" x2="256" y2="196" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+
+  <g transform="translate(0,24)">
+  <!-- legs -->
+  <g stroke="#ffffff" stroke-width="10" stroke-linecap="round" fill="none">
+    <path d="M 230 272 C 175 235, 130 245, 110 290"/>
+    <path d="M 226 288 C 168 265, 125 278, 104 330"/>
+    <path d="M 226 304 C 172 300, 135 320, 122 372"/>
+    <path d="M 232 318 C 190 330, 165 355, 158 400"/>
+    <path d="M 282 272 C 337 235, 382 245, 402 290"/>
+    <path d="M 286 288 C 344 265, 387 278, 408 330"/>
+    <path d="M 286 304 C 340 300, 377 320, 390 372"/>
+    <path d="M 280 318 C 322 330, 347 355, 354 400"/>
+  </g>
+
+  <!-- abdomen (hanging, big, on top) -->
+  <circle cx="256" cy="228" r="62" fill="#ffffff"/>
+  <!-- cephalothorax (small, below) -->
+  <circle cx="256" cy="302" r="34" fill="#ffffff"/>
+</g>
+</svg>

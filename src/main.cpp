@@ -24,19 +24,109 @@
 #include "theme.h"
 #include "version.h"
 #include <QApplication>
+#include <QCommandLineParser>
 #include <QDebug>
+#include <QEventLoop>
+#include <QFile>
 #include <QFontDatabase>
 #include <QScreen>
 #include <QSettings>
 #include <QStyleFactory>
 #include <QSurfaceFormat>
+#include <QTextStream>
+#include <QTimer>
 #include <QTranslator>
 #include <QtGlobal>
 #include <geogram/basic/common.h>
+#include <iostream>
+
+struct HeadlessParams {
+    QString inputPath;
+    QString outputPath;
+    QString reportPath;
+    int targetQuads = 50000;
+    double edgeScaling = 1.0;
+    double sharpEdgeDegrees = 90.0;
+    double smoothNormalDegrees = 0.0;
+    double adaptivity = 1.0;
+};
+
+static HeadlessParams parseHeadlessArgs(QCommandLineParser& parser)
+{
+    HeadlessParams params;
+    params.inputPath = parser.value("input");
+    params.outputPath = parser.value("output");
+    if (parser.isSet("report"))
+        params.reportPath = parser.value("report");
+    if (parser.isSet("target-quads"))
+        params.targetQuads = parser.value("target-quads").toInt();
+    if (parser.isSet("edge-scaling"))
+        params.edgeScaling = parser.value("edge-scaling").toDouble();
+    if (parser.isSet("sharp-edge"))
+        params.sharpEdgeDegrees = parser.value("sharp-edge").toDouble();
+    if (parser.isSet("smooth-normal"))
+        params.smoothNormalDegrees = parser.value("smooth-normal").toDouble();
+    if (parser.isSet("adaptivity"))
+        params.adaptivity = parser.value("adaptivity").toDouble();
+    return params;
+}
 
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
+
+    QCoreApplication::setApplicationName(APP_NAME);
+    QCoreApplication::setOrganizationName(APP_COMPANY);
+    QCoreApplication::setOrganizationDomain(APP_HOMEPAGE_URL);
+
+    QCommandLineParser parser;
+    parser.setApplicationDescription("AutoRemesher - Automatic quad remeshing tool");
+    parser.addHelpOption();
+    parser.addVersionOption();
+
+    QCommandLineOption inputOption(QStringList { "i", "input" },
+        QCoreApplication::translate("main", "Input .obj file to remesh"),
+        QCoreApplication::translate("main", "file.obj"));
+    parser.addOption(inputOption);
+
+    QCommandLineOption outputOption(QStringList { "o", "output" },
+        QCoreApplication::translate("main", "Output .obj file path for the remeshed result"),
+        QCoreApplication::translate("main", "output.obj"));
+    parser.addOption(outputOption);
+
+    QCommandLineOption reportOption(QStringList { "report" },
+        QCoreApplication::translate("main", "Path to write a report file with stats (quads, non-quads, vertices, time). If omitted, no report file is written."),
+        QCoreApplication::translate("main", "report.txt"));
+    parser.addOption(reportOption);
+
+    QCommandLineOption targetQuadsOption(QStringList { "target-quads" },
+        QCoreApplication::translate("main", "Target quad count (default: 50000)"),
+        QCoreApplication::translate("main", "count"));
+    parser.addOption(targetQuadsOption);
+
+    QCommandLineOption edgeScalingOption(QStringList { "edge-scaling" },
+        QCoreApplication::translate("main", "Edge scaling factor (default: 1.0, range: 1.0-4.0)"),
+        QCoreApplication::translate("main", "factor"));
+    parser.addOption(edgeScalingOption);
+
+    QCommandLineOption sharpEdgeOption(QStringList { "sharp-edge" },
+        QCoreApplication::translate("main", "Sharp edge dihedral angle threshold in degrees (default: 90.0, range: 30.0-180.0)"),
+        QCoreApplication::translate("main", "degrees"));
+    parser.addOption(sharpEdgeOption);
+
+    QCommandLineOption smoothNormalOption(QStringList { "smooth-normal" },
+        QCoreApplication::translate("main", "Smooth normal angle threshold in degrees (default: 0.0, range: 0.0-180.0)"),
+        QCoreApplication::translate("main", "degrees"));
+    parser.addOption(smoothNormalOption);
+
+    QCommandLineOption adaptivityOption(QStringList { "adaptivity" },
+        QCoreApplication::translate("main", "Curvature-adaptive quad density (default: 1.0, range: 0.0-1.0)"),
+        QCoreApplication::translate("main", "value"));
+    parser.addOption(adaptivityOption);
+
+    parser.process(app);
+
+    bool headlessMode = parser.isSet("input");
 
     GEO::initialize();
 
@@ -62,10 +152,6 @@ int main(int argc, char** argv)
     qApp->setPalette(darkPalette);
     qApp->setStyleSheet(Theme::compactStylesheet());
 
-    QCoreApplication::setApplicationName(APP_NAME);
-    QCoreApplication::setOrganizationName(APP_COMPANY);
-    QCoreApplication::setOrganizationDomain(APP_HOMEPAGE_URL);
-
     QFont font;
     font.setWeight(QFont::Light);
     font.setBold(false);
@@ -75,6 +161,60 @@ int main(int argc, char** argv)
 
     MainWindow* mainWindow = new MainWindow();
     mainWindow->setAttribute(Qt::WA_DeleteOnClose);
+
+    if (headlessMode) {
+        HeadlessParams params = parseHeadlessArgs(parser);
+        if (params.outputPath.isEmpty()) {
+            std::cerr << "Error: --output is required when --input is specified" << std::endl;
+            return 1;
+        }
+
+        QObject::connect(mainWindow, &MainWindow::headlessFinished,
+            [&](size_t quadCount, size_t nonQuadCount, size_t vertexCount, double elapsedSeconds) {
+                std::cout << "=== AutoRemesher Report ===" << std::endl;
+                std::cout << "Input: " << params.inputPath.toStdString() << std::endl;
+                std::cout << "Output: " << params.outputPath.toStdString() << std::endl;
+                std::cout << "Quads: " << quadCount << std::endl;
+                std::cout << "Non-quads: " << nonQuadCount << std::endl;
+                std::cout << "Vertices: " << vertexCount << std::endl;
+                std::cout << "Time: " << elapsedSeconds << " seconds" << std::endl;
+                std::cout << "===========================" << std::endl;
+
+                // Write a report file if --report was specified
+                if (!params.reportPath.isEmpty()) {
+                    QFile reportFile(params.reportPath);
+                    if (reportFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                        QTextStream out(&reportFile);
+                        out << "AutoRemesher Report\n";
+                        out << "===================\n\n";
+                        out << "Input file: " << params.inputPath << "\n";
+                        out << "Output file: " << params.outputPath << "\n";
+                        out << "Target quads: " << params.targetQuads << "\n";
+                        out << "Edge scaling: " << params.edgeScaling << "\n";
+                        out << "Sharp edge degrees: " << params.sharpEdgeDegrees << "\n";
+                        out << "Smooth normal degrees: " << params.smoothNormalDegrees << "\n";
+                        out << "Adaptivity: " << params.adaptivity << "\n\n";
+                        out << "Results:\n";
+                        out << "  Quads: " << quadCount << "\n";
+                        out << "  Non-quads: " << nonQuadCount << "\n";
+                        out << "  Vertices: " << vertexCount << "\n";
+                        out << "  Total time: " << elapsedSeconds << " seconds\n";
+                        reportFile.close();
+                    }
+                }
+
+                QCoreApplication::quit();
+            });
+
+        mainWindow->setHeadlessParams(params.inputPath, params.outputPath,
+            params.targetQuads, params.edgeScaling,
+            params.sharpEdgeDegrees, params.smoothNormalDegrees,
+            params.adaptivity);
+        mainWindow->runHeadless();
+
+        return app.exec();
+    }
+
     QSize size = Preferences::instance().mainWindowSize();
     if (size.isValid()) {
         mainWindow->resize(size);

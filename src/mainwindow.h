@@ -25,6 +25,7 @@
 #include <AutoRemesher/AutoRemesher>
 #include <AutoRemesher/Vector3>
 #include <QCloseEvent>
+#include <QElapsedTimer>
 #include <QMainWindow>
 #include <QProgressBar>
 #include <QPushButton>
@@ -53,6 +54,16 @@ public:
     ~MainWindow();
     ModelShaderWidget* modelRenderWidget() const;
     static size_t total();
+
+    void setHeadlessParams(const QString& inputPath, const QString& outputPath,
+        int targetQuads, double edgeScaling,
+        double sharpEdgeDegrees, double smoothNormalDegrees,
+        double adaptivity);
+    void runHeadless();
+    void saveMeshToFile(const QString& filename);
+
+signals:
+    void headlessFinished(size_t quadCount, size_t nonQuadCount, size_t vertexCount, double elapsedSeconds);
 
 protected:
     void closeEvent(QCloseEvent* event);
@@ -83,6 +94,9 @@ private:
     AutoRemesher::AutoRemesher* m_autoRemesher = nullptr;
     bool m_inProgress = false;
     bool m_saved = true;
+    bool m_headlessMode = false;
+    QString m_headlessOutputPath;
+    QElapsedTimer m_headlessTimer;
     int m_targetQuadCount = 50000;
     float m_targetScaling = 1.0;
     float m_sharpEdgeDegrees = 90.0;
