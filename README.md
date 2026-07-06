@@ -4,6 +4,8 @@ AutoRemesher is a cross-platform automatic quad remeshing tool that converts hig
 
 Buy me a coffee for staying up late coding :-) [![](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=GHALWLWXYGCU6&item_name=Support+me+coding+in+my+spare+time&currency_code=AUD&source=url)
 
+<img width="3644" height="2202" alt="autoremesher-1 0-screenshot" src="https://github.com/user-attachments/assets/47851f1e-127c-49af-81b7-0c8ac06fb3ad" />
+
 ## Getting Started
 
 These instructions will get you a copy of AutoRemesher up and running on your local machine for development and testing purposes.
