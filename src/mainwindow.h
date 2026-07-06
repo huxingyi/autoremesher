@@ -75,7 +75,6 @@ private slots:
     void gotoHomepage();
     void reportIssues();
     void showAbout();
-    void checkForUpdates();
     void updateTitle();
     void loadModel();
     void saveMesh();

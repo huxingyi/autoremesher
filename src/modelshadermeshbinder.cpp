@@ -20,7 +20,6 @@
  *  SOFTWARE.
  */
 #include "modelshadermeshbinder.h"
-#include "ddsfile.h"
 #include <QDebug>
 #include <QDir>
 #include <QFile>

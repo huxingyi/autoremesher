@@ -1,4 +1,4 @@
-QT += core widgets opengl network
+QT += core widgets opengl
 # QOpenGLWidget moved into its own module in Qt 6.
 greaterThan(QT_MAJOR_VERSION, 5): QT += openglwidgets
 win32 {
@@ -42,7 +42,7 @@ isEmpty(VERSION) {
 HOMEPAGE_URL = "https://autoremesher.dust3d.org/"
 REPOSITORY_URL = "https://github.com/huxingyi/autoremesher"
 ISSUES_URL = "https://github.com/huxingyi/autoremesher/issues"
-UPDATES_CHECKER_URL = "https://dust3d.org/autoremesher-updateinfo.xml"
+PLATFORM = "Unknown"
 
 PLATFORM = "Unknown"
 macx {
@@ -67,7 +67,6 @@ DEFINES += "PROJECT_DEFINED_APP_HUMAN_VER=\"\\\"$$HUMAN_VERSION\\\"\""
 DEFINES += "PROJECT_DEFINED_APP_HOMEPAGE_URL=\"\\\"$$HOMEPAGE_URL\\\"\""
 DEFINES += "PROJECT_DEFINED_APP_REPOSITORY_URL=\"\\\"$$REPOSITORY_URL\\\"\""
 DEFINES += "PROJECT_DEFINED_APP_ISSUES_URL=\"\\\"$$ISSUES_URL\\\"\""
-DEFINES += "PROJECT_DEFINED_APP_UPDATES_CHECKER_URL=\"\\\"$$UPDATES_CHECKER_URL\\\"\""
 DEFINES += "PROJECT_DEFINED_APP_PLATFORM=\"\\\"$$PLATFORM\\\"\""
 
 CONFIG += c++14
@@ -139,9 +138,6 @@ HEADERS += src/spinnableawesomebutton.h
 SOURCES += src/util.cpp
 HEADERS += src/util.h
 
-SOURCES += src/updateschecker.cpp
-HEADERS += src/updateschecker.h
-
 SOURCES += src/mainwindow.cpp
 HEADERS += src/mainwindow.h
 
@@ -156,9 +152,6 @@ HEADERS += src/graphicscontainerwidget.h
 
 SOURCES += src/graphicswidget.cpp
 HEADERS += src/graphicswidget.h
-
-SOURCES += src/updatescheckwidget.cpp
-HEADERS += src/updatescheckwidget.h
 
 SOURCES += src/modelshadermesh.cpp
 HEADERS += src/modelshadermesh.h
@@ -187,9 +180,6 @@ HEADERS += src/rendermeshgenerator.h
 
 SOURCES += src/quadmeshgenerator.cpp
 HEADERS += src/quadmeshgenerator.h
-
-SOURCES += src/ddsfile.cpp
-HEADERS += src/ddsfile.h
 
 SOURCES += src/preferences.cpp
 HEADERS += src/preferences.h

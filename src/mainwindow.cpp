@@ -56,7 +56,6 @@
 #include "quadmeshgenerator.h"
 #include "rendermeshgenerator.h"
 #include "theme.h"
-#include "updatescheckwidget.h"
 #include "util.h"
 #include "version.h"
 #define TINYOBJLOADER_IMPLEMENTATION
@@ -66,7 +65,6 @@ LogBrowser* g_logBrowser = nullptr;
 QTextBrowser* g_acknowlegementsWidget = nullptr;
 QTextBrowser* g_supportersWidget = nullptr;
 AboutWidget* g_aboutWidget = nullptr;
-UpdatesCheckWidget* g_updatesCheckWidget = nullptr;
 std::map<MainWindow*, QUuid> g_windows;
 
 void outputMessage(QtMsgType type, const QMessageLogContext& context, const QString& msg)
@@ -113,10 +111,6 @@ MainWindow::MainWindow()
     QAction* viewSourceAction = new QAction(tr("Source Code"), this);
     connect(viewSourceAction, &QAction::triggered, this, &MainWindow::viewSource);
     helpMenu->addAction(viewSourceAction);
-
-    QAction* checkForUpdatesAction = new QAction(tr("Check for Updates..."), this);
-    connect(checkForUpdatesAction, &QAction::triggered, this, &MainWindow::checkForUpdates);
-    helpMenu->addAction(checkForUpdatesAction);
 
     helpMenu->addSeparator();
 
@@ -604,17 +598,6 @@ void MainWindow::showAbout()
     g_aboutWidget->show();
     g_aboutWidget->activateWindow();
     g_aboutWidget->raise();
-}
-
-void MainWindow::checkForUpdates()
-{
-    if (!g_updatesCheckWidget) {
-        g_updatesCheckWidget = new UpdatesCheckWidget;
-    }
-    g_updatesCheckWidget->check();
-    g_updatesCheckWidget->show();
-    g_updatesCheckWidget->activateWindow();
-    g_updatesCheckWidget->raise();
 }
 
 void MainWindow::showEvent(QShowEvent* event)
