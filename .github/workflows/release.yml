@@ -281,17 +281,34 @@ jobs:
         run: |
           set PATH="%PATH%;C:\Program Files\7-Zip"
       - name: Package executable
+        shell: bash
         run: |
           cd release
+          # Main executable
           7z a ../autoremesher-${{ github.ref_name }}-win32-x86_64.zip autoremesher.exe
-          for /d /r . %%d in (platforms) do if exist "%%d" 7z a ../autoremesher-${{ github.ref_name }}-win32-x86_64.zip "%%d\*"
-          for /d /r . %%d in (imageformats) do if exist "%%d" 7z a ../autoremesher-${{ github.ref_name }}-win32-x86_64.zip "%%d\*"
-          for /d /r . %%d in (styles) do if exist "%%d" 7z a ../autoremesher-${{ github.ref_name }}-win32-x86_64.zip "%%d\*"
-          for /d /r . %%d in (translations) do if exist "%%d" 7z a ../autoremesher-${{ github.ref_name }}-win32-x86_64.zip "%%d\*"
-          for %%f in (*.dll) do 7z a ../autoremesher-${{ github.ref_name }}-win32-x86_64.zip %%f
+          # Plugin directories — pass the directory name (not dir\*) so structure is preserved
+          for dir in platforms imageformats styles translations; do
+            if [ -d "$dir" ]; then
+              7z a ../autoremesher-${{ github.ref_name }}-win32-x86_64.zip "$dir"
+            fi
+          done
+          # All root-level DLLs (Qt + TBB + opengl32sw + ANGLE)
+          for f in *.dll; do
+            if [ -f "$f" ]; then
+              7z a ../autoremesher-${{ github.ref_name }}-win32-x86_64.zip "$f"
+            fi
+          done
           cd ..
+          # VC++ runtime DLLs (required on systems without the redistributable installed)
+          CRT_DIR=$(ls -d "${VCToolsRedistDir}x64"/Microsoft.VC*.CRT 2>/dev/null | head -1)
+          if [ -n "$CRT_DIR" ]; then
+            7z a autoremesher-${{ github.ref_name }}-win32-x86_64.zip "${CRT_DIR}/msvcp140.dll"
+            7z a autoremesher-${{ github.ref_name }}-win32-x86_64.zip "${CRT_DIR}/vcruntime140.dll"
+            # msvcp140_1.dll and vcruntime140_1.dll may not exist in all toolset versions
+            [ -f "${CRT_DIR}/msvcp140_1.dll" ] && 7z a autoremesher-${{ github.ref_name }}-win32-x86_64.zip "${CRT_DIR}/msvcp140_1.dll" || true
+            [ -f "${CRT_DIR}/vcruntime140_1.dll" ] && 7z a autoremesher-${{ github.ref_name }}-win32-x86_64.zip "${CRT_DIR}/vcruntime140_1.dll" || true
+          fi
           7z l autoremesher-${{ github.ref_name }}-win32-x86_64.zip
-        shell: cmd
       - name: Checkout test models
         uses: actions/checkout@v4
         with:
