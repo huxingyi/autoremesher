@@ -1,3 +1,14 @@
+1.0.0
+- Relicense from GPLv3 to MIT (reimplemented MIT-incompatible dependencies)
+- Improve parameterizer, isotropic remesher, and quad extraction algorithms
+- Add adaptivity parameter
+- Add sharp edge parameter
+- Add smooth normal parameter for low-poly mesh
+- Replace density with target quads parameter
+- Add command-line interface
+- Refine main window, theme, and graphics widgets
+- Replace app icon
+
 1.0.0-beta.3
 - Remesh isolated meshes separately   
 - Improve quad extractor  
