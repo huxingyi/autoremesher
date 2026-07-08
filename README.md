@@ -8,46 +8,94 @@ Buy me a coffee for staying up late coding :-) [![](https://www.paypalobjects.co
 
 ## Getting Started
 
-These instructions will get you a copy of AutoRemesher up and running on your local machine for development and testing purposes.
+These instructions will get you a copy of **AutoRemesher** up and running on your local machine for development.
 
 ### Prerequisites
 
-- C++ compiler with C++14 support
-- CMake 3.12 or later
+- C++ compiler with C++14 support (GCC, Clang, or MSVC)
+- Qt 5.15.2
 - TBB (Intel Threading Building Blocks)
+- CMake 3.12 or later (only needed on Windows to build TBB from source)
 
 ### Building
 
-1. Clone the repository
-```
+#### Linux (Ubuntu/Debian)
+
+```bash
+# Install Qt and build tools
+sudo apt install build-essential qt5-qmake qtbase5-dev qttools5-dev-tools libqt5svg5-dev libqt5multimedia5-dev
+
+# Install TBB and OpenGL
+sudo apt install libtbb-dev libgl1-mesa-dev
+
+# Clone and build
 git clone https://github.com/huxingyi/autoremesher.git
-```
-
-2. Build using QMake
-```
 cd autoremesher
-sudo apt install qt5-qmake qtbase5-dev
-qmake autoremesher.pro
-make
+qmake
+make -j$(nproc)
 ```
 
-#### Windows
+> **Fedora:** `sudo dnf install gcc-c++ qt5-qtbase-devel qt5-qttools-devel tbb-devel mesa-libGL-devel`
 
-1. Install Visual Studio 2022 with C++ development tools
-2. Install CMake from [cmake.org](https://cmake.org/)
-3. Open a command prompt and follow the build steps above, or open the project folder in Visual Studio and let it handle CMake configuration
+#### Windows (Visual Studio 2022)
+
+1. Install [Visual Studio 2022](https://visualstudio.microsoft.com/) with **Desktop development with C++** workload.
+2. Install [CMake](https://cmake.org/download/) (required to build TBB from source).
+3. Install Qt 5.15.2 with the [online installer](https://www.qt.io/download-open-source) — select the `msvc2019_64` archive.
+4. Open a **x64 Native Tools Command Prompt for VS 2022** and run:
+
+```cmd
+:: Build TBB from the bundled third-party source
+cd thirdparty\tbb
+cmake -B build2 ^
+    -DTBB_BUILD_SHARED=ON ^
+    -DTBB_BUILD_STATIC=OFF ^
+    -DTBB_BUILD_TBBMALLOC=OFF ^
+    -DTBB_BUILD_TBBMALLOC_PROXY=OFF ^
+    -DTBB_BUILD_TESTS=OFF
+cmake --build build2 --config Release
+cd ..\..
+
+:: Build AutoRemesher
+qmake -spec win32-msvc
+set CL=/MP
+nmake -f Makefile.Release
+```
+
+The release binary will be at `release\autoremesher.exe`.
 
 #### macOS
 
-1. Install Xcode Command Line Tools: `xcode-select --install`
-2. Install CMake via Homebrew: `brew install cmake`
-3. Follow the build steps above
+```bash
+# Install Xcode Command Line Tools
+xcode-select --install
 
-#### Linux
+# Install dependencies via Homebrew
+brew install qt@5 tbb cmake
 
-1. Install build dependencies using your distribution's package manager:
-   - Ubuntu/Debian: `sudo apt install build-essential cmake libtbb-dev`
-   - Fedora: `sudo dnf install gcc-c++ cmake tbb-devel`
+# Build
+export PATH="/usr/local/opt/qt@5/bin:$PATH"
+git clone https://github.com/huxingyi/autoremesher.git
+cd autoremesher
+qmake CONFIG+=sdk_no_version_check
+make -j$(sysctl -n hw.logicalcpu)
+```
+
+### Running a quick test
+
+AutoRemesher has a CLI mode for headless processing. Try it with one of the [common-3d-test-models](https://github.com/alecjacobson/common-3d-test-models):
+
+```bash
+./autoremesher \
+    --input armadillo.obj \
+    --output remeshed.obj \
+    --report remeshed_report.txt \
+    --target-quads 50000 \
+    --edge-scaling 1.0 \
+    --sharp-edge 90.0 \
+    --smooth-normal 0.0 \
+    --adaptivity 1.0
+```
 
 ### Quick Start
 
