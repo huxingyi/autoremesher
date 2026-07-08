@@ -23,12 +23,12 @@ These instructions will get you a copy of AutoRemesher up and running on your lo
 git clone https://github.com/huxingyi/autoremesher.git
 ```
 
-2. Build using CMake
+2. Build using QMake
 ```
 cd autoremesher
-mkdir build && cd build
-cmake ..
-cmake --build .
+sudo apt install qt5-qmake qtbase5-dev
+qmake autoremesher.pro
+make
 ```
 
 #### Windows
