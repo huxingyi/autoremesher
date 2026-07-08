@@ -146,8 +146,7 @@ void RenderMeshGenerator::generate()
             triangleVertexCount += sourceFace.size() * 3;
         edgeVertexCountSize += sourceFace.size() * 2;
     }
-    if (triangleVertexCount > static_cast<size_t>(std::numeric_limits<int>::max()) ||
-        edgeVertexCountSize > static_cast<size_t>(std::numeric_limits<int>::max())) {
+    if (triangleVertexCount > static_cast<size_t>(std::numeric_limits<int>::max()) || edgeVertexCountSize > static_cast<size_t>(std::numeric_limits<int>::max())) {
         delete m_renderMesh;
         m_renderMesh = new ModelShaderMesh(nullptr, 0, nullptr, 0, m_vertices, m_faces);
         m_vertices = nullptr;

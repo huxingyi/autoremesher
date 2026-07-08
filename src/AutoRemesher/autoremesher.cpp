@@ -27,8 +27,8 @@
 #include <QDebug>
 #include <atomic>
 #include <chrono>
-#include <geogram_report_progress.h>
 #include <cmath>
+#include <geogram_report_progress.h>
 #include <iostream>
 #include <limits>
 #include <mutex>

@@ -21,8 +21,8 @@
  */
 #include "mainwindow.h"
 #include "preferences.h"
-#include "tiny_obj_loader.h"
 #include "theme.h"
+#include "tiny_obj_loader.h"
 #include "version.h"
 #include <AutoRemesher/AutoRemesher>
 #include <AutoRemesher/Vector3>
@@ -43,8 +43,8 @@
 #include <QTimer>
 #include <QTranslator>
 #include <QtGlobal>
-#include <geogram/basic/common.h>
 #include <cmath>
+#include <geogram/basic/common.h>
 #include <iostream>
 #include <memory>
 
