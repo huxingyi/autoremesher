@@ -21,6 +21,8 @@
  */
 #include "rendermeshgenerator.h"
 #include <AutoRemesher/AutoRemesher>
+#include <cmath>
+#include <limits>
 
 void RenderMeshGenerator::process()
 {
@@ -31,6 +33,12 @@ void RenderMeshGenerator::process()
 
 void RenderMeshGenerator::calculateNormalizedFactors(const std::vector<AutoRemesher::Vector3>& vertices, AutoRemesher::Vector3* origin, double* maxLength)
 {
+    if (vertices.empty()) {
+        *origin = AutoRemesher::Vector3();
+        *maxLength = 1.0;
+        return;
+    }
+
     double minX = std::numeric_limits<double>::max();
     double maxX = std::numeric_limits<double>::lowest();
     double minY = std::numeric_limits<double>::max();
@@ -61,6 +69,8 @@ void RenderMeshGenerator::calculateNormalizedFactors(const std::vector<AutoRemes
         *maxLength = length[1];
     if (length[2] > *maxLength)
         *maxLength = length[2];
+    if (*maxLength <= 0.0 || !std::isfinite(*maxLength))
+        *maxLength = 1.0;
     *origin = {
         (maxX + minX) * 0.5,
         (maxY + minY) * 0.5,
@@ -82,11 +92,23 @@ void RenderMeshGenerator::generate()
 {
     normalizeVertices();
 
+    auto isRenderableFace = [&](const std::vector<size_t>& face) {
+        if (face.size() < 3)
+            return false;
+        for (const auto& vertexIndex : face) {
+            if (vertexIndex >= m_vertices->size())
+                return false;
+        }
+        return true;
+    };
+
     std::vector<AutoRemesher::Vector3> vertexNormals(m_vertices->size());
     std::vector<AutoRemesher::Vector3> faceCenters(m_faces->size());
     std::vector<AutoRemesher::Vector3> faceNormals(m_faces->size());
     for (size_t i = 0; i < m_faces->size(); ++i) {
         const auto& sourceFace = (*m_faces)[i];
+        if (!isRenderableFace(sourceFace))
+            continue;
 
         AutoRemesher::Vector3 center;
         for (const auto& it : sourceFace) {
@@ -112,21 +134,35 @@ void RenderMeshGenerator::generate()
     for (auto& it : vertexNormals)
         it.normalize();
 
-    int vertexNum = 0;
-    int edgeVertexCount = 0;
+    size_t triangleVertexCount = 0;
+    size_t edgeVertexCountSize = 0;
     for (size_t i = 0; i < m_faces->size(); ++i) {
         const auto& sourceFace = (*m_faces)[i];
+        if (!isRenderableFace(sourceFace))
+            continue;
         if (3 == sourceFace.size())
-            vertexNum += 3;
+            triangleVertexCount += 3;
         else
-            vertexNum += sourceFace.size() * 3;
-        edgeVertexCount += sourceFace.size() * 2;
+            triangleVertexCount += sourceFace.size() * 3;
+        edgeVertexCountSize += sourceFace.size() * 2;
     }
-    ModelShaderVertex* triangleVertices = new ModelShaderVertex[vertexNum];
-    ModelShaderVertex* edgeVertices = new ModelShaderVertex[edgeVertexCount];
+    if (triangleVertexCount > static_cast<size_t>(std::numeric_limits<int>::max()) ||
+        edgeVertexCountSize > static_cast<size_t>(std::numeric_limits<int>::max())) {
+        delete m_renderMesh;
+        m_renderMesh = new ModelShaderMesh(nullptr, 0, nullptr, 0, m_vertices, m_faces);
+        m_vertices = nullptr;
+        m_faces = nullptr;
+        return;
+    }
+    int vertexNum = static_cast<int>(triangleVertexCount);
+    int edgeVertexCount = static_cast<int>(edgeVertexCountSize);
+    ModelShaderVertex* triangleVertices = vertexNum > 0 ? new ModelShaderVertex[vertexNum] : nullptr;
+    ModelShaderVertex* edgeVertices = edgeVertexCount > 0 ? new ModelShaderVertex[edgeVertexCount] : nullptr;
 
-    memset(triangleVertices, 0, sizeof(ModelShaderVertex) * vertexNum);
-    memset(edgeVertices, 0, sizeof(ModelShaderVertex) * edgeVertexCount);
+    if (triangleVertices != nullptr)
+        memset(triangleVertices, 0, sizeof(ModelShaderVertex) * vertexNum);
+    if (edgeVertices != nullptr)
+        memset(edgeVertices, 0, sizeof(ModelShaderVertex) * edgeVertexCount);
 
     vertexNum = 0;
     edgeVertexCount = 0;
@@ -188,6 +224,8 @@ void RenderMeshGenerator::generate()
 
     for (size_t i = 0; i < m_faces->size(); ++i) {
         const auto& sourceFace = (*m_faces)[i];
+        if (!isRenderableFace(sourceFace))
+            continue;
         if (sourceFace.size() == 3) {
             for (size_t j = 0; j < sourceFace.size(); ++j) {
                 addEdge(sourceFace, j);
