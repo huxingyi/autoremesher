@@ -21,8 +21,8 @@
  */
 #include "mainwindow.h"
 #include "preferences.h"
-#include "tiny_obj_loader.h"
 #include "theme.h"
+#include "tiny_obj_loader.h"
 #include "version.h"
 #include <AutoRemesher/AutoRemesher>
 #include <AutoRemesher/Vector3>
@@ -43,8 +43,8 @@
 #include <QTimer>
 #include <QTranslator>
 #include <QtGlobal>
-#include <geogram/basic/common.h>
 #include <cmath>
+#include <geogram/basic/common.h>
 #include <iostream>
 #include <memory>
 
@@ -417,7 +417,6 @@ int main(int argc, char** argv)
         QCoreApplication::translate("main", "value"));
     parser.addOption(adaptivityOption);
 
-<<<<<<< HEAD
     QCommandLineOption anisotropyOption(QStringList { "anisotropy" },
         QCoreApplication::translate("main", "Curvature-adaptive quad elongation (default: 1.0, range: 0.0-1.0)"),
         QCoreApplication::translate("main", "value"));

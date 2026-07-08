@@ -31,7 +31,6 @@
 #include <cmath>
 #include <cstdlib>
 #include <geogram_report_progress.h>
-#include <cmath>
 #include <iostream>
 #include <limits>
 #include <mutex>
