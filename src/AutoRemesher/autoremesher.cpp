@@ -28,7 +28,10 @@
 #include <atomic>
 #include <chrono>
 #include <geogram_report_progress.h>
+#include <cmath>
+#include <iostream>
 #include <limits>
+#include <mutex>
 #include <queue>
 // Qt defines `emit` as a macro, which collides with TBB profiling.h's `void emit()`.
 // macOS `<mach/mach.h>` also defines `emit`. Undefine before including TBB headers.
@@ -67,31 +70,16 @@ thread_local int geogram_report_progress_round;
 thread_local int geogram_report_miq_iter = 0;
 thread_local geogram_report_progress_handler geogram_report_progress_callback;
 
-static std::atomic_flag s_geogramProgressLock = ATOMIC_FLAG_INIT;
+static std::mutex s_geogramProgressMutex;
 
 struct GeogramProgressLockGuard {
     GeogramProgressLockGuard()
+        : m_lock(s_geogramProgressMutex)
     {
-        constexpr int kMaxAttempts = 6000;
-        int attempts = 0;
-        while (s_geogramProgressLock.test_and_set(std::memory_order_acquire)) {
-            if (++attempts > kMaxAttempts) {
-                std::cerr
-                    << "Warning: Geogram progress lock appears abandoned "
-                    << "(previous run may have crashed). Recovering."
-                    << std::endl;
-                s_geogramProgressLock.clear(std::memory_order_release);
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                attempts = 0;
-            } else {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            }
-        }
     }
-    ~GeogramProgressLockGuard()
-    {
-        s_geogramProgressLock.clear(std::memory_order_release);
-    }
+
+private:
+    std::unique_lock<std::mutex> m_lock;
 };
 
 namespace AutoRemesher {
@@ -115,14 +103,19 @@ double AutoRemesher::calculateAverageEdgeLength(const std::vector<Vector3>& vert
     return sumOfLength / edgeCount;
 }
 
-void AutoRemesher::initializeVoxelSize()
+bool AutoRemesher::initializeVoxelSize()
 {
     double area = calculateMeshArea(m_vertices, m_triangles);
+    if (area <= std::numeric_limits<double>::epsilon() || !std::isfinite(area))
+        return false;
     double triangleArea = area / m_targetTriangleCount;
     m_voxelSize = std::sqrt(triangleArea / (0.86602540378 * 0.5));
+    if (m_voxelSize <= 0.0 || !std::isfinite(m_voxelSize))
+        return false;
 #if AUTO_REMESHER_DEBUG
     qDebug() << "Area:" << area << " voxelSize:" << m_voxelSize;
 #endif
+    return true;
 }
 
 double AutoRemesher::calculateMeshArea(const std::vector<Vector3>& vertices,
@@ -204,17 +197,15 @@ void AutoRemesher::resample(std::vector<Vector3>& vertices,
         const double maxRatio = 3.0;
 
         std::vector<Vector3> normals(vertices.size());
-        tbb::parallel_for(tbb::blocked_range<size_t>(0, triangles.size()),
-            [&](const tbb::blocked_range<size_t>& range) {
-                for (size_t i = range.begin(); i != range.end(); ++i) {
-                    const auto& tri = triangles[i];
-                    Vector3 n = Vector3::normal(
-                        vertices[tri[0]], vertices[tri[1]], vertices[tri[2]]);
-                    normals[tri[0]] += n;
-                    normals[tri[1]] += n;
-                    normals[tri[2]] += n;
-                }
-            });
+        for (const auto& tri : triangles) {
+            if (tri.size() < 3 || tri[0] >= vertices.size() || tri[1] >= vertices.size() || tri[2] >= vertices.size())
+                continue;
+            Vector3 n = Vector3::normal(
+                vertices[tri[0]], vertices[tri[1]], vertices[tri[2]]);
+            normals[tri[0]] += n;
+            normals[tri[1]] += n;
+            normals[tri[2]] += n;
+        }
         tbb::parallel_for(tbb::blocked_range<size_t>(0, normals.size()),
             [&](const tbb::blocked_range<size_t>& range) {
                 for (size_t i = range.begin(); i != range.end(); ++i)
@@ -303,11 +294,16 @@ void AutoRemesher::updateProgress(size_t threadIndex, float progress)
     if (nullptr == m_progressHandler)
         return;
 
-    if (progress > m_threadProgress[threadIndex])
-        m_threadProgress[threadIndex] = progress;
     float islandWeightedAvg = 0.0;
-    for (size_t i = 0; i < m_threadProgress.size(); ++i)
-        islandWeightedAvg += m_threadProgress[i] * m_threadProgressWeights[i];
+    {
+        std::lock_guard<std::mutex> lock(m_progressMutex);
+        if (threadIndex >= m_threadProgress.size())
+            return;
+        if (progress > m_threadProgress[threadIndex])
+            m_threadProgress[threadIndex] = progress;
+        for (size_t i = 0; i < m_threadProgress.size(); ++i)
+            islandWeightedAvg += m_threadProgress[i] * m_threadProgressWeights[i];
+    }
     std::string statusCopy;
     {
         std::lock_guard<std::mutex> lock(m_currentStatusMutex);
@@ -325,11 +321,34 @@ bool AutoRemesher::remesh()
     if (nullptr != m_progressHandler)
         m_progressHandler(m_tag, 0.0, "Initializing...");
 
+    auto fail = [&](const char* message) {
+        std::cerr << message << std::endl;
+        if (nullptr != m_progressHandler)
+            m_progressHandler(m_tag, 1.0, message);
+        return false;
+    };
+
+    if (m_vertices.empty())
+        return fail("Input mesh has no vertices");
+    if (m_triangles.empty())
+        return fail("Input mesh has no triangles");
+    if (m_targetTriangleCount == 0)
+        return fail("Target triangle count must be greater than zero");
+    for (const auto& triangle : m_triangles) {
+        if (triangle.size() != 3)
+            return fail("Input mesh must contain triangles only");
+        for (const auto& vertexIndex : triangle) {
+            if (vertexIndex >= m_vertices.size())
+                return fail("Input mesh contains an invalid triangle index");
+        }
+    }
+
     auto t_start = std::chrono::high_resolution_clock::now();
 
     auto t_voxelStart = std::chrono::high_resolution_clock::now();
     setCurrentStatus("Computing voxel size...");
-    initializeVoxelSize();
+    if (!initializeVoxelSize())
+        return fail("Input mesh has zero area");
     if (nullptr != m_progressHandler)
         m_progressHandler(m_tag, 0.01f, "Computing voxel size...");
     auto t_voxelEnd = std::chrono::high_resolution_clock::now();
