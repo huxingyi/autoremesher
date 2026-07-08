@@ -91,14 +91,19 @@ double AutoRemesher::calculateAverageEdgeLength(const std::vector<Vector3>& vert
     return sumOfLength / edgeCount;
 }
 
-void AutoRemesher::initializeVoxelSize()
+bool AutoRemesher::initializeVoxelSize()
 {
     double area = calculateMeshArea(m_vertices, m_triangles);
+    if (area <= std::numeric_limits<double>::epsilon() || !std::isfinite(area))
+        return false;
     double triangleArea = area / m_targetTriangleCount;
     m_voxelSize = std::sqrt(triangleArea / (0.86602540378 * 0.5));
+    if (m_voxelSize <= 0.0 || !std::isfinite(m_voxelSize))
+        return false;
 #if AUTO_REMESHER_DEBUG
     std::cerr << "Area: " << area << " voxelSize: " << m_voxelSize << std::endl;
 #endif
+    return true;
 }
 
 double AutoRemesher::calculateMeshArea(const std::vector<Vector3>& vertices,
@@ -156,7 +161,6 @@ void AutoRemesher::resample(std::vector<Vector3>& vertices,
                 normals[tri[j]] += weightedNormal;
                 neighbors[tri[j]].push_back(tri[(j + 1) % 3]);
                 neighbors[tri[j]].push_back(tri[(j + 2) % 3]);
-            }
         }
         tbb::parallel_for(tbb::blocked_range<size_t>(0, normals.size()),
             [&](const tbb::blocked_range<size_t>& range) {
@@ -263,12 +267,16 @@ void AutoRemesher::updateProgress(size_t threadIndex, float progress)
     if (nullptr == m_progressHandler)
         return;
 
-    std::lock_guard<std::mutex> lock(m_progressMutex);
-    if (progress > m_threadProgress[threadIndex])
-        m_threadProgress[threadIndex] = progress;
     float islandWeightedAvg = 0.0;
-    for (size_t i = 0; i < m_threadProgress.size(); ++i)
-        islandWeightedAvg += m_threadProgress[i] * m_threadProgressWeights[i];
+    {
+        std::lock_guard<std::mutex> lock(m_progressMutex);
+        if (threadIndex >= m_threadProgress.size())
+            return;
+        if (progress > m_threadProgress[threadIndex])
+            m_threadProgress[threadIndex] = progress;
+        for (size_t i = 0; i < m_threadProgress.size(); ++i)
+            islandWeightedAvg += m_threadProgress[i] * m_threadProgressWeights[i];
+    }
     m_progressHandler(m_tag,
         parallelPhaseBegin + (parallelPhaseEnd - parallelPhaseBegin) * islandWeightedAvg, "");
 }
@@ -278,10 +286,33 @@ bool AutoRemesher::remesh()
     if (nullptr != m_progressHandler)
         m_progressHandler(m_tag, 0.0, "Initializing...");
 
+    auto fail = [&](const char* message) {
+        std::cerr << message << std::endl;
+        if (nullptr != m_progressHandler)
+            m_progressHandler(m_tag, 1.0, message);
+        return false;
+    };
+
+    if (m_vertices.empty())
+        return fail("Input mesh has no vertices");
+    if (m_triangles.empty())
+        return fail("Input mesh has no triangles");
+    if (m_targetTriangleCount == 0)
+        return fail("Target triangle count must be greater than zero");
+    for (const auto& triangle : m_triangles) {
+        if (triangle.size() != 3)
+            return fail("Input mesh must contain triangles only");
+        for (const auto& vertexIndex : triangle) {
+            if (vertexIndex >= m_vertices.size())
+                return fail("Input mesh contains an invalid triangle index");
+        }
+    }
+
     auto t_start = std::chrono::high_resolution_clock::now();
 
     auto t_voxelStart = std::chrono::high_resolution_clock::now();
-    initializeVoxelSize();
+    if (!initializeVoxelSize())
+        return fail("Input mesh has zero area");
     if (nullptr != m_progressHandler)
         m_progressHandler(m_tag, 0.01f, "Computing voxel size...");
     auto t_voxelEnd = std::chrono::high_resolution_clock::now();
