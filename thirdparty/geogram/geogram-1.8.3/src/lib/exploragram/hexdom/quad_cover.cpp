@@ -257,44 +257,60 @@ namespace GEO {
 			if(v2c[v] == NO_CORNER) {
 			    continue;
 			}
-			//   Enforce the constraint on the wheel
-			// neighborhood for each component of the Tijs.
-			FOR(coord, 2) {
+			//   Walk around the vertex, collecting the corner/rotation
+			// pairs. Only apply the constraints if the walk succeeds
+			// and the accumulated rotation is zero.
+			struct WheelEntry { index_t c; index_t r; };
+			vector<WheelEntry> wheel;
+			{
 			    index_t c = v2c[v];
 			    index_t r = 0;
-			    solver.begin_constraint();		
+			    bool ok = true;
 			    do {
-				solver.add_constraint_coeff(
-				    nb_U+2*c,   Rot[r][coord][0]
-				);
-				solver.add_constraint_coeff(
-				    nb_U+2*c+1, Rot[r][coord][1]
-				);
-				// Accumulate the rotation.
+				wheel.push_back({c, r});
 				r = (r + R[c]) % 4;
-				// Find the next corner around the vertex.
 				index_t f =
 				    mesh->facet_corners.adjacent_facet(c);
-				
-				geo_assert(f != NO_FACET);
+				if(f == NO_FACET) {
+				    ok = false;
+				    break;
+				}
 				index_t next_c = NO_CORNER;
 				for(
 				    next_c = mesh->facets.corners_begin(f);
-				    next_c<mesh->facets.corners_end(f);
+				    next_c < mesh->facets.corners_end(f);
 				    ++next_c
 				) {
-				    if(mesh->facet_corners.vertex(next_c)==v) {
+				    if(mesh->facet_corners.vertex(next_c) == v) {
 					break;
 				    }
 				}
-				geo_assert(
-				    mesh->facet_corners.vertex(next_c) == v
-				);
+				if(
+				    next_c >= mesh->facets.corners_end(f) ||
+				    mesh->facet_corners.vertex(next_c) != v
+				) {
+				    ok = false;
+				    break;
+				}
 				c = next_c;
 			    } while(c != v2c[v]);
-			    // On non-singular vertices, by definition,
-			    // compose of all rotations = identity.
-			    geo_assert(r == 0);
+			    if(!ok || r != 0) {
+				v_is_singular[v] = true;
+				v2c[v] = NO_CORNER;
+				continue;
+			    }
+			}
+			//   Apply the wheel constraints from the collected data.
+			FOR(coord, 2) {
+			    solver.begin_constraint();
+			    for(const auto& entry : wheel) {
+				solver.add_constraint_coeff(
+				    nb_U+2*entry.c,   Rot[entry.r][coord][0]
+				);
+				solver.add_constraint_coeff(
+				    nb_U+2*entry.c+1, Rot[entry.r][coord][1]
+				);
+			    }
 			    solver.end_constraint();
 			}
 		    }
