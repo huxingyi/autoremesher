@@ -261,7 +261,14 @@ jobs:
       - name: Install OpenBLAS
         run: |
           vcpkg install openblas --triplet x64-windows
-          echo "LIB=$env:LIB;$env:VCPKG_ROOT\installed\x64-windows\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          # Use VCPKG_ROOT or VCPKG_INSTALLATION_ROOT (whichever is set on the runner)
+          $vcpkgRoot = if ($env:VCPKG_ROOT) { $env:VCPKG_ROOT } else { $env:VCPKG_INSTALLATION_ROOT }
+          Write-Host "VCPKG root: $vcpkgRoot"
+          $libPath = "$vcpkgRoot\installed\x64-windows\lib"
+          Write-Host "openblas.lib exists: $(Test-Path "$libPath\openblas.lib")"
+          "LIB=$env:LIB;$libPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $incPath = "$vcpkgRoot\installed\x64-windows\include"
+          "INCLUDE=$env:INCLUDE;$incPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Build application
         run: |
           cd $env:GITHUB_WORKSPACE
