@@ -70,6 +70,7 @@ protected:
     void showEvent(QShowEvent* event);
 private slots:
     void showSupporters();
+    void showContributors();
     void showAcknowlegements();
     void viewSource();
     void gotoHomepage();

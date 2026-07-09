@@ -64,6 +64,7 @@
 LogBrowser* g_logBrowser = nullptr;
 QTextBrowser* g_acknowlegementsWidget = nullptr;
 QTextBrowser* g_supportersWidget = nullptr;
+QTextBrowser* g_contributorsWidget = nullptr;
 AboutWidget* g_aboutWidget = nullptr;
 std::map<MainWindow*, QUuid> g_windows;
 
@@ -127,6 +128,10 @@ MainWindow::MainWindow()
     helpMenu->addAction(showDebugDialogAction);
 
     helpMenu->addSeparator();
+
+    QAction* seeContributorsAction = new QAction(tr("Contributors"), this);
+    connect(seeContributorsAction, &QAction::triggered, this, &MainWindow::showContributors);
+    helpMenu->addAction(seeContributorsAction);
 
     QAction* seeSupportersAction = new QAction(tr("Supporters"), this);
     connect(seeSupportersAction, &QAction::triggered, this, &MainWindow::showSupporters);
@@ -551,6 +556,23 @@ void MainWindow::showSupporters()
     g_supportersWidget->show();
     g_supportersWidget->activateWindow();
     g_supportersWidget->raise();
+}
+
+void MainWindow::showContributors()
+{
+    if (!g_contributorsWidget) {
+        g_contributorsWidget = new QTextBrowser;
+        g_contributorsWidget->setWindowTitle(unifiedWindowTitle(tr("Contributors")));
+        g_contributorsWidget->setMinimumSize(QSize(320, 280));
+        QFile authors(":/AUTHORS");
+        authors.open(QFile::ReadOnly | QFile::Text);
+        QFile contributors(":/CONTRIBUTORS");
+        contributors.open(QFile::ReadOnly | QFile::Text);
+        g_contributorsWidget->setHtml("<h1>AUTHORS</h1><pre>" + authors.readAll() + "</pre><h1>CONTRIBUTORS</h1><pre>" + contributors.readAll() + "</pre>");
+    }
+    g_contributorsWidget->show();
+    g_contributorsWidget->activateWindow();
+    g_contributorsWidget->raise();
 }
 
 void MainWindow::showAcknowlegements()
