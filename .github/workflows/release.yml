@@ -290,6 +290,11 @@ jobs:
         shell: bash
         run: |
           cp thirdparty/tbb/build2/Release/tbb.dll release/
+      - name: Copy OpenBLAS DLL
+        run: |
+          $vcpkgRoot = if ($env:VCPKG_ROOT) { $env:VCPKG_ROOT } else { $env:VCPKG_INSTALLATION_ROOT }
+          # Copy OpenBLAS runtime DLL to the release directory so the binary can load it
+          cp "$vcpkgRoot\installed\x64-windows\bin\*.dll" release/
       - name: Copy offscreen platform plugin and opengl32sw
         shell: bash
         run: |
