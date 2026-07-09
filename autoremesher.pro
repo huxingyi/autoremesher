@@ -105,7 +105,7 @@ win32 {
 	CONFIG(debug, debug|release) QMAKE_CXXFLAGS += /Od
     CONFIG(release, debug|release) QMAKE_CXXFLAGS += /O2 /GL /Qpar /fp:fast
 	CONFIG(release, debug|release) QMAKE_LFLAGS += /LTCG
-	QMAKE_CXXFLAGS += /bigobj
+	QMAKE_CXXFLAGS += /bigobj /MP
 
 	QMAKE_CFLAGS   += -DNL_USE_BLAS
 	QMAKE_CXXFLAGS += -DNL_USE_BLAS
