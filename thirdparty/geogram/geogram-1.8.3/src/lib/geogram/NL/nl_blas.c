@@ -984,22 +984,24 @@ extern void NL_FORTRAN_WRAP(daxpy)(
 
 extern double NL_FORTRAN_WRAP(dnrm2)( int *n, double *x, int *incx ) ;
 
+extern double NL_FORTRAN_WRAP(ddot)( int *n, const double *dx, int *incx, const double *dy, int *incy ) ;
+
 extern int NL_FORTRAN_WRAP(dcopy)(int* n, double* dx, int* incx, double* dy, int* incy) ;
 
 extern void NL_FORTRAN_WRAP(dscal)(int* n, double* alpha, double *x, int* incx) ;
 
 #ifndef NEEDS_DTPSV
-extern void NL_FORTRAN_WRAP(dtpsv)( 
-    char *uplo, char *trans, char *diag,
-    int *n, double *AP, double *x, int *incx 
+extern void NL_FORTRAN_WRAP(dtpsv)(
+    const char *uplo, const char *trans, const char *diag,
+    int *n, double *AP, double *x, int *incx
 ) ;
 #endif
 
-extern void NL_FORTRAN_WRAP(dgemv)( 
-    char *trans, int *m, int *n,
+extern void NL_FORTRAN_WRAP(dgemv)(
+    const char *trans, int *m, int *n,
     double *alpha, double *A, int *ldA,
     double *x, int *incx,
-    double *beta, double *y, int *incy 
+    double *beta, double *y, int *incy
 ) ;
 
 #endif

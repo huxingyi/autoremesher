@@ -80,6 +80,10 @@ macx {
 	# LTO and aggressive loop optimizations — trade code size for speed
 	QMAKE_CXXFLAGS_RELEASE += -flto -funroll-loops
 	QMAKE_LFLAGS_RELEASE += -flto
+
+	QMAKE_CFLAGS += -DNL_USE_BLAS
+	QMAKE_CXXFLAGS += -DNL_USE_BLAS
+	LIBS += -framework Accelerate
 }
 
 unix:!macx {
