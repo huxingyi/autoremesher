@@ -88,8 +88,8 @@ unix:!macx {
 	QMAKE_CXXFLAGS_RELEASE -= -O2
 
 	QMAKE_CXXFLAGS_RELEASE += -O3
-	# LTO, aggressive loop unrolling, and modern x86-64 baseline (AVX2, FMA, BMI)
-	QMAKE_CXXFLAGS_RELEASE += -flto -funroll-loops -march=x86-64-v3
+	# LTO, aggressive loop unrolling, and x86-64-v2 baseline for broad CPU compatibility
+	QMAKE_CXXFLAGS_RELEASE += -flto -funroll-loops -march=x86-64-v2
 	QMAKE_LFLAGS_RELEASE += -flto
 }
 
