@@ -95,6 +95,10 @@ unix:!macx {
 	# LTO, aggressive loop unrolling, and x86-64-v2 baseline for broad CPU compatibility
 	QMAKE_CXXFLAGS_RELEASE += -flto -funroll-loops -march=x86-64-v2
 	QMAKE_LFLAGS_RELEASE += -flto
+
+	QMAKE_CFLAGS   += -DNL_USE_BLAS
+	QMAKE_CXXFLAGS += -DNL_USE_BLAS
+	LIBS += -lopenblas
 }
 
 win32 {
@@ -102,6 +106,10 @@ win32 {
     CONFIG(release, debug|release) QMAKE_CXXFLAGS += /O2 /GL /Qpar /fp:fast
 	CONFIG(release, debug|release) QMAKE_LFLAGS += /LTCG
 	QMAKE_CXXFLAGS += /bigobj
+
+	QMAKE_CFLAGS   += -DNL_USE_BLAS
+	QMAKE_CXXFLAGS += -DNL_USE_BLAS
+	LIBS += -lopenblas
 }
 
 DEFINES += _USE_MATH_DEFINES

@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libtbb-dev libgl1-mesa-dev libfuse2 libfontconfig1
+          sudo apt-get install -y libtbb-dev libgl1-mesa-dev libfuse2 libfontconfig1 libopenblas-dev
       - name: Build application
         run: |
           qmake
@@ -258,6 +258,10 @@ jobs:
           cd $env:GITHUB_WORKSPACE\thirdparty\tbb
           cmake -B build2 -DTBB_BUILD_SHARED=ON -DTBB_BUILD_STATIC=OFF -DTBB_BUILD_TBBMALLOC=OFF -DTBB_BUILD_TBBMALLOC_PROXY=OFF -DTBB_BUILD_TESTS=OFF
           cmake --build build2 --config Release
+      - name: Install OpenBLAS
+        run: |
+          vcpkg install openblas --triplet x64-windows
+          echo "LIB=${{ env.LIB }};${{ env.VCPKG_ROOT }}\installed\x64-windows\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Build application
         run: |
           cd $env:GITHUB_WORKSPACE
