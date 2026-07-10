@@ -806,7 +806,7 @@ bool AutoRemesher::remesh()
                 thread.parameterizer->setSharpEdgeDegrees(thread.island->sharpEdgeDegrees);
                 bool parameterizeSucceeded = true;
                 try {
-                    thread.parameterizer->parameterize();
+                    parameterizeSucceeded = thread.parameterizer->parameterize();
                 } catch (const std::exception& e) {
                     // A pathological island must not abort the whole remesh,
                     // so log the parameterizer failure and skip its quads.
