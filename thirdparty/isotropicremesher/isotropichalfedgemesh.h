@@ -21,6 +21,7 @@
  */
 #ifndef ISOTROPIC_HALFEDGE_MESH_H
 #define ISOTROPIC_HALFEDGE_MESH_H
+#include <cstdint>
 #include <set>
 #include <functional>
 #include "vector3.h"

@@ -34,10 +34,14 @@
 # Build folder
 build/
 build2/
+obj/
 
 # Generated build artifacts
 .qmake.stash
 Makefile
+Makefile.Debug
+Makefile.Release
+build.log
 qrc_*.cpp
 
 .DS_Store

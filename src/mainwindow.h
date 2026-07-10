@@ -43,8 +43,10 @@ class FloatNumberWidget;
 class IntNumberWidget;
 class QLabel;
 class QCheckBox;
-#ifdef Q_OS_WIN32
+#if defined(Q_OS_WIN32) && QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 class QWinTaskbarButton;
+#elif defined(Q_OS_WIN32)
+struct ITaskbarList3;
 #endif
 
 class MainWindow : public QMainWindow {
@@ -175,8 +177,10 @@ private:
     ModelShaderMesh* m_isotropicRenderMesh = nullptr;
     ModelShaderMesh* m_paramRenderMesh = nullptr;
     ModelShaderMesh* m_remeshRenderMesh = nullptr;
-#ifdef Q_OS_WIN32
+#if defined(Q_OS_WIN32) && QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     QWinTaskbarButton* m_taskbarButton = nullptr;
+#elif defined(Q_OS_WIN32)
+    ITaskbarList3* m_taskbarList = nullptr;
 #endif
 };
 
