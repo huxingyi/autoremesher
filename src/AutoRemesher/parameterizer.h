@@ -23,6 +23,7 @@
 #include <AutoRemesher/Vector2>
 #include <AutoRemesher/Vector3>
 #include <map>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -39,21 +40,14 @@ public:
     {
     }
 
-    ~Parameterizer()
+    std::unique_ptr<std::vector<std::vector<Vector2>>> takeTriangleUvs()
     {
-        delete m_triangleUvs;
+        return std::move(m_triangleUvs);
     }
 
     const std::vector<std::vector<Vector2>>& originalTriangleUvs() const
     {
         return m_originalTriangleUvs;
-    }
-
-    std::vector<std::vector<Vector2>>* takeTriangleUvs()
-    {
-        std::vector<std::vector<Vector2>>* triangleUvs = m_triangleUvs;
-        m_triangleUvs = nullptr;
-        return triangleUvs;
     }
 
     const std::vector<Vector3>& singularVertexPositions() const
@@ -107,7 +101,7 @@ private:
     const std::vector<Vector3>* m_vertices = nullptr;
     const std::vector<std::vector<size_t>>* m_triangles = nullptr;
     const std::vector<Vector3>* m_triangleFieldVectors = nullptr;
-    std::vector<std::vector<Vector2>>* m_triangleUvs = nullptr;
+    std::unique_ptr<std::vector<std::vector<Vector2>>> m_triangleUvs;
     std::vector<Vector3> m_singularVertexPositions;
     std::vector<size_t> m_singularVertexIndices;
     std::vector<std::vector<Vector2>> m_originalTriangleUvs;
