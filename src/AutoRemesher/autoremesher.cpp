@@ -508,32 +508,46 @@ bool AutoRemesher::remesh()
                 thread.parameterizer->setScaling(thread.island->scaling);
                 thread.parameterizer->setGradientAdaptivity(thread.island->adaptivity);
                 thread.parameterizer->setSharpEdgeDegrees(thread.island->sharpEdgeDegrees);
-                {
+                bool parameterizeSucceeded = true;
+                try {
                     GeogramProgressLockGuard lock;
                     thread.parameterizer->parameterize();
+                } catch (const std::exception& e) {
+                    // Geogram reports failed assertions by throwing (e.g. the
+                    // manifold checks in quad_cover). One pathological island must
+                    // not abort the whole remesh, so log it and skip its quads.
+                    parameterizeSucceeded = false;
+                    std::cerr << "Island " << (thread.islandIndex + 1)
+                              << ": parameterization failed (" << e.what()
+                              << "), skipping this island." << std::endl;
+                } catch (...) {
+                    parameterizeSucceeded = false;
+                    std::cerr << "Island " << (thread.islandIndex + 1)
+                              << ": parameterization failed (unknown error), skipping this island." << std::endl;
                 }
 
                 auto t1 = std::chrono::high_resolution_clock::now();
                 *m_parameterizeTime += std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
-                thread.autoRemesher->setCurrentStatus(
-                    "Island " + std::to_string(thread.islandIndex + 1) + ": extracting quads...");
-                thread.autoRemesher->updateProgress(thread.islandIndex, 0.9f);
-                std::vector<std::vector<Vector2>>* uvs = thread.parameterizer->takeTriangleUvs();
-                thread.remesher = new QuadExtractor(&vertices,
-                    &triangles,
-                    uvs);
-                if (!thread.remesher->extract()) {
-                    delete thread.remesher;
-                    thread.remesher = nullptr;
+                if (parameterizeSucceeded) {
+                    thread.autoRemesher->setCurrentStatus(
+                        "Island " + std::to_string(thread.islandIndex + 1) + ": extracting quads...");
+                    thread.autoRemesher->updateProgress(thread.islandIndex, 0.9f);
+                    std::vector<std::vector<Vector2>>* uvs = thread.parameterizer->takeTriangleUvs();
+                    thread.remesher = new QuadExtractor(&vertices,
+                        &triangles,
+                        uvs);
+                    if (!thread.remesher->extract()) {
+                        delete thread.remesher;
+                        thread.remesher = nullptr;
+                    }
+                    delete uvs;
                 }
                 thread.autoRemesher->updateProgress(thread.islandIndex, 1.0f);
                 thread.autoRemesher->setCurrentStatus(
                     "Island " + std::to_string(thread.islandIndex + 1) + ": done");
                 auto t2 = std::chrono::high_resolution_clock::now();
                 *m_extractTime += std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
-
-                delete uvs;
             }
         }
 

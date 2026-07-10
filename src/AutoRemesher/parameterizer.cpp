@@ -197,9 +197,14 @@ bool Parameterizer::parameterize()
             GEO::index_t c2 = M.facets.corners_begin(f2) + e2;
             GEO::index_t c3 = M.facets.next_corner_around_facet(f2, c2);
             if (M.facet_corners.vertex(c) != M.facet_corners.vertex(c3)) {
+                // Inconsistently-oriented (non-manifold) edge: break it on BOTH
+                // sides. c2 is the reciprocal corner -- find_adjacent guarantees
+                // its adjacent_facet is f1 -- so c2 (not a neighbour of it) is the
+                // corner that must also be cleared. Clearing the wrong corner
+                // leaves c2 -> f1 dangling and trips geogram's quad_cover
+                // adjacency assertion (quad_cover.cpp:204) on non-manifold meshes.
                 M.facet_corners.set_adjacent_facet(c, GEO::NO_FACET);
-                GEO::index_t cRecip = M.facets.prev_corner_around_facet(f2, c2);
-                M.facet_corners.set_adjacent_facet(cRecip, GEO::NO_FACET);
+                M.facet_corners.set_adjacent_facet(c2, GEO::NO_FACET);
             }
         }
     };
