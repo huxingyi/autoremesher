@@ -123,7 +123,7 @@ private:
     std::vector<double> computeFaceScalingField(const std::vector<Vector3>& vertices,
         const std::vector<std::vector<size_t>>& triangles,
         const std::vector<Vector3>& vertexNormals,
-        const std::map<size_t, std::vector<size_t>>& faceAroundVertexMap) const;
+        const std::vector<std::vector<size_t>>& faceAroundVertexMap) const;
 };
 
 }
