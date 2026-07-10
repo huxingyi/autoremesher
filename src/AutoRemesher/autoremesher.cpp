@@ -546,6 +546,21 @@ void AutoRemesher::accumulateStageTime(const char* name, float order, long long 
 
 bool AutoRemesher::remesh()
 {
+    // Validate inputs before any sizing math. In particular a zero target
+    // triangle count would divide by zero in initializeVoxelSize().
+    const char* invalidInputReason = nullptr;
+    if (m_vertices.empty())
+        invalidInputReason = "input mesh has no vertices";
+    else if (m_triangles.empty())
+        invalidInputReason = "input mesh has no triangles";
+    else if (0 == m_targetTriangleCount)
+        invalidInputReason = "target triangle count must be greater than zero";
+    if (nullptr != invalidInputReason) {
+        std::cerr << "Invalid remesh input: " << invalidInputReason << std::endl;
+        if (nullptr != m_progressHandler)
+            m_progressHandler(m_tag, 1.0, invalidInputReason);
+        return false;
+    }
     auto t_start = std::chrono::high_resolution_clock::now();
 
     // Each label names the step that is about to run, not the one that just
