@@ -75,4 +75,9 @@ void QuadMeshGenerator::generate()
 
     delete m_remeshedQuads;
     m_remeshedQuads = new std::vector<std::vector<size_t>>(m_autoRemesher->remeshedQuads());
+
+    // Capture intermediate isotropic mesh data for preview overlays
+    m_isotropicVertices = m_autoRemesher->isotropicVertices();
+    m_isotropicTriangles = m_autoRemesher->isotropicTriangles();
+    m_isotropicTriangleUvs = m_autoRemesher->isotropicTriangleUvs();
 }

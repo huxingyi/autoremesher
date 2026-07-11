@@ -14,5 +14,6 @@
         <file>SUPPORTERS</file>
         <file>AUTHORS</file>
         <file>CONTRIBUTORS</file>
+        <file>resources/crossuv.png</file>
     </qresource>
 </RCC>

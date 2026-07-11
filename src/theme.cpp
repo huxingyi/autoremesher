@@ -209,8 +209,6 @@ void Theme::initCheckbox(QCheckBox* checkbox)
 
 QString Theme::compactStylesheet()
 {
-    // MongoDB Compass / LeafyGreen-inspired compact theme
-    // Colors kept from existing dark palette
     const QString trackBg = "#4A4A4A";
     const QString accent = Theme::green.name(); // #aaebc4
     const QString text = Theme::white.name(); // #f7d9c8

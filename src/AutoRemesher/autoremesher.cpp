@@ -407,10 +407,14 @@ bool AutoRemesher::remesh()
         struct IsotropicPhase {
             IsotropicPhase(std::vector<IslandContext>* contexts,
                 AutoRemesher* remesher,
-                std::atomic<long long>* resampleTime)
+                std::atomic<long long>* resampleTime,
+                std::vector<Vector3>* outVertices,
+                std::vector<std::vector<size_t>>* outTriangles)
                 : m_contexts(contexts)
                 , m_remesher(remesher)
                 , m_resampleTime(resampleTime)
+                , m_outVertices(outVertices)
+                , m_outTriangles(outTriangles)
             {
             }
 
@@ -428,6 +432,18 @@ bool AutoRemesher::remesh()
                     auto t1 = std::chrono::high_resolution_clock::now();
                     *m_resampleTime += std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
+                    // Collect isotropic mesh vertices/triangles for later preview
+                    // Must accumulate in the correct order across islands
+                    size_t vertexOffset = m_outVertices->size();
+                    for (const auto& v : ctx.vertices)
+                        m_outVertices->push_back(v);
+                    for (const auto& tri : ctx.triangles) {
+                        std::vector<size_t> offsetTri;
+                        for (auto idx : tri)
+                            offsetTri.push_back(idx + vertexOffset);
+                        m_outTriangles->push_back(offsetTri);
+                    }
+
                     m_remesher->updateProgress(i, 0.3f);
                 }
             }
@@ -436,12 +452,17 @@ bool AutoRemesher::remesh()
             std::vector<IslandContext>* m_contexts = nullptr;
             AutoRemesher* m_remesher = nullptr;
             std::atomic<long long>* m_resampleTime = nullptr;
+            std::vector<Vector3>* m_outVertices = nullptr;
+            std::vector<std::vector<size_t>>* m_outTriangles = nullptr;
         };
 
         std::atomic<long long> resampleTime(0);
 
+        m_isotropicVertices.clear();
+        m_isotropicTriangles.clear();
         tbb::parallel_for(tbb::blocked_range<size_t>(0, islandContexes.size()),
-            IsotropicPhase(&islandContexes, this, &resampleTime));
+            IsotropicPhase(&islandContexes, this, &resampleTime,
+                &m_isotropicVertices, &m_isotropicTriangles));
     }
 
     class ParameterizationThread {
@@ -457,6 +478,7 @@ bool AutoRemesher::remesh()
         Parameterizer* parameterizer = nullptr;
         QuadExtractor* remesher = nullptr;
         AutoRemesher* autoRemesher = nullptr;
+        std::vector<std::vector<Vector2>> capturedUvs;
     };
 
     std::vector<ParameterizationThread> parameterizationThreads(islandContexes.size());
@@ -534,6 +556,10 @@ bool AutoRemesher::remesh()
                         "Island " + std::to_string(thread.islandIndex + 1) + ": extracting quads...");
                     thread.autoRemesher->updateProgress(thread.islandIndex, 0.9f);
                     std::vector<std::vector<Vector2>>* uvs = thread.parameterizer->takeTriangleUvs();
+                    if (uvs) {
+                        // Save a copy of UVs for the [param] preview overlay
+                        thread.capturedUvs = *uvs;
+                    }
                     thread.remesher = new QuadExtractor(&vertices,
                         &triangles,
                         uvs);
@@ -568,6 +594,16 @@ bool AutoRemesher::remesh()
     setCurrentStatus("Merging mesh islands...");
     if (nullptr != m_progressHandler)
         m_progressHandler(m_tag, 0.95f, "Merging mesh islands...");
+
+    // Merge isotropic UVs from all islands (for [param] preview)
+    m_isotropicTriangleUvs.clear();
+    for (size_t i = 0; i < parameterizationThreads.size(); ++i) {
+        auto& thread = parameterizationThreads[i];
+        if (thread.capturedUvs.empty())
+            continue;
+        m_isotropicTriangleUvs.insert(m_isotropicTriangleUvs.end(),
+            thread.capturedUvs.begin(), thread.capturedUvs.end());
+    }
     for (size_t i = 0; i < parameterizationThreads.size(); ++i) {
         auto& thread = parameterizationThreads[i];
         if (nullptr == thread.remesher)
