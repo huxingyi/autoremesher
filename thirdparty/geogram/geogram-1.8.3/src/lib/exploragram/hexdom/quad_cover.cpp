@@ -383,6 +383,19 @@ namespace GEO {
 			    s *= adaptive_scaling[f];
 			}
 
+            // STIFFENING FIX: Scale up energy weight near singularities 
+            // to penalize extreme metric distortion/bunching.
+            double w = 1.0;
+            for(index_t lv = 0; lv < mesh->facets.nb_vertices(f); ++lv) {
+                index_t v = mesh->facets.vertex(f, lv);
+                if(v_is_singular[v]) {
+                    w = 4.0; // Tune between 2.0 and 10.0 depending on desired stiffness
+                    break;
+                }
+            }
+            
+            double final_s = s * w;
+
 			for(index_t c1 = mesh->facets.corners_begin(f);
 			    c1 < mesh->facets.corners_end(f); ++c1) {
 			    index_t c2 =
@@ -393,13 +406,13 @@ namespace GEO {
 				vec3(mesh->vertices.point_ptr(v2)) -
 				vec3(mesh->vertices.point_ptr(v1));
 			    solver.begin_energy();
-			    solver.add_energy_coeff(2*c2, s);
-			    solver.add_energy_coeff(2*c1,-s);
+			    solver.add_energy_coeff(2*c2, final_s);
+			    solver.add_energy_coeff(2*c1,-final_s);
 			    solver.add_energy_rhs(dot(Bf,E));
 			    solver.end_energy();
 			    solver.begin_energy();
-			    solver.add_energy_coeff(2*c2+1, s);
-			    solver.add_energy_coeff(2*c1+1,-s);
+			    solver.add_energy_coeff(2*c2+1, final_s);
+			    solver.add_energy_coeff(2*c1+1,-final_s);
 			    solver.add_energy_rhs(dot(BTf,E));
 			    solver.end_energy();
 			}
