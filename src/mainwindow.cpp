@@ -192,8 +192,7 @@ MainWindow::MainWindow()
             "QPushButton:!checked:hover {"
             "  background-color: rgba(60, 60, 60, 200);"
             "  color: #cccccc;"
-            "}"
-        );
+            "}");
         btn->setCheckable(true);
         btn->show();
         return btn;
@@ -884,18 +883,25 @@ static ModelShaderMesh* buildRenderMeshFromTriangles(
     double minZ = std::numeric_limits<double>::max();
     double maxZ = std::numeric_limits<double>::lowest();
     for (const auto& v : vertices) {
-        if (v.x() < minX) minX = v.x();
-        if (v.x() > maxX) maxX = v.x();
-        if (v.y() < minY) minY = v.y();
-        if (v.y() > maxY) maxY = v.y();
-        if (v.z() < minZ) minZ = v.z();
-        if (v.z() > maxZ) maxZ = v.z();
+        if (v.x() < minX)
+            minX = v.x();
+        if (v.x() > maxX)
+            maxX = v.x();
+        if (v.y() < minY)
+            minY = v.y();
+        if (v.y() > maxY)
+            maxY = v.y();
+        if (v.z() < minZ)
+            minZ = v.z();
+        if (v.z() > maxZ)
+            maxZ = v.z();
     }
     AutoRemesher::Vector3 origin = {
         (maxX + minX) * 0.5, (maxY + minY) * 0.5, (maxZ + minZ) * 0.5
     };
-    double maxLength = std::max({maxX - minX, maxY - minY, maxZ - minZ}) * 0.5;
-    if (maxLength < 1e-10) maxLength = 1.0;
+    double maxLength = std::max({ maxX - minX, maxY - minY, maxZ - minZ }) * 0.5;
+    if (maxLength < 1e-10)
+        maxLength = 1.0;
 
     std::vector<AutoRemesher::Vector3> normalizedVerts(vertices.size());
     for (size_t i = 0; i < vertices.size(); ++i)
@@ -935,8 +941,11 @@ static ModelShaderMesh* buildRenderMeshFromTriangles(
                 ev.normX = (float)normals[idx].x();
                 ev.normY = (float)normals[idx].y();
                 ev.normZ = (float)normals[idx].z();
-                ev.colorR = 0.0f; ev.colorG = 0.0f; ev.colorB = 0.0f;
-                ev.roughness = 1.0f; ev.alpha = 1.0f;
+                ev.colorR = 0.0f;
+                ev.colorG = 0.0f;
+                ev.colorB = 0.0f;
+                ev.roughness = 1.0f;
+                ev.alpha = 1.0f;
             }
 
             // Triangle vertex
@@ -948,8 +957,11 @@ static ModelShaderMesh* buildRenderMeshFromTriangles(
             tv.normX = (float)normals[idx].x();
             tv.normY = (float)normals[idx].y();
             tv.normZ = (float)normals[idx].z();
-            tv.colorR = 1.0f; tv.colorG = 0.996f; tv.colorB = 0.890f;
-            tv.roughness = 1.0f; tv.alpha = 1.0f;
+            tv.colorR = 1.0f;
+            tv.colorG = 0.996f;
+            tv.colorB = 0.890f;
+            tv.roughness = 1.0f;
+            tv.alpha = 1.0f;
         }
     }
 
@@ -1016,18 +1028,25 @@ static ModelShaderMesh* buildUvRenderMesh(
     double minZ = std::numeric_limits<double>::max();
     double maxZ = std::numeric_limits<double>::lowest();
     for (const auto& v : vertices) {
-        if (v.x() < minX) minX = v.x();
-        if (v.x() > maxX) maxX = v.x();
-        if (v.y() < minY) minY = v.y();
-        if (v.y() > maxY) maxY = v.y();
-        if (v.z() < minZ) minZ = v.z();
-        if (v.z() > maxZ) maxZ = v.z();
+        if (v.x() < minX)
+            minX = v.x();
+        if (v.x() > maxX)
+            maxX = v.x();
+        if (v.y() < minY)
+            minY = v.y();
+        if (v.y() > maxY)
+            maxY = v.y();
+        if (v.z() < minZ)
+            minZ = v.z();
+        if (v.z() > maxZ)
+            maxZ = v.z();
     }
     AutoRemesher::Vector3 origin = {
         (maxX + minX) * 0.5, (maxY + minY) * 0.5, (maxZ + minZ) * 0.5
     };
-    double maxLength = std::max({maxX - minX, maxY - minY, maxZ - minZ}) * 0.5;
-    if (maxLength < 1e-10) maxLength = 1.0;
+    double maxLength = std::max({ maxX - minX, maxY - minY, maxZ - minZ }) * 0.5;
+    if (maxLength < 1e-10)
+        maxLength = 1.0;
 
     std::vector<AutoRemesher::Vector3> normalizedVerts(vertices.size());
     for (size_t i = 0; i < vertices.size(); ++i)
@@ -1074,8 +1093,11 @@ static ModelShaderMesh* buildUvRenderMesh(
                 ev.normX = (float)normals[idx].x();
                 ev.normY = (float)normals[idx].y();
                 ev.normZ = (float)normals[idx].z();
-                ev.colorR = 0.0f; ev.colorG = 0.0f; ev.colorB = 0.0f;
-                ev.roughness = 1.0f; ev.alpha = 1.0f;
+                ev.colorR = 0.0f;
+                ev.colorG = 0.0f;
+                ev.colorB = 0.0f;
+                ev.roughness = 1.0f;
+                ev.alpha = 1.0f;
             }
 
             // Triangle vertex with UV
@@ -1087,10 +1109,13 @@ static ModelShaderMesh* buildUvRenderMesh(
             tv.normX = (float)normals[idx].x();
             tv.normY = (float)normals[idx].y();
             tv.normZ = (float)normals[idx].z();
-            tv.colorR = 1.0f; tv.colorG = 0.996f; tv.colorB = 0.890f;
+            tv.colorR = 1.0f;
+            tv.colorG = 0.996f;
+            tv.colorB = 0.890f;
             tv.texU = (float)normalizeUv(uvTri[j].x());
             tv.texV = (float)normalizeUv(uvTri[j].y());
-            tv.roughness = 1.0f; tv.alpha = 1.0f;
+            tv.roughness = 1.0f;
+            tv.alpha = 1.0f;
         }
     }
 
