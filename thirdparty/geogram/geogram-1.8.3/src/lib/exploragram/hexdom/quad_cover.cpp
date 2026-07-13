@@ -420,16 +420,16 @@ namespace GEO {
 		    [&](const tbb::blocked_range<index_t> &range) {
 			for(index_t u = range.begin(); u != range.end(); ++u) {
 			    double coord = solver.value(u);
-			    snap_tex_coord(coord); // Required by mesh extraction
+			    //snap_tex_coord(coord); // Required by mesh extraction
 			    U[u/2][u%2] = coord;
 			}
 		    });
-		tbb::parallel_for(
-		    tbb::blocked_range<index_t>(0, nb_T),
-		    [&](const tbb::blocked_range<index_t> &range) {
-			for(index_t t = range.begin(); t != range.end(); ++t)
-			    T[t] = solver.value(nb_U+t);
-		    });
+		// tbb::parallel_for(
+		//     tbb::blocked_range<index_t>(0, nb_T),
+		//     [&](const tbb::blocked_range<index_t> &range) {
+		// 	for(index_t t = range.begin(); t != range.end(); ++t)
+		// 	    T[t] = solver.value(nb_U+t);
+		//     });
 	    }
 	    
 	} // namespace Internal
