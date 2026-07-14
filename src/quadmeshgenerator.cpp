@@ -22,6 +22,7 @@
 #include "quadmeshgenerator.h"
 #include <QDebug>
 #include <QElapsedTimer>
+#include <cstdio>
 
 void QuadMeshGenerator::process()
 {
@@ -38,11 +39,15 @@ void QuadMeshGenerator::process()
 
 void QuadMeshGenerator::emitProgress(float progress)
 {
+    fprintf(stdout, "%d%% done.\n", (int)(progress * 100));
+    fflush(stdout);
     emit reportProgress(progress);
 }
 
 void QuadMeshGenerator::emitProgress(float progress, const QString& status)
 {
+    fprintf(stdout, "%d%% done.\n", (int)(progress * 100));
+    fflush(stdout);
     emit reportProgressDetailed(progress, status);
     emit reportProgress(progress);
 }
