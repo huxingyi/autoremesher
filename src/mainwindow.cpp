@@ -489,6 +489,7 @@ bool MainWindow::loadObj(const QString& filename)
     m_isotropicVertices.clear();
     m_isotropicTriangles.clear();
     m_isotropicTriangleUvs.clear();
+    m_isotropicSingularVertices.clear();
     delete m_remeshedVertices;
     m_remeshedVertices = nullptr;
     delete m_remeshedQuads;
@@ -977,7 +978,8 @@ static ModelShaderMesh* buildRenderMeshFromTriangles(
 static ModelShaderMesh* buildUvRenderMesh(
     const std::vector<AutoRemesher::Vector3>& vertices,
     const std::vector<std::vector<size_t>>& triangles,
-    const std::vector<std::vector<AutoRemesher::Vector2>>& triangleUvs);
+    const std::vector<std::vector<AutoRemesher::Vector2>>& triangleUvs,
+    const std::vector<AutoRemesher::Vector3>& singularVertices = {});
 
 void MainWindow::generatePreviewMeshes()
 {
@@ -992,7 +994,8 @@ void MainWindow::generatePreviewMeshes()
         && !m_isotropicTriangleUvs.empty()) {
         // Build a render mesh with UV coordinates and texture
         m_paramRenderMesh = buildUvRenderMesh(
-            m_isotropicVertices, m_isotropicTriangles, m_isotropicTriangleUvs);
+            m_isotropicVertices, m_isotropicTriangles,
+            m_isotropicTriangleUvs, m_isotropicSingularVertices);
     } else {
         m_paramRenderMesh = new ModelShaderMesh;
     }
@@ -1015,7 +1018,8 @@ void MainWindow::generatePreviewMeshes()
 static ModelShaderMesh* buildUvRenderMesh(
     const std::vector<AutoRemesher::Vector3>& vertices,
     const std::vector<std::vector<size_t>>& triangles,
-    const std::vector<std::vector<AutoRemesher::Vector2>>& triangleUvs)
+    const std::vector<std::vector<AutoRemesher::Vector2>>& triangleUvs,
+    const std::vector<AutoRemesher::Vector3>& singularVertices)
 {
     if (vertices.empty() || triangles.empty() || triangleUvs.empty())
         return new ModelShaderMesh;
@@ -1126,6 +1130,112 @@ static ModelShaderMesh* buildUvRenderMesh(
     // Load the cross UV texture
     QImage* textureImage = new QImage(":/resources/crossuv.png");
     mesh->setTextureImage(textureImage);
+
+    // Add small white sphere markers at singular vertex positions
+    if (!singularVertices.empty()) {
+        // Generate an icosahedron as a small sphere marker
+        // Golden ratio for icosahedron vertices
+        const float phi = (1.0f + std::sqrt(5.0f)) * 0.5f;
+        // Unit icosahedron vertices
+        std::vector<AutoRemesher::Vector3> sphereVerts = {
+            { -1, phi, 0 }, { 1, phi, 0 }, { -1, -phi, 0 }, { 1, -phi, 0 },
+            { 0, -1, phi }, { 0, 1, phi }, { 0, -1, -phi }, { 0, 1, -phi },
+            { phi, 0, -1 }, { phi, 0, 1 }, { -phi, 0, -1 }, { -phi, 0, 1 }
+        };
+        // Normalize to unit sphere
+        for (auto& v : sphereVerts) {
+            float len = std::sqrt(v.x() * v.x() + v.y() * v.y() + v.z() * v.z());
+            if (len > 1e-10f) {
+                v.setX(v.x() / len);
+                v.setY(v.y() / len);
+                v.setZ(v.z() / len);
+            }
+        }
+        // Icosahedron triangle indices (20 faces)
+        int indices[20][3] = {
+            { 0, 11, 5 }, { 0, 5, 1 }, { 0, 1, 7 }, { 0, 7, 10 }, { 0, 10, 11 },
+            { 1, 5, 9 }, { 5, 11, 4 }, { 11, 10, 2 }, { 10, 7, 6 }, { 7, 1, 8 },
+            { 3, 9, 4 }, { 3, 4, 2 }, { 3, 2, 6 }, { 3, 6, 8 }, { 3, 8, 9 },
+            { 4, 9, 5 }, { 2, 4, 11 }, { 6, 2, 10 }, { 8, 6, 7 }, { 9, 8, 1 }
+        };
+        // Subdivide once for smoother spheres (each triangle becomes 4)
+        std::vector<AutoRemesher::Vector3> subVerts;
+        std::vector<int> subIndices;
+        for (int f = 0; f < 20; ++f) {
+            int i0 = indices[f][0], i1 = indices[f][1], i2 = indices[f][2];
+            auto& v0 = sphereVerts[i0];
+            auto& v1 = sphereVerts[i1];
+            auto& v2 = sphereVerts[i2];
+            auto mid = [](const AutoRemesher::Vector3& a, const AutoRemesher::Vector3& b) {
+                AutoRemesher::Vector3 m = { (a.x() + b.x()) * 0.5f, (a.y() + b.y()) * 0.5f, (a.z() + b.z()) * 0.5f };
+                float len = std::sqrt(m.x() * m.x() + m.y() * m.y() + m.z() * m.z());
+                if (len > 1e-10f) {
+                    m.setX(m.x() / len);
+                    m.setY(m.y() / len);
+                    m.setZ(m.z() / len);
+                }
+                return m;
+            };
+            AutoRemesher::Vector3 m01 = mid(v0, v1);
+            AutoRemesher::Vector3 m12 = mid(v1, v2);
+            AutoRemesher::Vector3 m20 = mid(v2, v0);
+            int bi = (int)subVerts.size();
+            subVerts.push_back(v0);
+            subVerts.push_back(v1);
+            subVerts.push_back(v2);
+            subVerts.push_back(m01);
+            subVerts.push_back(m12);
+            subVerts.push_back(m20);
+            subIndices.push_back(bi + 0);
+            subIndices.push_back(bi + 3);
+            subIndices.push_back(bi + 5);
+            subIndices.push_back(bi + 3);
+            subIndices.push_back(bi + 1);
+            subIndices.push_back(bi + 4);
+            subIndices.push_back(bi + 5);
+            subIndices.push_back(bi + 4);
+            subIndices.push_back(bi + 2);
+            subIndices.push_back(bi + 3);
+            subIndices.push_back(bi + 4);
+            subIndices.push_back(bi + 5);
+        }
+
+        // Compute the sphere radius as a fraction of the mesh bounding box
+        double sphereRadius = 0.0025;
+        if (sphereRadius < 0.001)
+            sphereRadius = 0.001;
+
+        // Build tool vertices for all singular vertex spheres
+        int sphereTriCount = (int)subIndices.size() / 3;
+        int totalToolVerts = (int)singularVertices.size() * sphereTriCount * 3;
+        ModelShaderVertex* toolVerts = new ModelShaderVertex[totalToolVerts];
+        memset(toolVerts, 0, sizeof(ModelShaderVertex) * totalToolVerts);
+
+        int toolVi = 0;
+        for (const auto& svPos : singularVertices) {
+            // Normalize singular vertex position (same normalization as the mesh)
+            AutoRemesher::Vector3 normalizedPos = (svPos - origin) / maxLength;
+            for (int t = 0; t < sphereTriCount; ++t) {
+                for (int j = 0; j < 3; ++j) {
+                    auto& tv = toolVerts[toolVi++];
+                    int vi = subIndices[t * 3 + j];
+                    tv.posX = (float)(normalizedPos.x() + subVerts[vi].x() * sphereRadius);
+                    tv.posY = (float)(normalizedPos.y() + subVerts[vi].y() * sphereRadius);
+                    tv.posZ = (float)(normalizedPos.z() + subVerts[vi].z() * sphereRadius);
+                    tv.normX = subVerts[vi].x();
+                    tv.normY = subVerts[vi].y();
+                    tv.normZ = subVerts[vi].z();
+                    tv.colorR = 1.0f;
+                    tv.colorG = 1.0f;
+                    tv.colorB = 1.0f;
+                    tv.roughness = 0.3f;
+                    tv.alpha = 1.0f;
+                }
+            }
+        }
+
+        mesh->updateTool(toolVerts, totalToolVerts);
+    }
 
     return mesh;
 }
@@ -1275,6 +1385,7 @@ void MainWindow::quadMeshReady()
     m_isotropicVertices = m_quadMeshGenerator->isotropicVertices();
     m_isotropicTriangles = m_quadMeshGenerator->isotropicTriangles();
     m_isotropicTriangleUvs = m_quadMeshGenerator->isotropicTriangleUvs();
+    m_isotropicSingularVertices = m_quadMeshGenerator->isotropicSingularVertices();
 
     delete m_quadMeshGenerator;
     m_quadMeshGenerator = nullptr;

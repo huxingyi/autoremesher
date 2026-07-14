@@ -118,7 +118,7 @@ private:
     bool m_mousePickingEnabled = false;
     QVector3D m_mousePickTargetPositionInModelSpace;
     QPoint m_lastPos;
-    ModelShaderMeshBinder m_meshBinder;
+    ModelShaderMeshBinder m_meshBinder { true };
     QMatrix4x4 m_projection;
     QMatrix4x4 m_camera;
     QMatrix4x4 m_world;

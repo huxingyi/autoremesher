@@ -112,6 +112,11 @@ public:
         return m_isotropicTriangleUvs;
     }
 
+    const std::vector<Vector3>& isotropicSingularVertices()
+    {
+        return m_isotropicSingularVertices;
+    }
+
     bool remesh();
 
     void updateProgress(size_t threadIndex, float progress);
@@ -137,6 +142,7 @@ private:
     std::vector<Vector3> m_isotropicVertices;
     std::vector<std::vector<size_t>> m_isotropicTriangles;
     std::vector<std::vector<Vector2>> m_isotropicTriangleUvs;
+    std::vector<Vector3> m_isotropicSingularVertices;
     std::vector<float> m_threadProgress;
     std::vector<float> m_threadProgressWeights;
     double m_scaling = 0.0;

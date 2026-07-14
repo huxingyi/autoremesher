@@ -479,6 +479,7 @@ bool AutoRemesher::remesh()
         QuadExtractor* remesher = nullptr;
         AutoRemesher* autoRemesher = nullptr;
         std::vector<std::vector<Vector2>> capturedUvs;
+        std::vector<Vector3> capturedSingularVertices;
     };
 
     std::vector<ParameterizationThread> parameterizationThreads(islandContexes.size());
@@ -560,6 +561,8 @@ bool AutoRemesher::remesh()
                         // Save a copy of UVs for the [param] preview overlay
                         thread.capturedUvs = *uvs;
                     }
+                    // Capture singular vertex positions for the [param] preview
+                    thread.capturedSingularVertices = thread.parameterizer->singularVertexPositions();
                     thread.remesher = new QuadExtractor(&vertices,
                         &triangles,
                         uvs);
@@ -603,6 +606,16 @@ bool AutoRemesher::remesh()
             continue;
         m_isotropicTriangleUvs.insert(m_isotropicTriangleUvs.end(),
             thread.capturedUvs.begin(), thread.capturedUvs.end());
+    }
+
+    // Merge singular vertex positions from all islands (for [param] preview)
+    m_isotropicSingularVertices.clear();
+    for (size_t i = 0; i < parameterizationThreads.size(); ++i) {
+        auto& thread = parameterizationThreads[i];
+        if (thread.capturedSingularVertices.empty())
+            continue;
+        m_isotropicSingularVertices.insert(m_isotropicSingularVertices.end(),
+            thread.capturedSingularVertices.begin(), thread.capturedSingularVertices.end());
     }
     for (size_t i = 0; i < parameterizationThreads.size(); ++i) {
         auto& thread = parameterizationThreads[i];

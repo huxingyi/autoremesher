@@ -149,6 +149,7 @@ private:
     std::vector<AutoRemesher::Vector3> m_isotropicVertices;
     std::vector<std::vector<size_t>> m_isotropicTriangles;
     std::vector<std::vector<AutoRemesher::Vector2>> m_isotropicTriangleUvs;
+    std::vector<AutoRemesher::Vector3> m_isotropicSingularVertices;
 
     // Render meshes for each preview mode (owned)
     ModelShaderMesh* m_sourceRenderMesh = nullptr;

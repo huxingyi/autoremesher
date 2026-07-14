@@ -242,6 +242,20 @@ bool Parameterizer::parameterize()
     bool integer_constraints = true;
     GEO::GlobalParam2d::quad_cover(&M, B, U, m_scaling, constrain_hard_edges, do_brush, integer_constraints, m_sharpEdgeDegrees);
 
+    // Capture singular vertex positions from the v_is_singular attribute
+    m_singularVertexPositions.clear();
+    {
+        GEO::Attribute<bool> isSingular(M.vertices.attributes(), "is_singular");
+        if (isSingular.is_bound()) {
+            for (GEO::index_t v = 0; v < M.vertices.nb(); ++v) {
+                if (isSingular[v]) {
+                    m_singularVertexPositions.push_back(
+                        Vector3 { (*m_vertices)[v].x(), (*m_vertices)[v].y(), (*m_vertices)[v].z() });
+                }
+            }
+        }
+    }
+
     delete m_triangleUvs;
     m_triangleUvs = new std::vector<std::vector<Vector2>>;
     m_triangleUvs->reserve(m_triangles->size());
