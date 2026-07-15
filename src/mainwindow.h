@@ -23,6 +23,7 @@
 #define AUTO_REMESHER_MAIN_WINDOW_H
 #include "modelshaderwidget.h"
 #include <AutoRemesher/AutoRemesher>
+#include <AutoRemesher/Vector2>
 #include <AutoRemesher/Vector3>
 #include <QCloseEvent>
 #include <QElapsedTimer>
@@ -45,6 +46,13 @@ class QWinTaskbarButton;
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
+    enum PreviewMode {
+        PreviewSource = 0,
+        PreviewIsotropic,
+        PreviewParam,
+        PreviewRemesh
+    };
+
     struct ResultMesh {
         std::vector<AutoRemesher::Vector3> vertices;
         std::vector<std::vector<size_t>> faces;
@@ -70,6 +78,7 @@ protected:
     void showEvent(QShowEvent* event);
 private slots:
     void showSupporters();
+    void showContributors();
     void showAcknowlegements();
     void viewSource();
     void gotoHomepage();
@@ -87,6 +96,11 @@ private slots:
     void updateButtonStates();
     void updateProgress(float progress);
     void updateProgressDetailed(float progress, const QString& status);
+    void generatePreviewMeshes();
+    void switchToSourceView();
+    void switchToIsotropicView();
+    void switchToParamView();
+    void switchToRemeshView();
 
 private:
     ModelShaderWidget* m_modelRenderWidget = nullptr;
@@ -114,6 +128,11 @@ private:
     QPushButton* m_loadModelButton = nullptr;
     QPushButton* m_saveMeshButton = nullptr;
     QPushButton* m_regenerateButton = nullptr;
+    QPushButton* m_previewSourceButton = nullptr;
+    QPushButton* m_previewIsotropicButton = nullptr;
+    QPushButton* m_previewParamButton = nullptr;
+    QPushButton* m_previewRemeshButton = nullptr;
+    PreviewMode m_previewMode = PreviewSource;
     IntNumberWidget* m_targetQuadCountWidget = nullptr;
     FloatNumberWidget* m_targetScalingWidget = nullptr;
     //QComboBox *m_modelTypeSelectBox = nullptr;
@@ -125,6 +144,18 @@ private:
     QLabel* m_vertexCountLabel = nullptr;
     QProgressBar* m_progressBar = nullptr;
     QWidget* m_progressContainer = nullptr;
+
+    // Intermediate meshes for preview overlays
+    std::vector<AutoRemesher::Vector3> m_isotropicVertices;
+    std::vector<std::vector<size_t>> m_isotropicTriangles;
+    std::vector<std::vector<AutoRemesher::Vector2>> m_isotropicTriangleUvs;
+    std::vector<AutoRemesher::Vector3> m_isotropicSingularVertices;
+
+    // Render meshes for each preview mode (owned)
+    ModelShaderMesh* m_sourceRenderMesh = nullptr;
+    ModelShaderMesh* m_isotropicRenderMesh = nullptr;
+    ModelShaderMesh* m_paramRenderMesh = nullptr;
+    ModelShaderMesh* m_remeshRenderMesh = nullptr;
 #ifdef Q_OS_WIN32
     QWinTaskbarButton* m_taskbarButton = nullptr;
 #endif

@@ -22,6 +22,7 @@
 #ifndef AUTO_REMESHER_QUAD_MESH_GENERATOR_H
 #define AUTO_REMESHER_QUAD_MESH_GENERATOR_H
 #include <AutoRemesher/AutoRemesher>
+#include <AutoRemesher/Vector2>
 #include <QObject>
 
 class QuadMeshGenerator : public QObject {
@@ -69,6 +70,26 @@ public:
         return remeshedQuads;
     }
 
+    const std::vector<AutoRemesher::Vector3>& isotropicVertices() const
+    {
+        return m_isotropicVertices;
+    }
+
+    const std::vector<std::vector<size_t>>& isotropicTriangles() const
+    {
+        return m_isotropicTriangles;
+    }
+
+    const std::vector<std::vector<AutoRemesher::Vector2>>& isotropicTriangleUvs() const
+    {
+        return m_isotropicTriangleUvs;
+    }
+
+    const std::vector<AutoRemesher::Vector3>& isotropicSingularVertices() const
+    {
+        return m_isotropicSingularVertices;
+    }
+
     void generate();
     void emitProgress(float progress);
     void emitProgress(float progress, const QString& status);
@@ -86,6 +107,10 @@ private:
     std::vector<std::vector<size_t>> m_triangles;
     std::vector<AutoRemesher::Vector3>* m_remeshedVertices = nullptr;
     std::vector<std::vector<size_t>>* m_remeshedQuads = nullptr;
+    std::vector<AutoRemesher::Vector3> m_isotropicVertices;
+    std::vector<std::vector<size_t>> m_isotropicTriangles;
+    std::vector<std::vector<AutoRemesher::Vector2>> m_isotropicTriangleUvs;
+    std::vector<AutoRemesher::Vector3> m_isotropicSingularVertices;
     AutoRemesher::AutoRemesher* m_autoRemesher = nullptr;
     Parameters m_parameters;
 };

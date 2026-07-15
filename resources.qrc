@@ -12,5 +12,8 @@
         <file>shaders/monochrome.frag</file>
         <file>ACKNOWLEDGEMENTS.html</file>
         <file>SUPPORTERS</file>
+        <file>AUTHORS</file>
+        <file>CONTRIBUTORS</file>
+        <file>resources/crossuv.png</file>
     </qresource>
 </RCC>

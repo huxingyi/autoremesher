@@ -197,9 +197,14 @@ bool Parameterizer::parameterize()
             GEO::index_t c2 = M.facets.corners_begin(f2) + e2;
             GEO::index_t c3 = M.facets.next_corner_around_facet(f2, c2);
             if (M.facet_corners.vertex(c) != M.facet_corners.vertex(c3)) {
+                // Inconsistently-oriented (non-manifold) edge: break it on BOTH
+                // sides. c2 is the reciprocal corner -- find_adjacent guarantees
+                // its adjacent_facet is f1 -- so c2 (not a neighbour of it) is the
+                // corner that must also be cleared. Clearing the wrong corner
+                // leaves c2 -> f1 dangling and trips geogram's quad_cover
+                // adjacency assertion (quad_cover.cpp:204) on non-manifold meshes.
                 M.facet_corners.set_adjacent_facet(c, GEO::NO_FACET);
-                GEO::index_t cRecip = M.facets.prev_corner_around_facet(f2, c2);
-                M.facet_corners.set_adjacent_facet(cRecip, GEO::NO_FACET);
+                M.facet_corners.set_adjacent_facet(c2, GEO::NO_FACET);
             }
         }
     };
@@ -236,6 +241,20 @@ bool Parameterizer::parameterize()
     bool do_brush = true;
     bool integer_constraints = true;
     GEO::GlobalParam2d::quad_cover(&M, B, U, m_scaling, constrain_hard_edges, do_brush, integer_constraints, m_sharpEdgeDegrees);
+
+    // Capture singular vertex positions from the v_is_singular attribute
+    m_singularVertexPositions.clear();
+    {
+        GEO::Attribute<bool> isSingular(M.vertices.attributes(), "is_singular");
+        if (isSingular.is_bound()) {
+            for (GEO::index_t v = 0; v < M.vertices.nb(); ++v) {
+                if (isSingular[v]) {
+                    m_singularVertexPositions.push_back(
+                        Vector3 { (*m_vertices)[v].x(), (*m_vertices)[v].y(), (*m_vertices)[v].z() });
+                }
+            }
+        }
+    }
 
     delete m_triangleUvs;
     m_triangleUvs = new std::vector<std::vector<Vector2>>;

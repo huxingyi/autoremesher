@@ -279,7 +279,8 @@ NLfunc nlFindFunction(void* handle, const char* name) {
 /******************************************************************************/
 /* Error-reporting functions */
 
-NLprintfFunc nl_printf = printf;
+static int nlNoopPrintf(const char* format, ...) { return 0; }
+NLprintfFunc nl_printf = nlNoopPrintf;
 NLfprintfFunc nl_fprintf = fprintf;
 
 void nlError(const char* function, const char* message) {

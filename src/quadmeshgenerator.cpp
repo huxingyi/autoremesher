@@ -22,6 +22,7 @@
 #include "quadmeshgenerator.h"
 #include <QDebug>
 #include <QElapsedTimer>
+#include <cstdio>
 
 void QuadMeshGenerator::process()
 {
@@ -38,11 +39,15 @@ void QuadMeshGenerator::process()
 
 void QuadMeshGenerator::emitProgress(float progress)
 {
+    fprintf(stdout, "%d%% done.\n", (int)(progress * 100));
+    fflush(stdout);
     emit reportProgress(progress);
 }
 
 void QuadMeshGenerator::emitProgress(float progress, const QString& status)
 {
+    fprintf(stdout, "%d%% done.\n", (int)(progress * 100));
+    fflush(stdout);
     emit reportProgressDetailed(progress, status);
     emit reportProgress(progress);
 }
@@ -75,4 +80,10 @@ void QuadMeshGenerator::generate()
 
     delete m_remeshedQuads;
     m_remeshedQuads = new std::vector<std::vector<size_t>>(m_autoRemesher->remeshedQuads());
+
+    // Capture intermediate isotropic mesh data for preview overlays
+    m_isotropicVertices = m_autoRemesher->isotropicVertices();
+    m_isotropicTriangles = m_autoRemesher->isotropicTriangles();
+    m_isotropicTriangleUvs = m_autoRemesher->isotropicTriangleUvs();
+    m_isotropicSingularVertices = m_autoRemesher->isotropicSingularVertices();
 }

@@ -310,8 +310,14 @@ void IsotropicHalfedgeMesh::breakEdge(IsotropicHalfedgeMesh::Halfedge *halfedge)
         halfedge->nextHalfedge->startVertex->featured;
 
     // Propagate target edge length to the new vertex
-    breakPointVertex->targetEdgeLength = (halfedge->startVertex->targetEdgeLength +
-        halfedge->nextHalfedge->startVertex->targetEdgeLength) * 0.5;
+    if (halfedge->startVertex->targetEdgeLength > 0 && 
+            halfedge->nextHalfedge->startVertex->targetEdgeLength > 0) {
+        breakPointVertex->targetEdgeLength = (halfedge->startVertex->targetEdgeLength +
+            halfedge->nextHalfedge->startVertex->targetEdgeLength) * 0.5;
+    } else {
+        breakPointVertex->targetEdgeLength = halfedge->startVertex->targetEdgeLength +
+            halfedge->nextHalfedge->startVertex->targetEdgeLength;
+    }
 
     std::vector<Halfedge *> leftNewFaceHalfedges;
     std::vector<Halfedge *> leftOldFaceHalfedges;

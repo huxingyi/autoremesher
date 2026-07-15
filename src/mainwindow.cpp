@@ -66,6 +66,7 @@
 LogBrowser* g_logBrowser = nullptr;
 QTextBrowser* g_acknowlegementsWidget = nullptr;
 QTextBrowser* g_supportersWidget = nullptr;
+QTextBrowser* g_contributorsWidget = nullptr;
 AboutWidget* g_aboutWidget = nullptr;
 std::map<MainWindow*, QUuid> g_windows;
 
@@ -165,6 +166,10 @@ MainWindow::MainWindow()
 
     helpMenu->addSeparator();
 
+    QAction* seeContributorsAction = new QAction(tr("Contributors"), this);
+    connect(seeContributorsAction, &QAction::triggered, this, &MainWindow::showContributors);
+    helpMenu->addAction(seeContributorsAction);
+
     QAction* seeSupportersAction = new QAction(tr("Supporters"), this);
     connect(seeSupportersAction, &QAction::triggered, this, &MainWindow::showSupporters);
     helpMenu->addAction(seeSupportersAction);
@@ -186,6 +191,64 @@ MainWindow::MainWindow()
 
     graphicsWidget->setModelWidget(m_modelRenderWidget);
     containerWidget->setModelWidget(m_modelRenderWidget);
+
+    // ============================================================
+    // PREVIEW BUTTONS — [source] [isotropic] [param] [remesh]
+    // (placed in the right sidebar layout below)
+    // ============================================================
+
+    auto makePreviewButton = [&](const QString& label) -> QPushButton* {
+        QPushButton* btn = new QPushButton(label, containerWidget);
+        btn->setFixedHeight(22);
+        btn->setStyleSheet(
+            "QPushButton {"
+            "  color: #191919;"
+            "  background-color: #aaebc4;"
+            "  border: 1px solid #2a2a2a;"
+            "  border-radius: 3px;"
+            "  padding: 0 10px;"
+            "  font-size: 11px;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: #8ad4a8;"
+            "  border-color: #4a4a4a;"
+            "}"
+            "QPushButton:pressed {"
+            "  background-color: #6dbe8e;"
+            "}"
+            "QPushButton:checked {"
+            "  background-color: #aaebc4;"
+            "  color: #191919;"
+            "  border: 1px solid #2a2a2a;"
+            "}"
+            "QPushButton:!checked {"
+            "  background-color: rgba(42, 42, 42, 180);"
+            "  color: #aaaaaa;"
+            "  border: 1px solid #3a3a3a;"
+            "}"
+            "QPushButton:!checked:hover {"
+            "  background-color: rgba(60, 60, 60, 200);"
+            "  color: #cccccc;"
+            "}");
+        btn->setCheckable(true);
+        btn->show();
+        return btn;
+    };
+
+    m_previewSourceButton = makePreviewButton(tr("Source"));
+    m_previewIsotropicButton = makePreviewButton(tr("Isotropic"));
+    m_previewParamButton = makePreviewButton(tr("Param"));
+    m_previewRemeshButton = makePreviewButton(tr("Remeshed"));
+
+    m_previewSourceButton->setEnabled(false);
+    m_previewIsotropicButton->setEnabled(false);
+    m_previewParamButton->setEnabled(false);
+    m_previewRemeshButton->setEnabled(false);
+
+    connect(m_previewSourceButton, &QPushButton::clicked, this, &MainWindow::switchToSourceView);
+    connect(m_previewIsotropicButton, &QPushButton::clicked, this, &MainWindow::switchToIsotropicView);
+    connect(m_previewParamButton, &QPushButton::clicked, this, &MainWindow::switchToParamView);
+    connect(m_previewRemeshButton, &QPushButton::clicked, this, &MainWindow::switchToRemeshView);
 
     // ============================================================
     // PROGRESS BAR — thin micro-line at top of window
@@ -318,15 +381,25 @@ MainWindow::MainWindow()
     saveLayout->addWidget(saveMeshButton, 1);
     controlsLayout->addLayout(saveLayout);
 
+    controlsLayout->addStretch();
+
     controlsLayout->addWidget(m_quadCountLabel);
     controlsLayout->addWidget(m_nonQuadCountLabel);
     controlsLayout->addWidget(m_vertexCountLabel);
 
-    controlsLayout->addStretch();
+    // Preview overlay buttons in a row at bottom of sidebar
+    controlsLayout->addSpacing(8);
+    QHBoxLayout* previewButtonsLayout = new QHBoxLayout;
+    previewButtonsLayout->setSpacing(4);
+    previewButtonsLayout->addWidget(m_previewSourceButton);
+    previewButtonsLayout->addWidget(m_previewIsotropicButton);
+    previewButtonsLayout->addWidget(m_previewParamButton);
+    previewButtonsLayout->addWidget(m_previewRemeshButton);
+    controlsLayout->addLayout(previewButtonsLayout);
 
     QWidget* controlsPanel = new QWidget;
     controlsPanel->setLayout(controlsLayout);
-    controlsPanel->setFixedWidth(220);
+    controlsPanel->setFixedWidth(300);
     controlsPanel->setObjectName("controlsPanel");
     controlsPanel->setStyleSheet(
         "#controlsPanel {"
@@ -413,6 +486,12 @@ void MainWindow::updateButtonStates()
         m_adaptivityWidget->setDisabled(true);
         //m_modelTypeSelectBox->setDisabled(true);
     }
+
+    // Update preview button availability
+    m_previewSourceButton->setEnabled(m_sourceRenderMesh != nullptr);
+    m_previewIsotropicButton->setEnabled(m_isotropicRenderMesh != nullptr);
+    m_previewParamButton->setEnabled(m_paramRenderMesh != nullptr);
+    m_previewRemeshButton->setEnabled(m_remeshRenderMesh != nullptr);
 }
 
 bool MainWindow::loadObj(const QString& filename)
@@ -506,6 +585,28 @@ bool MainWindow::loadObj(const QString& filename)
         return false;
     }
 
+    delete m_sourceRenderMesh;
+    m_sourceRenderMesh = nullptr;
+    delete m_isotropicRenderMesh;
+    m_isotropicRenderMesh = nullptr;
+    delete m_paramRenderMesh;
+    m_paramRenderMesh = nullptr;
+    delete m_remeshRenderMesh;
+    m_remeshRenderMesh = nullptr;
+    m_isotropicVertices.clear();
+    m_isotropicTriangles.clear();
+    m_isotropicTriangleUvs.clear();
+    m_isotropicSingularVertices.clear();
+    delete m_remeshedVertices;
+    m_remeshedVertices = nullptr;
+    delete m_remeshedQuads;
+    m_remeshedQuads = nullptr;
+    m_previewMode = PreviewSource;
+    m_previewSourceButton->setChecked(false);
+    m_previewIsotropicButton->setChecked(false);
+    m_previewParamButton->setChecked(false);
+    m_previewRemeshButton->setChecked(false);
+
     m_originalVertices = vertices;
     m_originalTriangles = triangles;
 
@@ -595,6 +696,50 @@ void MainWindow::updateTitle()
     setWindowTitle(QString("%1 %2 %3%4").arg(appName).arg(appVer).arg(m_currentFilename).arg(m_saved ? "" : "*"));
 }
 
+void MainWindow::switchToSourceView()
+{
+    m_previewMode = PreviewSource;
+    m_previewSourceButton->setChecked(true);
+    m_previewIsotropicButton->setChecked(false);
+    m_previewParamButton->setChecked(false);
+    m_previewRemeshButton->setChecked(false);
+    if (m_sourceRenderMesh)
+        m_modelRenderWidget->updateMesh(new ModelShaderMesh(*m_sourceRenderMesh));
+}
+
+void MainWindow::switchToIsotropicView()
+{
+    m_previewMode = PreviewIsotropic;
+    m_previewSourceButton->setChecked(false);
+    m_previewIsotropicButton->setChecked(true);
+    m_previewParamButton->setChecked(false);
+    m_previewRemeshButton->setChecked(false);
+    if (m_isotropicRenderMesh)
+        m_modelRenderWidget->updateMesh(new ModelShaderMesh(*m_isotropicRenderMesh));
+}
+
+void MainWindow::switchToParamView()
+{
+    m_previewMode = PreviewParam;
+    m_previewSourceButton->setChecked(false);
+    m_previewIsotropicButton->setChecked(false);
+    m_previewParamButton->setChecked(true);
+    m_previewRemeshButton->setChecked(false);
+    if (m_paramRenderMesh)
+        m_modelRenderWidget->updateMesh(new ModelShaderMesh(*m_paramRenderMesh));
+}
+
+void MainWindow::switchToRemeshView()
+{
+    m_previewMode = PreviewRemesh;
+    m_previewSourceButton->setChecked(false);
+    m_previewIsotropicButton->setChecked(false);
+    m_previewParamButton->setChecked(false);
+    m_previewRemeshButton->setChecked(true);
+    if (m_remeshRenderMesh)
+        m_modelRenderWidget->updateMesh(new ModelShaderMesh(*m_remeshRenderMesh));
+}
+
 void MainWindow::updateProgress(float progress)
 {
 #ifdef Q_OS_WIN32
@@ -615,6 +760,10 @@ void MainWindow::updateProgressDetailed(float progress, const QString& status)
 MainWindow::~MainWindow()
 {
     g_windows.erase(this);
+    delete m_sourceRenderMesh;
+    delete m_isotropicRenderMesh;
+    delete m_paramRenderMesh;
+    delete m_remeshRenderMesh;
 }
 
 ModelShaderWidget* MainWindow::modelRenderWidget() const
@@ -635,6 +784,23 @@ void MainWindow::showSupporters()
     g_supportersWidget->show();
     g_supportersWidget->activateWindow();
     g_supportersWidget->raise();
+}
+
+void MainWindow::showContributors()
+{
+    if (!g_contributorsWidget) {
+        g_contributorsWidget = new QTextBrowser;
+        g_contributorsWidget->setWindowTitle(unifiedWindowTitle(tr("Contributors")));
+        g_contributorsWidget->setMinimumSize(QSize(320, 280));
+        QFile authors(":/AUTHORS");
+        authors.open(QFile::ReadOnly | QFile::Text);
+        QFile contributors(":/CONTRIBUTORS");
+        contributors.open(QFile::ReadOnly | QFile::Text);
+        g_contributorsWidget->setHtml("<h1>AUTHORS</h1><pre>" + authors.readAll() + "</pre><h1>CONTRIBUTORS</h1><pre>" + contributors.readAll() + "</pre>");
+    }
+    g_contributorsWidget->show();
+    g_contributorsWidget->activateWindow();
+    g_contributorsWidget->raise();
 }
 
 void MainWindow::showAcknowlegements()
@@ -760,9 +926,401 @@ void MainWindow::renderMeshReady()
     delete m_renderMeshGenerator;
     m_renderMeshGenerator = nullptr;
 
+    // Save a copy of the mesh being displayed, then pass ownership to the binder
+    if (nullptr == m_remeshedVertices && nullptr == m_remeshedQuads) {
+        // This is the source mesh being displayed
+        delete m_sourceRenderMesh;
+        m_sourceRenderMesh = new ModelShaderMesh(*renderMesh);
+        m_previewMode = PreviewSource;
+        m_previewSourceButton->setChecked(true);
+        m_previewIsotropicButton->setChecked(false);
+        m_previewParamButton->setChecked(false);
+        m_previewRemeshButton->setChecked(false);
+    } else {
+        // This is the remesh result being displayed — save a copy
+        delete m_remeshRenderMesh;
+        m_remeshRenderMesh = new ModelShaderMesh(*renderMesh);
+
+        // Now generate isotropic (voxel) and param preview meshes
+        generatePreviewMeshes();
+    }
+
     m_modelRenderWidget->updateMesh(renderMesh);
 
+    updateButtonStates();
+
     checkRenderQueue();
+}
+
+static ModelShaderMesh* buildRenderMeshFromTriangles(
+    const std::vector<AutoRemesher::Vector3>& vertices,
+    const std::vector<std::vector<size_t>>& triangles)
+{
+    if (vertices.empty() || triangles.empty())
+        return new ModelShaderMesh;
+
+    // Normalize vertices to unit cube
+    double minX = std::numeric_limits<double>::max();
+    double maxX = std::numeric_limits<double>::lowest();
+    double minY = std::numeric_limits<double>::max();
+    double maxY = std::numeric_limits<double>::lowest();
+    double minZ = std::numeric_limits<double>::max();
+    double maxZ = std::numeric_limits<double>::lowest();
+    for (const auto& v : vertices) {
+        if (v.x() < minX)
+            minX = v.x();
+        if (v.x() > maxX)
+            maxX = v.x();
+        if (v.y() < minY)
+            minY = v.y();
+        if (v.y() > maxY)
+            maxY = v.y();
+        if (v.z() < minZ)
+            minZ = v.z();
+        if (v.z() > maxZ)
+            maxZ = v.z();
+    }
+    AutoRemesher::Vector3 origin = {
+        (maxX + minX) * 0.5, (maxY + minY) * 0.5, (maxZ + minZ) * 0.5
+    };
+    double maxLength = std::max({ maxX - minX, maxY - minY, maxZ - minZ }) * 0.5;
+    if (maxLength < 1e-10)
+        maxLength = 1.0;
+
+    std::vector<AutoRemesher::Vector3> normalizedVerts(vertices.size());
+    for (size_t i = 0; i < vertices.size(); ++i)
+        normalizedVerts[i] = (vertices[i] - origin) / maxLength;
+
+    // Compute per-vertex normals
+    std::vector<AutoRemesher::Vector3> normals(vertices.size());
+    for (const auto& tri : triangles) {
+        AutoRemesher::Vector3 n = AutoRemesher::Vector3::normal(
+            normalizedVerts[tri[0]], normalizedVerts[tri[1]], normalizedVerts[tri[2]]);
+        normals[tri[0]] += n;
+        normals[tri[1]] += n;
+        normals[tri[2]] += n;
+    }
+    for (auto& n : normals)
+        n.normalize();
+
+    // Build vertex array (3 verts per triangle)
+    int vertexCount = (int)triangles.size() * 3;
+    int edgeVertexCount = (int)triangles.size() * 6; // 2 per edge, 3 edges per tri
+    ModelShaderVertex* vertData = new ModelShaderVertex[vertexCount];
+    ModelShaderVertex* edgeData = new ModelShaderVertex[edgeVertexCount];
+    memset(vertData, 0, sizeof(ModelShaderVertex) * vertexCount);
+    memset(edgeData, 0, sizeof(ModelShaderVertex) * edgeVertexCount);
+
+    int vi = 0;
+    int ei = 0;
+    for (const auto& tri : triangles) {
+        for (int j = 0; j < 3; ++j) {
+            // Edge vertex (2 per edge segment)
+            for (int e = 0; e < 2; ++e) {
+                auto& ev = edgeData[ei++];
+                int idx = (int)tri[(j + e) % 3];
+                ev.posX = (float)normalizedVerts[idx].x();
+                ev.posY = (float)normalizedVerts[idx].y();
+                ev.posZ = (float)normalizedVerts[idx].z();
+                ev.normX = (float)normals[idx].x();
+                ev.normY = (float)normals[idx].y();
+                ev.normZ = (float)normals[idx].z();
+                ev.colorR = 0.0f;
+                ev.colorG = 0.0f;
+                ev.colorB = 0.0f;
+                ev.roughness = 1.0f;
+                ev.alpha = 1.0f;
+            }
+
+            // Triangle vertex
+            auto& tv = vertData[vi++];
+            int idx = (int)tri[j];
+            tv.posX = (float)normalizedVerts[idx].x();
+            tv.posY = (float)normalizedVerts[idx].y();
+            tv.posZ = (float)normalizedVerts[idx].z();
+            tv.normX = (float)normals[idx].x();
+            tv.normY = (float)normals[idx].y();
+            tv.normZ = (float)normals[idx].z();
+            tv.colorR = 1.0f;
+            tv.colorG = 0.996f;
+            tv.colorB = 0.890f;
+            tv.roughness = 1.0f;
+            tv.alpha = 1.0f;
+        }
+    }
+
+    std::vector<AutoRemesher::Vector3>* vertsCopy = new std::vector<AutoRemesher::Vector3>(normalizedVerts);
+    std::vector<std::vector<size_t>>* facesCopy = new std::vector<std::vector<size_t>>(triangles);
+    return new ModelShaderMesh(vertData, vertexCount, edgeData, ei, vertsCopy, facesCopy);
+}
+
+// Forward declarations for static mesh builders
+static ModelShaderMesh* buildRenderMeshFromTriangles(
+    const std::vector<AutoRemesher::Vector3>& vertices,
+    const std::vector<std::vector<size_t>>& triangles);
+static ModelShaderMesh* buildUvRenderMesh(
+    const std::vector<AutoRemesher::Vector3>& vertices,
+    const std::vector<std::vector<size_t>>& triangles,
+    const std::vector<std::vector<AutoRemesher::Vector2>>& triangleUvs,
+    const std::vector<AutoRemesher::Vector3>& singularVertices = {});
+
+void MainWindow::generatePreviewMeshes()
+{
+    // Generate isotropic (voxel) preview mesh
+    delete m_isotropicRenderMesh;
+    m_isotropicRenderMesh = buildRenderMeshFromTriangles(
+        m_isotropicVertices, m_isotropicTriangles);
+
+    // Generate param (UV) preview mesh with texture
+    delete m_paramRenderMesh;
+    if (!m_isotropicVertices.empty() && !m_isotropicTriangles.empty()
+        && !m_isotropicTriangleUvs.empty()) {
+        // Build a render mesh with UV coordinates and texture
+        m_paramRenderMesh = buildUvRenderMesh(
+            m_isotropicVertices, m_isotropicTriangles,
+            m_isotropicTriangleUvs, m_isotropicSingularVertices);
+    } else {
+        m_paramRenderMesh = new ModelShaderMesh;
+    }
+
+    // Enable preview buttons
+    m_previewIsotropicButton->setEnabled(true);
+    m_previewParamButton->setEnabled(true);
+    m_previewRemeshButton->setEnabled(true);
+
+    // Show the remesh result by default (master copy stays in m_remeshRenderMesh)
+    m_previewMode = PreviewRemesh;
+    m_previewSourceButton->setChecked(false);
+    m_previewIsotropicButton->setChecked(false);
+    m_previewParamButton->setChecked(false);
+    m_previewRemeshButton->setChecked(true);
+    m_modelRenderWidget->updateMesh(
+        m_remeshRenderMesh ? new ModelShaderMesh(*m_remeshRenderMesh) : new ModelShaderMesh);
+}
+
+static ModelShaderMesh* buildUvRenderMesh(
+    const std::vector<AutoRemesher::Vector3>& vertices,
+    const std::vector<std::vector<size_t>>& triangles,
+    const std::vector<std::vector<AutoRemesher::Vector2>>& triangleUvs,
+    const std::vector<AutoRemesher::Vector3>& singularVertices)
+{
+    if (vertices.empty() || triangles.empty() || triangleUvs.empty())
+        return new ModelShaderMesh;
+
+    // Normalize vertices
+    double minX = std::numeric_limits<double>::max();
+    double maxX = std::numeric_limits<double>::lowest();
+    double minY = std::numeric_limits<double>::max();
+    double maxY = std::numeric_limits<double>::lowest();
+    double minZ = std::numeric_limits<double>::max();
+    double maxZ = std::numeric_limits<double>::lowest();
+    for (const auto& v : vertices) {
+        if (v.x() < minX)
+            minX = v.x();
+        if (v.x() > maxX)
+            maxX = v.x();
+        if (v.y() < minY)
+            minY = v.y();
+        if (v.y() > maxY)
+            maxY = v.y();
+        if (v.z() < minZ)
+            minZ = v.z();
+        if (v.z() > maxZ)
+            maxZ = v.z();
+    }
+    AutoRemesher::Vector3 origin = {
+        (maxX + minX) * 0.5, (maxY + minY) * 0.5, (maxZ + minZ) * 0.5
+    };
+    double maxLength = std::max({ maxX - minX, maxY - minY, maxZ - minZ }) * 0.5;
+    if (maxLength < 1e-10)
+        maxLength = 1.0;
+
+    std::vector<AutoRemesher::Vector3> normalizedVerts(vertices.size());
+    for (size_t i = 0; i < vertices.size(); ++i)
+        normalizedVerts[i] = (vertices[i] - origin) / maxLength;
+
+    // Compute per-vertex normals
+    std::vector<AutoRemesher::Vector3> normals(vertices.size());
+    for (const auto& tri : triangles) {
+        AutoRemesher::Vector3 n = AutoRemesher::Vector3::normal(
+            normalizedVerts[tri[0]], normalizedVerts[tri[1]], normalizedVerts[tri[2]]);
+        normals[tri[0]] += n;
+        normals[tri[1]] += n;
+        normals[tri[2]] += n;
+    }
+    for (auto& n : normals)
+        n.normalize();
+
+    // Map UVs from [-1, 1] to [0, 1] (geogram QuadCover convention)
+    auto normalizeUv = [](double x) {
+        return 0.5 + x * 0.5;
+    };
+
+    // Build vertex array with UV coordinates
+    int vertexCount = (int)triangles.size() * 3;
+    int edgeVertexCount = (int)triangles.size() * 6;
+    ModelShaderVertex* vertData = new ModelShaderVertex[vertexCount];
+    ModelShaderVertex* edgeData = new ModelShaderVertex[edgeVertexCount];
+    memset(vertData, 0, sizeof(ModelShaderVertex) * vertexCount);
+    memset(edgeData, 0, sizeof(ModelShaderVertex) * edgeVertexCount);
+
+    int vi = 0;
+    int ei = 0;
+    for (size_t i = 0; i < triangles.size(); ++i) {
+        const auto& tri = triangles[i];
+        const auto& uvTri = (i < triangleUvs.size()) ? triangleUvs[i] : triangleUvs.back();
+        for (int j = 0; j < 3; ++j) {
+            // Edge vertex
+            for (int e = 0; e < 2; ++e) {
+                auto& ev = edgeData[ei++];
+                int idx = (int)tri[(j + e) % 3];
+                ev.posX = (float)normalizedVerts[idx].x();
+                ev.posY = (float)normalizedVerts[idx].y();
+                ev.posZ = (float)normalizedVerts[idx].z();
+                ev.normX = (float)normals[idx].x();
+                ev.normY = (float)normals[idx].y();
+                ev.normZ = (float)normals[idx].z();
+                ev.colorR = 0.0f;
+                ev.colorG = 0.0f;
+                ev.colorB = 0.0f;
+                ev.roughness = 1.0f;
+                ev.alpha = 1.0f;
+            }
+
+            // Triangle vertex with UV
+            auto& tv = vertData[vi++];
+            int idx = (int)tri[j];
+            tv.posX = (float)normalizedVerts[idx].x();
+            tv.posY = (float)normalizedVerts[idx].y();
+            tv.posZ = (float)normalizedVerts[idx].z();
+            tv.normX = (float)normals[idx].x();
+            tv.normY = (float)normals[idx].y();
+            tv.normZ = (float)normals[idx].z();
+            tv.colorR = 1.0f;
+            tv.colorG = 0.996f;
+            tv.colorB = 0.890f;
+            tv.texU = (float)normalizeUv(uvTri[j].x());
+            tv.texV = (float)normalizeUv(uvTri[j].y());
+            tv.roughness = 1.0f;
+            tv.alpha = 1.0f;
+        }
+    }
+
+    std::vector<AutoRemesher::Vector3>* vertsCopy = new std::vector<AutoRemesher::Vector3>(normalizedVerts);
+    std::vector<std::vector<size_t>>* facesCopy = new std::vector<std::vector<size_t>>(triangles);
+    ModelShaderMesh* mesh = new ModelShaderMesh(vertData, vertexCount, edgeData, ei, vertsCopy, facesCopy);
+
+    // Load the cross UV texture
+    QImage* textureImage = new QImage(":/resources/crossuv.png");
+    mesh->setTextureImage(textureImage);
+
+    // Add small white sphere markers at singular vertex positions
+    if (!singularVertices.empty()) {
+        // Generate an icosahedron as a small sphere marker
+        // Golden ratio for icosahedron vertices
+        const float phi = (1.0f + std::sqrt(5.0f)) * 0.5f;
+        // Unit icosahedron vertices
+        std::vector<AutoRemesher::Vector3> sphereVerts = {
+            { -1, phi, 0 }, { 1, phi, 0 }, { -1, -phi, 0 }, { 1, -phi, 0 },
+            { 0, -1, phi }, { 0, 1, phi }, { 0, -1, -phi }, { 0, 1, -phi },
+            { phi, 0, -1 }, { phi, 0, 1 }, { -phi, 0, -1 }, { -phi, 0, 1 }
+        };
+        // Normalize to unit sphere
+        for (auto& v : sphereVerts) {
+            float len = std::sqrt(v.x() * v.x() + v.y() * v.y() + v.z() * v.z());
+            if (len > 1e-10f) {
+                v.setX(v.x() / len);
+                v.setY(v.y() / len);
+                v.setZ(v.z() / len);
+            }
+        }
+        // Icosahedron triangle indices (20 faces)
+        int indices[20][3] = {
+            { 0, 11, 5 }, { 0, 5, 1 }, { 0, 1, 7 }, { 0, 7, 10 }, { 0, 10, 11 },
+            { 1, 5, 9 }, { 5, 11, 4 }, { 11, 10, 2 }, { 10, 7, 6 }, { 7, 1, 8 },
+            { 3, 9, 4 }, { 3, 4, 2 }, { 3, 2, 6 }, { 3, 6, 8 }, { 3, 8, 9 },
+            { 4, 9, 5 }, { 2, 4, 11 }, { 6, 2, 10 }, { 8, 6, 7 }, { 9, 8, 1 }
+        };
+        // Subdivide once for smoother spheres (each triangle becomes 4)
+        std::vector<AutoRemesher::Vector3> subVerts;
+        std::vector<int> subIndices;
+        for (int f = 0; f < 20; ++f) {
+            int i0 = indices[f][0], i1 = indices[f][1], i2 = indices[f][2];
+            auto& v0 = sphereVerts[i0];
+            auto& v1 = sphereVerts[i1];
+            auto& v2 = sphereVerts[i2];
+            auto mid = [](const AutoRemesher::Vector3& a, const AutoRemesher::Vector3& b) {
+                AutoRemesher::Vector3 m = { (a.x() + b.x()) * 0.5f, (a.y() + b.y()) * 0.5f, (a.z() + b.z()) * 0.5f };
+                float len = std::sqrt(m.x() * m.x() + m.y() * m.y() + m.z() * m.z());
+                if (len > 1e-10f) {
+                    m.setX(m.x() / len);
+                    m.setY(m.y() / len);
+                    m.setZ(m.z() / len);
+                }
+                return m;
+            };
+            AutoRemesher::Vector3 m01 = mid(v0, v1);
+            AutoRemesher::Vector3 m12 = mid(v1, v2);
+            AutoRemesher::Vector3 m20 = mid(v2, v0);
+            int bi = (int)subVerts.size();
+            subVerts.push_back(v0);
+            subVerts.push_back(v1);
+            subVerts.push_back(v2);
+            subVerts.push_back(m01);
+            subVerts.push_back(m12);
+            subVerts.push_back(m20);
+            subIndices.push_back(bi + 0);
+            subIndices.push_back(bi + 3);
+            subIndices.push_back(bi + 5);
+            subIndices.push_back(bi + 3);
+            subIndices.push_back(bi + 1);
+            subIndices.push_back(bi + 4);
+            subIndices.push_back(bi + 5);
+            subIndices.push_back(bi + 4);
+            subIndices.push_back(bi + 2);
+            subIndices.push_back(bi + 3);
+            subIndices.push_back(bi + 4);
+            subIndices.push_back(bi + 5);
+        }
+
+        // Compute the sphere radius as a fraction of the mesh bounding box
+        double sphereRadius = 0.0025;
+        if (sphereRadius < 0.001)
+            sphereRadius = 0.001;
+
+        // Build tool vertices for all singular vertex spheres
+        int sphereTriCount = (int)subIndices.size() / 3;
+        int totalToolVerts = (int)singularVertices.size() * sphereTriCount * 3;
+        ModelShaderVertex* toolVerts = new ModelShaderVertex[totalToolVerts];
+        memset(toolVerts, 0, sizeof(ModelShaderVertex) * totalToolVerts);
+
+        int toolVi = 0;
+        for (const auto& svPos : singularVertices) {
+            // Normalize singular vertex position (same normalization as the mesh)
+            AutoRemesher::Vector3 normalizedPos = (svPos - origin) / maxLength;
+            for (int t = 0; t < sphereTriCount; ++t) {
+                for (int j = 0; j < 3; ++j) {
+                    auto& tv = toolVerts[toolVi++];
+                    int vi = subIndices[t * 3 + j];
+                    tv.posX = (float)(normalizedPos.x() + subVerts[vi].x() * sphereRadius);
+                    tv.posY = (float)(normalizedPos.y() + subVerts[vi].y() * sphereRadius);
+                    tv.posZ = (float)(normalizedPos.z() + subVerts[vi].z() * sphereRadius);
+                    tv.normX = subVerts[vi].x();
+                    tv.normY = subVerts[vi].y();
+                    tv.normZ = subVerts[vi].z();
+                    tv.colorR = 1.0f;
+                    tv.colorG = 1.0f;
+                    tv.colorB = 1.0f;
+                    tv.roughness = 0.3f;
+                    tv.alpha = 1.0f;
+                }
+            }
+        }
+
+        mesh->updateTool(toolVerts, totalToolVerts);
+    }
+
+    return mesh;
 }
 
 void MainWindow::setHeadlessParams(const QString& inputPath, const QString& outputPath,
@@ -890,6 +1448,12 @@ void MainWindow::quadMeshReady()
 
     m_saved = false;
     m_inProgress = false;
+
+    // Capture intermediate isotropic mesh data for preview overlays
+    m_isotropicVertices = m_quadMeshGenerator->isotropicVertices();
+    m_isotropicTriangles = m_quadMeshGenerator->isotropicTriangles();
+    m_isotropicTriangleUvs = m_quadMeshGenerator->isotropicTriangleUvs();
+    m_isotropicSingularVertices = m_quadMeshGenerator->isotropicSingularVertices();
 
     delete m_quadMeshGenerator;
     m_quadMeshGenerator = nullptr;

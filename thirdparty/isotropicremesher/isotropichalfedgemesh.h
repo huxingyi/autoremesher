@@ -24,6 +24,7 @@
 #include <set>
 #include <functional>
 #include "vector3.h"
+#include <cstdint>
 
 class IsotropicHalfedgeMesh
 {
