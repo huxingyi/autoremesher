@@ -24,6 +24,7 @@
 #include <AutoRemesher/AutoRemesher>
 #include <AutoRemesher/Vector2>
 #include <QObject>
+#include <utility>
 
 class QuadMeshGenerator : public QObject {
     Q_OBJECT
@@ -90,6 +91,11 @@ public:
         return m_isotropicSingularVertices;
     }
 
+    const std::vector<std::pair<AutoRemesher::Vector3, AutoRemesher::Vector3>>& isotropicExtractedConnections() const
+    {
+        return m_isotropicExtractedConnections;
+    }
+
     void generate();
     void emitProgress(float progress);
     void emitProgress(float progress, const QString& status);
@@ -111,6 +117,7 @@ private:
     std::vector<std::vector<size_t>> m_isotropicTriangles;
     std::vector<std::vector<AutoRemesher::Vector2>> m_isotropicTriangleUvs;
     std::vector<AutoRemesher::Vector3> m_isotropicSingularVertices;
+    std::vector<std::pair<AutoRemesher::Vector3, AutoRemesher::Vector3>> m_isotropicExtractedConnections;
     AutoRemesher::AutoRemesher* m_autoRemesher = nullptr;
     Parameters m_parameters;
 };

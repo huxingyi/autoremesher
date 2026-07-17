@@ -75,6 +75,7 @@ private:
     QOpenGLVertexArrayObject m_vaoTriangle;
     QOpenGLBuffer m_vboTriangle;
     MonochromeOpenGLObject m_wireframeObject;
+    MonochromeOpenGLObject m_connectionWireframeObject;
     QOpenGLVertexArrayObject m_vaoTool;
     QOpenGLBuffer m_vboTool;
     QMutex m_meshMutex;

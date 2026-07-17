@@ -37,6 +37,12 @@ bool QuadExtractor::extract()
     std::vector<size_t> crossPointSourceTriangles;
     std::set<std::pair<size_t, size_t>> connections;
     extractConnections(&crossPoints, &crossPointSourceTriangles, &connections);
+    m_extractedConnections.clear();
+    m_extractedConnections.reserve(connections.size());
+    for (const auto& connection : connections) {
+        m_extractedConnections.emplace_back(crossPoints[connection.first],
+            crossPoints[connection.second]);
+    }
     std::cerr << "Extract connections done" << std::endl;
 
 #if AUTO_REMESHER_DEV

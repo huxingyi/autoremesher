@@ -33,6 +33,7 @@
 #include <QShowEvent>
 #include <QString>
 #include <queue>
+#include <utility>
 
 class RenderMeshGenerator;
 class QuadMeshGenerator;
@@ -150,6 +151,7 @@ private:
     std::vector<std::vector<size_t>> m_isotropicTriangles;
     std::vector<std::vector<AutoRemesher::Vector2>> m_isotropicTriangleUvs;
     std::vector<AutoRemesher::Vector3> m_isotropicSingularVertices;
+    std::vector<std::pair<AutoRemesher::Vector3, AutoRemesher::Vector3>> m_isotropicExtractedConnections;
 
     // Render meshes for each preview mode (owned)
     ModelShaderMesh* m_sourceRenderMesh = nullptr;

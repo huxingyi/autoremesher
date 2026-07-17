@@ -480,6 +480,7 @@ bool AutoRemesher::remesh()
         AutoRemesher* autoRemesher = nullptr;
         std::vector<std::vector<Vector2>> capturedUvs;
         std::vector<Vector3> capturedSingularVertices;
+        std::vector<std::pair<Vector3, Vector3>> capturedExtractedConnections;
     };
 
     std::vector<ParameterizationThread> parameterizationThreads(islandContexes.size());
@@ -569,6 +570,8 @@ bool AutoRemesher::remesh()
                     if (!thread.remesher->extract()) {
                         delete thread.remesher;
                         thread.remesher = nullptr;
+                    } else {
+                        thread.capturedExtractedConnections = thread.remesher->extractedConnections();
                     }
                     delete uvs;
                 }
@@ -616,6 +619,13 @@ bool AutoRemesher::remesh()
             continue;
         m_isotropicSingularVertices.insert(m_isotropicSingularVertices.end(),
             thread.capturedSingularVertices.begin(), thread.capturedSingularVertices.end());
+    }
+
+    // Merge the raw quad-extraction connections for the [param] preview.
+    m_isotropicExtractedConnections.clear();
+    for (const auto& thread : parameterizationThreads) {
+        m_isotropicExtractedConnections.insert(m_isotropicExtractedConnections.end(),
+            thread.capturedExtractedConnections.begin(), thread.capturedExtractedConnections.end());
     }
     for (size_t i = 0; i < parameterizationThreads.size(); ++i) {
         auto& thread = parameterizationThreads[i];

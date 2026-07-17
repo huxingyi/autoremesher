@@ -41,6 +41,12 @@ ModelShaderMesh::ModelShaderMesh(const ModelShaderMesh& mesh)
         for (int i = 0; i < mesh.m_edgeVertexCount; i++)
             this->m_edgeVertices[i] = mesh.m_edgeVertices[i];
     }
+    if (nullptr != mesh.m_connectionEdgeVertices && mesh.m_connectionEdgeVertexCount > 0) {
+        this->m_connectionEdgeVertices = new ModelShaderVertex[mesh.m_connectionEdgeVertexCount];
+        this->m_connectionEdgeVertexCount = mesh.m_connectionEdgeVertexCount;
+        for (int i = 0; i < mesh.m_connectionEdgeVertexCount; i++)
+            this->m_connectionEdgeVertices[i] = mesh.m_connectionEdgeVertices[i];
+    }
     if (nullptr != mesh.m_toolVertices && mesh.m_toolVertexCount > 0) {
         this->m_toolVertices = new ModelShaderVertex[mesh.m_toolVertexCount];
         this->m_toolVertexCount = mesh.m_toolVertexCount;
@@ -149,6 +155,8 @@ ModelShaderMesh::~ModelShaderMesh()
     m_triangleVertexCount = 0;
     delete[] m_edgeVertices;
     m_edgeVertexCount = 0;
+    delete[] m_connectionEdgeVertices;
+    m_connectionEdgeVertexCount = 0;
     delete[] m_toolVertices;
     m_toolVertexCount = 0;
     delete m_textureImage;
@@ -184,6 +192,16 @@ ModelShaderVertex* ModelShaderMesh::edgeVertices()
 int ModelShaderMesh::edgeVertexCount()
 {
     return m_edgeVertexCount;
+}
+
+ModelShaderVertex* ModelShaderMesh::connectionEdgeVertices()
+{
+    return m_connectionEdgeVertices;
+}
+
+int ModelShaderMesh::connectionEdgeVertexCount()
+{
+    return m_connectionEdgeVertexCount;
 }
 
 ModelShaderVertex* ModelShaderMesh::toolVertices()
@@ -274,6 +292,13 @@ void ModelShaderMesh::updateEdges(ModelShaderVertex* edgeVertices, int edgeVerte
 
     m_edgeVertices = edgeVertices;
     m_edgeVertexCount = edgeVertexCount;
+}
+
+void ModelShaderMesh::updateConnectionEdges(ModelShaderVertex* edgeVertices, int edgeVertexCount)
+{
+    delete[] m_connectionEdgeVertices;
+    m_connectionEdgeVertices = edgeVertices;
+    m_connectionEdgeVertexCount = edgeVertexCount;
 }
 
 void ModelShaderMesh::updateTriangleVertices(ModelShaderVertex* triangleVertices, int triangleVertexCount)

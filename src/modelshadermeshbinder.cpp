@@ -174,6 +174,25 @@ void ModelShaderMeshBinder::paint(ModelShaderProgram* program)
                     m_vboTriangle.release();
                 }
                 {
+                    int connectionEdgeCount = m_mesh->connectionEdgeVertexCount();
+                    if (connectionEdgeCount > 0) {
+                        const ModelShaderVertex* src = m_mesh->connectionEdgeVertices();
+                        std::vector<MonochromeOpenGLVertex> connectionVertices(connectionEdgeCount);
+                        for (int i = 0; i < connectionEdgeCount; ++i) {
+                            connectionVertices[i].posX = src[i].posX;
+                            connectionVertices[i].posY = src[i].posY;
+                            connectionVertices[i].posZ = src[i].posZ;
+                            connectionVertices[i].colorR = 1.0f;
+                            connectionVertices[i].colorG = 1.0f;
+                            connectionVertices[i].colorB = 1.0f;
+                            connectionVertices[i].alpha = 1.0f;
+                        }
+                        m_connectionWireframeObject.update(connectionVertices.data(), connectionEdgeCount);
+                    } else {
+                        m_connectionWireframeObject.update(nullptr, 0);
+                    }
+                }
+                {
                     // Convert edge vertices from ModelShaderVertex to MonochromeOpenGLVertex
                     int edgeCount = m_mesh->edgeVertexCount();
                     if (edgeCount > 0) {
@@ -299,6 +318,7 @@ void ModelShaderMeshBinder::paintWireframe()
         return;
 
     m_wireframeObject.draw();
+    m_connectionWireframeObject.draw();
 }
 
 void ModelShaderMeshBinder::cleanup()
@@ -306,6 +326,7 @@ void ModelShaderMeshBinder::cleanup()
     if (m_vboTriangle.isCreated())
         m_vboTriangle.destroy();
     m_wireframeObject.cleanup();
+    m_connectionWireframeObject.cleanup();
     if (m_toolEnabled) {
         if (m_vboTool.isCreated())
             m_vboTool.destroy();

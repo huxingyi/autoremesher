@@ -43,6 +43,8 @@ public:
     int triangleVertexCount();
     ModelShaderVertex* edgeVertices();
     int edgeVertexCount();
+    ModelShaderVertex* connectionEdgeVertices();
+    int connectionEdgeVertexCount();
     ModelShaderVertex* toolVertices();
     int toolVertexCount();
     const std::vector<AutoRemesher::Vector3>& vertices();
@@ -63,6 +65,7 @@ public:
     static float m_defaultRoughness;
     void updateTool(ModelShaderVertex* toolVertices, int vertexNum);
     void updateEdges(ModelShaderVertex* edgeVertices, int edgeVertexCount);
+    void updateConnectionEdges(ModelShaderVertex* edgeVertices, int edgeVertexCount);
     void updateTriangleVertices(ModelShaderVertex* triangleVertices, int triangleVertexCount);
     quint64 meshId() const;
     void setMeshId(quint64 id);
@@ -73,6 +76,8 @@ private:
     int m_triangleVertexCount = 0;
     ModelShaderVertex* m_edgeVertices = nullptr;
     int m_edgeVertexCount = 0;
+    ModelShaderVertex* m_connectionEdgeVertices = nullptr;
+    int m_connectionEdgeVertexCount = 0;
     ModelShaderVertex* m_toolVertices = nullptr;
     int m_toolVertexCount = 0;
     std::vector<AutoRemesher::Vector3> m_vertices;

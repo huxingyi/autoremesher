@@ -86,4 +86,5 @@ void QuadMeshGenerator::generate()
     m_isotropicTriangles = m_autoRemesher->isotropicTriangles();
     m_isotropicTriangleUvs = m_autoRemesher->isotropicTriangleUvs();
     m_isotropicSingularVertices = m_autoRemesher->isotropicSingularVertices();
+    m_isotropicExtractedConnections = m_autoRemesher->isotropicExtractedConnections();
 }

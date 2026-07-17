@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <map>
 #include <mutex>
+#include <utility>
 #include <vector>
 
 namespace AutoRemesher {
@@ -117,6 +118,11 @@ public:
         return m_isotropicSingularVertices;
     }
 
+    const std::vector<std::pair<Vector3, Vector3>>& isotropicExtractedConnections()
+    {
+        return m_isotropicExtractedConnections;
+    }
+
     bool remesh();
 
     void updateProgress(size_t threadIndex, float progress);
@@ -143,6 +149,7 @@ private:
     std::vector<std::vector<size_t>> m_isotropicTriangles;
     std::vector<std::vector<Vector2>> m_isotropicTriangleUvs;
     std::vector<Vector3> m_isotropicSingularVertices;
+    std::vector<std::pair<Vector3, Vector3>> m_isotropicExtractedConnections;
     std::vector<float> m_threadProgress;
     std::vector<float> m_threadProgressWeights;
     double m_scaling = 0.0;

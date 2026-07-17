@@ -490,6 +490,7 @@ bool MainWindow::loadObj(const QString& filename)
     m_isotropicTriangles.clear();
     m_isotropicTriangleUvs.clear();
     m_isotropicSingularVertices.clear();
+    m_isotropicExtractedConnections.clear();
     delete m_remeshedVertices;
     m_remeshedVertices = nullptr;
     delete m_remeshedQuads;
@@ -979,7 +980,8 @@ static ModelShaderMesh* buildUvRenderMesh(
     const std::vector<AutoRemesher::Vector3>& vertices,
     const std::vector<std::vector<size_t>>& triangles,
     const std::vector<std::vector<AutoRemesher::Vector2>>& triangleUvs,
-    const std::vector<AutoRemesher::Vector3>& singularVertices = {});
+    const std::vector<AutoRemesher::Vector3>& singularVertices = {},
+    const std::vector<std::pair<AutoRemesher::Vector3, AutoRemesher::Vector3>>& extractedConnections = {});
 
 void MainWindow::generatePreviewMeshes()
 {
@@ -995,7 +997,7 @@ void MainWindow::generatePreviewMeshes()
         // Build a render mesh with UV coordinates and texture
         m_paramRenderMesh = buildUvRenderMesh(
             m_isotropicVertices, m_isotropicTriangles,
-            m_isotropicTriangleUvs, m_isotropicSingularVertices);
+            m_isotropicTriangleUvs, m_isotropicSingularVertices, m_isotropicExtractedConnections);
     } else {
         m_paramRenderMesh = new ModelShaderMesh;
     }
@@ -1019,7 +1021,8 @@ static ModelShaderMesh* buildUvRenderMesh(
     const std::vector<AutoRemesher::Vector3>& vertices,
     const std::vector<std::vector<size_t>>& triangles,
     const std::vector<std::vector<AutoRemesher::Vector2>>& triangleUvs,
-    const std::vector<AutoRemesher::Vector3>& singularVertices)
+    const std::vector<AutoRemesher::Vector3>& singularVertices,
+    const std::vector<std::pair<AutoRemesher::Vector3, AutoRemesher::Vector3>>& extractedConnections)
 {
     if (vertices.empty() || triangles.empty() || triangleUvs.empty())
         return new ModelShaderMesh;
@@ -1130,6 +1133,27 @@ static ModelShaderMesh* buildUvRenderMesh(
     // Load the cross UV texture
     QImage* textureImage = new QImage(":/resources/crossuv.png");
     mesh->setTextureImage(textureImage);
+
+    // Draw the same raw segments written to debug-quadextractor-connections.obj.
+    if (!extractedConnections.empty()) {
+        auto* connectionVertices = new ModelShaderVertex[extractedConnections.size() * 2];
+        memset(connectionVertices, 0, sizeof(ModelShaderVertex) * extractedConnections.size() * 2);
+        size_t connectionVertexIndex = 0;
+        for (const auto& connection : extractedConnections) {
+            for (const auto& point : { connection.first, connection.second }) {
+                auto& vertex = connectionVertices[connectionVertexIndex++];
+                const AutoRemesher::Vector3 normalizedPoint = (point - origin) / maxLength;
+                vertex.posX = static_cast<float>(normalizedPoint.x());
+                vertex.posY = static_cast<float>(normalizedPoint.y());
+                vertex.posZ = static_cast<float>(normalizedPoint.z());
+                vertex.colorR = 1.0f;
+                vertex.colorG = 1.0f;
+                vertex.colorB = 1.0f;
+                vertex.alpha = 1.0f;
+            }
+        }
+        mesh->updateConnectionEdges(connectionVertices, static_cast<int>(connectionVertexIndex));
+    }
 
     // Add small white sphere markers at singular vertex positions
     if (!singularVertices.empty()) {
@@ -1386,6 +1410,7 @@ void MainWindow::quadMeshReady()
     m_isotropicTriangles = m_quadMeshGenerator->isotropicTriangles();
     m_isotropicTriangleUvs = m_quadMeshGenerator->isotropicTriangleUvs();
     m_isotropicSingularVertices = m_quadMeshGenerator->isotropicSingularVertices();
+    m_isotropicExtractedConnections = m_quadMeshGenerator->isotropicExtractedConnections();
 
     delete m_quadMeshGenerator;
     m_quadMeshGenerator = nullptr;

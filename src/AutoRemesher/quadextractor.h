@@ -24,6 +24,7 @@
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace AutoRemesher {
@@ -49,6 +50,12 @@ public:
         return m_remeshedPolygons;
     }
 
+    // The raw connections produced by extractConnections(), before graph cleanup.
+    const std::vector<std::pair<Vector3, Vector3>>& extractedConnections() const
+    {
+        return m_extractedConnections;
+    }
+
     bool extract();
 
 private:
@@ -57,6 +64,7 @@ private:
     const std::vector<std::vector<Vector2>>* m_triangleUvs = nullptr;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedPolygons;
+    std::vector<std::pair<Vector3, Vector3>> m_extractedConnections;
     std::set<std::pair<size_t, size_t>> m_halfEdges;
 
     void extractConnections(std::vector<Vector3>* crossPoints,
