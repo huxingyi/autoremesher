@@ -22,10 +22,12 @@
 #include <QAction>
 #include <QApplication>
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QDebug>
 #include <QDesktopServices>
 #include <QDockWidget>
 #include <QFile>
+#include <QFileDevice>
 #include <QFileDialog>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -72,6 +74,41 @@ void outputMessage(QtMsgType type, const QMessageLogContext& context, const QStr
 {
     if (g_logBrowser)
         g_logBrowser->outputMessage(type, msg, context.file, context.line);
+}
+
+static bool writeObjFile(const QString& filename,
+    const std::vector<AutoRemesher::Vector3>& vertices,
+    const std::vector<std::vector<size_t>>& faces)
+{
+    for (const auto& face : faces) {
+        if (face.size() < 3)
+            return false;
+        for (const auto& vertexIndex : face) {
+            if (vertexIndex >= vertices.size())
+                return false;
+        }
+    }
+
+    QFile file(filename);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+        return false;
+
+    QTextStream stream(&file);
+    stream << "# " << APP_NAME << " " << APP_HUMAN_VER << "\n";
+    stream << "# " << APP_HOMEPAGE_URL << "\n";
+    for (const auto& vertex : vertices) {
+        stream << "v " << vertex.x() << " " << vertex.y() << " " << vertex.z() << "\n";
+    }
+    for (const auto& face : faces) {
+        stream << "f";
+        for (const auto& vertexIndex : face) {
+            stream << " " << (1 + vertexIndex);
+        }
+        stream << "\n";
+    }
+    stream.flush();
+    file.close();
+    return stream.status() == QTextStream::Ok && file.error() == QFileDevice::NoError;
 }
 
 size_t MainWindow::total()
@@ -477,7 +514,77 @@ bool MainWindow::loadObj(const QString& filename)
         return false;
     }
 
-    // Reset preview state for new model
+    if (attributes.vertices.size() % 3 != 0) {
+        qDebug() << "Invalid OBJ vertex array size:" << attributes.vertices.size();
+        return false;
+    }
+
+    std::vector<AutoRemesher::Vector3> vertices(attributes.vertices.size() / 3);
+    for (size_t i = 0, j = 0; i < vertices.size(); ++i) {
+        auto& dest = vertices[i];
+        dest.setX(attributes.vertices[j++]);
+        dest.setY(attributes.vertices[j++]);
+        dest.setZ(attributes.vertices[j++]);
+    }
+
+    std::vector<std::vector<size_t>> triangles;
+    auto addTriangle = [&](const tinyobj::index_t* indices) {
+        std::vector<size_t> triangle;
+        triangle.reserve(3);
+        for (size_t i = 0; i < 3; ++i) {
+            int vertexIndex = indices[i].vertex_index;
+            if (vertexIndex < 0 || static_cast<size_t>(vertexIndex) >= vertices.size()) {
+                qDebug() << "Invalid OBJ vertex index:" << vertexIndex;
+                return false;
+            }
+            triangle.push_back(static_cast<size_t>(vertexIndex));
+        }
+        if (triangle[0] == triangle[1] || triangle[1] == triangle[2] || triangle[2] == triangle[0])
+            return true;
+        if (AutoRemesher::Vector3::area(vertices[triangle[0]], vertices[triangle[1]], vertices[triangle[2]]) <= 0.0)
+            return true;
+        triangles.push_back(triangle);
+        return true;
+    };
+
+    for (const auto& shape : shapes) {
+        size_t indexOffset = 0;
+        if (shape.mesh.num_face_vertices.empty()) {
+            if (shape.mesh.indices.size() % 3 != 0) {
+                qDebug() << "Invalid OBJ index count:" << shape.mesh.indices.size();
+                return false;
+            }
+            for (; indexOffset < shape.mesh.indices.size(); indexOffset += 3) {
+                if (!addTriangle(&shape.mesh.indices[indexOffset]))
+                    return false;
+            }
+            continue;
+        }
+
+        for (const auto& faceVertexCount : shape.mesh.num_face_vertices) {
+            if (indexOffset + faceVertexCount > shape.mesh.indices.size()) {
+                qDebug() << "Invalid OBJ face index range";
+                return false;
+            }
+            if (faceVertexCount != 3) {
+                qDebug() << "Expected triangulated OBJ face, got vertex count:" << faceVertexCount;
+                return false;
+            }
+            if (!addTriangle(&shape.mesh.indices[indexOffset]))
+                return false;
+            indexOffset += faceVertexCount;
+        }
+        if (indexOffset != shape.mesh.indices.size()) {
+            qDebug() << "OBJ face/index counts do not match";
+            return false;
+        }
+    }
+
+    if (vertices.empty() || triangles.empty()) {
+        qDebug() << "OBJ contains no remeshable triangles";
+        return false;
+    }
+
     delete m_sourceRenderMesh;
     m_sourceRenderMesh = nullptr;
     delete m_isotropicRenderMesh;
@@ -501,23 +608,8 @@ bool MainWindow::loadObj(const QString& filename)
     m_previewParamButton->setChecked(false);
     m_previewRemeshButton->setChecked(false);
 
-    m_originalVertices.resize(attributes.vertices.size() / 3);
-    for (size_t i = 0, j = 0; i < m_originalVertices.size(); ++i) {
-        auto& dest = m_originalVertices[i];
-        dest.setX(attributes.vertices[j++]);
-        dest.setY(attributes.vertices[j++]);
-        dest.setZ(attributes.vertices[j++]);
-    }
-
-    m_originalTriangles.clear();
-    for (const auto& shape : shapes) {
-        for (size_t i = 0; i < shape.mesh.indices.size(); i += 3) {
-            m_originalTriangles.push_back(std::vector<size_t> {
-                (size_t)shape.mesh.indices[i + 0].vertex_index,
-                (size_t)shape.mesh.indices[i + 1].vertex_index,
-                (size_t)shape.mesh.indices[i + 2].vertex_index });
-        }
-    }
+    m_originalVertices = vertices;
+    m_originalTriangles = triangles;
 
     qDebug() << "m_originalVertices.size():" << m_originalVertices.size();
     qDebug() << "m_originalTriangles.size():" << m_originalTriangles.size();
@@ -589,22 +681,13 @@ void MainWindow::saveMesh()
     if (!filename.endsWith(".obj"))
         filename += ".obj";
 
-    QFile file(filename);
-    if (file.open(QIODevice::WriteOnly)) {
-        QTextStream stream(&file);
-        stream << "# " << APP_NAME << " " << APP_HUMAN_VER << "\n";
-        stream << "# " << APP_HOMEPAGE_URL << "\n";
-        for (std::vector<AutoRemesher::Vector3>::const_iterator it = m_remeshedVertices->begin(); it != m_remeshedVertices->end(); ++it) {
-            stream << "v " << (*it).x() << " " << (*it).y() << " " << (*it).z() << "\n";
-        }
-        for (std::vector<std::vector<size_t>>::const_iterator it = m_remeshedQuads->begin(); it != m_remeshedQuads->end(); ++it) {
-            stream << "f";
-            for (std::vector<size_t>::const_iterator subIt = (*it).begin(); subIt != (*it).end(); ++subIt) {
-                stream << " " << (1 + *subIt);
-            }
-            stream << "\n";
-        }
+    if (!writeObjFile(filename, *m_remeshedVertices, *m_remeshedQuads)) {
+        QMessageBox::critical(this, APP_NAME, tr("Failed to save OBJ file."));
+        return;
     }
+
+    m_saved = true;
+    updateTitle();
 }
 
 void MainWindow::updateTitle()
@@ -1279,30 +1362,15 @@ void MainWindow::setHeadlessParams(const QString& inputPath, const QString& outp
     m_adaptivity = static_cast<float>(adaptivity);
 }
 
-void MainWindow::saveMeshToFile(const QString& filename)
+bool MainWindow::saveMeshToFile(const QString& filename)
 {
     if (nullptr == m_remeshedVertices || nullptr == m_remeshedQuads)
-        return;
+        return false;
 
-    QFile file(filename);
-    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QTextStream stream(&file);
-        stream << "# " << APP_NAME << " " << APP_HUMAN_VER << "\n";
-        stream << "# " << APP_HOMEPAGE_URL << "\n";
-        for (std::vector<AutoRemesher::Vector3>::const_iterator it = m_remeshedVertices->begin(); it != m_remeshedVertices->end(); ++it) {
-            stream << "v " << (*it).x() << " " << (*it).y() << " " << (*it).z() << "\n";
-        }
-        for (std::vector<std::vector<size_t>>::const_iterator it = m_remeshedQuads->begin(); it != m_remeshedQuads->end(); ++it) {
-            stream << "f";
-            for (std::vector<size_t>::const_iterator subIt = (*it).begin(); subIt != (*it).end(); ++subIt) {
-                stream << " " << (1 + *subIt);
-            }
-            stream << "\n";
-        }
-    }
+    return writeObjFile(filename, *m_remeshedVertices, *m_remeshedQuads);
 }
 
-void MainWindow::runHeadless()
+bool MainWindow::runHeadless()
 {
     m_headlessTimer.start();
 
@@ -1313,14 +1381,13 @@ void MainWindow::runHeadless()
 
     if (!objLoaded) {
         std::cerr << "Error: Failed to load " << m_currentFilename.toStdString() << std::endl;
-        QCoreApplication::quit();
-        return;
+        return false;
     }
 
     // Start generation
     if (nullptr != m_quadMeshGenerator) {
         m_quadMeshResultIsDirty = true;
-        return;
+        return true;
     }
 
     m_quadMeshResultIsDirty = false;
@@ -1348,6 +1415,7 @@ void MainWindow::runHeadless()
     connect(m_quadMeshGenerator, &QuadMeshGenerator::finished, thread, &QThread::quit);
     connect(thread, &QThread::finished, thread, &QThread::deleteLater);
     thread->start();
+    return true;
 }
 
 void MainWindow::generateQuadMesh()
@@ -1428,7 +1496,11 @@ void MainWindow::quadMeshReady()
 
         if (m_headlessMode) {
             double elapsed = m_headlessTimer.elapsed() / 1000.0;
-            saveMeshToFile(m_headlessOutputPath);
+            if (!saveMeshToFile(m_headlessOutputPath)) {
+                std::cerr << "Error: Failed to write " << m_headlessOutputPath.toStdString() << std::endl;
+                QCoreApplication::exit(1);
+                return;
+            }
             emit headlessFinished(quadCount, nonQuadCount, vertexCount, elapsed);
             return;
         }
@@ -1447,7 +1519,7 @@ void MainWindow::quadMeshReady()
     } else {
         if (m_headlessMode) {
             std::cerr << "Error: Remeshing produced no result" << std::endl;
-            emit headlessFinished(0, 0, 0, m_headlessTimer.elapsed() / 1000.0);
+            QCoreApplication::exit(1);
             return;
         }
         m_renderQueue.push({ std::vector<AutoRemesher::Vector3>(),

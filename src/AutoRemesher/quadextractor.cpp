@@ -1023,11 +1023,16 @@ void QuadExtractor::searchBoundaries(const std::set<std::pair<size_t, size_t>>& 
         std::vector<size_t> loop;
         size_t startVertex = it->first;
         bool validate = false;
+        std::unordered_set<size_t> visited;
         std::cerr << "Searching loop from:" << startVertex << std::endl;
         while (it != nextMap.end()) {
             if (startVertex == it->first && loop.size() >= 3) {
                 std::cerr << "Found valid loop, size:" << loop.size() << std::endl;
                 validate = true;
+                break;
+            }
+            if (!visited.insert(it->first).second) {
+                std::cerr << "Break loop, because of cycle at:" << it->first << std::endl;
                 break;
             }
             std::cerr << "Loop add vertex:" << it->first << std::endl;

@@ -68,8 +68,8 @@ public:
         int targetQuads, double edgeScaling,
         double sharpEdgeDegrees, double smoothNormalDegrees,
         double adaptivity);
-    void runHeadless();
-    void saveMeshToFile(const QString& filename);
+    bool runHeadless();
+    bool saveMeshToFile(const QString& filename);
 
 signals:
     void headlessFinished(size_t quadCount, size_t nonQuadCount, size_t vertexCount, double elapsedSeconds);
