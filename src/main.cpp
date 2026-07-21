@@ -79,6 +79,11 @@ int main(int argc, char** argv)
     QCoreApplication::setOrganizationName(APP_COMPANY);
     QCoreApplication::setOrganizationDomain(APP_HOMEPAGE_URL);
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+    QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
+#endif
+
     QCommandLineParser parser;
     parser.setApplicationDescription("AutoRemesher - Automatic quad remeshing tool");
     parser.addHelpOption();
