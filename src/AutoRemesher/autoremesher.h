@@ -88,6 +88,26 @@ public:
         m_smoothNormalDegrees = degrees;
     }
 
+    void setSymmetryEnabled(bool enabled)
+    {
+        m_symmetryEnabled = enabled;
+    }
+
+    void setSymmetryAxis(int axis)
+    {
+        m_symmetryAxis = axis;
+    }
+
+    void setSeamTolerance(double tolerance)
+    {
+        m_seamTolerance = tolerance;
+    }
+
+    void setCenterOffset(double offset)
+    {
+        m_centerOffset = offset;
+    }
+
     const std::vector<Vector3>& remeshedVertices()
     {
         return m_remeshedVertices;
@@ -159,10 +179,20 @@ private:
     double m_sharpEdgeDegrees = m_defaultSharpEdgeDegrees;
     double m_smoothNormalDegrees = 0.0;
     ModelType m_modelType = ModelType::Organic;
+    bool m_symmetryEnabled = false;
+    int m_symmetryAxis = 0; // 0: X, 1: Y, 2: Z
+    double m_seamTolerance = 0.005;
+    double m_centerOffset = 0.0;
+    double m_symmetryPlanePos = 0.0;
+    double m_symmetryEffectiveTolerance = 0.0;
+    bool m_symmetryPlaneValid = false;
     AutoRemesherProgressHandler m_progressHandler = nullptr;
     void* m_tag = nullptr;
     std::string m_currentStatus;
     mutable std::mutex m_currentStatusMutex;
+
+    void preprocessSymmetricInputMesh();
+    void applySymmetryPass();
 
     static double calculateAverageEdgeLength(const std::vector<Vector3>& vertices,
         const std::vector<std::vector<size_t>>& faces);

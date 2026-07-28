@@ -70,7 +70,12 @@ void QuadMeshGenerator::generate()
     m_autoRemesher->setGradientAdaptivity(m_parameters.adaptivity);
     m_autoRemesher->setSharpEdgeDegrees(m_parameters.sharpEdgeDegrees);
     m_autoRemesher->setSmoothNormalDegrees(m_parameters.smoothNormalDegrees);
+    m_autoRemesher->setSymmetryEnabled(m_parameters.symmetryEnabled);
+    m_autoRemesher->setSymmetryAxis(m_parameters.symmetryAxis);
+    m_autoRemesher->setSeamTolerance(m_parameters.seamTolerance);
+    m_autoRemesher->setCenterOffset(m_parameters.centerOffset);
     m_autoRemesher->setTag(this);
+
     m_autoRemesher->setProgressHandler(reportProgressHandler);
     if (!m_autoRemesher->remesh())
         return;

@@ -20,19 +20,28 @@
  *  SOFTWARE.
  */
 #include <QAction>
+
 #include <QApplication>
+
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDebug>
 #include <QDesktopServices>
 #include <QDockWidget>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QFile>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QGridLayout>
+#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QImage>
 #include <QLabel>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QMimeData>
+
 #include <QPushButton>
 #include <QTextBrowser>
 #include <QTextStream>
@@ -87,6 +96,8 @@ MainWindow::MainWindow()
     }
 
     g_windows.insert({ this, QUuid::createUuid() });
+    setAcceptDrops(true);
+
 
 #ifdef Q_OS_WIN32
     m_taskbarButton = new QWinTaskbarButton(this);
@@ -242,6 +253,8 @@ MainWindow::MainWindow()
     m_sharpEdgeDegreesWidget->setToolTip(tr("Dihedral angle threshold (degrees). Edges sharper than this are preserved as feature edges."));
     connect(m_sharpEdgeDegreesWidget, &FloatNumberWidget::valueChanged, [=](float value) {
         m_sharpEdgeDegrees = value;
+        if (!m_applyingPreset)
+            clearActivePreset();
     });
 
     m_smoothNormalDegreesWidget = new FloatNumberWidget(this, false);
@@ -251,6 +264,8 @@ MainWindow::MainWindow()
     m_smoothNormalDegreesWidget->setToolTip(tr("Smooth normal angle threshold (degrees). 0 = faceted (current behavior), larger values produce a smoother surface during remeshing by respecting the original vertex normals."));
     connect(m_smoothNormalDegreesWidget, &FloatNumberWidget::valueChanged, [=](float value) {
         m_smoothNormalDegrees = value;
+        if (!m_applyingPreset)
+            clearActivePreset();
     });
 
     m_adaptivityWidget = new FloatNumberWidget(this, false);
@@ -260,6 +275,8 @@ MainWindow::MainWindow()
     m_adaptivityWidget->setToolTip(tr("Curvature-adaptive quad density. 0 = uniform, 1 = full adaptivity (finer quads in high-curvature areas)."));
     connect(m_adaptivityWidget, &FloatNumberWidget::valueChanged, [=](float value) {
         m_adaptivity = value;
+        if (!m_applyingPreset)
+            clearActivePreset();
     });
 
     m_targetQuadCountWidget = new IntNumberWidget(this, false);
@@ -269,6 +286,8 @@ MainWindow::MainWindow()
     m_targetQuadCountWidget->setSuffix(tr(" quads"));
     connect(m_targetQuadCountWidget, &IntNumberWidget::valueChanged, [=](int value) {
         m_targetQuadCount = value;
+        if (!m_applyingPreset)
+            clearActivePreset();
     });
 
     m_targetScalingWidget = new FloatNumberWidget(this, false);
@@ -277,6 +296,8 @@ MainWindow::MainWindow()
     m_targetScalingWidget->setValue(m_targetScaling);
     connect(m_targetScalingWidget, &FloatNumberWidget::valueChanged, [=](float value) {
         m_targetScaling = value;
+        if (!m_applyingPreset)
+            clearActivePreset();
     });
 
     //m_modelTypeSelectBox = new QComboBox;
@@ -286,6 +307,18 @@ MainWindow::MainWindow()
     //    m_modelType = 1 == index ? AutoRemesher::ModelType::HardSurface : AutoRemesher::ModelType::Organic;
     //});
     //m_modelTypeSelectBox->setCurrentIndex(AutoRemesher::ModelType::HardSurface == m_modelType ? 1 : 0);
+
+    // --- Dynamic presets (quad targets derived from the loaded model) ---
+    m_presetLowButton = makePreviewButton(tr("Low"));
+    m_presetMediumButton = makePreviewButton(tr("Medium"));
+    m_presetHighButton = makePreviewButton(tr("High"));
+    m_presetLowButton->setEnabled(false);
+    m_presetMediumButton->setEnabled(false);
+    m_presetHighButton->setEnabled(false);
+    connect(m_presetLowButton, &QPushButton::clicked, [=]() { applyPreset(0); });
+    connect(m_presetMediumButton, &QPushButton::clicked, [=]() { applyPreset(1); });
+    connect(m_presetHighButton, &QPushButton::clicked, [=]() { applyPreset(2); });
+    updatePresetButtons();
 
     // --- Action buttons ---
     QPushButton* loadModelButton = new QPushButton(tr("Open"));
@@ -310,12 +343,47 @@ MainWindow::MainWindow()
     controlsLayout->setSpacing(2);
     controlsLayout->setContentsMargins(6, 6, 6, 6);
 
+    auto makeSectionLabel = [](const QString& text) -> QLabel* {
+        QLabel* label = new QLabel(text);
+        label->setStyleSheet("QLabel { color: #8a8a8a; font-size: 10px; font-weight: bold; letter-spacing: 1px; margin-top: 6px; }");
+        return label;
+    };
+
+    controlsLayout->addWidget(makeSectionLabel(tr("PRESET")));
+    QHBoxLayout* presetButtonsLayout = new QHBoxLayout;
+    presetButtonsLayout->setSpacing(4);
+    presetButtonsLayout->addWidget(m_presetLowButton);
+    presetButtonsLayout->addWidget(m_presetMediumButton);
+    presetButtonsLayout->addWidget(m_presetHighButton);
+    controlsLayout->addLayout(presetButtonsLayout);
+
+    controlsLayout->addWidget(makeSectionLabel(tr("PARAMETERS")));
+    controlsLayout->addWidget(m_targetQuadCountWidget);
+    controlsLayout->addWidget(m_targetScalingWidget);
     controlsLayout->addWidget(m_sharpEdgeDegreesWidget);
     controlsLayout->addWidget(m_smoothNormalDegreesWidget);
     controlsLayout->addWidget(m_adaptivityWidget);
-    controlsLayout->addWidget(m_targetQuadCountWidget);
-    controlsLayout->addWidget(m_targetScalingWidget);
-    //controlsLayout->addWidget(m_modelTypeSelectBox);
+
+    controlsLayout->addWidget(makeSectionLabel(tr("SYMMETRY")));
+    m_symmetryCheckBox = new QCheckBox(tr("Symmetry (mirror across axis)"));
+    m_symmetryCheckBox->setChecked(false);
+    m_symmetryCheckBox->setStyleSheet("QCheckBox { color: #ffffff; font-size: 11px; margin-top: 4px; }");
+    m_symmetryCheckBox->setToolTip(tr("Cut the model at the symmetry plane, remesh one half, then mirror and weld the result so the output topology is perfectly symmetric."));
+    connect(m_symmetryCheckBox, &QCheckBox::toggled, [=](bool checked) {
+        m_symmetryEnabled = checked;
+        m_symmetryAxisSelectBox->setEnabled(checked);
+    });
+    controlsLayout->addWidget(m_symmetryCheckBox);
+
+    m_symmetryAxisSelectBox = new QComboBox;
+    m_symmetryAxisSelectBox->addItem(tr("X axis"));
+    m_symmetryAxisSelectBox->addItem(tr("Y axis"));
+    m_symmetryAxisSelectBox->addItem(tr("Z axis"));
+    m_symmetryAxisSelectBox->setEnabled(false);
+    connect(m_symmetryAxisSelectBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), [=](int index) {
+        m_symmetryAxis = index;
+    });
+    controlsLayout->addWidget(m_symmetryAxisSelectBox);
 
     // Result mesh stats (hidden until a mesh is generated)
     m_quadCountLabel = new QLabel(this);
@@ -362,14 +430,20 @@ MainWindow::MainWindow()
 
     QWidget* controlsPanel = new QWidget;
     controlsPanel->setLayout(controlsLayout);
-    controlsPanel->setFixedWidth(300);
+    controlsPanel->setFixedWidth(350);
     controlsPanel->setObjectName("controlsPanel");
     controlsPanel->setStyleSheet(
         "#controlsPanel {"
         "  background-color: #242424;"
-        "  border: 1px solid #2a2a2a;"
-        "  border-radius: 4px;"
-        "}");
+        "  border: 1px solid #333333;"
+        "  border-radius: 6px;"
+        "}"
+        "#controlsPanel QLabel { font-size: 12px; color: #dddddd; }"
+        "#controlsPanel QCheckBox { font-size: 12px; color: #ffffff; spacing: 6px; }"
+        "#controlsPanel QComboBox { background-color: #333333; color: #ffffff; border: 1px solid #555555; border-radius: 4px; padding: 4px 8px; font-size: 12px; }"
+        "#controlsPanel QPushButton { background-color: #333333; color: #ffffff; border: 1px solid #555555; border-radius: 4px; padding: 6px 12px; font-size: 12px; font-weight: bold; }"
+        "#controlsPanel QPushButton:hover { background-color: #444444; border-color: #007acc; }"
+    );
 
     // ============================================================
     // CANVAS AREA
@@ -416,7 +490,70 @@ MainWindow::MainWindow()
     updateTitle();
 }
 
+void MainWindow::dragEnterEvent(QDragEnterEvent* event)
+{
+    if (event->mimeData()->hasUrls()) {
+        const QList<QUrl> urls = event->mimeData()->urls();
+        if (!urls.isEmpty()) {
+            QString localPath = urls.first().toLocalFile();
+            QFileInfo info(localPath);
+            QString ext = info.suffix().toLower();
+            if (ext == "obj" || ext == "glb" || ext == "gltf" || ext == "fbx") {
+                event->acceptProposedAction();
+                return;
+            }
+        }
+    }
+    event->ignore();
+}
+
+void MainWindow::dropEvent(QDropEvent* event)
+{
+    if (event->mimeData()->hasUrls()) {
+        const QList<QUrl> urls = event->mimeData()->urls();
+        if (!urls.isEmpty()) {
+            QString localPath = urls.first().toLocalFile();
+            if (!localPath.isEmpty()) {
+                QApplication::setOverrideCursor(Qt::WaitCursor);
+                bool loaded = loadObj(localPath);
+                QApplication::restoreOverrideCursor();
+
+                if (loaded) {
+                    setCurrentFilename(localPath);
+                    // Auto-remesh disabled: user must click Generate/Regenerate manually
+                    m_regenerateButton->show();
+                    m_regenerateButton->setEnabled(true);
+                    m_regenerateButton->setText(tr("Start Remesh"));
+                    event->acceptProposedAction();
+                }
+            }
+        }
+    }
+}
+
+void MainWindow::updateSymmetryPlanePreview()
+{
+    ModelShaderMesh* targetMesh = nullptr;
+    if (m_previewMode == PreviewSource && m_sourceRenderMesh) targetMesh = m_sourceRenderMesh;
+    else if (m_previewMode == PreviewIsotropic && m_isotropicRenderMesh) targetMesh = m_isotropicRenderMesh;
+    else if (m_previewMode == PreviewParam && m_paramRenderMesh) targetMesh = m_paramRenderMesh;
+    else if (m_previewMode == PreviewRemesh && m_remeshRenderMesh) targetMesh = m_remeshRenderMesh;
+    if (!targetMesh && m_sourceRenderMesh) targetMesh = m_sourceRenderMesh;
+    if (!targetMesh && m_remeshRenderMesh) targetMesh = m_remeshRenderMesh;
+
+    if (!targetMesh) return;
+
+    targetMesh->updateConnectionEdges(nullptr, 0);
+    if (m_modelRenderWidget) {
+        m_modelRenderWidget->updateMesh(new ModelShaderMesh(*targetMesh));
+    }
+}
+
+
+
+
 void MainWindow::updateButtonStates()
+
 {
     if (nullptr == m_quadMeshGenerator && !m_quadMeshResultIsDirty) {
         m_loadModelButton->setEnabled(true);
@@ -426,6 +563,12 @@ void MainWindow::updateButtonStates()
         m_smoothNormalDegreesWidget->setEnabled(true);
         m_adaptivityWidget->setEnabled(true);
         //m_modelTypeSelectBox->setEnabled(true);
+        bool hasModel = !m_originalTriangles.empty();
+        m_presetLowButton->setEnabled(hasModel);
+        m_presetMediumButton->setEnabled(hasModel);
+        m_presetHighButton->setEnabled(hasModel);
+        m_symmetryCheckBox->setEnabled(true);
+        m_symmetryAxisSelectBox->setEnabled(m_symmetryEnabled);
         if (nullptr != m_remeshedQuads) {
             m_saveMeshButton->show();
         } else {
@@ -434,6 +577,8 @@ void MainWindow::updateButtonStates()
         if (!m_originalVertices.empty()) {
             m_regenerateButton->show();
             m_regenerateButton->setEnabled(true);
+            // Context-aware label: first time = "Start Remesh", subsequent = "Regenerate"
+            m_regenerateButton->setText(m_remeshedQuads ? tr("Regenerate") : tr("Start Remesh"));
         } else {
             m_regenerateButton->hide();
         }
@@ -448,6 +593,11 @@ void MainWindow::updateButtonStates()
         m_smoothNormalDegreesWidget->setDisabled(true);
         m_adaptivityWidget->setDisabled(true);
         //m_modelTypeSelectBox->setDisabled(true);
+        m_presetLowButton->setEnabled(false);
+        m_presetMediumButton->setEnabled(false);
+        m_presetHighButton->setEnabled(false);
+        m_symmetryCheckBox->setEnabled(false);
+        m_symmetryAxisSelectBox->setEnabled(false);
     }
 
     // Update preview button availability
@@ -457,21 +607,19 @@ void MainWindow::updateButtonStates()
     m_previewRemeshButton->setEnabled(m_remeshRenderMesh != nullptr);
 }
 
+#include "meshio.h"
+
 bool MainWindow::loadObj(const QString& filename)
 {
-    tinyobj::attrib_t attributes;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    std::string warn, err;
-
     qDebug() << "loadObj:" << filename;
 
-    bool loadSuccess = tinyobj::LoadObj(&attributes, &shapes, &materials, &warn, &err, filename.toUtf8().constData());
-    if (!warn.empty()) {
-        qDebug() << "WARN:" << warn.c_str();
-    }
+    m_originalVertices.clear();
+    m_originalTriangles.clear();
+    std::string err;
+
+    bool loadSuccess = MeshIO::loadMesh(filename, m_originalVertices, m_originalTriangles, err);
     if (!err.empty()) {
-        qDebug() << err.c_str();
+        qDebug() << "MeshIO error:" << err.c_str();
     }
     if (!loadSuccess) {
         return false;
@@ -501,24 +649,6 @@ bool MainWindow::loadObj(const QString& filename)
     m_previewParamButton->setChecked(false);
     m_previewRemeshButton->setChecked(false);
 
-    m_originalVertices.resize(attributes.vertices.size() / 3);
-    for (size_t i = 0, j = 0; i < m_originalVertices.size(); ++i) {
-        auto& dest = m_originalVertices[i];
-        dest.setX(attributes.vertices[j++]);
-        dest.setY(attributes.vertices[j++]);
-        dest.setZ(attributes.vertices[j++]);
-    }
-
-    m_originalTriangles.clear();
-    for (const auto& shape : shapes) {
-        for (size_t i = 0; i < shape.mesh.indices.size(); i += 3) {
-            m_originalTriangles.push_back(std::vector<size_t> {
-                (size_t)shape.mesh.indices[i + 0].vertex_index,
-                (size_t)shape.mesh.indices[i + 1].vertex_index,
-                (size_t)shape.mesh.indices[i + 2].vertex_index });
-        }
-    }
-
     qDebug() << "m_originalVertices.size():" << m_originalVertices.size();
     qDebug() << "m_originalTriangles.size():" << m_originalTriangles.size();
 
@@ -526,7 +656,106 @@ bool MainWindow::loadObj(const QString& filename)
         m_originalTriangles });
     checkRenderQueue();
 
+    m_activePreset = -1;
+    if (m_headlessMode) {
+        // runHeadless() comes through here too, and its parameters were already set
+        // from the command line — never overwrite them with a preset.
+        updatePresetButtons();
+    } else {
+        // Start from the Medium bundle rather than the raw defaults: the stock values
+        // (Adaptivity 1.0 / Smooth Normal 0) are the combination that crowds the quads
+        // in curved areas and leaves the surface faceted. Any widget edit drops back to
+        // Custom, so this only sets the starting point.
+        applyPreset(1);
+    }
+
     return true;
+}
+
+// Full parameter bundle behind each preset button. The quad target is derived from
+// the model, the shape settings step with the density tier:
+//
+//   Smooth Normal (>0) projects onto a PN-triangle surface instead of the faceted
+//   input, which is what keeps a coarse result looking smooth. A dense result already
+//   follows the surface closely, so it needs far less of it.
+//   Sharp Edge is the dihedral threshold above which an edge is locked as a feature.
+//   Raising it frees up the quad flow; lowering it preserves the original creases,
+//   which only pays off once there are enough quads to resolve them.
+//
+// Adaptivity is deliberately the SAME in all three. It scales edge length by
+// curvature^-adaptivity (clamped to [0.3x, 3.0x]) without renormalising the total
+// budget, so raising it does not just redistribute quads — it throws them away:
+// measured on a test model at a fixed target of 20000, the output was 16956 quads at
+// 0.0, 9269 at 0.25, 4248 at 0.5 and 2012 at 1.0. Stepping it per tier would let High
+// return FEWER quads than Medium. Holding it constant keeps Low < Medium < High
+// guaranteed; 0.25 keeps some curvature sensitivity at a yield that is still usable.
+// The stock default of 1.0 is what makes Target Quads land ~10x short.
+struct PresetBundle {
+    double quadRatio; // fraction of the input triangle count
+    double edgeScaling;
+    double sharpEdgeDegrees;
+    double smoothNormalDegrees;
+    double adaptivity;
+};
+
+static const PresetBundle s_presets[3] = {
+    //  ratio  scale  sharp  smooth  adapt
+    { 0.10, 1.0, 120.0, 60.0, 0.25 }, // Low    — even flow, smooth silhouette
+    { 0.25, 1.0, 105.0, 45.0, 0.25 }, // Medium — balanced
+    { 0.50, 1.0, 90.0, 30.0, 0.25 }, // High   — creases kept
+};
+
+int MainWindow::presetQuadCount(int index) const
+{
+    // Preset quad targets scale with the input triangle count, then get clamped
+    // so a tiny or enormous input still lands on a workable target.
+    int count = (int)((double)m_originalTriangles.size() * s_presets[index].quadRatio);
+    return qBound(1000, count, 1000000);
+}
+
+void MainWindow::applyPreset(int index)
+{
+    if (m_originalTriangles.empty())
+        return;
+    const PresetBundle& preset = s_presets[index];
+    m_applyingPreset = true;
+    m_targetQuadCountWidget->setValue(presetQuadCount(index));
+    m_targetScalingWidget->setValue(preset.edgeScaling);
+    m_sharpEdgeDegreesWidget->setValue(preset.sharpEdgeDegrees);
+    m_smoothNormalDegreesWidget->setValue(preset.smoothNormalDegrees);
+    m_adaptivityWidget->setValue(preset.adaptivity);
+    m_applyingPreset = false;
+    m_activePreset = index;
+    updatePresetButtons();
+}
+
+void MainWindow::clearActivePreset()
+{
+    if (-1 == m_activePreset)
+        return;
+    m_activePreset = -1;
+    updatePresetButtons();
+}
+
+void MainWindow::updatePresetButtons()
+{
+    QPushButton* buttons[] = { m_presetLowButton, m_presetMediumButton, m_presetHighButton };
+    bool hasModel = !m_originalTriangles.empty();
+    for (int i = 0; i < 3; ++i) {
+        buttons[i]->setChecked(i == m_activePreset);
+        if (hasModel) {
+            const PresetBundle& preset = s_presets[i];
+            // "Target", not "approx.": the engine routinely lands under the requested
+            // count, so promising the number here would be misleading.
+            buttons[i]->setToolTip(tr("Target %1 quads\nSharp Edge %2° · Smooth Normal %3° · Adaptivity %4")
+                                       .arg(presetQuadCount(i))
+                                       .arg(preset.sharpEdgeDegrees)
+                                       .arg(preset.smoothNormalDegrees)
+                                       .arg(preset.adaptivity));
+        } else {
+            buttons[i]->setToolTip(tr("Load a model to compute preset values"));
+        }
+    }
 }
 
 void MainWindow::loadModel()
@@ -553,7 +782,7 @@ void MainWindow::loadModel()
     }
 
     QString filename = QFileDialog::getOpenFileName(this, QString(), QString(),
-        tr("Wavefront (*.obj)"));
+        tr("All Supported Formats (*.obj *.glb *.gltf *.fbx);;Wavefront (*.obj);;glTF / GLB (*.glb *.gltf);;Autodesk FBX (*.fbx)"));
     if (filename.isEmpty())
         return;
 
@@ -563,8 +792,10 @@ void MainWindow::loadModel()
 
     if (objLoaded) {
         setCurrentFilename(filename);
-
-        generateQuadMesh();
+        // Auto-remesh disabled: user must click Start Remesh / Regenerate manually
+        m_regenerateButton->show();
+        m_regenerateButton->setEnabled(true);
+        m_regenerateButton->setText(tr("Start Remesh"));
     }
 }
 
@@ -580,32 +811,33 @@ void MainWindow::saveMesh()
     if (nullptr == m_remeshedVertices || nullptr == m_remeshedQuads)
         return;
 
-    QString filename = QFileDialog::getSaveFileName(this, QString(), QString(),
-        tr("Wavefront (*.obj)"));
-    if (filename.isEmpty()) {
+    QString filename = QFileDialog::getSaveFileName(this,
+        tr("Export Mesh"), QString(),
+        tr("Wavefront OBJ (*.obj);;Binary glTF / GLB (*.glb);;Autodesk FBX (*.fbx)"));
+    if (filename.isEmpty())
         return;
+
+    std::string err;
+    bool ok = MeshIO::saveMesh(filename, *m_remeshedVertices, *m_remeshedQuads, err);
+
+    QFileInfo info(filename);
+    QString ext = info.suffix().toLower();
+
+    if (!ok) {
+        QMessageBox::critical(this, APP_NAME, QString::fromStdString(err));
+    } else if (!err.empty()) {
+        // Non-fatal note from the writer
+        QMessageBox::information(this, APP_NAME, QString::fromStdString(err));
+    } else if (ext == "glb" || ext == "gltf") {
+        QMessageBox::information(this, APP_NAME,
+            tr("Exported as binary GLB 2.0.\n"
+               "Note: GLB uses triangles internally — quad topology is preserved in the OBJ format."));
     }
 
-    if (!filename.endsWith(".obj"))
-        filename += ".obj";
-
-    QFile file(filename);
-    if (file.open(QIODevice::WriteOnly)) {
-        QTextStream stream(&file);
-        stream << "# " << APP_NAME << " " << APP_HUMAN_VER << "\n";
-        stream << "# " << APP_HOMEPAGE_URL << "\n";
-        for (std::vector<AutoRemesher::Vector3>::const_iterator it = m_remeshedVertices->begin(); it != m_remeshedVertices->end(); ++it) {
-            stream << "v " << (*it).x() << " " << (*it).y() << " " << (*it).z() << "\n";
-        }
-        for (std::vector<std::vector<size_t>>::const_iterator it = m_remeshedQuads->begin(); it != m_remeshedQuads->end(); ++it) {
-            stream << "f";
-            for (std::vector<size_t>::const_iterator subIt = (*it).begin(); subIt != (*it).end(); ++subIt) {
-                stream << " " << (1 + *subIt);
-            }
-            stream << "\n";
-        }
-    }
+    m_saved = true;
+    updateTitle();
 }
+
 
 void MainWindow::updateTitle()
 {
@@ -1284,21 +1516,11 @@ void MainWindow::saveMeshToFile(const QString& filename)
     if (nullptr == m_remeshedVertices || nullptr == m_remeshedQuads)
         return;
 
-    QFile file(filename);
-    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QTextStream stream(&file);
-        stream << "# " << APP_NAME << " " << APP_HUMAN_VER << "\n";
-        stream << "# " << APP_HOMEPAGE_URL << "\n";
-        for (std::vector<AutoRemesher::Vector3>::const_iterator it = m_remeshedVertices->begin(); it != m_remeshedVertices->end(); ++it) {
-            stream << "v " << (*it).x() << " " << (*it).y() << " " << (*it).z() << "\n";
-        }
-        for (std::vector<std::vector<size_t>>::const_iterator it = m_remeshedQuads->begin(); it != m_remeshedQuads->end(); ++it) {
-            stream << "f";
-            for (std::vector<size_t>::const_iterator subIt = (*it).begin(); subIt != (*it).end(); ++subIt) {
-                stream << " " << (1 + *subIt);
-            }
-            stream << "\n";
-        }
+    // Route through MeshIO so the headless path honours the output extension
+    // (.obj / .glb / .fbx) exactly like the interactive Save does.
+    std::string err;
+    if (!MeshIO::saveMesh(filename, *m_remeshedVertices, *m_remeshedQuads, err)) {
+        qDebug() << "Failed to save" << filename << ":" << err.c_str();
     }
 }
 
@@ -1313,9 +1535,11 @@ void MainWindow::runHeadless()
 
     if (!objLoaded) {
         std::cerr << "Error: Failed to load " << m_currentFilename.toStdString() << std::endl;
-        QCoreApplication::quit();
+        emit headlessFinished(0, 0, 0, 0.0);
+        QCoreApplication::exit(1);
         return;
     }
+
 
     // Start generation
     if (nullptr != m_quadMeshGenerator) {
@@ -1337,6 +1561,10 @@ void MainWindow::runHeadless()
     parameters.adaptivity = m_adaptivity;
     parameters.sharpEdgeDegrees = m_sharpEdgeDegrees;
     parameters.smoothNormalDegrees = m_smoothNormalDegrees;
+    parameters.symmetryEnabled = m_symmetryEnabled;
+    parameters.symmetryAxis = m_symmetryAxis;
+
+
 
     m_quadMeshGenerator = new QuadMeshGenerator(m_originalVertices, m_originalTriangles);
     connect(m_quadMeshGenerator, &QuadMeshGenerator::reportProgress, this, &MainWindow::updateProgress);
@@ -1378,6 +1606,10 @@ void MainWindow::generateQuadMesh()
     parameters.adaptivity = m_adaptivity;
     parameters.sharpEdgeDegrees = m_sharpEdgeDegrees;
     parameters.smoothNormalDegrees = m_smoothNormalDegrees;
+    parameters.symmetryEnabled = m_symmetryEnabled;
+    parameters.symmetryAxis = m_symmetryAxis;
+
+
 
     m_quadMeshGenerator = new QuadMeshGenerator(m_originalVertices, m_originalTriangles);
     connect(m_quadMeshGenerator, &QuadMeshGenerator::reportProgress, this, &MainWindow::updateProgress);

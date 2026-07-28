@@ -38,8 +38,18 @@ build2/
 # Generated build artifacts
 .qmake.stash
 Makefile
+Makefile.Debug
+Makefile.Release
 qrc_*.cpp
 
 .DS_Store
 
 moc/
+obj/
+debug/
+release/
+
+# Editor / tooling local state
+.vscode/
+.idea/
+.claude/

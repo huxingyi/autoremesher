@@ -23,7 +23,9 @@
 #include <AutoRemesher/IsotropicRemesher>
 #include <AutoRemesher/MeshSeparator>
 #include <AutoRemesher/Parameterizer>
+#include <AutoRemesher/PositionKey>
 #include <AutoRemesher/QuadExtractor>
+
 #include <QDebug>
 #include <atomic>
 #include <chrono>
@@ -325,7 +327,12 @@ bool AutoRemesher::remesh()
     if (nullptr != m_progressHandler)
         m_progressHandler(m_tag, 0.0, "Initializing...");
 
+    if (m_symmetryEnabled) {
+        preprocessSymmetricInputMesh();
+    }
+
     auto t_start = std::chrono::high_resolution_clock::now();
+
 
     auto t_voxelStart = std::chrono::high_resolution_clock::now();
     setCurrentStatus("Computing voxel size...");
@@ -649,6 +656,11 @@ bool AutoRemesher::remesh()
         }
     }
 
+    if (m_symmetryEnabled) {
+        setCurrentStatus("Applying symmetry & mirror pass...");
+        applySymmetryPass();
+    }
+
     auto t_mergeEnd = std::chrono::high_resolution_clock::now();
 
     auto t_voxelMs = std::chrono::duration_cast<std::chrono::milliseconds>(t_voxelEnd - t_voxelStart).count();
@@ -676,5 +688,264 @@ bool AutoRemesher::remesh()
 
     return true;
 }
+
+void AutoRemesher::preprocessSymmetricInputMesh()
+{
+    m_symmetryPlaneValid = false;
+    if (!m_symmetryEnabled || m_vertices.empty() || m_triangles.empty())
+        return;
+
+    int axis = m_symmetryAxis; // 0=X, 1=Y, 2=Z
+    if (axis < 0 || axis > 2) axis = 0;
+
+    double bboxMin = std::numeric_limits<double>::max();
+    double bboxMax = std::numeric_limits<double>::lowest();
+    for (const auto& v : m_vertices) {
+        double c = v[axis];
+        if (c < bboxMin) bboxMin = c;
+        if (c > bboxMax) bboxMax = c;
+    }
+    double meshCenter = (bboxMin + bboxMax) * 0.5;
+    double bboxSpan = std::max(bboxMax - bboxMin, 1e-4);
+    double cutPlanePos = meshCenter + m_centerOffset * (0.5 * bboxSpan);
+    double effectiveTolerance = (m_seamTolerance <= 0.05) ? std::max(m_seamTolerance * bboxSpan, 1e-4) : m_seamTolerance;
+
+    std::vector<std::vector<size_t>> halfTriangles;
+    halfTriangles.reserve(m_triangles.size());
+    std::set<size_t> discardedVertIndices;
+
+    for (const auto& tri : m_triangles) {
+        if (tri.size() < 3) continue;
+        double centroidCoord = 0.0;
+        for (auto vIdx : tri) {
+            if (vIdx < m_vertices.size()) {
+                centroidCoord += m_vertices[vIdx][axis];
+            }
+        }
+        centroidCoord /= (double)tri.size();
+
+        if (centroidCoord >= cutPlanePos) {
+            halfTriangles.push_back(tri);
+        } else {
+            for (auto vIdx : tri)
+                discardedVertIndices.insert(vIdx);
+        }
+    }
+
+    if (halfTriangles.empty() || halfTriangles.size() >= m_triangles.size()) {
+        return; // Cut plane is outside mesh bounds, skip
+    }
+
+    std::set<size_t> activeVertIndices;
+    for (const auto& tri : halfTriangles) {
+        for (auto vIdx : tri) {
+            activeVertIndices.insert(vIdx);
+        }
+    }
+
+    std::vector<Vector3> newVertices;
+    std::map<size_t, size_t> oldToNewIndexMap;
+
+    for (auto oldIdx : activeVertIndices) {
+        Vector3 v = m_vertices[oldIdx];
+        // Project onto the cut plane: seam verts (shared with a discarded face) MUST
+        // land exactly on the plane or the mirrored half cannot weld to them (cracks);
+        // below-plane verts and the tolerance band are projected for a straight seam.
+        bool onSeam = discardedVertIndices.count(oldIdx) > 0;
+        if (onSeam || v[axis] < cutPlanePos || std::abs(v[axis] - cutPlanePos) <= effectiveTolerance) {
+            v[axis] = cutPlanePos;
+        }
+        size_t newIdx = newVertices.size();
+        newVertices.push_back(v);
+        oldToNewIndexMap[oldIdx] = newIdx;
+    }
+
+    std::vector<std::vector<size_t>> newTriangles;
+    newTriangles.reserve(halfTriangles.size() * 2);
+
+    for (const auto& tri : halfTriangles) {
+        std::vector<size_t> t;
+        t.reserve(tri.size());
+        size_t onPlaneCount = 0;
+        for (auto vIdx : tri) {
+            size_t ni = oldToNewIndexMap[vIdx];
+            if (std::abs(newVertices[ni][axis] - cutPlanePos) <= 1e-9)
+                ++onPlaneCount;
+            t.push_back(ni);
+        }
+        if (onPlaneCount == tri.size())
+            continue; // fully in the plane -> zero area, would mirror onto itself
+        newTriangles.push_back(t);
+    }
+
+    if (newTriangles.empty())
+        return;
+
+    size_t halfVertCount = newVertices.size();
+    size_t halfTriCount = newTriangles.size();
+
+    std::vector<size_t> mirroredVertexIndexMap(halfVertCount);
+    for (size_t i = 0; i < halfVertCount; ++i) {
+        Vector3 v = newVertices[i];
+        if (std::abs(v[axis] - cutPlanePos) <= 1e-9) {
+            mirroredVertexIndexMap[i] = i;
+        } else {
+            Vector3 mv = v;
+            mv[axis] = 2.0 * cutPlanePos - v[axis];
+
+            size_t newIdx = newVertices.size();
+            newVertices.push_back(mv);
+            mirroredVertexIndexMap[i] = newIdx;
+        }
+    }
+
+    for (size_t i = 0; i < halfTriCount; ++i) {
+        const auto& tri = newTriangles[i];
+        if (tri.size() == 3) {
+            std::vector<size_t> mirroredTri = {
+                mirroredVertexIndexMap[tri[2]],
+                mirroredVertexIndexMap[tri[1]],
+                mirroredVertexIndexMap[tri[0]]
+            };
+            if (mirroredTri[0] == tri[2] && mirroredTri[1] == tri[1] && mirroredTri[2] == tri[0])
+                continue; // maps onto itself, would duplicate
+            newTriangles.push_back(mirroredTri);
+        }
+    }
+
+    m_vertices = std::move(newVertices);
+    m_triangles = std::move(newTriangles);
+    m_symmetryPlanePos = cutPlanePos;
+    m_symmetryEffectiveTolerance = effectiveTolerance;
+    m_symmetryPlaneValid = true;
+}
+
+void AutoRemesher::applySymmetryPass()
+{
+    if (!m_symmetryEnabled || !m_symmetryPlaneValid || m_remeshedVertices.empty() || m_remeshedQuads.empty())
+        return;
+
+    int axis = m_symmetryAxis; // 0=X, 1=Y, 2=Z
+    if (axis < 0 || axis > 2) axis = 0;
+
+    // Mirror around the exact plane the input was symmetrized on. Recomputing it from
+    // the remeshed bounding box picks a slightly different plane (quad_cover is not
+    // symmetric), which shifts the seam and breaks the mirror.
+    double cutPlanePos = m_symmetryPlanePos;
+    double effectiveTolerance = m_symmetryEffectiveTolerance;
+
+    // 1. Filter quads: keep quads whose centroid lies on positive side of symmetry plane
+    std::vector<std::vector<size_t>> halfQuads;
+    halfQuads.reserve(m_remeshedQuads.size());
+    std::set<size_t> discardedVertIndices;
+
+    for (const auto& q : m_remeshedQuads) {
+        if (q.size() < 3) continue;
+        double centroidCoord = 0.0;
+        for (auto vIdx : q) {
+            if (vIdx < m_remeshedVertices.size()) {
+                centroidCoord += m_remeshedVertices[vIdx][axis];
+            }
+        }
+        centroidCoord /= (double)q.size();
+
+        if (centroidCoord >= cutPlanePos) {
+            halfQuads.push_back(q);
+        } else {
+            for (auto vIdx : q)
+                discardedVertIndices.insert(vIdx);
+        }
+    }
+
+    // Safety Guard: If cut plane is outside mesh boundary (all or no quads selected), do not duplicate model!
+    if (halfQuads.empty() || halfQuads.size() >= m_remeshedQuads.size()) {
+        return;
+    }
+
+    // Re-index active vertices from halfQuads
+    std::set<size_t> activeVertIndices;
+    for (const auto& q : halfQuads) {
+        for (auto vIdx : q) {
+            activeVertIndices.insert(vIdx);
+        }
+    }
+
+    std::vector<Vector3> newVertices;
+    std::map<size_t, size_t> oldToNewIndexMap;
+
+    for (auto oldIdx : activeVertIndices) {
+        Vector3 v = m_remeshedVertices[oldIdx];
+        // Project onto the cut plane: seam verts (shared with a discarded quad) MUST
+        // land exactly on the plane or the mirrored half cannot weld to them (cracks);
+        // below-plane verts and the tolerance band are projected for a straight seam.
+        bool onSeam = discardedVertIndices.count(oldIdx) > 0;
+        if (onSeam || v[axis] < cutPlanePos || std::abs(v[axis] - cutPlanePos) <= effectiveTolerance) {
+            v[axis] = cutPlanePos;
+        }
+        size_t newIdx = newVertices.size();
+        newVertices.push_back(v);
+        oldToNewIndexMap[oldIdx] = newIdx;
+    }
+
+    std::vector<std::vector<size_t>> newQuads;
+    newQuads.reserve(halfQuads.size() * 2);
+
+    for (const auto& q : halfQuads) {
+        std::vector<size_t> quad;
+        quad.reserve(q.size());
+        size_t onPlaneCount = 0;
+        for (auto vIdx : q) {
+            size_t ni = oldToNewIndexMap[vIdx];
+            if (std::abs(newVertices[ni][axis] - cutPlanePos) <= 1e-9)
+                ++onPlaneCount;
+            quad.push_back(ni);
+        }
+        if (onPlaneCount == q.size())
+            continue; // fully in the plane -> degenerate wall, would mirror onto itself
+        newQuads.push_back(quad);
+    }
+
+    if (newQuads.empty())
+        return;
+
+    // 2. Mirror newVertices across cutPlanePos to create opposite half
+    size_t halfVertCount = newVertices.size();
+    size_t halfQuadCount = newQuads.size();
+
+    std::vector<size_t> mirroredVertexIndexMap(halfVertCount);
+    for (size_t i = 0; i < halfVertCount; ++i) {
+        Vector3 v = newVertices[i];
+        if (std::abs(v[axis] - cutPlanePos) <= 1e-9) {
+            mirroredVertexIndexMap[i] = i; // Seam vertex connects directly to itself!
+        } else {
+            Vector3 mv = v;
+            mv[axis] = 2.0 * cutPlanePos - v[axis];
+
+            size_t newIdx = newVertices.size();
+            newVertices.push_back(mv);
+            mirroredVertexIndexMap[i] = newIdx;
+        }
+    }
+
+    // 3. Mirror halfQuads with reversed vertex order to maintain outward face normals
+    for (size_t i = 0; i < halfQuadCount; ++i) {
+        const auto& q = newQuads[i];
+        std::vector<size_t> mirroredQuad(q.size());
+        bool selfMapped = true;
+        for (size_t j = 0; j < q.size(); ++j) {
+            size_t src = q[q.size() - 1 - j];
+            mirroredQuad[j] = mirroredVertexIndexMap[src];
+            if (mirroredQuad[j] != src)
+                selfMapped = false;
+        }
+        if (selfMapped)
+            continue; // maps onto itself, would duplicate
+        newQuads.push_back(mirroredQuad);
+    }
+
+    m_remeshedVertices = std::move(newVertices);
+    m_remeshedQuads = std::move(newQuads);
+}
+
 
 }
