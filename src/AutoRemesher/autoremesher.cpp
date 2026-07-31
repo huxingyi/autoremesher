@@ -203,29 +203,38 @@ void AutoRemesher::resample(std::vector<Vector3>& vertices,
         const double minRatio = 0.3;
         const double maxRatio = 3.0;
 
-        std::vector<Vector3> normals(vertices.size());
-        tbb::parallel_for(tbb::blocked_range<size_t>(0, triangles.size()),
-            [&](const tbb::blocked_range<size_t>& range) {
-                for (size_t i = range.begin(); i != range.end(); ++i) {
-                    const auto& tri = triangles[i];
-                    Vector3 n = Vector3::normal(
-                        vertices[tri[0]], vertices[tri[1]], vertices[tri[2]]);
-                    normals[tri[0]] += n;
-                    normals[tri[1]] += n;
-                    normals[tri[2]] += n;
-                }
-            });
-        tbb::parallel_for(tbb::blocked_range<size_t>(0, normals.size()),
-            [&](const tbb::blocked_range<size_t>& range) {
-                for (size_t i = range.begin(); i != range.end(); ++i)
-                    normals[i].normalize();
-            });
-
         std::vector<std::vector<size_t>> faceAroundVertex(vertices.size());
         for (size_t i = 0; i < triangles.size(); ++i) {
             for (size_t j = 0; j < 3; ++j)
                 faceAroundVertex[triangles[i][j]].push_back(i);
         }
+
+        std::vector<Vector3> faceNormals(triangles.size());
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, triangles.size()),
+            [&](const tbb::blocked_range<size_t>& range) {
+                for (size_t i = range.begin(); i != range.end(); ++i) {
+                    const auto& tri = triangles[i];
+                    faceNormals[i] = Vector3::normal(
+                        vertices[tri[0]], vertices[tri[1]], vertices[tri[2]]);
+                }
+            });
+
+        // Gather per-vertex normals from faceAroundVertex rather than scattering
+        // from a triangle-indexed loop: scattering into normals[tri[k]] from a
+        // parallel_for partitioned by triangle races when two triangles sharing
+        // a vertex are processed concurrently by different threads, since
+        // Vector3::operator+= is not atomic.
+        std::vector<Vector3> normals(vertices.size());
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, vertices.size()),
+            [&](const tbb::blocked_range<size_t>& range) {
+                for (size_t v = range.begin(); v != range.end(); ++v) {
+                    Vector3 sum;
+                    for (const auto& faceIndex : faceAroundVertex[v])
+                        sum += faceNormals[faceIndex];
+                    normals[v] = sum;
+                    normals[v].normalize();
+                }
+            });
 
         std::vector<double> vertexCurvature(vertices.size(), 0.0);
         tbb::parallel_for(tbb::blocked_range<size_t>(0, vertices.size()),
