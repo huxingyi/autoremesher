@@ -25,8 +25,10 @@
 #include <AutoRemesher/Parameterizer>
 #include <AutoRemesher/QuadExtractor>
 #include <QDebug>
+#include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <geogram_report_progress.h>
 #include <limits>
 #include <queue>
@@ -199,94 +201,123 @@ void AutoRemesher::resample(std::vector<Vector3>& vertices,
 {
     std::vector<double> vertexTargetLengths;
     if (adaptivity > 0.0 && !vertices.empty()) {
-        const double isoAdaptivity = adaptivity;
-        const double minRatio = 0.3;
+        // A target-length field redistributes the uniform triangle budget.  The
+        // field is deliberately computed on the input mesh: IsotropicRemesher
+        // propagates it to vertices created by edge splits.
+        const double minRatio = 0.35;
         const double maxRatio = 3.0;
+        const double epsilon = 1e-12;
 
-        std::vector<std::vector<size_t>> faceAroundVertex(vertices.size());
-        for (size_t i = 0; i < triangles.size(); ++i) {
-            for (size_t j = 0; j < 3; ++j)
-                faceAroundVertex[triangles[i][j]].push_back(i);
-        }
-
+        // Do not add face normals directly from parallel workers: adjacent
+        // faces write to the same vertex.  Compute faces in parallel, then do
+        // the small accumulation pass serially.
         std::vector<Vector3> faceNormals(triangles.size());
+        std::vector<double> faceAreas(triangles.size(), 0.0);
         tbb::parallel_for(tbb::blocked_range<size_t>(0, triangles.size()),
             [&](const tbb::blocked_range<size_t>& range) {
                 for (size_t i = range.begin(); i != range.end(); ++i) {
                     const auto& tri = triangles[i];
-                    faceNormals[i] = Vector3::normal(
+                    faceAreas[i] = Vector3::area(
                         vertices[tri[0]], vertices[tri[1]], vertices[tri[2]]);
+                    if (faceAreas[i] > epsilon)
+                        faceNormals[i] = Vector3::normal(
+                            vertices[tri[0]], vertices[tri[1]], vertices[tri[2]]);
                 }
             });
 
-        // Gather per-vertex normals from faceAroundVertex rather than scattering
-        // from a triangle-indexed loop: scattering into normals[tri[k]] from a
-        // parallel_for partitioned by triangle races when two triangles sharing
-        // a vertex are processed concurrently by different threads, since
-        // Vector3::operator+= is not atomic.
         std::vector<Vector3> normals(vertices.size());
-        tbb::parallel_for(tbb::blocked_range<size_t>(0, vertices.size()),
+        std::vector<std::vector<size_t>> neighbors(vertices.size());
+        for (size_t i = 0; i < triangles.size(); ++i) {
+            const auto& tri = triangles[i];
+            if (faceAreas[i] <= epsilon)
+                continue;
+            const Vector3 weightedNormal = faceNormals[i] * faceAreas[i];
+            for (size_t j = 0; j < 3; ++j) {
+                normals[tri[j]] += weightedNormal;
+                neighbors[tri[j]].push_back(tri[(j + 1) % 3]);
+                neighbors[tri[j]].push_back(tri[(j + 2) % 3]);
+            }
+        }
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, normals.size()),
             [&](const tbb::blocked_range<size_t>& range) {
-                for (size_t v = range.begin(); v != range.end(); ++v) {
-                    Vector3 sum;
-                    for (const auto& faceIndex : faceAroundVertex[v])
-                        sum += faceNormals[faceIndex];
-                    normals[v] = sum;
-                    normals[v].normalize();
+                for (size_t i = range.begin(); i != range.end(); ++i) {
+                    normals[i].normalize();
+                    auto& ring = neighbors[i];
+                    std::sort(ring.begin(), ring.end());
+                    ring.erase(std::unique(ring.begin(), ring.end()), ring.end());
                 }
             });
 
+        // Mean normal variation per unit length is less sensitive to a single
+        // bad triangle than the previous maximum-one-ring estimate.
         std::vector<double> vertexCurvature(vertices.size(), 0.0);
         tbb::parallel_for(tbb::blocked_range<size_t>(0, vertices.size()),
             [&](const tbb::blocked_range<size_t>& range) {
                 for (size_t v = range.begin(); v != range.end(); ++v) {
-                    const auto& faces = faceAroundVertex[v];
-                    if (faces.empty())
+                    const auto& ring = neighbors[v];
+                    if (ring.empty() || normals[v].lengthSquared() <= epsilon)
                         continue;
-                    const auto& normalV = normals[v];
-                    double maxCurvature = 0.0;
-                    for (const auto& faceIndex : faces) {
-                        for (const auto& u : triangles[faceIndex]) {
-                            if (u == v)
-                                continue;
-                            double dist = (vertices[u] - vertices[v]).length();
-                            if (dist <= 0.0)
-                                continue;
-                            double cosA = Vector3::dotProduct(normalV, normals[u]);
-                            if (cosA > 1.0)
-                                cosA = 1.0;
-                            else if (cosA < -1.0)
-                                cosA = -1.0;
-                            double curv = std::acos(cosA) / dist;
-                            if (curv > maxCurvature)
-                                maxCurvature = curv;
-                        }
+                    double weightedCurvature = 0.0;
+                    double totalWeight = 0.0;
+                    for (const auto& u : ring) {
+                        const double length = (vertices[u] - vertices[v]).length();
+                        if (length <= epsilon || normals[u].lengthSquared() <= epsilon)
+                            continue;
+                        double cosine = Vector3::dotProduct(normals[v], normals[u]);
+                        cosine = std::max(-1.0, std::min(1.0, cosine));
+                        weightedCurvature += std::acos(cosine);
+                        totalWeight += length;
                     }
-                    vertexCurvature[v] = maxCurvature;
+                    if (totalWeight > epsilon)
+                        vertexCurvature[v] = weightedCurvature / totalWeight;
                 }
             });
 
-        double sumCurvature = 0.0;
-        for (const auto& c : vertexCurvature)
-            sumCurvature += c;
-        double avgCurvature = sumCurvature / vertexCurvature.size();
-
-        if (avgCurvature > 0.0) {
+        // A percentile reference prevents a few very sharp/noisy vertices from
+        // making the rest of the surface appear flat.
+        std::vector<double> nonZeroCurvatures;
+        nonZeroCurvatures.reserve(vertexCurvature.size());
+        for (double curvature : vertexCurvature) {
+            if (curvature > epsilon)
+                nonZeroCurvatures.push_back(curvature);
+        }
+        if (!nonZeroCurvatures.empty()) {
+            const size_t referenceIndex = (nonZeroCurvatures.size() - 1) * 3 / 4;
+            std::nth_element(nonZeroCurvatures.begin(),
+                nonZeroCurvatures.begin() + referenceIndex, nonZeroCurvatures.end());
+            const double curvatureReference = nonZeroCurvatures[referenceIndex];
             vertexTargetLengths.resize(vertices.size());
+            std::vector<double> importance(vertices.size(), 1.0);
+            const double strength = std::min(adaptivity, 2.0) * 7.0;
             tbb::parallel_for(tbb::blocked_range<size_t>(0, vertices.size()),
                 [&](const tbb::blocked_range<size_t>& range) {
                     for (size_t v = range.begin(); v != range.end(); ++v) {
-                        double normalized = vertexCurvature[v] / avgCurvature;
-                        if (normalized < 1e-3)
-                            normalized = 1e-3;
-                        double multiplier = std::pow(normalized, -isoAdaptivity);
-                        if (multiplier < minRatio)
-                            multiplier = minRatio;
-                        else if (multiplier > maxRatio)
-                            multiplier = maxRatio;
-                        vertexTargetLengths[v] = voxelSize * multiplier;
+                        const double normalized = std::min(4.0,
+                            vertexCurvature[v] / std::max(curvatureReference, epsilon));
+                        importance[v] += strength * normalized * normalized;
                     }
                 });
+
+            // Keep integral(area / h^2) equal to the uniform field, which
+            // preserves the budget implied by voxelSize while moving triangles
+            // from flat regions to detailed ones.
+            double totalArea = 0.0;
+            double weightedImportance = 0.0;
+            for (size_t i = 0; i < triangles.size(); ++i) {
+                const auto& tri = triangles[i];
+                totalArea += faceAreas[i];
+                weightedImportance += faceAreas[i] * (importance[tri[0]] + importance[tri[1]] + importance[tri[2]]) / 3.0;
+            }
+            if (totalArea > epsilon) {
+                const double averageImportance = weightedImportance / totalArea;
+                for (size_t v = 0; v < vertices.size(); ++v) {
+                    double multiplier = std::sqrt(averageImportance / importance[v]);
+                    multiplier = std::max(minRatio, std::min(maxRatio, multiplier));
+                    vertexTargetLengths[v] = voxelSize * multiplier;
+                }
+            } else {
+                vertexTargetLengths.clear();
+            }
         }
     }
 
