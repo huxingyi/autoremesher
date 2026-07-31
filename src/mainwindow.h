@@ -40,6 +40,8 @@ class QuadMeshGenerator;
 class FloatNumberWidget;
 class IntNumberWidget;
 class QLabel;
+class QCheckBox;
+class QComboBox;
 #ifdef Q_OS_WIN32
 class QWinTaskbarButton;
 #endif
@@ -75,8 +77,11 @@ signals:
     void headlessFinished(size_t quadCount, size_t nonQuadCount, size_t vertexCount, double elapsedSeconds);
 
 protected:
-    void closeEvent(QCloseEvent* event);
-    void showEvent(QShowEvent* event);
+    void closeEvent(QCloseEvent* event) override;
+    void showEvent(QShowEvent* event) override;
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
+
 private slots:
     void showSupporters();
     void showContributors();
@@ -90,6 +95,7 @@ private slots:
     void saveMesh();
     bool loadObj(const QString& filename);
     void setCurrentFilename(const QString& filename);
+    void updateSymmetryPlanePreview();
     void checkRenderQueue();
     void renderMeshReady();
     void generateQuadMesh();
@@ -104,6 +110,11 @@ private slots:
     void switchToRemeshView();
 
 private:
+    void applyPreset(int index);
+    void clearActivePreset();
+    void updatePresetButtons();
+    int presetQuadCount(int index) const;
+
     ModelShaderWidget* m_modelRenderWidget = nullptr;
     AutoRemesher::AutoRemesher* m_autoRemesher = nullptr;
     bool m_inProgress = false;
@@ -116,6 +127,8 @@ private:
     float m_sharpEdgeDegrees = 90.0;
     float m_smoothNormalDegrees = 0.0;
     float m_adaptivity = 1.0;
+    bool m_symmetryEnabled = false;
+    int m_symmetryAxis = 0;
     AutoRemesher::ModelType m_modelType = AutoRemesher::ModelType::Organic;
     std::vector<AutoRemesher::Vector3> m_originalVertices;
     std::vector<std::vector<size_t>> m_originalTriangles;
@@ -140,6 +153,14 @@ private:
     FloatNumberWidget* m_sharpEdgeDegreesWidget = nullptr;
     FloatNumberWidget* m_smoothNormalDegreesWidget = nullptr;
     FloatNumberWidget* m_adaptivityWidget = nullptr;
+    QCheckBox* m_symmetryCheckBox = nullptr;
+    QComboBox* m_symmetryAxisSelectBox = nullptr;
+    QPushButton* m_presetLowButton = nullptr;
+    QPushButton* m_presetMediumButton = nullptr;
+    QPushButton* m_presetHighButton = nullptr;
+    int m_activePreset = -1;
+    bool m_applyingPreset = false;
+
     QLabel* m_quadCountLabel = nullptr;
     QLabel* m_nonQuadCountLabel = nullptr;
     QLabel* m_vertexCountLabel = nullptr;

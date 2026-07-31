@@ -49,6 +49,7 @@ struct HeadlessParams {
     double sharpEdgeDegrees = 90.0;
     double smoothNormalDegrees = 0.0;
     double adaptivity = 1.0;
+    bool isValid = true;
 };
 
 static HeadlessParams parseHeadlessArgs(QCommandLineParser& parser)
@@ -56,18 +57,66 @@ static HeadlessParams parseHeadlessArgs(QCommandLineParser& parser)
     HeadlessParams params;
     params.inputPath = parser.value("input");
     params.outputPath = parser.value("output");
+
     if (parser.isSet("report"))
         params.reportPath = parser.value("report");
-    if (parser.isSet("target-quads"))
-        params.targetQuads = parser.value("target-quads").toInt();
-    if (parser.isSet("edge-scaling"))
-        params.edgeScaling = parser.value("edge-scaling").toDouble();
-    if (parser.isSet("sharp-edge"))
-        params.sharpEdgeDegrees = parser.value("sharp-edge").toDouble();
-    if (parser.isSet("smooth-normal"))
-        params.smoothNormalDegrees = parser.value("smooth-normal").toDouble();
-    if (parser.isSet("adaptivity"))
-        params.adaptivity = parser.value("adaptivity").toDouble();
+
+    if (parser.isSet("target-quads")) {
+        bool ok = false;
+        int val = parser.value("target-quads").toInt(&ok);
+        if (!ok || val < 100) {
+            std::cerr << "Error: --target-quads must be an integer >= 100 (got '"
+                      << parser.value("target-quads").toStdString() << "')" << std::endl;
+            params.isValid = false;
+        } else {
+            params.targetQuads = val;
+        }
+    }
+
+    if (parser.isSet("edge-scaling")) {
+        bool ok = false;
+        double val = parser.value("edge-scaling").toDouble(&ok);
+        if (!ok || val <= 0.0) {
+            std::cerr << "Error: --edge-scaling must be a positive number > 0.0" << std::endl;
+            params.isValid = false;
+        } else {
+            params.edgeScaling = val;
+        }
+    }
+
+    if (parser.isSet("sharp-edge")) {
+        bool ok = false;
+        double val = parser.value("sharp-edge").toDouble(&ok);
+        if (!ok || val < 0.0 || val > 180.0) {
+            std::cerr << "Error: --sharp-edge must be a number between 0.0 and 180.0" << std::endl;
+            params.isValid = false;
+        } else {
+            params.sharpEdgeDegrees = val;
+        }
+    }
+
+    if (parser.isSet("smooth-normal")) {
+        bool ok = false;
+        double val = parser.value("smooth-normal").toDouble(&ok);
+        if (!ok || val < 0.0 || val > 180.0) {
+            std::cerr << "Error: --smooth-normal must be a number between 0.0 and 180.0" << std::endl;
+            params.isValid = false;
+        } else {
+            params.smoothNormalDegrees = val;
+        }
+    }
+
+    if (parser.isSet("adaptivity")) {
+        bool ok = false;
+        double val = parser.value("adaptivity").toDouble(&ok);
+        if (!ok || val < 0.0 || val > 1.0) {
+            std::cerr << "Error: --adaptivity must be a number between 0.0 and 1.0" << std::endl;
+            params.isValid = false;
+        } else {
+            params.adaptivity = val;
+        }
+    }
+
     return params;
 }
 
@@ -170,8 +219,11 @@ int main(int argc, char** argv)
 
     if (headlessMode) {
         HeadlessParams params = parseHeadlessArgs(parser);
+        if (!params.isValid) {
+            return 1;
+        }
         if (params.outputPath.isEmpty()) {
-            std::cerr << "Error: --output is required when --input is specified" << std::endl;
+            std::cerr << "Error: --output (-o) is required when --input (-i) is specified" << std::endl;
             return 1;
         }
 
@@ -206,17 +258,21 @@ int main(int argc, char** argv)
                         out << "  Vertices: " << vertexCount << "\n";
                         out << "  Total time: " << elapsedSeconds << " seconds\n";
                         reportFile.close();
+                    } else {
+                        std::cerr << "Warning: Could not write report to " << params.reportPath.toStdString() << std::endl;
                     }
                 }
 
-                QCoreApplication::quit();
+                int exitCode = (quadCount > 0) ? 0 : 1;
+                QCoreApplication::exit(exitCode);
             });
 
         mainWindow->setHeadlessParams(params.inputPath, params.outputPath,
             params.targetQuads, params.edgeScaling,
             params.sharpEdgeDegrees, params.smoothNormalDegrees,
             params.adaptivity);
-        mainWindow->runHeadless();
+
+        QTimer::singleShot(0, mainWindow, &MainWindow::runHeadless);
 
         return app.exec();
     }

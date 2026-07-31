@@ -36,6 +36,10 @@ public:
         double adaptivity = 1.0;
         double sharpEdgeDegrees = 90.0;
         double smoothNormalDegrees = 0.0;
+        bool symmetryEnabled = false;
+        int symmetryAxis = 0;
+        double seamTolerance = 0.005;
+        double centerOffset = 0.0;
     };
 
     QuadMeshGenerator(const std::vector<AutoRemesher::Vector3>& vertices,

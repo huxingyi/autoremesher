@@ -32,6 +32,12 @@ macx {
 	QMAKE_BUNDLE_DATA += RESOURCE_FILES
 }
 
+# Version lives in version.pri so the build script has one file to rewrite.
+# Values passed on the qmake command line still win, and the defaults below
+# still apply if the file is missing.
+exists(version.pri) {
+	include(version.pri)
+}
 isEmpty(HUMAN_VERSION) {
 	HUMAN_VERSION = "1.0.0"
 }
@@ -63,6 +69,24 @@ QMAKE_TARGET_COPYRIGHT = "Copyright (C) 2020 AutoRemesher Project. All Rights Re
 DEFINES += "PROJECT_DEFINED_APP_COMPANY=\"\\\"$$QMAKE_TARGET_COMPANY\\\"\""
 DEFINES += "PROJECT_DEFINED_APP_NAME=\"\\\"$$QMAKE_TARGET_PRODUCT\\\"\""
 DEFINES += "PROJECT_DEFINED_APP_VER=\"\\\"$$VERSION\\\"\""
+# VERSIONINFO needs the version as four separate WORDs. They are passed as four
+# defines rather than one comma-separated value, because a comma inside a DEFINES
+# entry does not survive qmake. qmake hands DEFINES to rc.exe too, so
+# autoremesher.rc reads these directly. Missing fields default to 0, so a
+# three-part VERSION in version.pri still builds.
+VER_PARTS = $$split(VERSION, ".")
+VER_FIELD_1 = $$member(VER_PARTS, 0)
+VER_FIELD_2 = $$member(VER_PARTS, 1)
+VER_FIELD_3 = $$member(VER_PARTS, 2)
+VER_FIELD_4 = $$member(VER_PARTS, 3)
+isEmpty(VER_FIELD_1): VER_FIELD_1 = 0
+isEmpty(VER_FIELD_2): VER_FIELD_2 = 0
+isEmpty(VER_FIELD_3): VER_FIELD_3 = 0
+isEmpty(VER_FIELD_4): VER_FIELD_4 = 0
+DEFINES += PROJECT_DEFINED_APP_VER_1=$$VER_FIELD_1
+DEFINES += PROJECT_DEFINED_APP_VER_2=$$VER_FIELD_2
+DEFINES += PROJECT_DEFINED_APP_VER_3=$$VER_FIELD_3
+DEFINES += PROJECT_DEFINED_APP_VER_4=$$VER_FIELD_4
 DEFINES += "PROJECT_DEFINED_APP_HUMAN_VER=\"\\\"$$HUMAN_VERSION\\\"\""
 DEFINES += "PROJECT_DEFINED_APP_HOMEPAGE_URL=\"\\\"$$HOMEPAGE_URL\\\"\""
 DEFINES += "PROJECT_DEFINED_APP_REPOSITORY_URL=\"\\\"$$REPOSITORY_URL\\\"\""
@@ -125,10 +149,17 @@ SOURCES += thirdparty/QtWaitingSpinner/waitingspinnerwidget.cpp
 HEADERS += thirdparty/QtWaitingSpinner/waitingspinnerwidget.h
 
 INCLUDEPATH += thirdparty/eigen
+INCLUDEPATH += thirdparty/ufbx
+INCLUDEPATH += thirdparty/cgltf
 
 INCLUDEPATH += include
 
 SOURCES += src/main.cpp
+
+SOURCES += src/meshio.cpp
+HEADERS += src/meshio.h
+
+SOURCES += thirdparty/ufbx/ufbx.c
 
 SOURCES += src/logbrowser.cpp
 HEADERS += src/logbrowser.h

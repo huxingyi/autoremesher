@@ -182,16 +182,17 @@ void ModelShaderMeshBinder::paint(ModelShaderProgram* program)
                             connectionVertices[i].posX = src[i].posX;
                             connectionVertices[i].posY = src[i].posY;
                             connectionVertices[i].posZ = src[i].posZ;
-                            connectionVertices[i].colorR = 1.0f;
-                            connectionVertices[i].colorG = 1.0f;
-                            connectionVertices[i].colorB = 1.0f;
-                            connectionVertices[i].alpha = 1.0f;
+                            connectionVertices[i].colorR = src[i].colorR;
+                            connectionVertices[i].colorG = src[i].colorG;
+                            connectionVertices[i].colorB = src[i].colorB;
+                            connectionVertices[i].alpha = src[i].alpha;
                         }
                         m_connectionWireframeObject.update(connectionVertices.data(), connectionEdgeCount);
                     } else {
                         m_connectionWireframeObject.update(nullptr, 0);
                     }
                 }
+
                 {
                     // Convert edge vertices from ModelShaderVertex to MonochromeOpenGLVertex
                     int edgeCount = m_mesh->edgeVertexCount();
@@ -314,12 +315,13 @@ void ModelShaderMeshBinder::updateToonNormalAndDepthMaps(QImage* normalMap, QIma
 
 void ModelShaderMeshBinder::paintWireframe()
 {
-    if (!m_showWireframe)
-        return;
-
-    m_wireframeObject.draw();
     m_connectionWireframeObject.draw();
+
+    if (m_showWireframe) {
+        m_wireframeObject.draw();
+    }
 }
+
 
 void ModelShaderMeshBinder::cleanup()
 {
