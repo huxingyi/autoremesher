@@ -24,6 +24,8 @@
 #include <AutoRemesher/MeshSeparator>
 #include <AutoRemesher/Parameterizer>
 #include <AutoRemesher/QuadExtractor>
+#include <cstdlib>
+#include <mutex>
 #include <QDebug>
 #include <algorithm>
 #include <atomic>
@@ -148,21 +150,7 @@ static void ReportProgress(void* tag, float progress)
 #if AUTO_REMESHER_DEBUG
     //qDebug() << "Island[" << context->islandIndex << "]: round(" << geogram_report_progress_round << ") progress(" << (100 * progress) << "%)";
 #endif
-    static const char* qc_stages[] = {
-        "brush + cross-field alignment",
-        "singular vertex detection",
-        "cut graph construction",
-        "constraint building",
-        "solver passes 0-1",
-        "solver passes 2-3",
-        "mixed-integer solve",
-        "result extraction"
-    };
     int r = geogram_report_progress_round;
-    if (r >= 0 && r < 8) {
-        context->autoRemesher->setCurrentStatus(
-            "Island " + std::to_string(context->islandIndex + 1) + ": " + qc_stages[r]);
-    }
     float base = 0.0f;
     float span = 0.0f;
     switch (r) {
@@ -343,17 +331,15 @@ void AutoRemesher::updateProgress(size_t threadIndex, float progress)
     if (nullptr == m_progressHandler)
         return;
 
-    if (progress > m_threadProgress[threadIndex])
-        m_threadProgress[threadIndex] = progress;
     float islandWeightedAvg = 0.0;
-    for (size_t i = 0; i < m_threadProgress.size(); ++i)
-        islandWeightedAvg += m_threadProgress[i] * m_threadProgressWeights[i];
-    std::string statusCopy;
     {
-        std::lock_guard<std::mutex> lock(m_currentStatusMutex);
-        statusCopy = m_currentStatus;
+        std::lock_guard<std::mutex> lock(m_progressMutex);
+        if (progress > m_threadProgress[threadIndex])
+            m_threadProgress[threadIndex] = progress;
+        for (size_t i = 0; i < m_threadProgress.size(); ++i)
+            islandWeightedAvg += m_threadProgress[i] * m_threadProgressWeights[i];
     }
-    m_progressHandler(m_tag, islandWeightedAvg, statusCopy.c_str());
+    m_progressHandler(m_tag, islandWeightedAvg, "");
 }
 
 bool AutoRemesher::remesh()
@@ -368,7 +354,6 @@ bool AutoRemesher::remesh()
     auto t_start = std::chrono::high_resolution_clock::now();
 
     auto t_voxelStart = std::chrono::high_resolution_clock::now();
-    setCurrentStatus("Computing voxel size...");
     initializeVoxelSize();
     if (nullptr != m_progressHandler)
         m_progressHandler(m_tag, 0.01f, "Computing voxel size...");
@@ -376,7 +361,6 @@ bool AutoRemesher::remesh()
 
     std::vector<std::vector<std::vector<size_t>>> trianglesIslands;
     auto t_splitStart = std::chrono::high_resolution_clock::now();
-    setCurrentStatus("Splitting mesh into islands...");
     MeshSeparator::splitToIslands(m_triangles, trianglesIslands);
     if (nullptr != m_progressHandler)
         m_progressHandler(m_tag, 0.02f, "Splitting mesh into islands...");
@@ -399,6 +383,7 @@ bool AutoRemesher::remesh()
         double voxelSize;
         double scaling;
         double adaptivity;
+        double anisotropy;
         double sharpEdgeDegrees;
         double smoothNormalDegrees;
     };
@@ -426,12 +411,12 @@ bool AutoRemesher::remesh()
         context.scaling = m_scaling;
         context.voxelSize = m_voxelSize;
         context.adaptivity = m_adaptivity;
+        context.anisotropy = m_anisotropy;
         context.sharpEdgeDegrees = m_sharpEdgeDegrees;
         context.smoothNormalDegrees = m_smoothNormalDegrees;
 
         islandContexes.push_back(context);
     }
-    setCurrentStatus("Building island contexts...");
     if (nullptr != m_progressHandler)
         m_progressHandler(m_tag, 0.03f, "Building island contexts...");
     auto t_buildEnd = std::chrono::high_resolution_clock::now();
@@ -448,13 +433,13 @@ bool AutoRemesher::remesh()
             IsotropicPhase(std::vector<IslandContext>* contexts,
                 AutoRemesher* remesher,
                 std::atomic<long long>* resampleTime,
-                std::vector<Vector3>* outVertices,
-                std::vector<std::vector<size_t>>* outTriangles)
+                std::vector<std::vector<Vector3>>* islandVertices,
+                std::vector<std::vector<std::vector<size_t>>>* islandTriangles)
                 : m_contexts(contexts)
                 , m_remesher(remesher)
                 , m_resampleTime(resampleTime)
-                , m_outVertices(outVertices)
-                , m_outTriangles(outTriangles)
+                , m_islandVertices(islandVertices)
+                , m_islandTriangles(islandTriangles)
             {
             }
 
@@ -463,8 +448,6 @@ bool AutoRemesher::remesh()
                 for (size_t i = range.begin(); i != range.end(); ++i) {
                     auto& ctx = (*m_contexts)[i];
 
-                    m_remesher->setCurrentStatus(
-                        "Island " + std::to_string(i + 1) + ": isotropic remeshing...");
                     m_remesher->updateProgress(i, 0.0f);
 
                     auto t0 = std::chrono::high_resolution_clock::now();
@@ -472,17 +455,8 @@ bool AutoRemesher::remesh()
                     auto t1 = std::chrono::high_resolution_clock::now();
                     *m_resampleTime += std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
-                    // Collect isotropic mesh vertices/triangles for later preview
-                    // Must accumulate in the correct order across islands
-                    size_t vertexOffset = m_outVertices->size();
-                    for (const auto& v : ctx.vertices)
-                        m_outVertices->push_back(v);
-                    for (const auto& tri : ctx.triangles) {
-                        std::vector<size_t> offsetTri;
-                        for (auto idx : tri)
-                            offsetTri.push_back(idx + vertexOffset);
-                        m_outTriangles->push_back(offsetTri);
-                    }
+                    (*m_islandVertices)[i] = ctx.vertices;
+                    (*m_islandTriangles)[i] = ctx.triangles;
 
                     m_remesher->updateProgress(i, 0.3f);
                 }
@@ -492,17 +466,31 @@ bool AutoRemesher::remesh()
             std::vector<IslandContext>* m_contexts = nullptr;
             AutoRemesher* m_remesher = nullptr;
             std::atomic<long long>* m_resampleTime = nullptr;
-            std::vector<Vector3>* m_outVertices = nullptr;
-            std::vector<std::vector<size_t>>* m_outTriangles = nullptr;
+            std::vector<std::vector<Vector3>>* m_islandVertices = nullptr;
+            std::vector<std::vector<std::vector<size_t>>>* m_islandTriangles = nullptr;
         };
 
         std::atomic<long long> resampleTime(0);
 
         m_isotropicVertices.clear();
         m_isotropicTriangles.clear();
+        std::vector<std::vector<Vector3>> isotropicIslandVertices(islandContexes.size());
+        std::vector<std::vector<std::vector<size_t>>> isotropicIslandTriangles(islandContexes.size());
         tbb::parallel_for(tbb::blocked_range<size_t>(0, islandContexes.size()),
             IsotropicPhase(&islandContexes, this, &resampleTime,
-                &m_isotropicVertices, &m_isotropicTriangles));
+                &isotropicIslandVertices, &isotropicIslandTriangles));
+        for (size_t i = 0; i < isotropicIslandVertices.size(); ++i) {
+            const size_t vertexOffset = m_isotropicVertices.size();
+            m_isotropicVertices.insert(m_isotropicVertices.end(),
+                isotropicIslandVertices[i].begin(), isotropicIslandVertices[i].end());
+            for (const auto& triangle : isotropicIslandTriangles[i]) {
+                std::vector<size_t> offsetTriangle;
+                offsetTriangle.reserve(triangle.size());
+                for (const size_t index : triangle)
+                    offsetTriangle.push_back(index + vertexOffset);
+                m_isotropicTriangles.push_back(std::move(offsetTriangle));
+            }
+        }
     }
 
     class ParameterizationThread {
@@ -519,6 +507,8 @@ bool AutoRemesher::remesh()
         QuadExtractor* remesher = nullptr;
         AutoRemesher* autoRemesher = nullptr;
         std::vector<std::vector<Vector2>> capturedUvs;
+        std::vector<std::vector<Vector2>> capturedOriginalUvs;
+        std::vector<uint8_t> capturedExtractedConnectionMoved;
         std::vector<Vector3> capturedSingularVertices;
         std::vector<std::pair<Vector3, Vector3>> capturedExtractedConnections;
     };
@@ -563,14 +553,13 @@ bool AutoRemesher::remesh()
                 geogram_report_progress_round = 0;
                 geogram_report_progress_callback = ReportProgress;
 
-                thread.autoRemesher->setCurrentStatus(
-                    "Island " + std::to_string(thread.islandIndex + 1) + ": computing normals & frame field...");
                 thread.autoRemesher->updateProgress(thread.islandIndex, 0.3f);
                 thread.parameterizer = new Parameterizer(&vertices,
                     &triangles,
                     nullptr);
                 thread.parameterizer->setScaling(thread.island->scaling);
                 thread.parameterizer->setGradientAdaptivity(thread.island->adaptivity);
+                thread.parameterizer->setAnisotropy(thread.island->anisotropy);
                 thread.parameterizer->setSharpEdgeDegrees(thread.island->sharpEdgeDegrees);
                 bool parameterizeSucceeded = true;
                 try {
@@ -594,30 +583,37 @@ bool AutoRemesher::remesh()
                 *m_parameterizeTime += std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
                 if (parameterizeSucceeded) {
-                    thread.autoRemesher->setCurrentStatus(
-                        "Island " + std::to_string(thread.islandIndex + 1) + ": extracting quads...");
                     thread.autoRemesher->updateProgress(thread.islandIndex, 0.9f);
                     std::vector<std::vector<Vector2>>* uvs = thread.parameterizer->takeTriangleUvs();
                     if (uvs) {
                         // Save a copy of UVs for the [param] preview overlay
                         thread.capturedUvs = *uvs;
+                        thread.capturedOriginalUvs = thread.parameterizer->originalTriangleUvs();
                     }
                     // Capture singular vertex positions for the [param] preview
                     thread.capturedSingularVertices = thread.parameterizer->singularVertexPositions();
+                    if (nullptr != getenv("AUTOREMESHER_DEBUG_FILL")) {
+                        static std::mutex s_singularDumpMutex;
+                        std::lock_guard<std::mutex> lock(s_singularDumpMutex);
+                        FILE* fp = fopen("debug-singular.txt", "ab");
+                        for (const auto& p : thread.capturedSingularVertices)
+                            fprintf(fp, "%f %f %f\n", p.x(), p.y(), p.z());
+                        fclose(fp);
+                    }
                     thread.remesher = new QuadExtractor(&vertices,
                         &triangles,
                         uvs);
+                    thread.remesher->setOriginalTriangleUvs(&thread.capturedOriginalUvs);
                     if (!thread.remesher->extract()) {
                         delete thread.remesher;
                         thread.remesher = nullptr;
                     } else {
                         thread.capturedExtractedConnections = thread.remesher->extractedConnections();
+                        thread.capturedExtractedConnectionMoved = thread.remesher->extractedConnectionMoved();
                     }
                     delete uvs;
                 }
                 thread.autoRemesher->updateProgress(thread.islandIndex, 1.0f);
-                thread.autoRemesher->setCurrentStatus(
-                    "Island " + std::to_string(thread.islandIndex + 1) + ": done");
                 auto t2 = std::chrono::high_resolution_clock::now();
                 *m_extractTime += std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
             }
@@ -637,18 +633,20 @@ bool AutoRemesher::remesh()
             &extractTimeAccumulated));
     auto t_parallelEnd = std::chrono::high_resolution_clock::now();
 
-    setCurrentStatus("Merging mesh islands...");
     if (nullptr != m_progressHandler)
         m_progressHandler(m_tag, 0.95f, "Merging mesh islands...");
 
     // Merge isotropic UVs from all islands (for [param] preview)
     m_isotropicTriangleUvs.clear();
+    m_isotropicOriginalTriangleUvs.clear();
     for (size_t i = 0; i < parameterizationThreads.size(); ++i) {
         auto& thread = parameterizationThreads[i];
         if (thread.capturedUvs.empty())
             continue;
         m_isotropicTriangleUvs.insert(m_isotropicTriangleUvs.end(),
             thread.capturedUvs.begin(), thread.capturedUvs.end());
+        m_isotropicOriginalTriangleUvs.insert(m_isotropicOriginalTriangleUvs.end(),
+            thread.capturedOriginalUvs.begin(), thread.capturedOriginalUvs.end());
     }
 
     // Merge singular vertex positions from all islands (for [param] preview)
@@ -663,9 +661,17 @@ bool AutoRemesher::remesh()
 
     // Merge the raw quad-extraction connections for the [param] preview.
     m_isotropicExtractedConnections.clear();
+    m_isotropicExtractedConnectionMoved.clear();
     for (const auto& thread : parameterizationThreads) {
         m_isotropicExtractedConnections.insert(m_isotropicExtractedConnections.end(),
             thread.capturedExtractedConnections.begin(), thread.capturedExtractedConnections.end());
+        m_isotropicExtractedConnectionMoved.resize(m_isotropicExtractedConnections.size()
+                - thread.capturedExtractedConnections.size(),
+            0);
+        m_isotropicExtractedConnectionMoved.insert(m_isotropicExtractedConnectionMoved.end(),
+            thread.capturedExtractedConnectionMoved.begin(),
+            thread.capturedExtractedConnectionMoved.end());
+        m_isotropicExtractedConnectionMoved.resize(m_isotropicExtractedConnections.size(), 0);
     }
     for (size_t i = 0; i < parameterizationThreads.size(); ++i) {
         auto& thread = parameterizationThreads[i];

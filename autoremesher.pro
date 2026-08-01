@@ -182,6 +182,9 @@ HEADERS += src/modelshaderwidget.h
 SOURCES += src/rendermeshgenerator.cpp
 HEADERS += src/rendermeshgenerator.h
 
+SOURCES += src/previewmeshgenerator.cpp
+HEADERS += src/previewmeshgenerator.h
+
 SOURCES += src/quadmeshgenerator.cpp
 HEADERS += src/quadmeshgenerator.h
 
@@ -217,6 +220,7 @@ HEADERS += src/AutoRemesher/parameterizer.h
 
 SOURCES += src/AutoRemesher/quadextractor.cpp
 HEADERS += src/AutoRemesher/quadextractor.h
+
 
 SOURCES += src/AutoRemesher/positionkey.cpp
 HEADERS += src/AutoRemesher/positionkey.h

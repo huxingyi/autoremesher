@@ -32,14 +32,17 @@
 #include <QPushButton>
 #include <QShowEvent>
 #include <QString>
+#include <cstdint>
 #include <queue>
 #include <utility>
 
 class RenderMeshGenerator;
+class PreviewMeshGenerator;
 class QuadMeshGenerator;
 class FloatNumberWidget;
 class IntNumberWidget;
 class QLabel;
+class QCheckBox;
 #ifdef Q_OS_WIN32
 class QWinTaskbarButton;
 #endif
@@ -67,7 +70,8 @@ public:
     void setHeadlessParams(const QString& inputPath, const QString& outputPath,
         int targetQuads, double edgeScaling,
         double sharpEdgeDegrees, double smoothNormalDegrees,
-        double adaptivity);
+        double adaptivity,
+        double anisotropy);
     void runHeadless();
     void saveMeshToFile(const QString& filename);
 
@@ -98,6 +102,7 @@ private slots:
     void updateProgress(float progress);
     void updateProgressDetailed(float progress, const QString& status);
     void generatePreviewMeshes();
+    void previewMeshesReady();
     void switchToSourceView();
     void switchToIsotropicView();
     void switchToParamView();
@@ -116,6 +121,7 @@ private:
     float m_sharpEdgeDegrees = 90.0;
     float m_smoothNormalDegrees = 0.0;
     float m_adaptivity = 1.0;
+    float m_anisotropy = 1.0;
     AutoRemesher::ModelType m_modelType = AutoRemesher::ModelType::Organic;
     std::vector<AutoRemesher::Vector3> m_originalVertices;
     std::vector<std::vector<size_t>> m_originalTriangles;
@@ -123,6 +129,7 @@ private:
     std::vector<std::vector<size_t>>* m_remeshedQuads = nullptr;
     QString m_currentFilename;
     RenderMeshGenerator* m_renderMeshGenerator = nullptr;
+    PreviewMeshGenerator* m_previewMeshGenerator = nullptr;
     std::queue<ResultMesh> m_renderQueue;
     bool m_quadMeshResultIsDirty = false;
     QuadMeshGenerator* m_quadMeshGenerator = nullptr;
@@ -140,6 +147,7 @@ private:
     FloatNumberWidget* m_sharpEdgeDegreesWidget = nullptr;
     FloatNumberWidget* m_smoothNormalDegreesWidget = nullptr;
     FloatNumberWidget* m_adaptivityWidget = nullptr;
+    FloatNumberWidget* m_anisotropyWidget = nullptr;
     QLabel* m_quadCountLabel = nullptr;
     QLabel* m_nonQuadCountLabel = nullptr;
     QLabel* m_vertexCountLabel = nullptr;
@@ -150,6 +158,8 @@ private:
     std::vector<AutoRemesher::Vector3> m_isotropicVertices;
     std::vector<std::vector<size_t>> m_isotropicTriangles;
     std::vector<std::vector<AutoRemesher::Vector2>> m_isotropicTriangleUvs;
+    std::vector<std::vector<AutoRemesher::Vector2>> m_isotropicOriginalTriangleUvs;
+    std::vector<uint8_t> m_isotropicExtractedConnectionMoved;
     std::vector<AutoRemesher::Vector3> m_isotropicSingularVertices;
     std::vector<std::pair<AutoRemesher::Vector3, AutoRemesher::Vector3>> m_isotropicExtractedConnections;
 

@@ -126,6 +126,17 @@ namespace GEO {
 		    mesh->facets.attributes(), "adaptive_scaling"
 		);
 
+		Attribute<double> adaptive_scaling_u;
+		Attribute<double> adaptive_scaling_v;
+		adaptive_scaling_u.bind_if_is_defined(
+		    mesh->facets.attributes(), "adaptive_scaling_u"
+		);
+		adaptive_scaling_v.bind_if_is_defined(
+		    mesh->facets.attributes(), "adaptive_scaling_v"
+		);
+		bool anisotropic =
+		    adaptive_scaling_u.is_bound() && adaptive_scaling_v.is_bound();
+
 		index_t nb_U = mesh->facets.nb()*3*2;
 		index_t nb_T = mesh->facets.nb()*3*2;
 		MatrixMixedConstrainedSolver solver(nb_U+nb_T);
@@ -160,14 +171,9 @@ namespace GEO {
 		// and singular vertices)
 		
 		vector<index_t> v2c(mesh->vertices.nb(), NO_CORNER);
-		tbb::parallel_for(
-		    tbb::blocked_range<index_t>(0, mesh->facet_corners.nb()),
-		    [&](const tbb::blocked_range<index_t> &range) {
-			for(index_t c = range.begin(); c != range.end(); ++c) {
-			    index_t v = mesh->facet_corners.vertex(c);
-			    v2c[v] = c;
-			}
-		    });
+		for(index_t c = 0; c < mesh->facet_corners.nb(); ++c) {
+		    v2c[mesh->facet_corners.vertex(c)] = c;
+		}
 		{
 		    tbb::parallel_for(
 			tbb::blocked_range<index_t>(0, mesh->facet_corners.nb()),
@@ -378,10 +384,17 @@ namespace GEO {
 			vec3 Bf  = normalize(B[f]);
 			vec3 BTf = cross(N,Bf);
 
-			double s = scaling;
+			double su = scaling;
 			if(adaptive_scaling.is_bound()) {
-			    s *= adaptive_scaling[f];
+			    su *= adaptive_scaling[f];
 			}
+			double sv = su;
+			if(anisotropic) {
+			    su *= adaptive_scaling_u[f];
+			    sv *= adaptive_scaling_v[f];
+			}
+
+			double w = anisotropic ? ::sqrt(su * sv) : su;
 
 			for(index_t c1 = mesh->facets.corners_begin(f);
 			    c1 < mesh->facets.corners_end(f); ++c1) {
@@ -393,14 +406,18 @@ namespace GEO {
 				vec3(mesh->vertices.point_ptr(v2)) -
 				vec3(mesh->vertices.point_ptr(v1));
 			    solver.begin_energy();
-			    solver.add_energy_coeff(2*c2, s);
-			    solver.add_energy_coeff(2*c1,-s);
-			    solver.add_energy_rhs(dot(Bf,E));
+			    solver.add_energy_coeff(2*c2, w);
+			    solver.add_energy_coeff(2*c1,-w);
+			    solver.add_energy_rhs(
+				anisotropic ? w*dot(Bf,E)/su : dot(Bf,E)
+			    );
 			    solver.end_energy();
 			    solver.begin_energy();
-			    solver.add_energy_coeff(2*c2+1, s);
-			    solver.add_energy_coeff(2*c1+1,-s);
-			    solver.add_energy_rhs(dot(BTf,E));
+			    solver.add_energy_coeff(2*c2+1, w);
+			    solver.add_energy_coeff(2*c1+1,-w);
+			    solver.add_energy_rhs(
+				anisotropic ? w*dot(BTf,E)/sv : dot(BTf,E)
+			    );
 			    solver.end_energy();
 			}
 		    }
@@ -449,7 +466,33 @@ namespace GEO {
 
 		if(do_brush) {
 		    QC_PROGRESS_BEGIN(0);
+		    Attribute<double> su;
+		    Attribute<double> sv;
+		    su.bind_if_is_defined(
+			mesh->facets.attributes(), "adaptive_scaling_u"
+		    );
+		    sv.bind_if_is_defined(
+			mesh->facets.attributes(), "adaptive_scaling_v"
+		    );
+		    vector<vec3> B_before;
+		    bool track_branch = su.is_bound() && sv.is_bound();
+		    if(track_branch) {
+			B_before.resize(mesh->facets.nb());
+			FOR(f, mesh->facets.nb()) {
+			    B_before[f] = normalize(B[f]);
+			}
+		    }
 		    Internal::brush(mesh,B);
+		    if(track_branch) {
+			FOR(f, mesh->facets.nb()) {
+			    vec3 N = normalize(Geom::mesh_facet_normal(*mesh,f));
+			    vec3 Bf = normalize(B[f]);
+			    if(::fabs(dot(B_before[f],Bf)) <
+			       ::fabs(dot(B_before[f],cross(N,Bf)))) {
+				std::swap(su[f],sv[f]);
+			    }
+			}
+		    }
 		    QC_PROGRESS(1.0f);
 		}
 		Internal::compute_R_ff(mesh,B,R_ff);

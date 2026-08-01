@@ -505,7 +505,6 @@ namespace {
      *  for each facet whether it is locked. Directions of locked facets are
      *  kept unchanged
      * \param[out] magnitude a vector of M.facets.nb() doubles that indicates
-     *  for each facet the magnitude of the principal direction of curvature
      */
     void estimate_max_curvature_direction(
         const Mesh& M, vector<double>& sincos_alpha, const vector<bool>& locked,
@@ -559,7 +558,7 @@ namespace {
             sincos_alpha[2*f] = cos(angle);
             sincos_alpha[2*f+1] = sin(angle);
 
-            magnitude[f] = fabs(NC.kmax());
+            magnitude[f] = ::fabs(NC.kmax() - NC.kmin());
         }
     }
 

@@ -42,6 +42,11 @@ public:
         delete m_triangleUvs;
     }
 
+    const std::vector<std::vector<Vector2>>& originalTriangleUvs() const
+    {
+        return m_originalTriangleUvs;
+    }
+
     std::vector<std::vector<Vector2>>* takeTriangleUvs()
     {
         std::vector<std::vector<Vector2>>* triangleUvs = m_triangleUvs;
@@ -69,6 +74,11 @@ public:
         m_sharpEdgeDegrees = degrees;
     }
 
+    void setAnisotropy(double anisotropy)
+    {
+        m_anisotropy = anisotropy;
+    }
+
     bool parameterize();
 
 private:
@@ -77,9 +87,12 @@ private:
     const std::vector<Vector3>* m_triangleFieldVectors = nullptr;
     std::vector<std::vector<Vector2>>* m_triangleUvs = nullptr;
     std::vector<Vector3> m_singularVertexPositions;
+    std::vector<std::vector<Vector2>> m_originalTriangleUvs;
     double m_scaling = 1.0;
     double m_adaptivity = 0.5;
     double m_sharpEdgeDegrees = 90.0;
+    double m_anisotropy = 1.0;
+    double m_maxAspectRatio = 2.3;
 
     std::vector<double> computeFaceScalingField(const std::vector<Vector3>& vertices,
         const std::vector<std::vector<size_t>>& triangles,

@@ -23,6 +23,7 @@
 #define AUTO_REMESHER_AUTO_REMESHER_H
 #include <AutoRemesher/Vector3>
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <mutex>
 #include <utility>
@@ -83,6 +84,11 @@ public:
         m_sharpEdgeDegrees = degrees;
     }
 
+    void setAnisotropy(double anisotropy)
+    {
+        m_anisotropy = anisotropy;
+    }
+
     void setSmoothNormalDegrees(double degrees)
     {
         m_smoothNormalDegrees = degrees;
@@ -108,6 +114,16 @@ public:
         return m_isotropicTriangles;
     }
 
+    const std::vector<uint8_t>& isotropicExtractedConnectionMoved()
+    {
+        return m_isotropicExtractedConnectionMoved;
+    }
+
+    const std::vector<std::vector<Vector2>>& isotropicOriginalTriangleUvs()
+    {
+        return m_isotropicOriginalTriangleUvs;
+    }
+
     const std::vector<std::vector<Vector2>>& isotropicTriangleUvs()
     {
         return m_isotropicTriangleUvs;
@@ -127,17 +143,6 @@ public:
 
     void updateProgress(size_t threadIndex, float progress);
 
-    void setCurrentStatus(const std::string& status)
-    {
-        std::lock_guard<std::mutex> lock(m_currentStatusMutex);
-        m_currentStatus = status;
-    }
-    std::string currentStatus() const
-    {
-        std::lock_guard<std::mutex> lock(m_currentStatusMutex);
-        return m_currentStatus;
-    }
-
     static const double m_defaultSharpEdgeDegrees;
 
 private:
@@ -148,21 +153,23 @@ private:
     std::vector<Vector3> m_isotropicVertices;
     std::vector<std::vector<size_t>> m_isotropicTriangles;
     std::vector<std::vector<Vector2>> m_isotropicTriangleUvs;
+    std::vector<std::vector<Vector2>> m_isotropicOriginalTriangleUvs;
+    std::vector<uint8_t> m_isotropicExtractedConnectionMoved;
     std::vector<Vector3> m_isotropicSingularVertices;
     std::vector<std::pair<Vector3, Vector3>> m_isotropicExtractedConnections;
     std::vector<float> m_threadProgress;
     std::vector<float> m_threadProgressWeights;
+    mutable std::mutex m_progressMutex;
     double m_scaling = 0.0;
     size_t m_targetTriangleCount = 0;
     double m_voxelSize = 0.0;
     double m_adaptivity = 1.0;
+    double m_anisotropy = 1.0;
     double m_sharpEdgeDegrees = m_defaultSharpEdgeDegrees;
     double m_smoothNormalDegrees = 0.0;
     ModelType m_modelType = ModelType::Organic;
     AutoRemesherProgressHandler m_progressHandler = nullptr;
     void* m_tag = nullptr;
-    std::string m_currentStatus;
-    mutable std::mutex m_currentStatusMutex;
 
     static double calculateAverageEdgeLength(const std::vector<Vector3>& vertices,
         const std::vector<std::vector<size_t>>& faces);

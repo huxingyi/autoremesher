@@ -25,6 +25,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <cstdint>
 #include <vector>
 
 namespace AutoRemesher {
@@ -56,6 +57,16 @@ public:
         return m_extractedConnections;
     }
 
+    void setOriginalTriangleUvs(const std::vector<std::vector<Vector2>>* originalTriangleUvs)
+    {
+        m_originalTriangleUvs = originalTriangleUvs;
+    }
+
+    const std::vector<uint8_t>& extractedConnectionMoved() const
+    {
+        return m_extractedConnectionMoved;
+    }
+
     bool extract();
 
 private:
@@ -65,6 +76,8 @@ private:
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedPolygons;
     std::vector<std::pair<Vector3, Vector3>> m_extractedConnections;
+    std::vector<uint8_t> m_extractedConnectionMoved;
+    const std::vector<std::vector<Vector2>>* m_originalTriangleUvs = nullptr;
     std::set<std::pair<size_t, size_t>> m_halfEdges;
 
     void extractConnections(std::vector<Vector3>* crossPoints,

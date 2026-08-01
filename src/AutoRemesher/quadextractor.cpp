@@ -38,10 +38,33 @@ bool QuadExtractor::extract()
     std::set<std::pair<size_t, size_t>> connections;
     extractConnections(&crossPoints, &crossPointSourceTriangles, &connections);
     m_extractedConnections.clear();
+    m_extractedConnectionMoved.clear();
     m_extractedConnections.reserve(connections.size());
+    std::vector<uint8_t> triangleMoved;
+    if (nullptr != m_originalTriangleUvs
+        && m_originalTriangleUvs->size() == m_triangleUvs->size()) {
+        triangleMoved.assign(m_triangleUvs->size(), 0);
+        for (size_t i = 0; i < triangleMoved.size(); ++i) {
+            const auto& before = (*m_originalTriangleUvs)[i];
+            const auto& after = (*m_triangleUvs)[i];
+            for (size_t k = 0; k < 3 && k < before.size() && k < after.size(); ++k) {
+                if (before[k].x() != after[k].x() || before[k].y() != after[k].y()) {
+                    triangleMoved[i] = 1;
+                    break;
+                }
+            }
+        }
+        m_extractedConnectionMoved.reserve(connections.size());
+    }
     for (const auto& connection : connections) {
         m_extractedConnections.emplace_back(crossPoints[connection.first],
             crossPoints[connection.second]);
+        if (!triangleMoved.empty()) {
+            const size_t firstTriangle = crossPointSourceTriangles[connection.first];
+            const size_t secondTriangle = crossPointSourceTriangles[connection.second];
+            m_extractedConnectionMoved.push_back(
+                (triangleMoved[firstTriangle] || triangleMoved[secondTriangle]) ? 1 : 0);
+        }
     }
     std::cerr << "Extract connections done" << std::endl;
 

@@ -54,7 +54,7 @@ void main()
     float alpha = pointAlpha;
     if (1 == textureEnabled) {
         vec4 textColor = texture2D(textureId, pointTexCoord);
-        color = textColor.rgb;
+        color = textColor.rgb * pointColor;
         alpha = textColor.a;
     }
 

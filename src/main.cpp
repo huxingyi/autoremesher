@@ -49,6 +49,7 @@ struct HeadlessParams {
     double sharpEdgeDegrees = 90.0;
     double smoothNormalDegrees = 0.0;
     double adaptivity = 1.0;
+    double anisotropy = 1.0;
 };
 
 static HeadlessParams parseHeadlessArgs(QCommandLineParser& parser)
@@ -68,6 +69,8 @@ static HeadlessParams parseHeadlessArgs(QCommandLineParser& parser)
         params.smoothNormalDegrees = parser.value("smooth-normal").toDouble();
     if (parser.isSet("adaptivity"))
         params.adaptivity = parser.value("adaptivity").toDouble();
+    if (parser.isSet("anisotropy"))
+        params.anisotropy = parser.value("anisotropy").toDouble();
     return params;
 }
 
@@ -129,6 +132,11 @@ int main(int argc, char** argv)
         QCoreApplication::translate("main", "Curvature-adaptive quad density (default: 1.0, range: 0.0-1.0)"),
         QCoreApplication::translate("main", "value"));
     parser.addOption(adaptivityOption);
+
+    QCommandLineOption anisotropyOption(QStringList { "anisotropy" },
+        QCoreApplication::translate("main", "Curvature-adaptive quad elongation (default: 1.0, range: 0.0-1.0)"),
+        QCoreApplication::translate("main", "value"));
+    parser.addOption(anisotropyOption);
 
     parser.process(app);
 
@@ -199,7 +207,8 @@ int main(int argc, char** argv)
                         out << "Edge scaling: " << params.edgeScaling << "\n";
                         out << "Sharp edge degrees: " << params.sharpEdgeDegrees << "\n";
                         out << "Smooth normal degrees: " << params.smoothNormalDegrees << "\n";
-                        out << "Adaptivity: " << params.adaptivity << "\n\n";
+                        out << "Adaptivity: " << params.adaptivity << "\n";
+                        out << "Anisotropy: " << params.anisotropy << "\n\n";
                         out << "Results:\n";
                         out << "  Quads: " << quadCount << "\n";
                         out << "  Non-quads: " << nonQuadCount << "\n";
@@ -215,7 +224,7 @@ int main(int argc, char** argv)
         mainWindow->setHeadlessParams(params.inputPath, params.outputPath,
             params.targetQuads, params.edgeScaling,
             params.sharpEdgeDegrees, params.smoothNormalDegrees,
-            params.adaptivity);
+            params.adaptivity, params.anisotropy);
         mainWindow->runHeadless();
 
         return app.exec();

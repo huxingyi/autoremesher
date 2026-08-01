@@ -135,6 +135,9 @@ void RenderMeshGenerator::generate()
                            size_t startIndex,
                            const AutoRemesher::Vector3& normal,
                            const AutoRemesher::Vector3& center) {
+        const float colorR = 1.0f;
+        const float colorG = 0.996f;
+        const float colorB = 0.890f;
         for (size_t j = 0; j < 2; ++j) {
             auto& v = triangleVertices[vertexNum++];
             auto index = sourceFace[(startIndex + j) % sourceFace.size()];
@@ -145,9 +148,9 @@ void RenderMeshGenerator::generate()
             v.normX = (float)normal.x();
             v.normY = (float)normal.y();
             v.normZ = (float)normal.z();
-            v.colorR = 1.0f;
-            v.colorG = 0.996f;
-            v.colorB = 0.890f;
+            v.colorR = colorR;
+            v.colorG = colorG;
+            v.colorB = colorB;
             v.roughness = 1.0f;
             v.alpha = 1.0f;
         }
@@ -159,9 +162,9 @@ void RenderMeshGenerator::generate()
         v.normX = (float)normal.x();
         v.normY = (float)normal.y();
         v.normZ = (float)normal.z();
-        v.colorR = 1.0f;
-        v.colorG = 0.996f;
-        v.colorB = 0.890f;
+        v.colorR = colorR;
+        v.colorG = colorG;
+        v.colorB = colorB;
         v.roughness = 1.0f;
         v.alpha = 1.0f;
     };

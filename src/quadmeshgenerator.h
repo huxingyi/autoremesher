@@ -24,6 +24,7 @@
 #include <AutoRemesher/AutoRemesher>
 #include <AutoRemesher/Vector2>
 #include <QObject>
+#include <cstdint>
 #include <utility>
 
 class QuadMeshGenerator : public QObject {
@@ -34,6 +35,7 @@ public:
         size_t targetTriangleCount = 0;
         AutoRemesher::ModelType modelType = AutoRemesher::ModelType::Organic;
         double adaptivity = 1.0;
+        double anisotropy = 1.0;
         double sharpEdgeDegrees = 90.0;
         double smoothNormalDegrees = 0.0;
     };
@@ -81,6 +83,16 @@ public:
         return m_isotropicTriangles;
     }
 
+    const std::vector<uint8_t>& isotropicExtractedConnectionMoved()
+    {
+        return m_isotropicExtractedConnectionMoved;
+    }
+
+    const std::vector<std::vector<AutoRemesher::Vector2>>& isotropicOriginalTriangleUvs()
+    {
+        return m_isotropicOriginalTriangleUvs;
+    }
+
     const std::vector<std::vector<AutoRemesher::Vector2>>& isotropicTriangleUvs() const
     {
         return m_isotropicTriangleUvs;
@@ -116,6 +128,8 @@ private:
     std::vector<AutoRemesher::Vector3> m_isotropicVertices;
     std::vector<std::vector<size_t>> m_isotropicTriangles;
     std::vector<std::vector<AutoRemesher::Vector2>> m_isotropicTriangleUvs;
+    std::vector<std::vector<AutoRemesher::Vector2>> m_isotropicOriginalTriangleUvs;
+    std::vector<uint8_t> m_isotropicExtractedConnectionMoved;
     std::vector<AutoRemesher::Vector3> m_isotropicSingularVertices;
     std::vector<std::pair<AutoRemesher::Vector3, AutoRemesher::Vector3>> m_isotropicExtractedConnections;
     AutoRemesher::AutoRemesher* m_autoRemesher = nullptr;

@@ -24,6 +24,7 @@
 #include "modelshadermesh.h"
 #include <AutoRemesher/Vector3>
 #include <QObject>
+#include <cstdint>
 
 class RenderMeshGenerator : public QObject {
     Q_OBJECT
