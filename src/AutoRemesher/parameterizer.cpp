@@ -20,16 +20,16 @@
  *  SOFTWARE.
  */
 #include <AutoRemesher/Parameterizer>
-#include <cmath>
-#include <set>
-#include <limits>
-#include <iostream>
 #include <algorithm>
+#include <cmath>
 #include <exploragram/hexdom/quad_cover.h>
 #include <geogram/mesh/mesh_frame_field.h>
 #include <geogram/mesh/mesh_geometry.h>
 #include <geogram/mesh/mesh_io.h>
+#include <iostream>
+#include <limits>
 #include <map>
+#include <set>
 #include <tbb/blocked_range.h>
 #include <tbb/combinable.h>
 #include <tbb/parallel_for.h>
@@ -38,402 +38,402 @@ namespace AutoRemesher {
 
 namespace {
 
-size_t repairFoldedUv(GEO::Mesh& M, GEO::Attribute<GEO::vec2>& U, size_t* foldsBefore)
-{
-    const GEO::index_t facetCount = M.facets.nb();
-    if (0 == facetCount)
-        return 0;
-
-    auto signedArea = [&](GEO::index_t f) {
-        const GEO::vec2& a = U[3 * f];
-        const GEO::vec2& b = U[3 * f + 1];
-        const GEO::vec2& c = U[3 * f + 2];
-        return 0.5 * ((b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]));
-    };
-
-    size_t positive = 0;
-    size_t negative = 0;
-    for (GEO::index_t f = 0; f < facetCount; ++f) {
-        const double area = signedArea(f);
-        if (area > 0.0)
-            ++positive;
-        else if (area < 0.0)
-            ++negative;
-    }
-    const double sign = positive >= negative ? 1.0 : -1.0;
-
-    std::vector<std::vector<GEO::index_t>> cornersOfVertex(M.vertices.nb());
-    for (GEO::index_t c = 0; c < M.facet_corners.nb(); ++c)
-        cornersOfVertex[M.facet_corners.vertex(c)].push_back(c);
-
-    static const double Rot[4][2][2] = {
-        { { 1, 0 }, { 0, 1 } },
-        { { 0, 1 }, { -1, 0 } },
-        { { -1, 0 }, { 0, -1 } },
-        { { 0, -1 }, { 1, 0 } }
-    };
-    GEO::Attribute<bool> isSingular;
-    isSingular.bind_if_is_defined(M.vertices.attributes(), "is_singular");
-    GEO::Attribute<GEO::index_t> cornerConstraint;
-    cornerConstraint.bind_if_is_defined(M.facet_corners.attributes(), "cnstr");
-    GEO::Attribute<GEO::index_t> R;
-    R.bind_if_is_defined(M.facet_corners.attributes(), "R");
-
-    struct FanEntry {
-        GEO::index_t corner;
-        GEO::index_t rotation;
-    };
-    std::vector<std::vector<FanEntry>> fanOfVertex(M.vertices.nb());
-    for (GEO::index_t v = 0; v < M.vertices.nb(); ++v) {
-        const auto& corners = cornersOfVertex[v];
-        if (corners.empty())
-            continue;
-        if (isSingular.is_bound() && isSingular[v])
-            continue;
-        bool constrained = false;
-        for (const GEO::index_t c : corners) {
-            if (cornerConstraint.is_bound() && 0 != cornerConstraint[c]) {
-                constrained = true;
-                break;
-            }
-        }
-        if (constrained)
-            continue;
-        if (!R.is_bound()) {
-            fanOfVertex[v].push_back({ corners.front(), 0 });
-            for (size_t i = 1; i < corners.size(); ++i)
-                fanOfVertex[v].push_back({ corners[i], 0 });
-            continue;
-        }
-        std::vector<FanEntry> fan;
-        GEO::index_t c = corners.front();
-        GEO::index_t rotation = 0;
-        bool closed = false;
-        for (size_t step = 0; step < corners.size() + 1; ++step) {
-            fan.push_back({ c, rotation });
-            rotation = (rotation + R[c]) % 4;
-            const GEO::index_t f2 = M.facet_corners.adjacent_facet(c);
-            if (GEO::NO_FACET == f2)
-                break;
-            GEO::index_t next = GEO::NO_CORNER;
-            for (GEO::index_t candidate = M.facets.corners_begin(f2);
-                 candidate < M.facets.corners_end(f2); ++candidate) {
-                if (M.facet_corners.vertex(candidate) == v) {
-                    next = candidate;
-                    break;
-                }
-            }
-            if (GEO::NO_CORNER == next)
-                break;
-            c = next;
-            if (c == corners.front()) {
-                closed = true;
-                break;
-            }
-        }
-        if (!closed || 0 != rotation || fan.size() != corners.size())
-            continue;
-        fanOfVertex[v] = std::move(fan);
-    }
-
-    auto tangleAround = [&](GEO::index_t v) {
-        double tangle = 0.0;
-        for (const GEO::index_t c : cornersOfVertex[v])
-            tangle += std::max(0.0, -signedArea(c / 3) * sign);
-        return tangle;
-    };
-    auto worstAround = [&](GEO::index_t v) {
-        double worst = std::numeric_limits<double>::max();
-        for (const GEO::index_t c : cornersOfVertex[v])
-            worst = std::min(worst, signedArea(c / 3) * sign);
-        return worst;
-    };
-
-    std::vector<GEO::vec2> seamTransitionBefore(M.facet_corners.nb(), GEO::vec2(0.0, 0.0));
-    auto seamTransition = [&](GEO::index_t c) {
-        const GEO::index_t f2 = M.facet_corners.adjacent_facet(c);
-        if (GEO::NO_FACET == f2 || !R.is_bound())
-            return GEO::vec2(0.0, 0.0);
-        const GEO::index_t e2 = M.facets.find_adjacent(f2, c / 3);
-        if (GEO::NO_FACET == e2)
-            return GEO::vec2(0.0, 0.0);
-        const GEO::index_t c2 = M.facets.corners_begin(f2) + e2;
-        const GEO::index_t c3 = M.facets.next_corner_around_facet(f2, c2);
-        const auto& rotation = Rot[R[c] % 4];
-        return GEO::vec2(
-            U[c][0] - (rotation[0][0] * U[c3][0] + rotation[0][1] * U[c3][1]),
-            U[c][1] - (rotation[1][0] * U[c3][0] + rotation[1][1] * U[c3][1]));
-    };
-    for (GEO::index_t c = 0; c < M.facet_corners.nb(); ++c)
-        seamTransitionBefore[c] = seamTransition(c);
-
-    constexpr size_t kMaximumSweeps = 256;
-    const double alphas[] = { 1.0, 0.5, 0.25, 0.1 };
-    size_t folded = 0;
-    for (size_t sweep = 0; sweep < kMaximumSweeps; ++sweep) {
-        std::vector<GEO::index_t> foldedFacets;
-        for (GEO::index_t f = 0; f < facetCount; ++f) {
-            if (signedArea(f) * sign <= 0.0)
-                foldedFacets.push_back(f);
-        }
-        folded = foldedFacets.size();
-        if (0 == sweep && nullptr != foldsBefore)
-            *foldsBefore = folded;
-        if (foldedFacets.empty())
-            break;
-
-        std::set<GEO::index_t> candidates;
-        for (const GEO::index_t f : foldedFacets) {
-            for (GEO::index_t k = 0; k < 3; ++k) {
-                const GEO::index_t v = M.facet_corners.vertex(3 * f + k);
-                candidates.insert(v);
-                for (const GEO::index_t c : cornersOfVertex[v]) {
-                    for (GEO::index_t j = 0; j < 3; ++j)
-                        candidates.insert(M.facet_corners.vertex(3 * (c / 3) + j));
-                }
-            }
-        }
-
-        bool improved = false;
-        for (const GEO::index_t v : candidates) {
-            const auto& fan = fanOfVertex[v];
-            if (fan.empty())
-                continue;
-            const auto& corners = cornersOfVertex[v];
-            const double tangleBefore = tangleAround(v);
-            const double worstBefore = worstAround(v);
-            double sumX = 0.0;
-            double sumY = 0.0;
-            size_t neighborCount = 0;
-            for (const GEO::index_t c : corners) {
-                for (GEO::index_t j = 0; j < 3; ++j) {
-                    const GEO::index_t other = 3 * (c / 3) + j;
-                    if (other == c)
-                        continue;
-                    sumX += U[other][0];
-                    sumY += U[other][1];
-                    ++neighborCount;
-                }
-            }
-            if (0 == neighborCount)
-                continue;
-            const GEO::vec2 reference = U[fan.front().corner];
-            const GEO::vec2 target(sumX / neighborCount, sumY / neighborCount);
-            std::vector<GEO::vec2> before(fan.size());
-            for (size_t i = 0; i < fan.size(); ++i)
-                before[i] = U[fan[i].corner];
-            for (const double alpha : alphas) {
-                const double stepX = alpha * (target[0] - reference[0]);
-                const double stepY = alpha * (target[1] - reference[1]);
-                for (size_t i = 0; i < fan.size(); ++i) {
-                    const auto& rotation = Rot[(4 - fan[i].rotation) % 4];
-                    U[fan[i].corner] = GEO::vec2(
-                        before[i][0] + rotation[0][0] * stepX + rotation[0][1] * stepY,
-                        before[i][1] + rotation[1][0] * stepX + rotation[1][1] * stepY);
-                }
-                const double tangleAfter = tangleAround(v);
-                const bool better = tangleAfter < tangleBefore
-                    || (tangleAfter <= tangleBefore && worstAround(v) > worstBefore);
-                if (better) {
-                    improved = true;
-                    break;
-                }
-                for (size_t i = 0; i < fan.size(); ++i)
-                    U[fan[i].corner] = before[i];
-            }
-        }
-        if (!improved) {
-            if (nullptr != getenv("AUTOREMESHER_DEBUG_FILL")) {
-                size_t allMovable = 0;
-                size_t touchesSeam = 0;
-                size_t touchesSingular = 0;
-                size_t touchesConstrained = 0;
-                for (const GEO::index_t f : foldedFacets) {
-                    bool everyoneMovable = true;
-                    bool singular = false;
-                    bool constrained = false;
-                    for (GEO::index_t k = 0; k < 3; ++k) {
-                        const GEO::index_t v = M.facet_corners.vertex(3 * f + k);
-                        if (fanOfVertex[v].empty())
-                            everyoneMovable = false;
-                        if (isSingular.is_bound() && isSingular[v])
-                            singular = true;
-                        if (cornerConstraint.is_bound() && 0 != cornerConstraint[3 * f + k])
-                            constrained = true;
-                    }
-                    if (everyoneMovable)
-                        ++allMovable;
-                    else if (singular)
-                        ++touchesSingular;
-                    else if (constrained)
-                        ++touchesConstrained;
-                    else
-                        ++touchesSeam;
-                }
-                std::cerr << "  fold repair stalled after " << sweep << " sweep(s): "
-                          << allMovable << " free, " << touchesSingular << " at a cone, "
-                          << touchesConstrained << " on a sharp edge, " << touchesSeam
-                          << " on a cut" << std::endl;
-            }
-            break;
-        }
-    }
-    if (nullptr != getenv("AUTOREMESHER_DEBUG_FILL")) {
-        double worstDrift = 0.0;
-        for (GEO::index_t c = 0; c < M.facet_corners.nb(); ++c) {
-            const GEO::vec2 now = seamTransition(c);
-            worstDrift = std::max(worstDrift,
-                std::max(std::abs(now[0] - seamTransitionBefore[c][0]),
-                    std::abs(now[1] - seamTransitionBefore[c][1])));
-        }
-        std::cerr << "  seamlessness preserved to " << worstDrift
-                  << " (anything but ~0 means a cut was torn)" << std::endl;
-    }
-    return folded;
-}
-
-inline double quadraticForm(const double* T, const GEO::vec3& t)
-{
-    return T[0] * t.x * t.x + T[2] * t.y * t.y + T[5] * t.z * t.z
-        + 2.0 * (T[1] * t.x * t.y + T[3] * t.x * t.z + T[4] * t.y * t.z);
-}
-
-void computeFaceAnisotropyField(const GEO::Mesh& M,
-    const GEO::Attribute<GEO::vec3>& B,
-    double anisotropy,
-    double maxAspectRatio,
-    std::vector<double>* scalingU,
-    std::vector<double>* scalingV)
-{
-    scalingU->assign(M.facets.nb(), 1.0);
-    scalingV->assign(M.facets.nb(), 1.0);
-    if (anisotropy <= 0.0 || maxAspectRatio <= 1.0)
-        return;
-
-    std::vector<double> tensors(M.vertices.nb() * 6, 0.0);
-    for (GEO::index_t f1 = 0; f1 < M.facets.nb(); ++f1) {
-        for (GEO::index_t c = M.facets.corners_begin(f1);
-             c < M.facets.corners_end(f1); ++c) {
-            const GEO::index_t f2 = M.facet_corners.adjacent_facet(c);
-            if (GEO::NO_FACET == f2 || f2 < f1)
-                continue;
-            const GEO::vec3 e = GEO::Geom::mesh_corner_vector(M, c);
-            const double edgeLength = GEO::length(e);
-            if (edgeLength <= 0.0)
-                continue;
-            const GEO::vec3 d = e / edgeLength;
-            const double weight = edgeLength * GEO::Geom::mesh_normal_angle(M, c);
-            const double contribution[6] = {
-                weight * d.x * d.x, weight * d.x * d.y, weight * d.y * d.y,
-                weight * d.x * d.z, weight * d.y * d.z, weight * d.z * d.z
-            };
-            const GEO::index_t v1 = M.facet_corners.vertex(c);
-            const GEO::index_t v2 = M.facet_corners.vertex(
-                M.facets.next_corner_around_facet(f1, c));
-            for (GEO::index_t i = 0; i < 6; ++i) {
-                tensors[6 * v1 + i] += contribution[i];
-                tensors[6 * v2 + i] += contribution[i];
-            }
-        }
-    }
-
+    size_t repairFoldedUv(GEO::Mesh& M, GEO::Attribute<GEO::vec2>& U, size_t* foldsBefore)
     {
-        std::vector<std::vector<GEO::index_t>> vertexNeighbors(M.vertices.nb());
-        for (GEO::index_t f = 0; f < M.facets.nb(); ++f) {
-            for (GEO::index_t c = M.facets.corners_begin(f);
-                 c < M.facets.corners_end(f); ++c) {
+        const GEO::index_t facetCount = M.facets.nb();
+        if (0 == facetCount)
+            return 0;
+
+        auto signedArea = [&](GEO::index_t f) {
+            const GEO::vec2& a = U[3 * f];
+            const GEO::vec2& b = U[3 * f + 1];
+            const GEO::vec2& c = U[3 * f + 2];
+            return 0.5 * ((b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]));
+        };
+
+        size_t positive = 0;
+        size_t negative = 0;
+        for (GEO::index_t f = 0; f < facetCount; ++f) {
+            const double area = signedArea(f);
+            if (area > 0.0)
+                ++positive;
+            else if (area < 0.0)
+                ++negative;
+        }
+        const double sign = positive >= negative ? 1.0 : -1.0;
+
+        std::vector<std::vector<GEO::index_t>> cornersOfVertex(M.vertices.nb());
+        for (GEO::index_t c = 0; c < M.facet_corners.nb(); ++c)
+            cornersOfVertex[M.facet_corners.vertex(c)].push_back(c);
+
+        static const double Rot[4][2][2] = {
+            { { 1, 0 }, { 0, 1 } },
+            { { 0, 1 }, { -1, 0 } },
+            { { -1, 0 }, { 0, -1 } },
+            { { 0, -1 }, { 1, 0 } }
+        };
+        GEO::Attribute<bool> isSingular;
+        isSingular.bind_if_is_defined(M.vertices.attributes(), "is_singular");
+        GEO::Attribute<GEO::index_t> cornerConstraint;
+        cornerConstraint.bind_if_is_defined(M.facet_corners.attributes(), "cnstr");
+        GEO::Attribute<GEO::index_t> R;
+        R.bind_if_is_defined(M.facet_corners.attributes(), "R");
+
+        struct FanEntry {
+            GEO::index_t corner;
+            GEO::index_t rotation;
+        };
+        std::vector<std::vector<FanEntry>> fanOfVertex(M.vertices.nb());
+        for (GEO::index_t v = 0; v < M.vertices.nb(); ++v) {
+            const auto& corners = cornersOfVertex[v];
+            if (corners.empty())
+                continue;
+            if (isSingular.is_bound() && isSingular[v])
+                continue;
+            bool constrained = false;
+            for (const GEO::index_t c : corners) {
+                if (cornerConstraint.is_bound() && 0 != cornerConstraint[c]) {
+                    constrained = true;
+                    break;
+                }
+            }
+            if (constrained)
+                continue;
+            if (!R.is_bound()) {
+                fanOfVertex[v].push_back({ corners.front(), 0 });
+                for (size_t i = 1; i < corners.size(); ++i)
+                    fanOfVertex[v].push_back({ corners[i], 0 });
+                continue;
+            }
+            std::vector<FanEntry> fan;
+            GEO::index_t c = corners.front();
+            GEO::index_t rotation = 0;
+            bool closed = false;
+            for (size_t step = 0; step < corners.size() + 1; ++step) {
+                fan.push_back({ c, rotation });
+                rotation = (rotation + R[c]) % 4;
+                const GEO::index_t f2 = M.facet_corners.adjacent_facet(c);
+                if (GEO::NO_FACET == f2)
+                    break;
+                GEO::index_t next = GEO::NO_CORNER;
+                for (GEO::index_t candidate = M.facets.corners_begin(f2);
+                    candidate < M.facets.corners_end(f2); ++candidate) {
+                    if (M.facet_corners.vertex(candidate) == v) {
+                        next = candidate;
+                        break;
+                    }
+                }
+                if (GEO::NO_CORNER == next)
+                    break;
+                c = next;
+                if (c == corners.front()) {
+                    closed = true;
+                    break;
+                }
+            }
+            if (!closed || 0 != rotation || fan.size() != corners.size())
+                continue;
+            fanOfVertex[v] = std::move(fan);
+        }
+
+        auto tangleAround = [&](GEO::index_t v) {
+            double tangle = 0.0;
+            for (const GEO::index_t c : cornersOfVertex[v])
+                tangle += std::max(0.0, -signedArea(c / 3) * sign);
+            return tangle;
+        };
+        auto worstAround = [&](GEO::index_t v) {
+            double worst = std::numeric_limits<double>::max();
+            for (const GEO::index_t c : cornersOfVertex[v])
+                worst = std::min(worst, signedArea(c / 3) * sign);
+            return worst;
+        };
+
+        std::vector<GEO::vec2> seamTransitionBefore(M.facet_corners.nb(), GEO::vec2(0.0, 0.0));
+        auto seamTransition = [&](GEO::index_t c) {
+            const GEO::index_t f2 = M.facet_corners.adjacent_facet(c);
+            if (GEO::NO_FACET == f2 || !R.is_bound())
+                return GEO::vec2(0.0, 0.0);
+            const GEO::index_t e2 = M.facets.find_adjacent(f2, c / 3);
+            if (GEO::NO_FACET == e2)
+                return GEO::vec2(0.0, 0.0);
+            const GEO::index_t c2 = M.facets.corners_begin(f2) + e2;
+            const GEO::index_t c3 = M.facets.next_corner_around_facet(f2, c2);
+            const auto& rotation = Rot[R[c] % 4];
+            return GEO::vec2(
+                U[c][0] - (rotation[0][0] * U[c3][0] + rotation[0][1] * U[c3][1]),
+                U[c][1] - (rotation[1][0] * U[c3][0] + rotation[1][1] * U[c3][1]));
+        };
+        for (GEO::index_t c = 0; c < M.facet_corners.nb(); ++c)
+            seamTransitionBefore[c] = seamTransition(c);
+
+        constexpr size_t kMaximumSweeps = 256;
+        const double alphas[] = { 1.0, 0.5, 0.25, 0.1 };
+        size_t folded = 0;
+        for (size_t sweep = 0; sweep < kMaximumSweeps; ++sweep) {
+            std::vector<GEO::index_t> foldedFacets;
+            for (GEO::index_t f = 0; f < facetCount; ++f) {
+                if (signedArea(f) * sign <= 0.0)
+                    foldedFacets.push_back(f);
+            }
+            folded = foldedFacets.size();
+            if (0 == sweep && nullptr != foldsBefore)
+                *foldsBefore = folded;
+            if (foldedFacets.empty())
+                break;
+
+            std::set<GEO::index_t> candidates;
+            for (const GEO::index_t f : foldedFacets) {
+                for (GEO::index_t k = 0; k < 3; ++k) {
+                    const GEO::index_t v = M.facet_corners.vertex(3 * f + k);
+                    candidates.insert(v);
+                    for (const GEO::index_t c : cornersOfVertex[v]) {
+                        for (GEO::index_t j = 0; j < 3; ++j)
+                            candidates.insert(M.facet_corners.vertex(3 * (c / 3) + j));
+                    }
+                }
+            }
+
+            bool improved = false;
+            for (const GEO::index_t v : candidates) {
+                const auto& fan = fanOfVertex[v];
+                if (fan.empty())
+                    continue;
+                const auto& corners = cornersOfVertex[v];
+                const double tangleBefore = tangleAround(v);
+                const double worstBefore = worstAround(v);
+                double sumX = 0.0;
+                double sumY = 0.0;
+                size_t neighborCount = 0;
+                for (const GEO::index_t c : corners) {
+                    for (GEO::index_t j = 0; j < 3; ++j) {
+                        const GEO::index_t other = 3 * (c / 3) + j;
+                        if (other == c)
+                            continue;
+                        sumX += U[other][0];
+                        sumY += U[other][1];
+                        ++neighborCount;
+                    }
+                }
+                if (0 == neighborCount)
+                    continue;
+                const GEO::vec2 reference = U[fan.front().corner];
+                const GEO::vec2 target(sumX / neighborCount, sumY / neighborCount);
+                std::vector<GEO::vec2> before(fan.size());
+                for (size_t i = 0; i < fan.size(); ++i)
+                    before[i] = U[fan[i].corner];
+                for (const double alpha : alphas) {
+                    const double stepX = alpha * (target[0] - reference[0]);
+                    const double stepY = alpha * (target[1] - reference[1]);
+                    for (size_t i = 0; i < fan.size(); ++i) {
+                        const auto& rotation = Rot[(4 - fan[i].rotation) % 4];
+                        U[fan[i].corner] = GEO::vec2(
+                            before[i][0] + rotation[0][0] * stepX + rotation[0][1] * stepY,
+                            before[i][1] + rotation[1][0] * stepX + rotation[1][1] * stepY);
+                    }
+                    const double tangleAfter = tangleAround(v);
+                    const bool better = tangleAfter < tangleBefore
+                        || (tangleAfter <= tangleBefore && worstAround(v) > worstBefore);
+                    if (better) {
+                        improved = true;
+                        break;
+                    }
+                    for (size_t i = 0; i < fan.size(); ++i)
+                        U[fan[i].corner] = before[i];
+                }
+            }
+            if (!improved) {
+                if (nullptr != getenv("AUTOREMESHER_DEBUG_FILL")) {
+                    size_t allMovable = 0;
+                    size_t touchesSeam = 0;
+                    size_t touchesSingular = 0;
+                    size_t touchesConstrained = 0;
+                    for (const GEO::index_t f : foldedFacets) {
+                        bool everyoneMovable = true;
+                        bool singular = false;
+                        bool constrained = false;
+                        for (GEO::index_t k = 0; k < 3; ++k) {
+                            const GEO::index_t v = M.facet_corners.vertex(3 * f + k);
+                            if (fanOfVertex[v].empty())
+                                everyoneMovable = false;
+                            if (isSingular.is_bound() && isSingular[v])
+                                singular = true;
+                            if (cornerConstraint.is_bound() && 0 != cornerConstraint[3 * f + k])
+                                constrained = true;
+                        }
+                        if (everyoneMovable)
+                            ++allMovable;
+                        else if (singular)
+                            ++touchesSingular;
+                        else if (constrained)
+                            ++touchesConstrained;
+                        else
+                            ++touchesSeam;
+                    }
+                    std::cerr << "  fold repair stalled after " << sweep << " sweep(s): "
+                              << allMovable << " free, " << touchesSingular << " at a cone, "
+                              << touchesConstrained << " on a sharp edge, " << touchesSeam
+                              << " on a cut" << std::endl;
+                }
+                break;
+            }
+        }
+        if (nullptr != getenv("AUTOREMESHER_DEBUG_FILL")) {
+            double worstDrift = 0.0;
+            for (GEO::index_t c = 0; c < M.facet_corners.nb(); ++c) {
+                const GEO::vec2 now = seamTransition(c);
+                worstDrift = std::max(worstDrift,
+                    std::max(std::abs(now[0] - seamTransitionBefore[c][0]),
+                        std::abs(now[1] - seamTransitionBefore[c][1])));
+            }
+            std::cerr << "  seamlessness preserved to " << worstDrift
+                      << " (anything but ~0 means a cut was torn)" << std::endl;
+        }
+        return folded;
+    }
+
+    inline double quadraticForm(const double* T, const GEO::vec3& t)
+    {
+        return T[0] * t.x * t.x + T[2] * t.y * t.y + T[5] * t.z * t.z
+            + 2.0 * (T[1] * t.x * t.y + T[3] * t.x * t.z + T[4] * t.y * t.z);
+    }
+
+    void computeFaceAnisotropyField(const GEO::Mesh& M,
+        const GEO::Attribute<GEO::vec3>& B,
+        double anisotropy,
+        double maxAspectRatio,
+        std::vector<double>* scalingU,
+        std::vector<double>* scalingV)
+    {
+        scalingU->assign(M.facets.nb(), 1.0);
+        scalingV->assign(M.facets.nb(), 1.0);
+        if (anisotropy <= 0.0 || maxAspectRatio <= 1.0)
+            return;
+
+        std::vector<double> tensors(M.vertices.nb() * 6, 0.0);
+        for (GEO::index_t f1 = 0; f1 < M.facets.nb(); ++f1) {
+            for (GEO::index_t c = M.facets.corners_begin(f1);
+                c < M.facets.corners_end(f1); ++c) {
+                const GEO::index_t f2 = M.facet_corners.adjacent_facet(c);
+                if (GEO::NO_FACET == f2 || f2 < f1)
+                    continue;
+                const GEO::vec3 e = GEO::Geom::mesh_corner_vector(M, c);
+                const double edgeLength = GEO::length(e);
+                if (edgeLength <= 0.0)
+                    continue;
+                const GEO::vec3 d = e / edgeLength;
+                const double weight = edgeLength * GEO::Geom::mesh_normal_angle(M, c);
+                const double contribution[6] = {
+                    weight * d.x * d.x, weight * d.x * d.y, weight * d.y * d.y,
+                    weight * d.x * d.z, weight * d.y * d.z, weight * d.z * d.z
+                };
                 const GEO::index_t v1 = M.facet_corners.vertex(c);
                 const GEO::index_t v2 = M.facet_corners.vertex(
-                    M.facets.next_corner_around_facet(f, c));
-                vertexNeighbors[v1].push_back(v2);
-                vertexNeighbors[v2].push_back(v1);
+                    M.facets.next_corner_around_facet(f1, c));
+                for (GEO::index_t i = 0; i < 6; ++i) {
+                    tensors[6 * v1 + i] += contribution[i];
+                    tensors[6 * v2 + i] += contribution[i];
+                }
             }
         }
-        constexpr GEO::index_t smoothingPasses = 12;
-        constexpr double lambda = 0.5;
-        std::vector<double> smoothed(tensors.size());
-        for (GEO::index_t pass = 0; pass < smoothingPasses; ++pass) {
-            tbb::parallel_for(tbb::blocked_range<GEO::index_t>(0, M.vertices.nb()),
-                [&](const tbb::blocked_range<GEO::index_t>& range) {
-                    for (GEO::index_t v = range.begin(); v != range.end(); ++v) {
-                        const auto& neighbors = vertexNeighbors[v];
-                        if (neighbors.empty()) {
-                            for (GEO::index_t i = 0; i < 6; ++i)
-                                smoothed[6 * v + i] = tensors[6 * v + i];
-                            continue;
+
+        {
+            std::vector<std::vector<GEO::index_t>> vertexNeighbors(M.vertices.nb());
+            for (GEO::index_t f = 0; f < M.facets.nb(); ++f) {
+                for (GEO::index_t c = M.facets.corners_begin(f);
+                    c < M.facets.corners_end(f); ++c) {
+                    const GEO::index_t v1 = M.facet_corners.vertex(c);
+                    const GEO::index_t v2 = M.facet_corners.vertex(
+                        M.facets.next_corner_around_facet(f, c));
+                    vertexNeighbors[v1].push_back(v2);
+                    vertexNeighbors[v2].push_back(v1);
+                }
+            }
+            constexpr GEO::index_t smoothingPasses = 12;
+            constexpr double lambda = 0.5;
+            std::vector<double> smoothed(tensors.size());
+            for (GEO::index_t pass = 0; pass < smoothingPasses; ++pass) {
+                tbb::parallel_for(tbb::blocked_range<GEO::index_t>(0, M.vertices.nb()),
+                    [&](const tbb::blocked_range<GEO::index_t>& range) {
+                        for (GEO::index_t v = range.begin(); v != range.end(); ++v) {
+                            const auto& neighbors = vertexNeighbors[v];
+                            if (neighbors.empty()) {
+                                for (GEO::index_t i = 0; i < 6; ++i)
+                                    smoothed[6 * v + i] = tensors[6 * v + i];
+                                continue;
+                            }
+                            double average[6] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+                            for (const GEO::index_t w : neighbors) {
+                                for (GEO::index_t i = 0; i < 6; ++i)
+                                    average[i] += tensors[6 * w + i];
+                            }
+                            for (GEO::index_t i = 0; i < 6; ++i) {
+                                smoothed[6 * v + i] = (1.0 - lambda) * tensors[6 * v + i]
+                                    + lambda * average[i] / neighbors.size();
+                            }
                         }
-                        double average[6] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-                        for (const GEO::index_t w : neighbors) {
-                            for (GEO::index_t i = 0; i < 6; ++i)
-                                average[i] += tensors[6 * w + i];
-                        }
-                        for (GEO::index_t i = 0; i < 6; ++i) {
-                            smoothed[6 * v + i] = (1.0 - lambda) * tensors[6 * v + i]
-                                + lambda * average[i] / neighbors.size();
-                        }
-                    }
-                });
-            tensors.swap(smoothed);
+                    });
+                tensors.swap(smoothed);
+            }
+        }
+
+        std::vector<double> curvatureAlongU(M.facets.nb(), 0.0);
+        std::vector<double> curvatureAlongV(M.facets.nb(), 0.0);
+        double totalCurvature = 0.0;
+        for (GEO::index_t f = 0; f < M.facets.nb(); ++f) {
+            double T[6] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+            for (GEO::index_t c = M.facets.corners_begin(f);
+                c < M.facets.corners_end(f); ++c) {
+                const GEO::index_t v = M.facet_corners.vertex(c);
+                for (GEO::index_t i = 0; i < 6; ++i)
+                    T[i] += tensors[6 * v + i];
+            }
+            const GEO::vec3 N = GEO::normalize(GEO::Geom::mesh_facet_normal(M, f));
+            const GEO::vec3 Bf = GEO::normalize(B[f]);
+            const GEO::vec3 BTf = GEO::cross(N, Bf);
+            curvatureAlongU[f] = std::fabs(quadraticForm(T, BTf));
+            curvatureAlongV[f] = std::fabs(quadraticForm(T, Bf));
+            totalCurvature += curvatureAlongU[f] + curvatureAlongV[f];
+        }
+        if (totalCurvature <= 0.0)
+            return;
+
+        const double floorCurvature = 1e-3 * totalCurvature / (2.0 * M.facets.nb());
+
+        const double maxRho = std::sqrt(maxAspectRatio);
+        for (GEO::index_t f = 0; f < M.facets.nb(); ++f) {
+            double rho = std::pow(
+                (curvatureAlongV[f] + floorCurvature)
+                    / (curvatureAlongU[f] + floorCurvature),
+                0.25);
+            rho = std::pow(rho, anisotropy);
+            if (rho < 1.0 / maxRho)
+                rho = 1.0 / maxRho;
+            else if (rho > maxRho)
+                rho = maxRho;
+            (*scalingU)[f] = rho;
+            (*scalingV)[f] = 1.0 / rho;
+        }
+
+        if (nullptr != getenv("AUTOREMESHER_DEBUG_ANISOTROPY")) {
+            std::vector<double> sorted(*scalingU);
+            std::sort(sorted.begin(), sorted.end());
+            size_t clampedHigh = 0;
+            size_t clampedLow = 0;
+            for (const double rho : sorted) {
+                if (rho >= maxRho - 1e-9)
+                    ++clampedHigh;
+                else if (rho <= 1.0 / maxRho + 1e-9)
+                    ++clampedLow;
+            }
+            std::cerr << "  [Aniso] su/sv over " << sorted.size() << " facets:"
+                      << " p10=" << sorted[sorted.size() / 10] * sorted[sorted.size() / 10]
+                      << " median=" << sorted[sorted.size() / 2] * sorted[sorted.size() / 2]
+                      << " p90=" << sorted[9 * sorted.size() / 10] * sorted[9 * sorted.size() / 10]
+                      << "; clamped " << clampedHigh << " high, " << clampedLow << " low"
+                      << std::endl;
         }
     }
-
-    std::vector<double> curvatureAlongU(M.facets.nb(), 0.0);
-    std::vector<double> curvatureAlongV(M.facets.nb(), 0.0);
-    double totalCurvature = 0.0;
-    for (GEO::index_t f = 0; f < M.facets.nb(); ++f) {
-        double T[6] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-        for (GEO::index_t c = M.facets.corners_begin(f);
-             c < M.facets.corners_end(f); ++c) {
-            const GEO::index_t v = M.facet_corners.vertex(c);
-            for (GEO::index_t i = 0; i < 6; ++i)
-                T[i] += tensors[6 * v + i];
-        }
-        const GEO::vec3 N = GEO::normalize(GEO::Geom::mesh_facet_normal(M, f));
-        const GEO::vec3 Bf = GEO::normalize(B[f]);
-        const GEO::vec3 BTf = GEO::cross(N, Bf);
-        curvatureAlongU[f] = std::fabs(quadraticForm(T, BTf));
-        curvatureAlongV[f] = std::fabs(quadraticForm(T, Bf));
-        totalCurvature += curvatureAlongU[f] + curvatureAlongV[f];
-    }
-    if (totalCurvature <= 0.0)
-        return;
-
-    const double floorCurvature = 1e-3 * totalCurvature / (2.0 * M.facets.nb());
-
-    const double maxRho = std::sqrt(maxAspectRatio);
-    for (GEO::index_t f = 0; f < M.facets.nb(); ++f) {
-        double rho = std::pow(
-            (curvatureAlongV[f] + floorCurvature)
-                / (curvatureAlongU[f] + floorCurvature),
-            0.25);
-        rho = std::pow(rho, anisotropy);
-        if (rho < 1.0 / maxRho)
-            rho = 1.0 / maxRho;
-        else if (rho > maxRho)
-            rho = maxRho;
-        (*scalingU)[f] = rho;
-        (*scalingV)[f] = 1.0 / rho;
-    }
-
-    if (nullptr != getenv("AUTOREMESHER_DEBUG_ANISOTROPY")) {
-        std::vector<double> sorted(*scalingU);
-        std::sort(sorted.begin(), sorted.end());
-        size_t clampedHigh = 0;
-        size_t clampedLow = 0;
-        for (const double rho : sorted) {
-            if (rho >= maxRho - 1e-9)
-                ++clampedHigh;
-            else if (rho <= 1.0 / maxRho + 1e-9)
-                ++clampedLow;
-        }
-        std::cerr << "  [Aniso] su/sv over " << sorted.size() << " facets:"
-                  << " p10=" << sorted[sorted.size() / 10] * sorted[sorted.size() / 10]
-                  << " median=" << sorted[sorted.size() / 2] * sorted[sorted.size() / 2]
-                  << " p90=" << sorted[9 * sorted.size() / 10] * sorted[9 * sorted.size() / 10]
-                  << "; clamped " << clampedHigh << " high, " << clampedLow << " low"
-                  << std::endl;
-    }
-}
 
 }
 

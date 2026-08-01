@@ -21,11 +21,11 @@
 #define AUTO_REMESHER_QUAD_EXTRACTOR_H
 #include <AutoRemesher/Vector2>
 #include <AutoRemesher/Vector3>
+#include <cstdint>
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
-#include <cstdint>
 #include <vector>
 
 namespace AutoRemesher {
