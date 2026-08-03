@@ -268,7 +268,7 @@ MainWindow::MainWindow()
     m_anisotropyWidget->setItemName(tr("Anisotropy"));
     m_anisotropyWidget->setRange(0.0, 1.0);
     m_anisotropyWidget->setValue(m_anisotropy);
-    m_anisotropyWidget->setToolTip(tr("Curvature-adaptive quad elongation. 0 = square quads, 1 = quads stretched along the flatter direction (long on tubes and ridges, square on spheres). Aspect ratio is capped at 4:1."));
+    m_anisotropyWidget->setToolTip(tr("Curvature-adaptive quad elongation. 0 = square quads, 1 = quads stretched along the flatter direction (long on tubes and ridges, square on spheres)."));
     connect(m_anisotropyWidget, &FloatNumberWidget::valueChanged, [=](float value) {
         m_anisotropy = value;
     });
