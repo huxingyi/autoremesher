@@ -331,9 +331,9 @@ static ModelShaderMesh* buildUvRenderMesh(
             subIndices.push_back(bi + 5);
         }
 
-        double sphereRadius = 0.0025;
-        if (sphereRadius < 0.001)
-            sphereRadius = 0.001;
+        double sphereRadius = 0.000625;
+        if (sphereRadius < 0.0005)
+            sphereRadius = 0.0005;
 
         int sphereTriCount = (int)subIndices.size() / 3;
         int totalToolVerts = (int)singularVertices.size() * sphereTriCount * 3;

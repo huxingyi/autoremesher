@@ -437,7 +437,7 @@ namespace GEO {
 		    [&](const tbb::blocked_range<index_t> &range) {
 			for(index_t u = range.begin(); u != range.end(); ++u) {
 			    double coord = solver.value(u);
-			    //snap_tex_coord(coord); // Required by mesh extraction
+			    snap_tex_coord(coord); // Required by mesh extraction
 			    U[u/2][u%2] = coord;
 			}
 		    });
