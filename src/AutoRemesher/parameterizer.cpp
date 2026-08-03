@@ -736,6 +736,7 @@ bool Parameterizer::parameterize()
 
     // Capture singular vertex positions from the v_is_singular attribute
     m_singularVertexPositions.clear();
+    m_singularVertexIndices.clear();
     {
         GEO::Attribute<bool> isSingular(M.vertices.attributes(), "is_singular");
         if (isSingular.is_bound()) {
@@ -743,6 +744,7 @@ bool Parameterizer::parameterize()
                 if (isSingular[v]) {
                     m_singularVertexPositions.push_back(
                         Vector3 { (*m_vertices)[v].x(), (*m_vertices)[v].y(), (*m_vertices)[v].z() });
+                    m_singularVertexIndices.push_back((size_t)v);
                 }
             }
         }

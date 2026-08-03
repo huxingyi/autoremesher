@@ -59,6 +59,11 @@ public:
         return m_singularVertexPositions;
     }
 
+    const std::vector<size_t>& singularVertexIndices() const
+    {
+        return m_singularVertexIndices;
+    }
+
     void setScaling(double scaling)
     {
         m_scaling = scaling;
@@ -87,6 +92,7 @@ private:
     const std::vector<Vector3>* m_triangleFieldVectors = nullptr;
     std::vector<std::vector<Vector2>>* m_triangleUvs = nullptr;
     std::vector<Vector3> m_singularVertexPositions;
+    std::vector<size_t> m_singularVertexIndices;
     std::vector<std::vector<Vector2>> m_originalTriangleUvs;
     double m_scaling = 1.0;
     double m_adaptivity = 0.5;

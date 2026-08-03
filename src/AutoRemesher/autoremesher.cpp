@@ -510,6 +510,7 @@ bool AutoRemesher::remesh()
         std::vector<std::vector<Vector2>> capturedOriginalUvs;
         std::vector<uint8_t> capturedExtractedConnectionMoved;
         std::vector<Vector3> capturedSingularVertices;
+        std::vector<size_t> capturedSingularVertexIndices;
         std::vector<std::pair<Vector3, Vector3>> capturedExtractedConnections;
     };
 
@@ -592,6 +593,7 @@ bool AutoRemesher::remesh()
                     }
                     // Capture singular vertex positions for the [param] preview
                     thread.capturedSingularVertices = thread.parameterizer->singularVertexPositions();
+                    thread.capturedSingularVertexIndices = thread.parameterizer->singularVertexIndices();
                     if (nullptr != getenv("AUTOREMESHER_DEBUG_FILL")) {
                         static std::mutex s_singularDumpMutex;
                         std::lock_guard<std::mutex> lock(s_singularDumpMutex);
@@ -604,6 +606,7 @@ bool AutoRemesher::remesh()
                         &triangles,
                         uvs);
                     thread.remesher->setOriginalTriangleUvs(&thread.capturedOriginalUvs);
+                    thread.remesher->setSingularVertices(&thread.capturedSingularVertexIndices);
                     if (!thread.remesher->extract()) {
                         delete thread.remesher;
                         thread.remesher = nullptr;

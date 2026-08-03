@@ -252,17 +252,20 @@ static ModelShaderMesh* buildUvRenderMesh(
         for (size_t connectionIndex = 0; connectionIndex < extractedConnections.size();
             ++connectionIndex) {
             const auto& connection = extractedConnections[connectionIndex];
-            const bool moved = connectionIndex < extractedConnectionMoved.size()
-                && 0 != extractedConnectionMoved[connectionIndex];
+            const uint8_t flag = connectionIndex < extractedConnectionMoved.size()
+                ? extractedConnectionMoved[connectionIndex]
+                : 0;
+            const bool moved = 1 == flag;
+            const bool added = 2 == flag;
             for (const auto& point : { connection.first, connection.second }) {
                 auto& vertex = connectionVertices[connectionVertexIndex++];
                 const AutoRemesher::Vector3 normalizedPoint = (point - origin) / maxLength;
                 vertex.posX = static_cast<float>(normalizedPoint.x());
                 vertex.posY = static_cast<float>(normalizedPoint.y());
                 vertex.posZ = static_cast<float>(normalizedPoint.z());
-                vertex.colorR = moved ? 0.95f : 1.0f;
-                vertex.colorG = moved ? 0.10f : 1.0f;
-                vertex.colorB = moved ? 0.10f : 1.0f;
+                vertex.colorR = added ? 1.0f : (moved ? 0.95f : 1.0f);
+                vertex.colorG = added ? 0.55f : (moved ? 0.10f : 1.0f);
+                vertex.colorB = added ? 0.05f : (moved ? 0.10f : 1.0f);
                 vertex.alpha = 1.0f;
             }
         }

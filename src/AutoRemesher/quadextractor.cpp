@@ -21,7 +21,9 @@
 #include <AutoRemesher/MeshSeparator>
 #include <AutoRemesher/PositionKey>
 #include <AutoRemesher/QuadExtractor>
+#include <algorithm>
 #include <exploragram/hexdom/polygon.h>
+#include <limits>
 #include <map>
 #include <queue>
 #include <set>
@@ -37,6 +39,7 @@ bool QuadExtractor::extract()
     std::vector<size_t> crossPointSourceTriangles;
     std::set<std::pair<size_t, size_t>> connections;
     extractConnections(&crossPoints, &crossPointSourceTriangles, &connections);
+    holdSingularLines(&crossPoints, &crossPointSourceTriangles, &connections);
     m_extractedConnections.clear();
     m_extractedConnectionMoved.clear();
     m_extractedConnections.reserve(connections.size());
@@ -54,16 +57,22 @@ bool QuadExtractor::extract()
                 }
             }
         }
-        m_extractedConnectionMoved.reserve(connections.size());
     }
+    m_extractedConnectionMoved.reserve(connections.size());
     for (const auto& connection : connections) {
         m_extractedConnections.emplace_back(crossPoints[connection.first],
             crossPoints[connection.second]);
-        if (!triangleMoved.empty()) {
+        const auto edge = std::make_pair(std::min(connection.first, connection.second),
+            std::max(connection.first, connection.second));
+        if (m_addedConnections.end() != m_addedConnections.find(edge)) {
+            m_extractedConnectionMoved.push_back(2);
+        } else if (!triangleMoved.empty()) {
             const size_t firstTriangle = crossPointSourceTriangles[connection.first];
             const size_t secondTriangle = crossPointSourceTriangles[connection.second];
             m_extractedConnectionMoved.push_back(
                 (triangleMoved[firstTriangle] || triangleMoved[secondTriangle]) ? 1 : 0);
+        } else {
+            m_extractedConnectionMoved.push_back(0);
         }
     }
     std::cerr << "Extract connections done" << std::endl;
@@ -230,6 +239,12 @@ void QuadExtractor::simplifyGraph(std::unordered_map<size_t, std::unordered_set<
                 ++it;
                 continue;
             }
+            // Dissolving this one would turn the ring arc it sits on into a single
+            // edge, and the cell it belongs to from a quad into a triangle
+            if (m_pinnedPoints.end() != m_pinnedPoints.find(it->first)) {
+                ++it;
+                continue;
+            }
             size_t firstNeighbor, secondNeighbor;
             auto neighborIt = it->second.begin();
             firstNeighbor = *neighborIt++;
@@ -287,109 +302,68 @@ bool QuadExtractor::removeSingleEndpoints(std::vector<Vector3>* crossPoints,
 bool QuadExtractor::collapseTriangles(std::vector<Vector3>* crossPoints,
     std::unordered_map<size_t, std::unordered_set<size_t>>* edgeConnectMap)
 {
-    std::unordered_map<size_t, std::unordered_set<size_t>> triangleEdges;
-    for (const auto& level0It : *edgeConnectMap) {
+    auto& graph = *edgeConnectMap;
+
+    std::set<std::tuple<size_t, size_t, size_t>> triangles;
+    for (const auto& level0It : graph) {
         const auto& level0 = level0It.first;
-        auto findLevel1 = (*edgeConnectMap).find(level0);
-        if (findLevel1 == (*edgeConnectMap).end())
-            continue;
-        for (const auto& level1 : findLevel1->second) {
-            auto findLevel2 = (*edgeConnectMap).find(level1);
-            if (findLevel2 == (*edgeConnectMap).end())
+        for (const auto& level1 : level0It.second) {
+            auto findLevel2 = graph.find(level1);
+            if (findLevel2 == graph.end())
                 continue;
             for (const auto& level2 : findLevel2->second) {
                 if (level0 == level2)
                     continue;
-                auto findLevel3 = (*edgeConnectMap).find(level2);
-                if (findLevel3 == (*edgeConnectMap).end())
+                auto findLevel3 = graph.find(level2);
+                if (findLevel3 == graph.end())
                     continue;
-                for (const auto& level3 : findLevel3->second) {
-                    if (level0 != level3)
-                        continue;
-                    triangleEdges[level0].insert(level1);
-                    triangleEdges[level0].insert(level2);
-                    triangleEdges[level1].insert(level0);
-                    triangleEdges[level1].insert(level2);
-                    triangleEdges[level2].insert(level0);
-                    triangleEdges[level2].insert(level1);
-                    break;
-                }
+                if (findLevel3->second.end() == findLevel3->second.find(level0))
+                    continue;
+                std::vector<size_t> sorted = { level0, level1, level2 };
+                std::sort(sorted.begin(), sorted.end());
+                triangles.insert(std::make_tuple(sorted[0], sorted[1], sorted[2]));
             }
         }
     }
 
-    if (triangleEdges.empty())
+    if (triangles.empty())
         return false;
 
-    std::vector<std::vector<size_t>> clusters;
-    std::unordered_set<size_t> visited;
-    for (const auto& edge : triangleEdges) {
-        std::queue<size_t> q;
-        q.push(edge.first);
-        std::vector<size_t> group;
-        while (!q.empty()) {
-            size_t v = q.front();
-            q.pop();
-            if (visited.find(v) != visited.end())
-                continue;
-            visited.insert(v);
-            group.push_back(v);
-            auto findNeighbor = triangleEdges.find(v);
-            if (findNeighbor == triangleEdges.end())
-                continue;
-            for (const auto& neighbor : findNeighbor->second) {
-                if (visited.find(neighbor) != visited.end())
-                    continue;
-                q.push(neighbor);
+    // Collapse one edge per triangle, the shortest one. Merging every connected
+    // triangle into a single point instead would drag all of their neighbors onto
+    // that point and leave a star of slivers behind it
+    bool collapsed = false;
+    for (const auto& triangle : triangles) {
+        const size_t corners[3] = { std::get<0>(triangle), std::get<1>(triangle), std::get<2>(triangle) };
+        std::pair<size_t, size_t> shortestEdge;
+        double shortestLength = std::numeric_limits<double>::max();
+        bool stillATriangle = true;
+        for (size_t i = 0; i < 3; ++i) {
+            size_t j = (i + 1) % 3;
+            auto findCorner = graph.find(corners[i]);
+            if (findCorner == graph.end() || findCorner->second.end() == findCorner->second.find(corners[j])) {
+                stillATriangle = false;
+                break;
+            }
+            double length = ((*crossPoints)[corners[i]] - (*crossPoints)[corners[j]]).length();
+            if (length < shortestLength) {
+                shortestLength = length;
+                shortestEdge = { corners[i], corners[j] };
             }
         }
-        if (group.empty())
+        // An earlier collapse may have already taken this one apart
+        if (!stillATriangle)
             continue;
-        clusters.push_back(group);
+        collapseEdge(crossPoints, edgeConnectMap, shortestEdge);
+        // The survivor inherits the pin, the arc it was holding open is still there
+        if (m_pinnedPoints.end() != m_pinnedPoints.find(shortestEdge.first)) {
+            m_pinnedPoints.erase(shortestEdge.first);
+            m_pinnedPoints.insert(shortestEdge.second);
+        }
+        collapsed = true;
     }
 
-    std::cerr << "collapseTriangles clusters:" << clusters.size() << std::endl;
-
-    for (const auto& group : clusters) {
-        Vector3 center;
-        for (const auto& v : group)
-            center += (*crossPoints)[v];
-        center /= group.size();
-        (*crossPoints)[group[0]] = center;
-
-        std::cerr << "group:" << group.size() << std::endl;
-        for (size_t i = 0; i < group.size(); ++i)
-            std::cerr << "group[" << i << "]:" << group[i] << std::endl;
-
-        std::unordered_set<size_t> moveNeighbors;
-        for (size_t i = 1; i < group.size(); ++i) {
-            for (const auto& neighbor : (*edgeConnectMap)[group[i]])
-                moveNeighbors.insert(neighbor);
-        }
-        moveNeighbors.erase(group[0]);
-
-        for (const auto& neighbor : moveNeighbors) {
-            (*edgeConnectMap)[group[0]].insert(neighbor);
-            (*edgeConnectMap)[neighbor].insert(group[0]);
-        }
-
-        for (const auto& neighbor : moveNeighbors) {
-            for (size_t i = 1; i < group.size(); ++i) {
-                (*edgeConnectMap)[neighbor].erase(group[i]);
-                if ((*edgeConnectMap)[neighbor].empty())
-                    (*edgeConnectMap).erase(neighbor);
-            }
-        }
-
-        for (size_t i = 1; i < group.size(); ++i) {
-            (*edgeConnectMap).erase(group[i]);
-            (*edgeConnectMap)[group[0]].erase(group[i]);
-        }
-        if ((*edgeConnectMap)[group[0]].empty())
-            (*edgeConnectMap).erase(group[0]);
-    }
-
-    return true;
+    return collapsed;
 }
 
 bool QuadExtractor::collapseShortEdges(std::vector<Vector3>* crossPoints,
@@ -730,6 +704,10 @@ void QuadExtractor::extractConnections(std::vector<Vector3>* crossPoints,
 {
     std::map<PositionKey, size_t> crossPointMap;
 
+    m_connectionInfos.clear();
+    m_addedConnections.clear();
+    m_pinnedPoints.clear();
+
     auto addCrossPoint = [&](const Vector3& position3, size_t triangleIndex) {
         auto insertResult = crossPointMap.insert({ position3, crossPoints->size() });
         if (insertResult.second) {
@@ -738,9 +716,14 @@ void QuadExtractor::extractConnections(std::vector<Vector3>* crossPoints,
         }
         return insertResult.first->second;
     };
-    auto addConnection = [&](size_t fromPointIndex, size_t toPointIndex) {
-        if (fromPointIndex != toPointIndex)
-            connections->insert({ fromPointIndex, toPointIndex });
+    auto addConnection = [&](size_t fromPointIndex, size_t toPointIndex,
+                             size_t triangleIndex, int coordIndex, int integer) {
+        if (fromPointIndex == toPointIndex)
+            return;
+        connections->insert({ fromPointIndex, toPointIndex });
+        m_connectionInfos.insert({ { std::min(fromPointIndex, toPointIndex),
+                                       std::max(fromPointIndex, toPointIndex) },
+            ConnectionInfo { triangleIndex, coordIndex, integer } });
     };
 
     struct CrossPoint {
@@ -882,12 +865,495 @@ void QuadExtractor::extractConnections(std::vector<Vector3>* crossPoints,
                     }
                     for (const auto& segment : segments) {
                         addConnection(addCrossPoint(segment[0].position3, triangleIndex),
-                            addCrossPoint(segment[1].position3, triangleIndex));
+                            addCrossPoint(segment[1].position3, triangleIndex),
+                            triangleIndex, (int)i, targetIt.first);
                     }
                 }
             }
         }
     }
+}
+
+// Cones left with no or a single isoline branch cannot anchor the lines that bend
+// around them: those lines come back on themselves, form a U, and the U is dropped
+// because nothing ties it into the grid. Walk out of the cone towards the nearest U
+// top, cut through every U met along the way, and stop on the first straight line.
+// The chain of new connections holds the U's in place.
+void QuadExtractor::holdSingularLines(std::vector<Vector3>* crossPoints,
+    std::vector<size_t>* sourceTriangles,
+    std::set<std::pair<size_t, size_t>>* connections)
+{
+    if (nullptr == m_singularVertices || m_singularVertices->empty())
+        return;
+
+    const size_t ringCount = 4;
+    // Total bend, in radians, that makes a line count as a U
+    const double uTurningThreshold = M_PI * 0.5;
+    const size_t maxChainPoints = 512;
+
+    auto makeEdge = [](size_t first, size_t second) {
+        return std::make_pair(std::min(first, second), std::max(first, second));
+    };
+
+    std::map<PositionKey, size_t> crossPointMap;
+    for (size_t i = 0; i < crossPoints->size(); ++i)
+        crossPointMap.insert({ (*crossPoints)[i], i });
+
+    std::unordered_map<size_t, std::vector<size_t>> trianglesAroundVertex;
+    for (size_t triangleIndex = 0; triangleIndex < m_triangles->size(); ++triangleIndex) {
+        for (const auto& vertexIndex : (*m_triangles)[triangleIndex])
+            trianglesAroundVertex[vertexIndex].push_back(triangleIndex);
+    }
+
+    size_t addedConnections = 0;
+    size_t starvedCones = 0;
+    size_t pinnedPoints = 0;
+    size_t walkedCones = 0;
+    for (const auto& singularVertexIndex : *m_singularVertices) {
+        if (singularVertexIndex >= m_vertices->size())
+            continue;
+        const auto& singularPosition = (*m_vertices)[singularVertexIndex];
+
+        // Only the starved cones are interesting, the well connected ones already
+        // hold their lines
+        size_t singularPointIndex = std::numeric_limits<size_t>::max();
+        {
+            auto findCrossPoint = crossPointMap.find(PositionKey(singularPosition));
+            if (findCrossPoint != crossPointMap.end())
+                singularPointIndex = findCrossPoint->second;
+        }
+        // Count the branches, not the entries: a segment shared by two triangles is
+        // held in the connection set under both orientations, and counting those
+        // separately doubles the valence and hides most of the starved cones
+        std::unordered_set<size_t> branches;
+        if (std::numeric_limits<size_t>::max() != singularPointIndex) {
+            for (const auto& connection : *connections) {
+                if (connection.first == singularPointIndex)
+                    branches.insert(connection.second);
+                else if (connection.second == singularPointIndex)
+                    branches.insert(connection.first);
+            }
+        }
+        const size_t valence = branches.size();
+        const size_t comingFromPointIndex = 1 == valence
+            ? *branches.begin()
+            : std::numeric_limits<size_t>::max();
+        ++starvedCones;
+        if (valence > 1) {
+            --starvedCones;
+            continue;
+        }
+
+        // Gather four rings of neighbor triangles
+        std::unordered_set<size_t> neighborTriangles;
+        {
+            std::unordered_set<size_t> ringVertices = { singularVertexIndex };
+            for (size_t ring = 0; ring < ringCount; ++ring) {
+                std::unordered_set<size_t> nextRingVertices;
+                for (const auto& vertexIndex : ringVertices) {
+                    auto findTriangles = trianglesAroundVertex.find(vertexIndex);
+                    if (findTriangles == trianglesAroundVertex.end())
+                        continue;
+                    for (const auto& triangleIndex : findTriangles->second) {
+                        neighborTriangles.insert(triangleIndex);
+                        for (const auto& corner : (*m_triangles)[triangleIndex])
+                            nextRingVertices.insert(corner);
+                    }
+                }
+                ringVertices = std::move(nextRingVertices);
+            }
+        }
+        if (neighborTriangles.empty())
+            continue;
+
+        // Collect the connections sitting on those triangles
+        std::map<std::pair<size_t, size_t>, ConnectionInfo> localEdges;
+        for (const auto& connection : *connections) {
+            auto edge = makeEdge(connection.first, connection.second);
+            auto findInfo = m_connectionInfos.find(edge);
+            if (findInfo == m_connectionInfos.end())
+                continue;
+            if (neighborTriangles.end() == neighborTriangles.find(findInfo->second.triangleIndex))
+                continue;
+            localEdges.insert({ edge, findInfo->second });
+        }
+        if (localEdges.size() < 3)
+            continue;
+
+        std::unordered_map<size_t, std::vector<size_t>> localGraph;
+        double totalEdgeLength = 0.0;
+        for (const auto& it : localEdges) {
+            localGraph[it.first.first].push_back(it.first.second);
+            localGraph[it.first.second].push_back(it.first.first);
+            totalEdgeLength += ((*crossPoints)[it.first.first] - (*crossPoints)[it.first.second]).length();
+        }
+        const double averageEdgeLength = totalEdgeLength / localEdges.size();
+        if (Double::isZero(averageEdgeLength))
+            continue;
+
+        // Chain the segments into lines, following the isoline label through the
+        // crossings and falling back to the straightest continuation
+        std::vector<std::vector<size_t>> chains;
+        std::map<std::pair<size_t, size_t>, size_t> edgeToChain;
+        {
+            std::set<std::pair<size_t, size_t>> visitedEdges;
+            auto extend = [&](std::vector<size_t>& points, const ConnectionInfo& label) {
+                while (points.size() < maxChainPoints) {
+                    size_t current = points.back();
+                    size_t previous = points[points.size() - 2];
+                    Vector3 direction = ((*crossPoints)[current] - (*crossPoints)[previous]).normalized();
+                    size_t best = std::numeric_limits<size_t>::max();
+                    double bestScore = -1.0;
+                    bool bestLabeled = false;
+                    auto findNeighbors = localGraph.find(current);
+                    if (findNeighbors == localGraph.end())
+                        break;
+                    for (const auto& neighbor : findNeighbors->second) {
+                        if (neighbor == previous)
+                            continue;
+                        auto edge = makeEdge(current, neighbor);
+                        if (visitedEdges.end() != visitedEdges.find(edge))
+                            continue;
+                        auto findInfo = localEdges.find(edge);
+                        if (findInfo == localEdges.end())
+                            continue;
+                        const bool labeled = findInfo->second.coordIndex == label.coordIndex
+                            && findInfo->second.integer == label.integer;
+                        double score = Vector3::dotProduct(direction,
+                            ((*crossPoints)[neighbor] - (*crossPoints)[current]).normalized());
+                        if (labeled != bestLabeled) {
+                            if (!labeled)
+                                continue;
+                        } else if (score <= bestScore) {
+                            continue;
+                        }
+                        best = neighbor;
+                        bestScore = score;
+                        bestLabeled = labeled;
+                    }
+                    if (std::numeric_limits<size_t>::max() == best)
+                        break;
+                    visitedEdges.insert(makeEdge(current, best));
+                    points.push_back(best);
+                }
+            };
+            for (const auto& it : localEdges) {
+                if (visitedEdges.end() != visitedEdges.find(it.first))
+                    continue;
+                visitedEdges.insert(it.first);
+                std::vector<size_t> points = { it.first.first, it.first.second };
+                extend(points, it.second);
+                std::reverse(points.begin(), points.end());
+                extend(points, it.second);
+                for (size_t i = 1; i < points.size(); ++i)
+                    edgeToChain[makeEdge(points[i - 1], points[i])] = chains.size();
+                chains.push_back(std::move(points));
+            }
+        }
+
+        // A line is a U when it bends far enough to come back on itself
+        std::vector<uint8_t> chainIsU(chains.size(), 0);
+        std::vector<Vector3> chainTops(chains.size());
+        for (size_t chainIndex = 0; chainIndex < chains.size(); ++chainIndex) {
+            const auto& points = chains[chainIndex];
+            if (points.size() < 4)
+                continue;
+            const auto& first = (*crossPoints)[points[0]];
+            const auto& last = (*crossPoints)[points.back()];
+            // How far the line bends over its whole length. Measuring the turning
+            // rather than the two end tangents keeps working on the chains the four
+            // ring window cuts short before they have come all the way around
+            double turning = 0.0;
+            for (size_t i = 2; i < points.size(); ++i) {
+                Vector3 previousDirection = ((*crossPoints)[points[i - 1]] - (*crossPoints)[points[i - 2]]).normalized();
+                Vector3 nextDirection = ((*crossPoints)[points[i]] - (*crossPoints)[points[i - 1]]).normalized();
+                if (previousDirection.isZero() || nextDirection.isZero())
+                    continue;
+                // Signed against the surface, so a line that merely wiggles cancels
+                // itself out and only a line that keeps turning one way adds up
+                auto findInfo = localEdges.find(makeEdge(points[i - 1], points[i]));
+                if (findInfo == localEdges.end())
+                    continue;
+                const auto& triangle = (*m_triangles)[findInfo->second.triangleIndex];
+                Vector3 triangleNormal = Vector3::normal((*m_vertices)[triangle[0]],
+                    (*m_vertices)[triangle[1]], (*m_vertices)[triangle[2]]);
+                double angle = Vector3::angle(previousDirection, nextDirection);
+                if (Vector3::dotProduct(Vector3::crossProduct(previousDirection, nextDirection), triangleNormal) < 0.0)
+                    angle = -angle;
+                turning += angle;
+            }
+            if (std::abs(turning) < uTurningThreshold)
+                continue;
+            // The top of the U is the point that bulges farthest from its chord
+            Vector3 chord = last - first;
+            double chordLength = chord.length();
+            size_t topIndex = points.size() / 2;
+            if (!Double::isZero(chordLength)) {
+                Vector3 chordDirection = chord / chordLength;
+                double maxDistance = -1.0;
+                for (size_t i = 1; i + 1 < points.size(); ++i) {
+                    Vector3 offset = (*crossPoints)[points[i]] - first;
+                    double distance = (offset - chordDirection * Vector3::dotProduct(offset, chordDirection)).length();
+                    if (distance > maxDistance) {
+                        maxDistance = distance;
+                        topIndex = i;
+                    }
+                }
+            }
+            chainIsU[chainIndex] = 1;
+            chainTops[chainIndex] = (*crossPoints)[points[topIndex]];
+        }
+
+        // A cone that holds its lines carries three branches. A starved one carries
+        // one, or none, so the walk supplies the missing ones: three separatrices
+        // sit 120 degrees apart, and one crossbar cannot close the cells between the
+        // U's on its own
+        Vector3 coneNormal;
+        {
+            auto findTriangles = trianglesAroundVertex.find(singularVertexIndex);
+            if (findTriangles == trianglesAroundVertex.end())
+                continue;
+            for (const auto& triangleIndex : findTriangles->second) {
+                const auto& triangle = (*m_triangles)[triangleIndex];
+                coneNormal += Vector3::normal((*m_vertices)[triangle[0]],
+                    (*m_vertices)[triangle[1]], (*m_vertices)[triangle[2]]);
+            }
+            coneNormal = coneNormal.normalized();
+            if (coneNormal.isZero())
+                continue;
+        }
+
+        // The branch that is already there fixes where the missing ones go. Without
+        // one, the closest U's top stands in for it and all three get walked
+        Vector3 seedDirection;
+        if (std::numeric_limits<size_t>::max() != comingFromPointIndex) {
+            seedDirection = (*crossPoints)[comingFromPointIndex] - singularPosition;
+        } else {
+            double nearestDistance = std::numeric_limits<double>::max();
+            for (size_t chainIndex = 0; chainIndex < chains.size(); ++chainIndex) {
+                if (!chainIsU[chainIndex])
+                    continue;
+                double distance = (chainTops[chainIndex] - singularPosition).length();
+                if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                    seedDirection = chainTops[chainIndex] - singularPosition;
+                }
+            }
+            if (nearestDistance == std::numeric_limits<double>::max())
+                continue;
+        }
+        seedDirection = (seedDirection - coneNormal * Vector3::dotProduct(seedDirection, coneNormal)).normalized();
+        if (seedDirection.isZero())
+            continue;
+
+        std::vector<Vector3> walkDirections;
+        {
+            auto rotateAroundConeNormal = [&](const Vector3& direction, double angle) {
+                const double cosine = std::cos(angle);
+                const double sine = std::sin(angle);
+                return direction * cosine + Vector3::crossProduct(coneNormal, direction) * sine
+                    + coneNormal * Vector3::dotProduct(coneNormal, direction) * (1.0 - cosine);
+            };
+            const double branchAngle = M_PI * 2.0 / 3.0;
+            if (std::numeric_limits<size_t>::max() == comingFromPointIndex)
+                walkDirections.push_back(seedDirection);
+            walkDirections.push_back(rotateAroundConeNormal(seedDirection, branchAngle));
+            walkDirections.push_back(rotateAroundConeNormal(seedDirection, -branchAngle));
+        }
+
+        // Walk out along a direction and collect what it cuts through. The walk steps
+        // from crossing to crossing rather than following one straight ray, otherwise
+        // it leaves the surface long before it reaches the outer lines
+        struct Crossing {
+            Vector3 position;
+            size_t chainIndex;
+            std::pair<size_t, size_t> edge;
+        };
+        auto march = [&](Vector3 walkDirection) {
+            const double tolerance = 0.5 * averageEdgeLength;
+            const double parallelCosineThreshold = 0.9;
+            std::vector<Crossing> crossings;
+            Vector3 walkPosition = singularPosition;
+            std::unordered_set<size_t> visitedChains;
+            for (size_t step = 0; step < chains.size(); ++step) {
+                bool found = false;
+                Crossing nearest {};
+                double nearestDistance = std::numeric_limits<double>::max();
+                for (const auto& it : localEdges) {
+                    auto findChain = edgeToChain.find(it.first);
+                    if (findChain == edgeToChain.end())
+                        continue;
+                    if (visitedChains.end() != visitedChains.find(findChain->second))
+                        continue;
+                    const auto& from = (*crossPoints)[it.first.first];
+                    const auto& to = (*crossPoints)[it.first.second];
+                    Vector3 edgeVector = to - from;
+                    // A line running along the walk is not something the walk crosses
+                    if (std::abs(Vector3::dotProduct(walkDirection, edgeVector.normalized())) > parallelCosineThreshold)
+                        continue;
+                    // Closest approach between the walk ray and this segment
+                    Vector3 offset = from - walkPosition;
+                    double a = Vector3::dotProduct(edgeVector, edgeVector);
+                    double b = Vector3::dotProduct(walkDirection, edgeVector);
+                    double c = Vector3::dotProduct(walkDirection, offset);
+                    double d = Vector3::dotProduct(edgeVector, offset);
+                    double denominator = a - b * b;
+                    double edgeRatio = Double::isZero(denominator) ? 0.0 : (b * c - d) / denominator;
+                    if (edgeRatio < 0.0)
+                        edgeRatio = 0.0;
+                    else if (edgeRatio > 1.0)
+                        edgeRatio = 1.0;
+                    Vector3 pointOnEdge = from + edgeVector * edgeRatio;
+                    double distance = Vector3::dotProduct(pointOnEdge - walkPosition, walkDirection);
+                    if (distance <= tolerance)
+                        continue;
+                    if (distance >= nearestDistance)
+                        continue;
+                    Vector3 pointOnRay = walkPosition + walkDirection * distance;
+                    if ((pointOnEdge - pointOnRay).length() > tolerance)
+                        continue;
+                    nearest = Crossing { pointOnEdge, findChain->second, it.first };
+                    nearestDistance = distance;
+                    found = true;
+                }
+                if (!found)
+                    break;
+                crossings.push_back(nearest);
+                visitedChains.insert(nearest.chainIndex);
+                // Stop as soon as the walk reaches a line that is not a U, that line
+                // is what the whole chain hangs from
+                if (!chainIsU[nearest.chainIndex])
+                    break;
+                // Carry the direction on across the line just crossed, flattened onto
+                // the surface there so the walk keeps hugging the mesh
+                auto findInfo = localEdges.find(nearest.edge);
+                if (findInfo != localEdges.end()) {
+                    const auto& triangle = (*m_triangles)[findInfo->second.triangleIndex];
+                    Vector3 triangleNormal = Vector3::normal((*m_vertices)[triangle[0]],
+                        (*m_vertices)[triangle[1]], (*m_vertices)[triangle[2]]);
+                    Vector3 flattened = walkDirection - triangleNormal * Vector3::dotProduct(walkDirection, triangleNormal);
+                    if (!flattened.isZero())
+                        walkDirection = flattened.normalized();
+                }
+                walkPosition = nearest.position;
+            }
+            return crossings;
+        };
+
+        // Splitting the crossed segment at the crossing point gives us something to
+        // connect to
+        auto splitAt = [&](const Crossing& crossing) {
+            auto findInfo = m_connectionInfos.find(crossing.edge);
+            if (findInfo == m_connectionInfos.end())
+                return std::numeric_limits<size_t>::max();
+            const auto info = findInfo->second;
+            auto insertResult = crossPointMap.insert({ PositionKey(crossing.position), crossPoints->size() });
+            if (!insertResult.second)
+                return insertResult.first->second;
+            const size_t newPointIndex = crossPoints->size();
+            crossPoints->push_back(crossing.position);
+            sourceTriangles->push_back(info.triangleIndex);
+            connections->erase({ crossing.edge.first, crossing.edge.second });
+            connections->erase({ crossing.edge.second, crossing.edge.first });
+            m_connectionInfos.erase(crossing.edge);
+            for (const auto& endpoint : { crossing.edge.first, crossing.edge.second }) {
+                connections->insert({ endpoint, newPointIndex });
+                m_connectionInfos.insert({ makeEdge(endpoint, newPointIndex), info });
+            }
+            return newPointIndex;
+        };
+
+        // Where two spokes cut the same ring, the ring arc between them has to keep a
+        // point of its own, otherwise it simplifies down to a single edge and the
+        // cell against the cone comes out a triangle instead of a quad
+        std::map<size_t, std::vector<size_t>> crossedPositionsOfChain;
+        auto positionInChain = [&](size_t chainIndex, const std::pair<size_t, size_t>& edge) {
+            const auto& points = chains[chainIndex];
+            for (size_t i = 1; i < points.size(); ++i) {
+                if (makeEdge(points[i - 1], points[i]) == edge)
+                    return i - 1;
+            }
+            return std::numeric_limits<size_t>::max();
+        };
+
+        bool coneWalked = false;
+        for (const auto& walkDirection : walkDirections) {
+            std::vector<size_t> walkPoints;
+            for (const auto& crossing : march(walkDirection)) {
+                size_t pointIndex = splitAt(crossing);
+                if (std::numeric_limits<size_t>::max() == pointIndex)
+                    continue;
+                size_t position = positionInChain(crossing.chainIndex, crossing.edge);
+                if (std::numeric_limits<size_t>::max() != position)
+                    crossedPositionsOfChain[crossing.chainIndex].push_back(position);
+                walkPoints.push_back(pointIndex);
+            }
+            if (walkPoints.size() < 2)
+                continue;
+
+            if (std::numeric_limits<size_t>::max() == singularPointIndex) {
+                auto insertResult = crossPointMap.insert({ PositionKey(singularPosition), crossPoints->size() });
+                if (insertResult.second) {
+                    singularPointIndex = crossPoints->size();
+                    crossPoints->push_back(singularPosition);
+                    sourceTriangles->push_back(*neighborTriangles.begin());
+                } else {
+                    singularPointIndex = insertResult.first->second;
+                }
+            }
+
+            size_t previousPointIndex = singularPointIndex;
+            for (const auto& pointIndex : walkPoints) {
+                if (pointIndex == previousPointIndex)
+                    continue;
+                auto edge = makeEdge(previousPointIndex, pointIndex);
+                if (m_connectionInfos.end() == m_connectionInfos.find(edge)) {
+                    connections->insert({ previousPointIndex, pointIndex });
+                    ConnectionInfo info;
+                    info.triangleIndex = (*sourceTriangles)[pointIndex];
+                    info.coordIndex = -1;
+                    info.integer = 0;
+                    m_connectionInfos.insert({ edge, info });
+                    m_addedConnections.insert(edge);
+                    ++addedConnections;
+                }
+                previousPointIndex = pointIndex;
+            }
+            coneWalked = true;
+        }
+
+        for (auto& it : crossedPositionsOfChain) {
+            auto& positions = it.second;
+            if (positions.size() < 2)
+                continue;
+            std::sort(positions.begin(), positions.end());
+            const auto& points = chains[it.first];
+            for (size_t i = 1; i < positions.size(); ++i) {
+                // The arc runs from the edge one spoke cut to the edge the next one
+                // cut, so the points in between are the candidates to keep
+                if (positions[i] <= positions[i - 1])
+                    continue;
+                size_t middle = (positions[i - 1] + 1 + positions[i]) / 2;
+                if (middle >= points.size())
+                    continue;
+                // No point pinning something that sits right on top of a crossing
+                const auto& middlePosition = (*crossPoints)[points[middle]];
+                if ((middlePosition - (*crossPoints)[points[positions[i - 1]]]).length() < 0.25 * averageEdgeLength)
+                    continue;
+                if ((middlePosition - (*crossPoints)[points[positions[i] + 1]]).length() < 0.25 * averageEdgeLength)
+                    continue;
+                m_pinnedPoints.insert(points[middle]);
+                ++pinnedPoints;
+            }
+        }
+
+        if (coneWalked)
+            ++walkedCones;
+    }
+
+    std::cerr << "Hold singular lines walked " << walkedCones << " of " << starvedCones
+              << " starved cone(s), added " << addedConnections << " connection(s), pinned "
+              << pinnedPoints << " ring point(s)" << std::endl;
 }
 
 bool QuadExtractor::testPointInTriangle(const std::vector<Vector3>& points,
