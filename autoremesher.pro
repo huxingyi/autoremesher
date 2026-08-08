@@ -218,6 +218,9 @@ HEADERS += thirdparty/isotropicremesher/double.h
 SOURCES += src/AutoRemesher/parameterizer.cpp
 HEADERS += src/AutoRemesher/parameterizer.h
 
+SOURCES += src/AutoRemesher/singularitysimplifier.cpp
+HEADERS += src/AutoRemesher/singularitysimplifier.h
+
 SOURCES += src/AutoRemesher/quadextractor.cpp
 HEADERS += src/AutoRemesher/quadextractor.h
 

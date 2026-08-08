@@ -84,6 +84,16 @@ public:
         m_anisotropy = anisotropy;
     }
 
+    void setSingularitySimplification(bool simplify)
+    {
+        m_singularitySimplification = simplify;
+    }
+
+    void setMaximumSingularityPairDistance(size_t faceHops)
+    {
+        m_maximumSingularityPairDistance = faceHops;
+    }
+
     bool parameterize();
 
 private:
@@ -99,6 +109,8 @@ private:
     double m_sharpEdgeDegrees = 90.0;
     double m_anisotropy = 1.0;
     double m_maxAspectRatio = 2.3;
+    bool m_singularitySimplification = true;
+    size_t m_maximumSingularityPairDistance = 6;
 
     std::vector<double> computeFaceScalingField(const std::vector<Vector3>& vertices,
         const std::vector<std::vector<size_t>>& triangles,

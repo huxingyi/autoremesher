@@ -20,6 +20,7 @@
  *  SOFTWARE.
  */
 #include <AutoRemesher/Parameterizer>
+#include <AutoRemesher/SingularitySimplifier>
 #include <algorithm>
 #include <cmath>
 #include <exploragram/hexdom/quad_cover.h>
@@ -635,6 +636,24 @@ bool Parameterizer::parameterize()
         }
     }
 
+    // Cancel redundant cone pairs while the layout is still just a field. Doing
+    // it here rather than on the extracted quads means the extractor never lays out
+    // the seams for cones that were not going to survive anyway.
+    if (m_singularitySimplification
+        && nullptr == getenv("AUTOREMESHER_NO_SINGULARITY_SIMPLIFICATION")) {
+        SingularitySimplifier simplifier(&M, &B);
+        simplifier.setSharpEdgeDegrees(m_sharpEdgeDegrees);
+        simplifier.setMaximumPairDistance(m_maximumSingularityPairDistance);
+        simplifier.simplify();
+        if (simplifier.cancelledPairCount() > 0) {
+            std::cerr << "Simplified cross field singularities: "
+                      << simplifier.singularityCountBefore() << " -> "
+                      << simplifier.singularityCountAfter() << " ("
+                      << simplifier.cancelledPairCount() << " pair(s) cancelled)"
+                      << std::endl;
+        }
+    }
+
     GEO::Attribute<double> facetScaling(M.facets.attributes(), "adaptive_scaling");
     for (size_t i = 0; i < faceScalingField.size(); ++i)
         facetScaling[i] = faceScalingField[i];
@@ -748,6 +767,11 @@ bool Parameterizer::parameterize()
                 }
             }
         }
+    }
+
+    if (nullptr != getenv("AUTOREMESHER_DEBUG_SINGULARITY")) {
+        std::cerr << "  [Singularity] geogram marked " << m_singularVertexIndices.size()
+                  << " singular vertex(es) after brushing" << std::endl;
     }
 
     delete m_triangleUvs;
