@@ -111,6 +111,18 @@ void MixedIntegerLeastSquares::finalizeConstraints()
             processConstraint(row);
         endPass(pass);
     }
+    m_reducedEnergy.clear();
+    m_reducedEnergy.reserve(m_energy.size());
+    for (const Row& energy : m_energy) {
+        Row reducedEnergy;
+        reducedEnergy.rhs = energy.rhs;
+        reducedEnergy.weight = energy.weight;
+        for (const Coeff& coefficient : energy.coefficients)
+            for (const Coeff& kernelCoefficient : line(coefficient.index))
+                add(&reducedEnergy.coefficients, kernelCoefficient.index, coefficient.a * kernelCoefficient.a);
+        if (!reducedEnergy.coefficients.empty())
+            m_reducedEnergy.push_back(std::move(reducedEnergy));
+    }
 }
 
 void MixedIntegerLeastSquares::beginConstraint() { m_pendingConstraint.clear(); }
@@ -305,12 +317,12 @@ bool MixedIntegerLeastSquares::solveIteration()
             }
     }
     ConstrainedLeastSquares system(m_kernelSize);
-    for (const Row& r : m_energy) {
-        std::vector<std::pair<size_t, double>> out;
-        for (const Coeff& c : r.coefficients)
-            for (const Coeff& x : line(c.index))
-                out.push_back({ x.index, c.a * x.a });
-        system.addEnergy(out, r.rhs, r.weight);
+    for (const Row& energy : m_reducedEnergy) {
+        std::vector<std::pair<size_t, double>> coefficients;
+        coefficients.reserve(energy.coefficients.size());
+        for (const Coeff& coefficient : energy.coefficients)
+            coefficients.push_back({ coefficient.index, coefficient.a });
+        system.addEnergy(coefficients, energy.rhs, energy.weight);
     }
     for (size_t i = 0; i < m_kernelSize; ++i)
         if (m_fixed[i])

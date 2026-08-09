@@ -89,6 +89,7 @@ private:
     std::vector<Coeff> m_pendingConstraint;
     std::vector<std::vector<Coeff>> m_recordedConstraints;
     std::vector<Row> m_energy;
+    std::vector<Row> m_reducedEnergy;
     std::vector<double> m_values;
     std::vector<bool> m_fixed;
 };

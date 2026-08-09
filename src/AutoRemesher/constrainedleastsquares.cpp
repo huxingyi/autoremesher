@@ -22,6 +22,7 @@
 #include <AutoRemesher/ConstrainedLeastSquares>
 
 #include <Eigen/Sparse>
+#include <Eigen/SparseCholesky>
 #include <Eigen/SparseQR>
 #include <cmath>
 
@@ -52,6 +53,40 @@ bool ConstrainedLeastSquares::solve(std::vector<double>* solution) const
     const Eigen::Index originalConstraintCount = static_cast<Eigen::Index>(m_constraintEquations.size());
     if (variableCount == 0)
         return false;
+
+    if (originalConstraintCount == 0) {
+        Eigen::SparseMatrix<double> normalMatrix(variableCount, variableCount);
+        std::vector<Eigen::Triplet<double>> normalEntries;
+        Eigen::VectorXd rightHandSide = Eigen::VectorXd::Zero(variableCount);
+        for (const LinearEquation& equation : m_energyEquations) {
+            for (const auto& coefficient : equation.coefficients) {
+                if (coefficient.first >= m_variableCount)
+                    return false;
+                rightHandSide[static_cast<Eigen::Index>(coefficient.first)] += equation.weight * coefficient.second * equation.rightHandSide;
+                for (const auto& otherCoefficient : equation.coefficients) {
+                    if (otherCoefficient.first >= m_variableCount)
+                        return false;
+                    normalEntries.emplace_back(static_cast<Eigen::Index>(coefficient.first), static_cast<Eigen::Index>(otherCoefficient.first),
+                        equation.weight * coefficient.second * otherCoefficient.second);
+                }
+            }
+        }
+        for (Eigen::Index variableIndex = 0; variableIndex < variableCount; ++variableIndex)
+            normalEntries.emplace_back(variableIndex, variableIndex, 1e-10);
+        normalMatrix.setFromTriplets(normalEntries.begin(), normalEntries.end());
+        Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
+        solver.compute(normalMatrix);
+        if (solver.info() != Eigen::Success)
+            return false;
+        const Eigen::VectorXd solutionVector = solver.solve(rightHandSide);
+        if (solver.info() != Eigen::Success || !solutionVector.allFinite())
+            return false;
+        solution->resize(m_variableCount);
+        for (size_t variableIndex = 0; variableIndex < m_variableCount; ++variableIndex)
+            (*solution)[variableIndex] = solutionVector[static_cast<Eigen::Index>(variableIndex)];
+        return true;
+    }
+
     Eigen::SparseMatrix<double> constraintMatrix(originalConstraintCount, variableCount);
     std::vector<Eigen::Triplet<double>> constraintEntries;
     for (Eigen::Index constraintIndex = 0; constraintIndex < originalConstraintCount; ++constraintIndex) {

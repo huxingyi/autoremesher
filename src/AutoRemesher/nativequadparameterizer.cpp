@@ -29,6 +29,8 @@
 #include <cstdlib>
 #include <iostream>
 #include <queue>
+#include <tbb/blocked_range.h>
+#include <tbb/parallel_for.h>
 
 namespace AutoRemesher {
 namespace {
@@ -277,17 +279,19 @@ bool NativeQuadParameterizer::parameterize(const std::vector<Vector3>& vertices,
     const double scale = std::max(1e-12, scaling * mesh.averageEdgeLength());
     std::vector<Vector3> normals(mesh.faceCount());
     result->field.resize(mesh.faceCount());
-    for (size_t f = 0; f < mesh.faceCount(); ++f) {
-        normals[f] = unit(mesh.faceNormal(f), Vector3(0, 0, 1));
-        Vector3 axis(1, 0, 0);
-        if (std::fabs(Vector3::dotProduct(axis, normals[f])) > .8)
-            axis = Vector3(0, 1, 0);
-        const bool hasGuidance = guidance && guidance->size() == mesh.faceCount();
-        Vector3 d = hasGuidance ? (*guidance)[f] : axis;
-        if (!hasGuidance)
-            d = d - normals[f] * Vector3::dotProduct(d, normals[f]);
-        result->field[f] = unit(d, mesh.edgeVector(3 * f));
-    }
+    const bool hasGuidance = guidance && guidance->size() == mesh.faceCount();
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, mesh.faceCount()), [&](const tbb::blocked_range<size_t>& range) {
+        for (size_t faceIndex = range.begin(); faceIndex != range.end(); ++faceIndex) {
+            normals[faceIndex] = unit(mesh.faceNormal(faceIndex), Vector3(0, 0, 1));
+            Vector3 tangentAxis(1, 0, 0);
+            if (std::fabs(Vector3::dotProduct(tangentAxis, normals[faceIndex])) > .8)
+                tangentAxis = Vector3(0, 1, 0);
+            Vector3 fieldDirection = hasGuidance ? (*guidance)[faceIndex] : tangentAxis;
+            if (!hasGuidance)
+                fieldDirection = fieldDirection - normals[faceIndex] * Vector3::dotProduct(fieldDirection, normals[faceIndex]);
+            result->field[faceIndex] = unit(fieldDirection, mesh.edgeVector(3 * faceIndex));
+        }
+    });
     const std::vector<Vector3> fieldBeforeBrush = result->field;
     std::vector<double> activeScalingU(mesh.faceCount(), 1.0), activeScalingV(mesh.faceCount(), 1.0);
     const bool trackDirectionalScale = faceScalingU && faceScalingV
@@ -300,54 +304,60 @@ bool NativeQuadParameterizer::parameterize(const std::vector<Vector3>& vertices,
     if (!(guidance && guidance->size() == mesh.faceCount())) {
         std::vector<double> alpha(2 * mesh.faceCount(), 0.0);
         std::vector<char> locked(mesh.faceCount(), 0);
-        for (size_t f = 0; f < mesh.faceCount(); ++f) {
-            alpha[2 * f] = 1.0;
-            for (size_t l = 0; l < 3; ++l) {
-                const size_t c = 3 * f + l, oc = mesh.oppositeCorner(c);
-                if (oc != SurfaceMesh::npos && std::fabs(mesh.normalAngle(c)) * 180.0 / M_PI < hardEdgeDegrees)
-                    continue;
-                const Vector3 edge = unit(mesh.edgeVector(c), Vector3(1, 0, 0));
-                const Vector3 b = result->field[f];
-                const Vector3 bt = unit(Vector3::crossProduct(normals[f], b), Vector3(0, 1, 0));
-                const double angle = std::atan2(Vector3::dotProduct(edge, bt), Vector3::dotProduct(edge, b));
-                alpha[2 * f] = std::cos(4.0 * angle);
-                alpha[2 * f + 1] = std::sin(4.0 * angle);
-                locked[f] = 1;
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, mesh.faceCount()), [&](const tbb::blocked_range<size_t>& range) {
+            for (size_t faceIndex = range.begin(); faceIndex != range.end(); ++faceIndex) {
+                alpha[2 * faceIndex] = 1.0;
+                for (size_t localCorner = 0; localCorner < 3; ++localCorner) {
+                    const size_t cornerIndex = 3 * faceIndex + localCorner, oppositeCornerIndex = mesh.oppositeCorner(cornerIndex);
+                    if (oppositeCornerIndex != SurfaceMesh::npos && std::fabs(mesh.normalAngle(cornerIndex)) * 180.0 / M_PI < hardEdgeDegrees)
+                        continue;
+                    const Vector3 edge = unit(mesh.edgeVector(cornerIndex), Vector3(1, 0, 0));
+                    const Vector3 fieldDirection = result->field[faceIndex];
+                    const Vector3 perpendicular = unit(Vector3::crossProduct(normals[faceIndex], fieldDirection), Vector3(0, 1, 0));
+                    const double fieldAngle = std::atan2(Vector3::dotProduct(edge, perpendicular), Vector3::dotProduct(edge, fieldDirection));
+                    alpha[2 * faceIndex] = std::cos(4.0 * fieldAngle);
+                    alpha[2 * faceIndex + 1] = std::sin(4.0 * fieldAngle);
+                    locked[faceIndex] = 1;
+                }
             }
-        }
+        });
         for (int iteration = 0; iteration < 40; ++iteration) {
             std::vector<double> next = alpha;
-            for (size_t f = 0; f < mesh.faceCount(); ++f)
-                if (!locked[f]) {
-                    double x = alpha[2 * f], y = alpha[2 * f + 1];
-                    const Vector3 bf = result->field[f];
-                    const Vector3 btf = unit(Vector3::crossProduct(normals[f], bf), Vector3(0, 1, 0));
-                    for (size_t l = 0; l < 3; ++l) {
-                        const size_t oc = mesh.oppositeCorner(3 * f + l);
-                        if (oc == SurfaceMesh::npos)
-                            continue;
-                        const size_t g = mesh.cornerFace(oc);
-                        Vector3 bg = result->field[g];
-                        bg = unit(bg - normals[f] * Vector3::dotProduct(bg, normals[f]), bf);
-                        const double d = std::atan2(Vector3::dotProduct(bg, btf), Vector3::dotProduct(bg, bf));
-                        const double cs = std::cos(4.0 * d), sn = std::sin(4.0 * d);
-                        x += cs * alpha[2 * g] - sn * alpha[2 * g + 1];
-                        y += sn * alpha[2 * g] + cs * alpha[2 * g + 1];
+            tbb::parallel_for(tbb::blocked_range<size_t>(0, mesh.faceCount()), [&](const tbb::blocked_range<size_t>& range) {
+                for (size_t f = range.begin(); f != range.end(); ++f)
+                    if (!locked[f]) {
+                        double x = alpha[2 * f], y = alpha[2 * f + 1];
+                        const Vector3 bf = result->field[f];
+                        const Vector3 btf = unit(Vector3::crossProduct(normals[f], bf), Vector3(0, 1, 0));
+                        for (size_t l = 0; l < 3; ++l) {
+                            const size_t oc = mesh.oppositeCorner(3 * f + l);
+                            if (oc == SurfaceMesh::npos)
+                                continue;
+                            const size_t g = mesh.cornerFace(oc);
+                            Vector3 bg = result->field[g];
+                            bg = unit(bg - normals[f] * Vector3::dotProduct(bg, normals[f]), bf);
+                            const double d = std::atan2(Vector3::dotProduct(bg, btf), Vector3::dotProduct(bg, bf));
+                            const double cs = std::cos(4.0 * d), sn = std::sin(4.0 * d);
+                            x += cs * alpha[2 * g] - sn * alpha[2 * g + 1];
+                            y += sn * alpha[2 * g] + cs * alpha[2 * g + 1];
+                        }
+                        const double length = std::hypot(x, y);
+                        if (length > 1e-12) {
+                            next[2 * f] = x / length;
+                            next[2 * f + 1] = y / length;
+                        }
                     }
-                    const double length = std::hypot(x, y);
-                    if (length > 1e-12) {
-                        next[2 * f] = x / length;
-                        next[2 * f + 1] = y / length;
-                    }
-                }
+            });
             alpha.swap(next);
         }
-        for (size_t f = 0; f < mesh.faceCount(); ++f) {
-            const double angle = .25 * std::atan2(alpha[2 * f + 1], alpha[2 * f]);
-            const Vector3 b = result->field[f];
-            const Vector3 bt = unit(Vector3::crossProduct(normals[f], b), Vector3(0, 1, 0));
-            result->field[f] = unit(b * std::cos(angle) + bt * std::sin(angle), b);
-        }
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, mesh.faceCount()), [&](const tbb::blocked_range<size_t>& range) {
+            for (size_t faceIndex = range.begin(); faceIndex != range.end(); ++faceIndex) {
+                const double fieldAngle = .25 * std::atan2(alpha[2 * faceIndex + 1], alpha[2 * faceIndex]);
+                const Vector3 fieldDirection = result->field[faceIndex];
+                const Vector3 perpendicular = unit(Vector3::crossProduct(normals[faceIndex], fieldDirection), Vector3(0, 1, 0));
+                result->field[faceIndex] = unit(fieldDirection * std::cos(fieldAngle) + perpendicular * std::sin(fieldAngle), fieldDirection);
+            }
+        });
     }
 
     std::vector<char> seen(mesh.faceCount(), 0);
