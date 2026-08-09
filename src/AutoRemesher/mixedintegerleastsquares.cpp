@@ -29,6 +29,7 @@
 namespace AutoRemesher {
 namespace {
     const size_t noIndex = std::numeric_limits<size_t>::max();
+    const double dropTolerance = 1e-10;
 }
 
 MixedIntegerLeastSquares::MixedIntegerLeastSquares(size_t size)
@@ -43,20 +44,22 @@ MixedIntegerLeastSquares::MixedIntegerLeastSquares(size_t size)
         m_m0[i] = i;
 }
 
+MixedIntegerLeastSquares::~MixedIntegerLeastSquares() = default;
+
 void MixedIntegerLeastSquares::normalize(std::vector<Coeff>* row)
 {
     std::sort(row->begin(), row->end(), [](const Coeff& a, const Coeff& b) { return a.index < b.index; });
-    std::vector<Coeff> out;
+    size_t out = 0;
     for (size_t i = 0; i < row->size();) {
         size_t j = i + 1;
         double a = (*row)[i].a;
         while (j < row->size() && (*row)[j].index == (*row)[i].index)
             a += (*row)[j++].a;
-        if (std::fabs(a) > 1e-10)
-            out.push_back({ (*row)[i].index, a });
+        if (std::fabs(a) > dropTolerance)
+            (*row)[out++] = { (*row)[i].index, a };
         i = j;
     }
-    row->swap(out);
+    row->resize(out);
 }
 
 void MixedIntegerLeastSquares::add(std::vector<Coeff>* row, size_t index, double a)
@@ -66,20 +69,72 @@ void MixedIntegerLeastSquares::add(std::vector<Coeff>* row, size_t index, double
     auto it = std::lower_bound(row->begin(), row->end(), index, [](const Coeff& c, size_t i) { return c.index < i; });
     if (it != row->end() && it->index == index) {
         it->a += a;
-        if (std::fabs(it->a) < 1e-10)
+        if (std::fabs(it->a) < dropTolerance)
             row->erase(it);
     } else
         row->insert(it, { index, a });
 }
 
-std::vector<MixedIntegerLeastSquares::Coeff> MixedIntegerLeastSquares::multiply(const std::vector<Coeff>& row, const SparseMatrix& m)
+void MixedIntegerLeastSquares::axpy(std::vector<Coeff>* row, const std::vector<Coeff>& source, double factor)
 {
+    if (source.empty() || 0.0 == factor)
+        return;
+    m_merged.clear();
+    m_merged.reserve(row->size() + source.size());
+    size_t i = 0, j = 0;
+    while (i < row->size() && j < source.size()) {
+        if ((*row)[i].index < source[j].index) {
+            m_merged.push_back((*row)[i++]);
+        } else if (source[j].index < (*row)[i].index) {
+            const double a = factor * source[j].a;
+            if (std::fabs(a) >= 1e-14)
+                m_merged.push_back({ source[j].index, a });
+            ++j;
+        } else {
+            const double contribution = factor * source[j].a;
+            const double a = (*row)[i].a + contribution;
+            if (std::fabs(contribution) < 1e-14)
+                m_merged.push_back((*row)[i]);
+            else if (std::fabs(a) >= dropTolerance)
+                m_merged.push_back({ (*row)[i].index, a });
+            ++i;
+            ++j;
+        }
+    }
+    while (i < row->size())
+        m_merged.push_back((*row)[i++]);
+    while (j < source.size()) {
+        const double a = factor * source[j].a;
+        if (std::fabs(a) >= 1e-14)
+            m_merged.push_back({ source[j].index, a });
+        ++j;
+    }
+    row->swap(m_merged);
+}
+
+std::vector<MixedIntegerLeastSquares::Coeff> MixedIntegerLeastSquares::multiply(const std::vector<Coeff>& row, const SparseMatrix& m) const
+{
+    if (m_scatter.size() < m.rows.size())
+        m_scatter.assign(m.rows.size(), 0.0);
+    m_touched.clear();
+    for (const Coeff& c : row) {
+        if (c.index >= m.rows.size())
+            continue;
+        for (const Coeff& b : m.rows[c.index]) {
+            if (0.0 == m_scatter[b.index])
+                m_touched.push_back(b.index);
+            m_scatter[b.index] += c.a * b.a;
+        }
+    }
+    std::sort(m_touched.begin(), m_touched.end());
     std::vector<Coeff> out;
-    for (const Coeff& c : row)
-        if (c.index < m.rows.size())
-            for (const Coeff& b : m.rows[c.index])
-                out.push_back({ b.index, c.a * b.a });
-    normalize(&out);
+    out.reserve(m_touched.size());
+    for (size_t index : m_touched) {
+        const double a = m_scatter[index];
+        m_scatter[index] = 0.0;
+        if (std::fabs(a) > dropTolerance)
+            out.push_back({ index, a });
+    }
     return out;
 }
 
@@ -91,26 +146,85 @@ void MixedIntegerLeastSquares::setVariablePeriod(size_t variable, int period)
     }
 }
 
+void MixedIntegerLeastSquares::recordConstraint()
+{
+    normalize(&m_constraintScratch);
+    if (m_constraintScratch.empty())
+        return;
+    if (1 == m_constraintScratch.size())
+        m_singleTermConstraints.push_back(m_constraintRanges.size());
+    else
+        m_multiTermConstraints.push_back(m_constraintRanges.size());
+    m_constraintRanges.push_back({ m_constraintData.size(), m_constraintScratch.size() });
+    m_constraintData.insert(m_constraintData.end(), m_constraintScratch.begin(), m_constraintScratch.end());
+}
+
 void MixedIntegerLeastSquares::addConstraint(const std::vector<std::pair<size_t, double>>& row)
 {
-    std::vector<Coeff> converted;
+    m_constraintScratch.clear();
     for (const auto& c : row)
         if (c.first < m_size && c.second != 0.0)
-            converted.push_back({ c.first, c.second });
-    normalize(&converted);
-    if (!converted.empty())
-        m_recordedConstraints.push_back(converted);
+            m_constraintScratch.push_back({ c.first, c.second });
+    recordConstraint();
+}
+
+void MixedIntegerLeastSquares::addConstraint(size_t a, double ca)
+{
+    m_constraintScratch.clear();
+    if (a < m_size && 0.0 != ca)
+        m_constraintScratch.push_back({ a, ca });
+    recordConstraint();
+}
+
+void MixedIntegerLeastSquares::addConstraint(size_t a, double ca, size_t b, double cb)
+{
+    m_constraintScratch.clear();
+    if (a < m_size && 0.0 != ca)
+        m_constraintScratch.push_back({ a, ca });
+    if (b < m_size && 0.0 != cb)
+        m_constraintScratch.push_back({ b, cb });
+    recordConstraint();
+}
+
+void MixedIntegerLeastSquares::addConstraint(size_t a, double ca, size_t b, double cb, size_t c, double cc)
+{
+    m_constraintScratch.clear();
+    if (a < m_size && 0.0 != ca)
+        m_constraintScratch.push_back({ a, ca });
+    if (b < m_size && 0.0 != cb)
+        m_constraintScratch.push_back({ b, cb });
+    if (c < m_size && 0.0 != cc)
+        m_constraintScratch.push_back({ c, cc });
+    recordConstraint();
+}
+
+const std::vector<MixedIntegerLeastSquares::Coeff>& MixedIntegerLeastSquares::recordedConstraint(size_t index) const
+{
+    const auto& range = m_constraintRanges[index];
+    m_rowScratch.assign(m_constraintData.begin() + range.first,
+        m_constraintData.begin() + range.first + range.second);
+    return m_rowScratch;
 }
 
 void MixedIntegerLeastSquares::finalizeConstraints()
 {
     if (m_pass != 0)
         return;
-    for (size_t pass = 0; pass < 4; ++pass) {
-        for (const auto& row : m_recordedConstraints)
-            processConstraint(row);
-        endPass(pass);
-    }
+    for (size_t index : m_singleTermConstraints)
+        processConstraint(recordedConstraint(index));
+    endPass(0);
+    for (size_t index : m_multiTermConstraints)
+        processConstraint(recordedConstraint(index));
+    endPass(1);
+    for (size_t index = 0; index < m_constraintRanges.size(); ++index)
+        processConstraint(recordedConstraint(index));
+    endPass(2);
+    for (size_t index = 0; index < m_constraintRanges.size(); ++index)
+        processConstraint(recordedConstraint(index));
+    endPass(3);
+
+    buildKernel();
+
     m_reducedEnergy.clear();
     m_reducedEnergy.reserve(m_energy.size());
     for (const Row& energy : m_energy) {
@@ -118,11 +232,28 @@ void MixedIntegerLeastSquares::finalizeConstraints()
         reducedEnergy.rhs = energy.rhs;
         reducedEnergy.weight = energy.weight;
         for (const Coeff& coefficient : energy.coefficients)
-            for (const Coeff& kernelCoefficient : line(coefficient.index))
-                add(&reducedEnergy.coefficients, kernelCoefficient.index, coefficient.a * kernelCoefficient.a);
+            axpy(&reducedEnergy.coefficients, kernelLine(coefficient.index), coefficient.a);
         if (!reducedEnergy.coefficients.empty())
             m_reducedEnergy.push_back(std::move(reducedEnergy));
     }
+    m_energy.clear();
+    m_energy.shrink_to_fit();
+}
+
+void MixedIntegerLeastSquares::buildKernel()
+{
+    m_kernel.rows.resize(m_size);
+    for (size_t i = 0; i < m_size; ++i)
+        m_kernel.rows[i] = line(i);
+    m_kernelBuilt = true;
+}
+
+const std::vector<MixedIntegerLeastSquares::Coeff>& MixedIntegerLeastSquares::kernelLine(size_t i) const
+{
+    static const std::vector<Coeff> empty;
+    if (!m_kernelBuilt || i >= m_kernel.rows.size())
+        return empty;
+    return m_kernel.rows[i];
 }
 
 void MixedIntegerLeastSquares::beginConstraint() { m_pendingConstraint.clear(); }
@@ -142,16 +273,17 @@ bool MixedIntegerLeastSquares::endConstraint()
 std::vector<MixedIntegerLeastSquares::Coeff> MixedIntegerLeastSquares::throughM0(const std::vector<Coeff>& r) const
 {
     std::vector<Coeff> out;
+    out.reserve(r.size());
     for (const Coeff& c : r)
         if (m_m0[c.index] != noIndex)
             out.push_back({ m_m0[c.index], c.a });
-    normalize(&out);
     return out;
 }
 
 std::vector<MixedIntegerLeastSquares::Coeff> MixedIntegerLeastSquares::throughM1(const std::vector<Coeff>& r) const
 {
     std::vector<Coeff> out;
+    out.reserve(r.size());
     for (const Coeff& c : r)
         out.push_back({ m_m1[c.index].index, c.a * m_m1[c.index].a });
     normalize(&out);
@@ -210,6 +342,7 @@ void MixedIntegerLeastSquares::applyRemoveColumn(const std::vector<Coeff>& row, 
 {
     const Coeff pivot = row[remove];
     std::vector<Coeff> replacement;
+    replacement.reserve(row.size());
     for (size_t i = 0; i < row.size(); ++i)
         if (i != remove)
             replacement.push_back({ row[i].index, -row[i].a / pivot.a });
@@ -218,10 +351,9 @@ void MixedIntegerLeastSquares::applyRemoveColumn(const std::vector<Coeff>& row, 
     add(&difference, zero, -1.0);
     const std::vector<Coeff> column = m_m2t.rows[zero];
     for (const Coeff& d : difference)
-        for (const Coeff& source : column) {
-            add(&m_m2t.rows[d.index], source.index, d.a * source.a);
-            add(&m_m2.rows[source.index], d.index, d.a * source.a);
-        }
+        axpy(&m_m2t.rows[d.index], column, d.a);
+    for (const Coeff& source : column)
+        axpy(&m_m2.rows[source.index], difference, source.a);
 }
 
 bool MixedIntegerLeastSquares::processConstraint(const std::vector<Coeff>& row)
@@ -283,15 +415,35 @@ void MixedIntegerLeastSquares::clearEnergy() { m_energy.clear(); }
 
 void MixedIntegerLeastSquares::addEnergy(const std::vector<std::pair<size_t, double>>& c, double rhs, double weight)
 {
+    if (weight <= 0)
+        return;
     Row row;
     row.rhs = rhs;
     row.weight = weight;
+    row.coefficients.reserve(c.size());
     for (const auto& x : c)
         if (x.first < m_size && x.second != 0)
             row.coefficients.push_back({ x.first, x.second });
     normalize(&row.coefficients);
-    if (!row.coefficients.empty() && weight > 0)
-        m_energy.push_back(row);
+    if (!row.coefficients.empty())
+        m_energy.push_back(std::move(row));
+}
+
+void MixedIntegerLeastSquares::addEnergy(size_t a, double ca, size_t b, double cb, double rhs, double weight)
+{
+    if (weight <= 0)
+        return;
+    Row row;
+    row.rhs = rhs;
+    row.weight = weight;
+    row.coefficients.reserve(2);
+    if (a < m_size && 0.0 != ca)
+        row.coefficients.push_back({ a, ca });
+    if (b < m_size && 0.0 != cb)
+        row.coefficients.push_back({ b, cb });
+    normalize(&row.coefficients);
+    if (!row.coefficients.empty())
+        m_energy.push_back(std::move(row));
 }
 
 bool MixedIntegerLeastSquares::solveIteration()
@@ -316,18 +468,22 @@ bool MixedIntegerLeastSquares::solveIteration()
                     m_fixed[i] = true;
             }
     }
-    ConstrainedLeastSquares system(m_kernelSize);
-    for (const Row& energy : m_reducedEnergy) {
+    if (nullptr == m_system) {
+        m_system.reset(new ConstrainedLeastSquares(m_kernelSize));
         std::vector<std::pair<size_t, double>> coefficients;
-        coefficients.reserve(energy.coefficients.size());
-        for (const Coeff& coefficient : energy.coefficients)
-            coefficients.push_back({ coefficient.index, coefficient.a });
-        system.addEnergy(coefficients, energy.rhs, energy.weight);
+        for (const Row& energy : m_reducedEnergy) {
+            coefficients.clear();
+            coefficients.reserve(energy.coefficients.size());
+            for (const Coeff& coefficient : energy.coefficients)
+                coefficients.push_back({ coefficient.index, coefficient.a });
+            m_system->addEnergy(coefficients, energy.rhs, energy.weight);
+        }
     }
+    m_system->clearConstraints();
     for (size_t i = 0; i < m_kernelSize; ++i)
         if (m_fixed[i])
-            system.addConstraint({ { i, 1.0 } }, double(m_period[i]) * std::round(m_values[i] / double(m_period[i])));
-    return system.solve(&m_values);
+            m_system->addConstraint({ { i, 1.0 } }, double(m_period[i]) * std::round(m_values[i] / double(m_period[i])));
+    return m_system->solve(&m_values);
 }
 
 bool MixedIntegerLeastSquares::converged() const
@@ -357,7 +513,7 @@ double MixedIntegerLeastSquares::value(size_t i) const
     double v = 0;
     if (i >= m_size)
         return v;
-    for (const Coeff& x : line(i))
+    for (const Coeff& x : kernelLine(i))
         if (x.index < m_values.size())
             v += x.a * m_values[x.index];
     return v;

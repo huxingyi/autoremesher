@@ -393,6 +393,11 @@ bool NativeQuadParameterizer::parameterize(const std::vector<Vector3>& vertices,
         rotation[c] = edgeQuarterTurn(mesh, c, result->field, normals);
     }
     result->cornerRotations = rotation;
+    std::vector<signed char> cornerConstraints(corners, ConstraintNone);
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, corners), [&](const tbb::blocked_range<size_t>& range) {
+        for (size_t c = range.begin(); c != range.end(); ++c)
+            cornerConstraints[c] = static_cast<signed char>(edgeConstraint(mesh, c, result->field, normals, hardEdgeDegrees));
+    });
     size_t directionalSwaps = 0;
     if (trackDirectionalScale)
         for (size_t f = 0; f < mesh.faceCount(); ++f) {
@@ -459,17 +464,17 @@ bool NativeQuadParameterizer::parameterize(const std::vector<Vector3>& vertices,
                            int r, double sign) {
         r = (r % 4 + 4) % 4;
         if (r == 0) {
-            s.addConstraint({ { ax, 1 }, { bx, sign } });
-            s.addConstraint({ { ax + 1, 1 }, { bx + 1, sign } });
+            s.addConstraint(ax, 1, bx, sign);
+            s.addConstraint(ax + 1, 1, bx + 1, sign);
         } else if (r == 1) {
-            s.addConstraint({ { ax, 1 }, { bx + 1, sign } });
-            s.addConstraint({ { ax + 1, 1 }, { bx, -sign } });
+            s.addConstraint(ax, 1, bx + 1, sign);
+            s.addConstraint(ax + 1, 1, bx, -sign);
         } else if (r == 2) {
-            s.addConstraint({ { ax, 1 }, { bx, -sign } });
-            s.addConstraint({ { ax + 1, 1 }, { bx + 1, -sign } });
+            s.addConstraint(ax, 1, bx, -sign);
+            s.addConstraint(ax + 1, 1, bx + 1, -sign);
         } else {
-            s.addConstraint({ { ax, 1 }, { bx + 1, -sign } });
-            s.addConstraint({ { ax + 1, 1 }, { bx, sign } });
+            s.addConstraint(ax, 1, bx + 1, -sign);
+            s.addConstraint(ax + 1, 1, bx, sign);
         }
     };
     struct OrientationBarrier {
@@ -498,14 +503,14 @@ bool NativeQuadParameterizer::parameterize(const std::vector<Vector3>& vertices,
                 size_t c = 3 * f + l, n = mesh.nextCorner(c);
                 Vector3 e = mesh.edgeVector(c);
                 const double weight = su * sv;
-                s.addEnergy({ { 2 * n, 1 }, { 2 * c, -1 } }, Vector3::dotProduct(u, e) / su, weight);
-                s.addEnergy({ { 2 * n + 1, 1 }, { 2 * c + 1, -1 } }, Vector3::dotProduct(v, e) / sv, weight);
+                s.addEnergy(2 * n, 1, 2 * c, -1, Vector3::dotProduct(u, e) / su, weight);
+                s.addEnergy(2 * n + 1, 1, 2 * c + 1, -1, Vector3::dotProduct(v, e) / sv, weight);
             }
         }
         for (const OrientationBarrier& barrier : barriers)
             s.addEnergy(barrier.row, barrier.rhs, barrier.weight);
-        s.addConstraint({ { 0, 1 } });
-        s.addConstraint({ { 1, 1 } });
+        s.addConstraint(0, 1);
+        s.addConstraint(1, 1);
         size_t hardCoordinateCount = 0;
         for (size_t c = 0; c < corners; ++c) {
             size_t oc = mesh.oppositeCorner(c);
@@ -517,8 +522,8 @@ bool NativeQuadParameterizer::parameterize(const std::vector<Vector3>& vertices,
             if (seam[c]) {
                 addRotation(s, tc, toc, r, 1.0);
             } else {
-                s.addConstraint({ { tc, 1 } });
-                s.addConstraint({ { tc + 1, 1 } });
+                s.addConstraint(tc, 1);
+                s.addConstraint(tc + 1, 1);
             }
         }
         for (size_t c = 0; c < corners; ++c) {
@@ -529,17 +534,17 @@ bool NativeQuadParameterizer::parameterize(const std::vector<Vector3>& vertices,
             const size_t tc = uvVariables + 2 * c;
             const int r = (rotation[c] % 4 + 4) % 4;
             if (r == 0) {
-                s.addConstraint({ { 2 * c, 1 }, { 2 * other, -1 }, { tc, -1 } });
-                s.addConstraint({ { 2 * c + 1, 1 }, { 2 * other + 1, -1 }, { tc + 1, -1 } });
+                s.addConstraint(2 * c, 1, 2 * other, -1, tc, -1);
+                s.addConstraint(2 * c + 1, 1, 2 * other + 1, -1, tc + 1, -1);
             } else if (r == 1) {
-                s.addConstraint({ { 2 * c, 1 }, { 2 * other + 1, -1 }, { tc, -1 } });
-                s.addConstraint({ { 2 * c + 1, 1 }, { 2 * other, 1 }, { tc + 1, -1 } });
+                s.addConstraint(2 * c, 1, 2 * other + 1, -1, tc, -1);
+                s.addConstraint(2 * c + 1, 1, 2 * other, 1, tc + 1, -1);
             } else if (r == 2) {
-                s.addConstraint({ { 2 * c, 1 }, { 2 * other, 1 }, { tc, -1 } });
-                s.addConstraint({ { 2 * c + 1, 1 }, { 2 * other + 1, 1 }, { tc + 1, -1 } });
+                s.addConstraint(2 * c, 1, 2 * other, 1, tc, -1);
+                s.addConstraint(2 * c + 1, 1, 2 * other + 1, 1, tc + 1, -1);
             } else {
-                s.addConstraint({ { 2 * c, 1 }, { 2 * other + 1, 1 }, { tc, -1 } });
-                s.addConstraint({ { 2 * c + 1, 1 }, { 2 * other, -1 }, { tc + 1, -1 } });
+                s.addConstraint(2 * c, 1, 2 * other + 1, 1, tc, -1);
+                s.addConstraint(2 * c + 1, 1, 2 * other, -1, tc + 1, -1);
             }
         }
         for (size_t vertex = 0; vertex < mesh.vertexCount(); ++vertex) {
@@ -591,26 +596,20 @@ bool NativeQuadParameterizer::parameterize(const std::vector<Vector3>& vertices,
         }
         for (size_t c = 0; c < corners; ++c) {
             const size_t n = mesh.nextCorner(c);
-            const int constraint = edgeConstraint(mesh, c, result->field, normals, hardEdgeDegrees);
+            const int constraint = cornerConstraints[c];
             if (constraint == ConstraintV) {
                 s.setVariablePeriod(2 * c + 1, 1);
                 s.setVariablePeriod(2 * n + 1, 1);
                 hardCoordinateCount += 2;
-                s.addConstraint({ { 2 * c + 1, 1 }, { 2 * n + 1, -1 } });
+                s.addConstraint(2 * c + 1, 1, 2 * n + 1, -1);
             } else if (constraint == ConstraintU) {
                 s.setVariablePeriod(2 * c, 1);
                 s.setVariablePeriod(2 * n, 1);
                 hardCoordinateCount += 2;
-                s.addConstraint({ { 2 * c, 1 }, { 2 * n, -1 } });
+                s.addConstraint(2 * c, 1, 2 * n, -1);
             }
         }
         s.finalizeConstraints();
-        if (nullptr)
-            std::cerr << "Native MatrixM kernel=" << s.kernelSize()
-                      << " integer=" << s.integerKernelVariableCount()
-                      << " input_integer=" << s.originalIntegerVariableCount()
-                      << " hard_emitted=" << hardCoordinateCount
-                      << " border=" << std::count(seam.begin(), seam.end(), char(1)) << std::endl;
         for (size_t iteration = 0; iteration < 100; ++iteration) {
             if (!s.solveIteration())
                 return false;
@@ -670,7 +669,7 @@ bool NativeQuadParameterizer::parameterize(const std::vector<Vector3>& vertices,
         }
         for (size_t c = 0; c < corners; ++c) {
             const size_t n = mesh.nextCorner(c);
-            const int constraint = edgeConstraint(mesh, c, result->field, normals, hardEdgeDegrees);
+            const int constraint = cornerConstraints[c];
             if (constraint == ConstraintU)
                 system.addConstraint({ { 2 * c, 1 }, { 2 * n, -1 } });
             else if (constraint == ConstraintV)
@@ -713,7 +712,7 @@ bool NativeQuadParameterizer::parameterize(const std::vector<Vector3>& vertices,
         }
         for (size_t c = 0; c < corners; ++c) {
             const size_t n = mesh.nextCorner(c);
-            const int constraint = edgeConstraint(mesh, c, result->field, normals, hardEdgeDegrees);
+            const int constraint = cornerConstraints[c];
             if (constraint == ConstraintU)
                 system.addConstraint({ { 2 * c, 1 }, { 2 * n, -1 } });
             else if (constraint == ConstraintV)
@@ -989,7 +988,7 @@ bool NativeQuadParameterizer::parameterize(const std::vector<Vector3>& vertices,
     }
     for (size_t c = 0; c < corners; ++c) {
         const size_t n = mesh.nextCorner(c);
-        if (edgeConstraint(mesh, c, result->field, normals, hardEdgeDegrees) != ConstraintNone)
+        if (cornerConstraints[c] != ConstraintNone)
             constrained[c] = constrained[n] = 1;
     }
     size_t repairedBefore = 0;

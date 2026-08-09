@@ -23,69 +23,266 @@
 
 #include <Eigen/Sparse>
 #include <Eigen/SparseCholesky>
+#include <Eigen/SparseLU>
 #include <Eigen/SparseQR>
+#include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace AutoRemesher {
+namespace {
+    const size_t noIndex = std::numeric_limits<size_t>::max();
+    const double ridge = 1e-10;
+}
+
+struct ConstrainedLeastSquares::Cache {
+    Eigen::SparseMatrix<double> scaledMatrix;
+    Eigen::SparseMatrix<double> normalMatrix;
+    Eigen::VectorXd rowShift;
+    Eigen::VectorXd rowWeightRoot;
+    Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
+    bool patternAnalyzed = false;
+    bool factorized = false;
+};
 
 ConstrainedLeastSquares::ConstrainedLeastSquares(size_t variableCount)
     : m_variableCount(variableCount)
+    , m_cache(new Cache)
 {
 }
 
-void ConstrainedLeastSquares::addEnergy(const std::vector<std::pair<size_t, double>>& coefficients,
+ConstrainedLeastSquares::~ConstrainedLeastSquares() = default;
+
+size_t ConstrainedLeastSquares::addEnergy(const std::vector<std::pair<size_t, double>>& coefficients,
     double rightHandSide, double weight)
 {
-    if (!coefficients.empty() && weight > 0.0)
-        m_energyEquations.push_back({ coefficients, rightHandSide, weight });
+    if (coefficients.empty() || weight <= 0.0)
+        return noIndex;
+    m_energyEquations.push_back({ coefficients, rightHandSide, weight });
+    m_matrixDirty = true;
+    return m_energyEquations.size() - 1;
+}
+
+void ConstrainedLeastSquares::setEnergyRightHandSide(size_t energyIndex, double rightHandSide)
+{
+    if (energyIndex >= m_energyEquations.size())
+        return;
+    m_energyEquations[energyIndex].rightHandSide = rightHandSide;
 }
 
 void ConstrainedLeastSquares::addConstraint(const std::vector<std::pair<size_t, double>>& coefficients,
     double rightHandSide)
 {
-    if (!coefficients.empty())
-        m_constraintEquations.push_back({ coefficients, rightHandSide, 1.0 });
+    if (coefficients.empty())
+        return;
+    m_constraintEquations.push_back({ coefficients, rightHandSide, 1.0 });
+    m_matrixDirty = true;
 }
 
-bool ConstrainedLeastSquares::solve(std::vector<double>* solution) const
+void ConstrainedLeastSquares::clearConstraints()
+{
+    if (m_constraintEquations.empty())
+        return;
+    m_constraintEquations.clear();
+    m_matrixDirty = true;
+}
+
+ConstrainedLeastSquares::Substitution ConstrainedLeastSquares::resolve(size_t variable)
+{
+    double scale = 1.0, offset = 0.0;
+    size_t cursor = variable;
+    while (!m_substitutions[cursor].fixed && m_substitutions[cursor].root != cursor) {
+        const Substitution& link = m_substitutions[cursor];
+        offset += scale * link.offset;
+        scale *= link.scale;
+        cursor = link.root;
+    }
+    if (m_substitutions[cursor].fixed)
+        m_substitutions[variable] = { variable, 1.0, offset + scale * m_substitutions[cursor].offset, true };
+    else
+        m_substitutions[variable] = { cursor, scale, offset, false };
+    return m_substitutions[variable];
+}
+
+bool ConstrainedLeastSquares::buildSubstitutions()
+{
+    m_substitutions.resize(m_variableCount);
+    for (size_t i = 0; i < m_variableCount; ++i)
+        m_substitutions[i] = { i, 1.0, 0.0, false };
+
+    std::vector<std::pair<size_t, double>> rootCoefficients;
+    for (const LinearEquation& constraint : m_constraintEquations) {
+        double rightHandSide = constraint.rightHandSide;
+        rootCoefficients.clear();
+        for (const auto& coefficient : constraint.coefficients) {
+            if (coefficient.first >= m_variableCount)
+                return false;
+            const Substitution substitution = resolve(coefficient.first);
+            if (substitution.fixed) {
+                rightHandSide -= coefficient.second * substitution.offset;
+                continue;
+            }
+            rightHandSide -= coefficient.second * substitution.offset;
+            const double scaled = coefficient.second * substitution.scale;
+            bool merged = false;
+            for (auto& existing : rootCoefficients) {
+                if (existing.first == substitution.root) {
+                    existing.second += scaled;
+                    merged = true;
+                    break;
+                }
+            }
+            if (!merged)
+                rootCoefficients.push_back({ substitution.root, scaled });
+        }
+        rootCoefficients.erase(std::remove_if(rootCoefficients.begin(), rootCoefficients.end(),
+                                   [](const std::pair<size_t, double>& c) { return std::fabs(c.second) < 1e-12; }),
+            rootCoefficients.end());
+        if (rootCoefficients.empty()) {
+            if (std::fabs(rightHandSide) > 1e-9 * (1.0 + std::fabs(constraint.rightHandSide)))
+                return false;
+            continue;
+        }
+        if (1 == rootCoefficients.size()) {
+            const size_t root = rootCoefficients[0].first;
+            m_substitutions[root] = { root, 1.0, rightHandSide / rootCoefficients[0].second, true };
+        } else if (2 == rootCoefficients.size()) {
+            const size_t a = rootCoefficients[0].first, b = rootCoefficients[1].first;
+            m_substitutions[a] = { b, -rootCoefficients[1].second / rootCoefficients[0].second,
+                rightHandSide / rootCoefficients[0].second, false };
+        } else {
+            return false;
+        }
+    }
+
+    m_freeIndexOfRoot.assign(m_variableCount, noIndex);
+    m_freeCount = 0;
+    for (size_t i = 0; i < m_variableCount; ++i) {
+        const Substitution substitution = resolve(i);
+        if (substitution.fixed)
+            continue;
+        if (noIndex == m_freeIndexOfRoot[substitution.root])
+            m_freeIndexOfRoot[substitution.root] = m_freeCount++;
+    }
+    return true;
+}
+
+bool ConstrainedLeastSquares::buildReducedSystem()
+{
+    const Eigen::Index rowCount = static_cast<Eigen::Index>(m_energyEquations.size());
+    const Eigen::Index columnCount = static_cast<Eigen::Index>(m_freeCount);
+    Cache& cache = *m_cache;
+
+    std::vector<Eigen::Triplet<double>> entries;
+    size_t entryCount = 0;
+    for (const LinearEquation& equation : m_energyEquations)
+        entryCount += equation.coefficients.size();
+    entries.reserve(entryCount);
+
+    cache.rowShift = Eigen::VectorXd::Zero(rowCount);
+    cache.rowWeightRoot = Eigen::VectorXd::Zero(rowCount);
+    for (Eigen::Index row = 0; row < rowCount; ++row) {
+        const LinearEquation& equation = m_energyEquations[static_cast<size_t>(row)];
+        const double weightRoot = std::sqrt(equation.weight);
+        cache.rowWeightRoot[row] = weightRoot;
+        double shift = 0.0;
+        for (const auto& coefficient : equation.coefficients) {
+            if (coefficient.first >= m_variableCount)
+                return false;
+            const Substitution& substitution = m_substitutions[coefficient.first];
+            if (substitution.fixed) {
+                shift += coefficient.second * substitution.offset;
+                continue;
+            }
+            shift += coefficient.second * substitution.offset;
+            const size_t column = m_freeIndexOfRoot[substitution.root];
+            if (noIndex == column)
+                continue;
+            entries.emplace_back(row, static_cast<Eigen::Index>(column),
+                weightRoot * coefficient.second * substitution.scale);
+        }
+        cache.rowShift[row] = shift;
+    }
+
+    cache.scaledMatrix.resize(rowCount, columnCount);
+    cache.scaledMatrix.setFromTriplets(entries.begin(), entries.end());
+
+    cache.normalMatrix = (cache.scaledMatrix.transpose() * cache.scaledMatrix).pruned();
+    Eigen::SparseMatrix<double> regularizer(columnCount, columnCount);
+    regularizer.setIdentity();
+    cache.normalMatrix += ridge * regularizer;
+    cache.normalMatrix.makeCompressed();
+    return true;
+}
+
+bool ConstrainedLeastSquares::solveReduced(std::vector<double>* solution)
+{
+    Cache& cache = *m_cache;
+    if (0 == m_freeCount) {
+        solution->assign(m_variableCount, 0.0);
+        for (size_t i = 0; i < m_variableCount; ++i)
+            (*solution)[i] = m_substitutions[i].offset;
+        return true;
+    }
+
+    if (m_matrixDirty) {
+        if (!buildReducedSystem())
+            return false;
+        if (!cache.patternAnalyzed) {
+            cache.solver.analyzePattern(cache.normalMatrix);
+            cache.patternAnalyzed = true;
+        }
+        cache.solver.factorize(cache.normalMatrix);
+        if (cache.solver.info() != Eigen::Success)
+            return false;
+        cache.factorized = true;
+        m_matrixDirty = false;
+    }
+    if (!cache.factorized)
+        return false;
+
+    Eigen::VectorXd scaledRightHandSide(static_cast<Eigen::Index>(m_energyEquations.size()));
+    for (Eigen::Index row = 0; row < scaledRightHandSide.size(); ++row) {
+        scaledRightHandSide[row] = cache.rowWeightRoot[row]
+            * (m_energyEquations[static_cast<size_t>(row)].rightHandSide - cache.rowShift[row]);
+    }
+    const Eigen::VectorXd reducedSolution = cache.solver.solve(cache.scaledMatrix.transpose() * scaledRightHandSide);
+    if (cache.solver.info() != Eigen::Success || !reducedSolution.allFinite())
+        return false;
+
+    solution->resize(m_variableCount);
+    for (size_t i = 0; i < m_variableCount; ++i) {
+        const Substitution& substitution = m_substitutions[i];
+        if (substitution.fixed) {
+            (*solution)[i] = substitution.offset;
+            continue;
+        }
+        const size_t column = m_freeIndexOfRoot[substitution.root];
+        (*solution)[i] = noIndex == column
+            ? substitution.offset
+            : substitution.offset + substitution.scale * reducedSolution[static_cast<Eigen::Index>(column)];
+    }
+    return true;
+}
+
+bool ConstrainedLeastSquares::solve(std::vector<double>* solution)
+{
+    if (0 == m_variableCount)
+        return false;
+
+    if (m_matrixDirty) {
+        m_cache->patternAnalyzed = false;
+        m_cache->factorized = false;
+        if (!buildSubstitutions())
+            return solveWithLagrangeMultipliers(solution);
+    }
+    return solveReduced(solution);
+}
+
+bool ConstrainedLeastSquares::solveWithLagrangeMultipliers(std::vector<double>* solution) const
 {
     const Eigen::Index variableCount = static_cast<Eigen::Index>(m_variableCount);
     const Eigen::Index originalConstraintCount = static_cast<Eigen::Index>(m_constraintEquations.size());
-    if (variableCount == 0)
-        return false;
-
-    if (originalConstraintCount == 0) {
-        Eigen::SparseMatrix<double> normalMatrix(variableCount, variableCount);
-        std::vector<Eigen::Triplet<double>> normalEntries;
-        Eigen::VectorXd rightHandSide = Eigen::VectorXd::Zero(variableCount);
-        for (const LinearEquation& equation : m_energyEquations) {
-            for (const auto& coefficient : equation.coefficients) {
-                if (coefficient.first >= m_variableCount)
-                    return false;
-                rightHandSide[static_cast<Eigen::Index>(coefficient.first)] += equation.weight * coefficient.second * equation.rightHandSide;
-                for (const auto& otherCoefficient : equation.coefficients) {
-                    if (otherCoefficient.first >= m_variableCount)
-                        return false;
-                    normalEntries.emplace_back(static_cast<Eigen::Index>(coefficient.first), static_cast<Eigen::Index>(otherCoefficient.first),
-                        equation.weight * coefficient.second * otherCoefficient.second);
-                }
-            }
-        }
-        for (Eigen::Index variableIndex = 0; variableIndex < variableCount; ++variableIndex)
-            normalEntries.emplace_back(variableIndex, variableIndex, 1e-10);
-        normalMatrix.setFromTriplets(normalEntries.begin(), normalEntries.end());
-        Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
-        solver.compute(normalMatrix);
-        if (solver.info() != Eigen::Success)
-            return false;
-        const Eigen::VectorXd solutionVector = solver.solve(rightHandSide);
-        if (solver.info() != Eigen::Success || !solutionVector.allFinite())
-            return false;
-        solution->resize(m_variableCount);
-        for (size_t variableIndex = 0; variableIndex < m_variableCount; ++variableIndex)
-            (*solution)[variableIndex] = solutionVector[static_cast<Eigen::Index>(variableIndex)];
-        return true;
-    }
 
     Eigen::SparseMatrix<double> constraintMatrix(originalConstraintCount, variableCount);
     std::vector<Eigen::Triplet<double>> constraintEntries;
@@ -128,14 +325,12 @@ bool ConstrainedLeastSquares::solve(std::vector<double>* solution) const
         const LinearEquation& equation = m_constraintEquations[static_cast<size_t>(selectedConstraints[constraintIndex])];
         rightHandSide[variableCount + constraintIndex] = equation.rightHandSide;
         for (const auto& coefficient : equation.coefficients) {
-            if (coefficient.first >= m_variableCount)
-                return false;
             entries.emplace_back(static_cast<Eigen::Index>(coefficient.first), variableCount + constraintIndex, coefficient.second);
             entries.emplace_back(variableCount + constraintIndex, static_cast<Eigen::Index>(coefficient.first), coefficient.second);
         }
     }
     for (Eigen::Index i = 0; i < variableCount; ++i)
-        entries.emplace_back(i, i, 1e-10);
+        entries.emplace_back(i, i, ridge);
     normal.setFromTriplets(entries.begin(), entries.end());
     Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
     solver.compute(normal);

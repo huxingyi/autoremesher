@@ -23,16 +23,26 @@
 #define AUTO_REMESHER_MIXED_INTEGER_LEAST_SQUARES_H
 
 #include <cstddef>
+#include <memory>
 #include <utility>
 #include <vector>
 
 namespace AutoRemesher {
 
+class ConstrainedLeastSquares;
+
 class MixedIntegerLeastSquares {
 public:
     explicit MixedIntegerLeastSquares(size_t variableCount);
+    ~MixedIntegerLeastSquares();
     void setVariablePeriod(size_t variable, int period);
     void addConstraint(const std::vector<std::pair<size_t, double>>& coefficients);
+    void addConstraint(size_t firstVariable, double firstCoefficient);
+    void addConstraint(size_t firstVariable, double firstCoefficient,
+        size_t secondVariable, double secondCoefficient);
+    void addConstraint(size_t firstVariable, double firstCoefficient,
+        size_t secondVariable, double secondCoefficient,
+        size_t thirdVariable, double thirdCoefficient);
     void finalizeConstraints();
 
     void beginConstraint();
@@ -43,6 +53,8 @@ public:
     void clearEnergy();
     void addEnergy(const std::vector<std::pair<size_t, double>>& coefficients,
         double rhs, double weight = 1.0);
+    void addEnergy(size_t firstVariable, double firstCoefficient,
+        size_t secondVariable, double secondCoefficient, double rhs, double weight = 1.0);
 
     bool solveIteration();
     bool converged() const;
@@ -67,12 +79,17 @@ private:
 
     static void normalize(std::vector<Coeff>* row);
     static void add(std::vector<Coeff>* row, size_t index, double a);
-    static std::vector<Coeff> multiply(const std::vector<Coeff>& row,
-        const SparseMatrix& matrix);
+    void axpy(std::vector<Coeff>* row, const std::vector<Coeff>& source, double factor);
+    std::vector<Coeff> multiply(const std::vector<Coeff>& row,
+        const SparseMatrix& matrix) const;
     std::vector<Coeff> line(size_t originalVariable) const;
+    const std::vector<Coeff>& kernelLine(size_t originalVariable) const;
+    void buildKernel();
     std::vector<Coeff> throughM0(const std::vector<Coeff>& row) const;
     std::vector<Coeff> throughM1(const std::vector<Coeff>& row) const;
     bool processConstraint(const std::vector<Coeff>& row);
+    void recordConstraint();
+    const std::vector<Coeff>& recordedConstraint(size_t index) const;
     void finalizeM0();
     void finalizeM1();
     void finalizeM2();
@@ -87,11 +104,25 @@ private:
     std::vector<int> m_period;
     std::vector<int> m_initialPeriod;
     std::vector<Coeff> m_pendingConstraint;
-    std::vector<std::vector<Coeff>> m_recordedConstraints;
+    std::vector<Coeff> m_constraintData;
+    std::vector<std::pair<size_t, size_t>> m_constraintRanges;
+    std::vector<Coeff> m_constraintScratch;
+    std::vector<size_t> m_singleTermConstraints;
+    std::vector<size_t> m_multiTermConstraints;
+    mutable std::vector<Coeff> m_rowScratch;
     std::vector<Row> m_energy;
     std::vector<Row> m_reducedEnergy;
     std::vector<double> m_values;
     std::vector<bool> m_fixed;
+
+    SparseMatrix m_kernel;
+    bool m_kernelBuilt = false;
+
+    mutable std::vector<double> m_scatter;
+    mutable std::vector<size_t> m_touched;
+    mutable std::vector<Coeff> m_merged;
+
+    std::unique_ptr<ConstrainedLeastSquares> m_system;
 };
 }
 #endif

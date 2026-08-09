@@ -474,7 +474,8 @@ bool AutoRemesher::remesh()
                 thread.parameterizer = new Parameterizer(&vertices,
                     &triangles,
                     nullptr);
-                thread.parameterizer->setScaling(thread.island->scaling);
+                if (thread.island->scaling > 0.0)
+                    thread.parameterizer->setScaling(thread.island->scaling);
                 thread.parameterizer->setGradientAdaptivity(thread.island->adaptivity);
                 thread.parameterizer->setAnisotropy(thread.island->anisotropy);
                 thread.parameterizer->setSharpEdgeDegrees(thread.island->sharpEdgeDegrees);

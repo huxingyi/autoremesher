@@ -157,7 +157,7 @@ bool NativeFrameField::create(const SurfaceMesh& mesh, double sharpEdgeDegrees,
         for (double& certaintyValue : certainty)
             certaintyValue /= maximumCertainty;
 
-    for (size_t iteration = 0; iteration < 5; ++iteration) {
+    const auto normalizePeriodic = [&]() {
         tbb::parallel_for(tbb::blocked_range<size_t>(0, faces), [&](const tbb::blocked_range<size_t>& range) {
             for (size_t faceIndex = range.begin(); faceIndex != range.end(); ++faceIndex) {
                 const double periodicLength = std::hypot(periodic[2 * faceIndex], periodic[2 * faceIndex + 1]);
@@ -167,34 +167,50 @@ bool NativeFrameField::create(const SurfaceMesh& mesh, double sharpEdgeDegrees,
                 }
             }
         });
-        ConstrainedLeastSquares system(2 * faces);
-        for (size_t f = 0; f < faces; ++f)
-            if (locked[f]) {
-                system.addConstraint({ { 2 * f, 1.0 } }, periodic[2 * f]);
-                system.addConstraint({ { 2 * f + 1, 1.0 } }, periodic[2 * f + 1]);
-            }
-        for (size_t c = 0; c < mesh.cornerCount(); ++c) {
-            const size_t other = mesh.oppositeCorner(c);
-            if (other == SurfaceMesh::npos)
-                continue;
-            const size_t f = mesh.cornerFace(c), g = mesh.cornerFace(other);
-            if (f < g)
-                continue;
-            const double transport = -kSymmetry * (tangentAngle(mesh.edgeVector(c), facetBases[g]) - tangentAngle(mesh.edgeVector(c), facetBases[f]));
-            const double co = std::cos(transport), si = std::sin(transport);
-            system.addEnergy({ { 2 * f, co }, { 2 * f + 1, si }, { 2 * g, -1.0 } }, 0.0);
-            system.addEnergy({ { 2 * f, -si }, { 2 * f + 1, co }, { 2 * g + 1, -1.0 } }, 0.0);
+    };
+
+    normalizePeriodic();
+    ConstrainedLeastSquares system(2 * faces);
+    for (size_t f = 0; f < faces; ++f)
+        if (locked[f]) {
+            system.addConstraint({ { 2 * f, 1.0 } }, periodic[2 * f]);
+            system.addConstraint({ { 2 * f + 1, 1.0 } }, periodic[2 * f + 1]);
         }
+    for (size_t c = 0; c < mesh.cornerCount(); ++c) {
+        const size_t other = mesh.oppositeCorner(c);
+        if (other == SurfaceMesh::npos)
+            continue;
+        const size_t f = mesh.cornerFace(c), g = mesh.cornerFace(other);
+        if (f < g)
+            continue;
+        const double transport = -kSymmetry * (tangentAngle(mesh.edgeVector(c), facetBases[g]) - tangentAngle(mesh.edgeVector(c), facetBases[f]));
+        const double co = std::cos(transport), si = std::sin(transport);
+        system.addEnergy({ { 2 * f, co }, { 2 * f + 1, si }, { 2 * g, -1.0 } }, 0.0);
+        system.addEnergy({ { 2 * f, -si }, { 2 * f + 1, co }, { 2 * g + 1, -1.0 } }, 0.0);
+    }
+    std::vector<std::pair<size_t, size_t>> certaintyRows;
+    certaintyRows.reserve(faces);
+    for (size_t f = 0; f < faces; ++f)
+        if (certainty[f] > 0.0) {
+            const double weight = certainty[f] * certainty[f];
+            const size_t rowU = system.addEnergy({ { 2 * f, 1.0 } }, periodic[2 * f], weight);
+            const size_t rowV = system.addEnergy({ { 2 * f + 1, 1.0 } }, periodic[2 * f + 1], weight);
+            certaintyRows.push_back({ rowU, rowV });
+        }
+
+    std::vector<double> solved;
+    for (size_t iteration = 0; iteration < 5; ++iteration) {
+        size_t rowIndex = 0;
         for (size_t f = 0; f < faces; ++f)
             if (certainty[f] > 0.0) {
-                const double weight = certainty[f] * certainty[f];
-                system.addEnergy({ { 2 * f, 1.0 } }, periodic[2 * f], weight);
-                system.addEnergy({ { 2 * f + 1, 1.0 } }, periodic[2 * f + 1], weight);
+                system.setEnergyRightHandSide(certaintyRows[rowIndex].first, periodic[2 * f]);
+                system.setEnergyRightHandSide(certaintyRows[rowIndex].second, periodic[2 * f + 1]);
+                ++rowIndex;
             }
-        std::vector<double> solved;
         if (!system.solve(&solved))
             return false;
         periodic.swap(solved);
+        normalizePeriodic();
     }
     field->resize(faces);
     tbb::parallel_for(tbb::blocked_range<size_t>(0, faces), [&](const tbb::blocked_range<size_t>& range) {
