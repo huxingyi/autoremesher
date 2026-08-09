@@ -26,6 +26,9 @@
 
 namespace AutoRemesher {
 
+// C++11 constexpr static data members still need a definition when odr-used.
+constexpr size_t SurfaceMesh::npos;
+
 SurfaceMesh::SurfaceMesh(const std::vector<Vector3>& positions,
     const std::vector<std::vector<size_t>>& triangles)
     : m_positions(positions)
