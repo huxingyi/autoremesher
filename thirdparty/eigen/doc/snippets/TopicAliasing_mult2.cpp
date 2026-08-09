@@ -1,5 +1,5 @@
-MatrixXf matA(2,2), matB(2,2); 
-matA << 2, 0,  0, 2;
+MatrixXf matA(2, 2), matB(2, 2);
+matA << 2, 0, 0, 2;
 
 // Simple but not quite as efficient
 matB = matA * matA;

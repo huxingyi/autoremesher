@@ -1,18 +1,13 @@
 #include <Eigen/Dense>
 #include <iostream>
 
-using namespace Eigen;
-using namespace std;
+int main() {
+  Eigen::MatrixXf m(2, 2);
+  m << 1, -2, -3, 4;
 
-int main()
-{
-  MatrixXf m(2,2);
-  m << 1,-2,
-       -3,4;
+  std::cout << "1-norm(m)     = " << m.cwiseAbs().colwise().sum().maxCoeff()
+            << " == " << m.colwise().lpNorm<1>().maxCoeff() << std::endl;
 
-  cout << "1-norm(m)     = " << m.cwiseAbs().colwise().sum().maxCoeff()
-       << " == "             << m.colwise().lpNorm<1>().maxCoeff() << endl;
-
-  cout << "infty-norm(m) = " << m.cwiseAbs().rowwise().sum().maxCoeff()
-       << " == "             << m.rowwise().lpNorm<1>().maxCoeff() << endl;
+  std::cout << "infty-norm(m) = " << m.cwiseAbs().rowwise().sum().maxCoeff()
+            << " == " << m.rowwise().lpNorm<1>().maxCoeff() << std::endl;
 }

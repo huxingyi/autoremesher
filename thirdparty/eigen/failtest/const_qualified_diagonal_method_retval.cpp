@@ -8,8 +8,9 @@
 
 using namespace Eigen;
 
-void foo(CV_QUALIFIER Matrix3d &m){
-    Diagonal<Matrix3d> b(m.diagonal());
+void foo(CV_QUALIFIER Matrix3d &m) {
+  Diagonal<Matrix3d> b(m.diagonal());
+  EIGEN_UNUSED_VARIABLE(b);
 }
 
 int main() {}

@@ -8,59 +8,64 @@
 // Public License v. 2.0. If a copy of the MPL was not distributed
 // with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef EIGEN_MATRIX_FUNCTIONS
-#define EIGEN_MATRIX_FUNCTIONS
+#ifndef EIGEN_MATRIX_FUNCTIONS_MODULE_H
+#define EIGEN_MATRIX_FUNCTIONS_MODULE_H
 
 #include <cfloat>
 #include <list>
 
-#include <Eigen/Core>
-#include <Eigen/LU>
-#include <Eigen/Eigenvalues>
+#include "../../Eigen/Core"
+#include "../../Eigen/LU"
+#include "../../Eigen/Eigenvalues"
 
 /**
-  * \defgroup MatrixFunctions_Module Matrix functions module
-  * \brief This module aims to provide various methods for the computation of
-  * matrix functions. 
-  *
-  * To use this module, add 
-  * \code
-  * #include <unsupported/Eigen/MatrixFunctions>
-  * \endcode
-  * at the start of your source file.
-  *
-  * This module defines the following MatrixBase methods.
-  *  - \ref matrixbase_cos "MatrixBase::cos()", for computing the matrix cosine
-  *  - \ref matrixbase_cosh "MatrixBase::cosh()", for computing the matrix hyperbolic cosine
-  *  - \ref matrixbase_exp "MatrixBase::exp()", for computing the matrix exponential
-  *  - \ref matrixbase_log "MatrixBase::log()", for computing the matrix logarithm
-  *  - \ref matrixbase_pow "MatrixBase::pow()", for computing the matrix power
-  *  - \ref matrixbase_matrixfunction "MatrixBase::matrixFunction()", for computing general matrix functions
-  *  - \ref matrixbase_sin "MatrixBase::sin()", for computing the matrix sine
-  *  - \ref matrixbase_sinh "MatrixBase::sinh()", for computing the matrix hyperbolic sine
-  *  - \ref matrixbase_sqrt "MatrixBase::sqrt()", for computing the matrix square root
-  *
-  * These methods are the main entry points to this module. 
-  *
-  * %Matrix functions are defined as follows.  Suppose that \f$ f \f$
-  * is an entire function (that is, a function on the complex plane
-  * that is everywhere complex differentiable).  Then its Taylor
-  * series
-  * \f[ f(0) + f'(0) x + \frac{f''(0)}{2} x^2 + \frac{f'''(0)}{3!} x^3 + \cdots \f]
-  * converges to \f$ f(x) \f$. In this case, we can define the matrix
-  * function by the same series:
-  * \f[ f(M) = f(0) + f'(0) M + \frac{f''(0)}{2} M^2 + \frac{f'''(0)}{3!} M^3 + \cdots \f]
-  *
-  */
+ * \defgroup MatrixFunctions_Module Matrix functions module
+ * \brief This module aims to provide various methods for the computation of
+ * matrix functions.
+ *
+ * To use this module, add
+ * \code
+ * #include <unsupported/Eigen/MatrixFunctions>
+ * \endcode
+ * at the start of your source file.
+ *
+ * This module defines the following MatrixBase methods.
+ *  - \ref matrixbase_cos "MatrixBase::cos()", for computing the matrix cosine
+ *  - \ref matrixbase_cosh "MatrixBase::cosh()", for computing the matrix hyperbolic cosine
+ *  - \ref matrixbase_exp "MatrixBase::exp()", for computing the matrix exponential
+ *  - \ref matrixbase_log "MatrixBase::log()", for computing the matrix logarithm
+ *  - \ref matrixbase_pow "MatrixBase::pow()", for computing the matrix power
+ *  - \ref matrixbase_matrixfunction "MatrixBase::matrixFunction()", for computing general matrix functions
+ *  - \ref matrixbase_sin "MatrixBase::sin()", for computing the matrix sine
+ *  - \ref matrixbase_sinh "MatrixBase::sinh()", for computing the matrix hyperbolic sine
+ *  - \ref matrixbase_sqrt "MatrixBase::sqrt()", for computing the matrix square root
+ *
+ * These methods are the main entry points to this module.
+ *
+ * %Matrix functions are defined as follows.  Suppose that \f$ f \f$
+ * is an entire function (that is, a function on the complex plane
+ * that is everywhere complex differentiable).  Then its Taylor
+ * series
+ * \f[ f(0) + f'(0) x + \frac{f''(0)}{2} x^2 + \frac{f'''(0)}{3!} x^3 + \cdots \f]
+ * converges to \f$ f(x) \f$. In this case, we can define the matrix
+ * function by the same series:
+ * \f[ f(M) = f(0) + f'(0) M + \frac{f''(0)}{2} M^2 + \frac{f'''(0)}{3!} M^3 + \cdots \f]
+ *
+ */
 
+#include "../../Eigen/src/Core/util/DisableStupidWarnings.h"
+
+// IWYU pragma: begin_exports
 #include "src/MatrixFunctions/MatrixExponential.h"
 #include "src/MatrixFunctions/MatrixFunction.h"
 #include "src/MatrixFunctions/MatrixSquareRoot.h"
 #include "src/MatrixFunctions/MatrixLogarithm.h"
 #include "src/MatrixFunctions/MatrixPower.h"
+// IWYU pragma: end_exports
 
+#include "../../Eigen/src/Core/util/ReenableStupidWarnings.h"
 
-/** 
+/**
 \page matrixbaseextra_page
 \ingroup MatrixFunctions_Module
 
@@ -176,7 +181,7 @@ const MatrixLogarithmReturnValue<Derived> MatrixBase<Derived>::log() const
 \param[in]  M  invertible matrix whose logarithm is to be computed.
 \returns    expression representing the matrix logarithm root of \p M.
 
-The matrix logarithm of \f$ M \f$ is a matrix \f$ X \f$ such that 
+The matrix logarithm of \f$ M \f$ is a matrix \f$ X \f$ such that
 \f$ \exp(X) = M \f$ where exp denotes the matrix exponential. As for
 the scalar logarithm, the equation \f$ \exp(X) = M \f$ may have
 multiple solutions; this function returns a matrix whose eigenvalues
@@ -203,14 +208,14 @@ Nicholas J. Higham,
 SIAM 2008. ISBN 978-0-898716-46-7.
 
 Example: The following program checks that
-\f[ \log \left[ \begin{array}{ccc} 
+\f[ \log \left[ \begin{array}{ccc}
       \frac12\sqrt2 & -\frac12\sqrt2 & 0 \\
       \frac12\sqrt2 & \frac12\sqrt2 & 0 \\
       0 & 0 & 1
     \end{array} \right] = \left[ \begin{array}{ccc}
-      0 & \frac14\pi & 0 \\ 
+      0 & \frac14\pi & 0 \\
       -\frac14\pi & 0 & 0 \\
-      0 & 0 & 0 
+      0 & 0 & 0
     \end{array} \right]. \f]
 This corresponds to a rotation of \f$ \frac14\pi \f$ radians around
 the z-axis. This is the inverse of the example used in the
@@ -222,7 +227,7 @@ Output: \verbinclude MatrixLogarithm.out
 \note \p M has to be a matrix of \c float, \c double, `long
 double`, \c complex<float>, \c complex<double>, or `complex<long double>`.
 
-\sa MatrixBase::exp(), MatrixBase::matrixFunction(), 
+\sa MatrixBase::exp(), MatrixBase::matrixFunction(),
     class MatrixLogarithmAtomic, MatrixBase::sqrt().
 
 
@@ -284,7 +289,7 @@ int main()
        0, 0, 6, 7,
        0, 0, 8, 9;
   std::cout << A.pow(0.37) << std::endl;
-  
+
   // The 1 makes eigenvalue 0 non-semisimple.
   A.coeffRef(0, 1) = 1;
 
@@ -337,18 +342,18 @@ double`, \c complex<float>, \c complex<double>, or
 Compute a matrix function.
 
 \code
-const MatrixFunctionReturnValue<Derived> MatrixBase<Derived>::matrixFunction(typename internal::stem_function<typename internal::traits<Derived>::Scalar>::type f) const
-\endcode
+const MatrixFunctionReturnValue<Derived> MatrixBase<Derived>::matrixFunction(typename internal::stem_function<typename
+internal::traits<Derived>::Scalar>::type f) const \endcode
 
 \param[in]  M  argument of matrix function, should be a square matrix.
 \param[in]  f  an entire function; \c f(x,n) should compute the n-th
 derivative of f at x.
 \returns  expression representing \p f applied to \p M.
 
-Suppose that \p M is a matrix whose entries have type \c Scalar. 
+Suppose that \p M is a matrix whose entries have type \c Scalar.
 Then, the second argument, \p f, should be a function with prototype
-\code 
-ComplexScalar f(ComplexScalar, int) 
+\code
+ComplexScalar f(ComplexScalar, int)
 \endcode
 where \c ComplexScalar = \c std::complex<Scalar> if \c Scalar is
 real (e.g., \c float or \c double) and \c ComplexScalar =
@@ -356,17 +361,17 @@ real (e.g., \c float or \c double) and \c ComplexScalar =
 should be \f$ f^{(n)}(x) \f$, the n-th derivative of f at x.
 
 This routine uses the algorithm described in:
-Philip Davies and Nicholas J. Higham, 
-"A Schur-Parlett algorithm for computing matrix functions", 
+Philip Davies and Nicholas J. Higham,
+"A Schur-Parlett algorithm for computing matrix functions",
 <em>SIAM J. %Matrix Anal. Applic.</em>, <b>25</b>:464&ndash;485, 2003.
 
 The actual work is done by the MatrixFunction class.
 
 Example: The following program checks that
-\f[ \exp \left[ \begin{array}{ccc} 
-      0 & \frac14\pi & 0 \\ 
+\f[ \exp \left[ \begin{array}{ccc}
+      0 & \frac14\pi & 0 \\
       -\frac14\pi & 0 & 0 \\
-      0 & 0 & 0 
+      0 & 0 & 0
     \end{array} \right] = \left[ \begin{array}{ccc}
       \frac12\sqrt2 & -\frac12\sqrt2 & 0 \\
       \frac12\sqrt2 & \frac12\sqrt2 & 0 \\
@@ -379,7 +384,7 @@ of \ref matrixbase_exp "exp()".
 \include MatrixFunction.cpp
 Output: \verbinclude MatrixFunction.out
 
-Note that the function \c expfn is defined for complex numbers 
+Note that the function \c expfn is defined for complex numbers
 \c x, even though the matrix \c A is over the reals. Instead of
 \c expfn, we could also have used StdStemFunctions::exp:
 \code
@@ -446,7 +451,7 @@ In the <b>real case</b>, the matrix \f$ M \f$ should be invertible and
 it should have no eigenvalues which are real and negative (pairs of
 complex conjugate eigenvalues are allowed). In that case, the matrix
 has a square root which is also real, and this is the square root
-computed by this function. 
+computed by this function.
 
 The matrix square root is computed by first reducing the matrix to
 quasi-triangular form with the real Schur decomposition. The square
@@ -478,12 +483,12 @@ square root of a matrix", <em>Linear Algebra Appl.</em>,
 52/53:127&ndash;140, 1983.
 
 Example: The following program checks that the square root of
-\f[ \left[ \begin{array}{cc} 
+\f[ \left[ \begin{array}{cc}
               \cos(\frac13\pi) & -\sin(\frac13\pi) \\
               \sin(\frac13\pi) & \cos(\frac13\pi)
     \end{array} \right], \f]
 corresponding to a rotation over 60 degrees, is a rotation over 30 degrees:
-\f[ \left[ \begin{array}{cc} 
+\f[ \left[ \begin{array}{cc}
               \cos(\frac16\pi) & -\sin(\frac16\pi) \\
               \sin(\frac16\pi) & \cos(\frac16\pi)
     \end{array} \right]. \f]
@@ -496,5 +501,4 @@ Output: \verbinclude MatrixSquareRoot.out
 
 */
 
-#endif // EIGEN_MATRIX_FUNCTIONS
-
+#endif  // EIGEN_MATRIX_FUNCTIONS_MODULE_H

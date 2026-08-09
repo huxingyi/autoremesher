@@ -9,9 +9,8 @@
 
 #include "main.h"
 
-void test_array_of_string()
-{
-  typedef Array<std::string,1,Dynamic> ArrayXs;
+EIGEN_DECLARE_TEST(array_of_string) {
+  typedef Array<std::string, 1, Dynamic> ArrayXs;
   ArrayXs a1(3), a2(3), a3(3), a3ref(3);
   a1 << "one", "two", "three";
   a2 << "1", "2", "3";
@@ -20,13 +19,13 @@ void test_array_of_string()
   s1 << a1;
   VERIFY_IS_EQUAL(s1.str(), std::string("  one    two  three"));
   a3 = a1 + std::string(" (") + a2 + std::string(")");
-  VERIFY((a3==a3ref).all());
+  VERIFY((a3 == a3ref).all());
 
   a3 = a1;
   a3 += std::string(" (") + a2 + std::string(")");
-  VERIFY((a3==a3ref).all());
+  VERIFY((a3 == a3ref).all());
 
   a1.swap(a3);
-  VERIFY((a1==a3ref).all());
-  VERIFY((a3!=a3ref).all());
+  VERIFY((a1 == a3ref).all());
+  VERIFY((a3 != a3ref).all());
 }

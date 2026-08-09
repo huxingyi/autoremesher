@@ -2,10 +2,10 @@ Matrix3d v = Matrix3d::Random();
 cout << "The matrix v is:" << endl;
 cout << v << endl;
 
-Vector3d v0(1, v(1,0), v(2,0));
+Vector3d v0(1, v(1, 0), v(2, 0));
 cout << "The first Householder vector is: v_0 = " << v0.transpose() << endl;
-Vector3d v1(0, 1, v(2,1));
-cout << "The second Householder vector is: v_1 = " << v1.transpose()  << endl;
+Vector3d v1(0, 1, v(2, 1));
+cout << "The second Householder vector is: v_1 = " << v1.transpose() << endl;
 Vector3d v2(0, 0, 1);
 cout << "The third Householder vector is: v_2 = " << v2.transpose() << endl;
 

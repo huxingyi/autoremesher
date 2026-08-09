@@ -44,8 +44,8 @@ This storage scheme is better explained on an example. The following matrix
 
 and one of its possible sparse, \b column \b major representation:
 <table class="manual">
-<tr><td>Values:</td>        <td>22</td><td>7</td><td>_</td><td>3</td><td>5</td><td>14</td><td>_</td><td>_</td><td>1</td><td>_</td><td>17</td><td>8</td></tr>
-<tr><td>InnerIndices:</td>  <td> 1</td><td>2</td><td>_</td><td>0</td><td>2</td><td> 4</td><td>_</td><td>_</td><td>2</td><td>_</td><td> 1</td><td>4</td></tr>
+<tr><td>Values:</td>        <td>22</td><td>7</td><td>_</td><td>3</td><td>5</td><td>_</td><td>14</td><td>_</td><td>1</td><td>_</td><td>17</td><td>8</td></tr>
+<tr><td>InnerIndices:</td>  <td> 1</td><td>2</td><td>_</td><td>0</td><td>2</td><td>_</td><td>4</td><td>_</td><td>2</td><td>_</td><td> 1</td><td>4</td></tr>
 </table>
 <table class="manual">
 <tr><td>OuterStarts:</td><td>0</td><td>3</td><td>5</td><td>8</td><td>10</td><td>\em 12 </td></tr>
@@ -54,13 +54,13 @@ and one of its possible sparse, \b column \b major representation:
 
 Currently the elements of a given inner vector are guaranteed to be always sorted by increasing inner indices.
 The \c "_" indicates available free space to quickly insert new elements.
-Assuming no reallocation is needed, the insertion of a random element is therefore in O(nnz_j) where nnz_j is the number of nonzeros of the respective inner vector.
-On the other hand, inserting elements with increasing inner indices in a given inner vector is much more efficient since this only requires to increase the respective \c InnerNNZs entry that is a O(1) operation.
+Assuming no reallocation is needed, the insertion of a random element is therefore in `O(nnz_j)` where `nnz_j` is the number of nonzeros of the respective inner vector.
+On the other hand, inserting elements with increasing inner indices in a given inner vector is much more efficient since this only requires to increase the respective \c InnerNNZs entry that is a `O(1)` operation.
 
-The case where no empty space is available is a special case, and is refered as the \em compressed mode.
+The case where no empty space is available is a special case, and is referred as the \em compressed mode.
 It corresponds to the widely used Compressed Column (or Row) Storage schemes (CCS or CRS).
 Any SparseMatrix can be turned to this form by calling the SparseMatrix::makeCompressed() function.
-In this case, one can remark that the \c InnerNNZs array is redundant with \c OuterStarts because we the equality: \c InnerNNZs[j] = \c OuterStarts[j+1]-\c OuterStarts[j].
+In this case, one can remark that the \c InnerNNZs array is redundant with \c OuterStarts because we have the equality: `InnerNNZs[j] == OuterStarts[j+1] - OuterStarts[j]`.
 Therefore, in practice a call to SparseMatrix::makeCompressed() frees this buffer.
 
 It is worth noting that most of our wrappers to external libraries requires compressed matrices as inputs.
@@ -90,9 +90,7 @@ Such problem can be mathematically expressed as a linear problem of the form \f$
 <tr><td>
 \include Tutorial_sparse_example.cpp
 </td>
-<td>
-\image html Tutorial_sparse_example.jpeg
-</td></tr></table>
+</tr></table>
 
 In this example, we start by defining a column-major sparse matrix type of double \c SparseMatrix<double>, and a triplet list of the same scalar type \c  Triplet<double>. A triplet is a simple object representing a non-zero entry as the triplet: \c row index, \c column index, \c value.
 
@@ -212,7 +210,7 @@ See the SparseMatrix::setFromTriplets() function and class Triplet for more deta
 
 
 In some cases, however, slightly higher performance, and lower memory consumption can be reached by directly inserting the non-zeros into the destination matrix.
-A typical scenario of this approach is illustrated bellow:
+A typical scenario of this approach is illustrated below:
 \code
 1: SparseMatrix<double> mat(rows,cols);         // default is column major
 2: mat.reserve(VectorXi::Constant(cols,6));
@@ -221,9 +219,9 @@ A typical scenario of this approach is illustrated bellow:
 5: mat.makeCompressed();                        // optional
 \endcode
 
-- The key ingredient here is the line 2 where we reserve room for 6 non-zeros per column. In many cases, the number of non-zeros per column or row can easily be known in advance. If it varies significantly for each inner vector, then it is possible to specify a reserve size for each inner vector by providing a vector object with an operator[](int j) returning the reserve size of the \c j-th inner vector (e.g., via a VectorXi or std::vector<int>). If only a rought estimate of the number of nonzeros per inner-vector can be obtained, it is highly recommended to overestimate it rather than the opposite. If this line is omitted, then the first insertion of a new element will reserve room for 2 elements per inner vector.
+- The key ingredient here is the line 2 where we reserve room for 6 non-zeros per column. In many cases, the number of non-zeros per column or row can easily be known in advance. If it varies significantly for each inner vector, then it is possible to specify a reserve size for each inner vector by providing a vector object with an `operator[](int j)` returning the reserve size of the \c j-th inner vector (e.g., via a `VectorXi` or `std::vector<int>`). If only a rought estimate of the number of nonzeros per inner-vector can be obtained, it is highly recommended to overestimate it rather than the opposite. If this line is omitted, then the first insertion of a new element will reserve room for 2 elements per inner vector.
 - The line 4 performs a sorted insertion. In this example, the ideal case is when the \c j-th column is not full and contains non-zeros whose inner-indices are smaller than \c i. In this case, this operation boils down to trivial O(1) operation.
-- When calling insert(i,j) the element \c i \c ,j must not already exists, otherwise use the coeffRef(i,j) method that will allow to, e.g., accumulate values. This method first performs a binary search and finally calls insert(i,j) if the element does not already exist. It is more flexible than insert() but also more costly.
+- When calling `insert(i,j)` the element `i`, `j` must not already exists, otherwise use the `coeffRef(i,j)` method that will allow to, e.g., accumulate values. This method first performs a binary search and finally calls `insert(i,j)` if the element does not already exist. It is more flexible than `insert()` but also more costly.
 - The line 5 suppresses the remaining empty space and transforms the matrix into a compressed column storage.
 
 
@@ -259,7 +257,7 @@ sm2 = sm1.cwiseProduct(dm1);
 dm2 = sm1 + dm1;
 dm2 = dm1 - sm1;
 \endcode
-Performance-wise, the adding/subtracting sparse and dense matrices is better performed in two steps. For instance, instead of doing <tt>dm2 = sm1 + dm1</tt>, better write:
+Performance-wise, the adding/subtracting sparse and dense matrices is better performed in two steps. For instance, instead of doing `dm2 = sm1 + dm1`, better write:
 \code
 dm2 = dm1;
 dm2 += sm1;
@@ -272,7 +270,7 @@ This version has the advantage to fully exploit the higher performance of dense 
 sm1 = sm2.transpose();
 sm1 = sm2.adjoint();
 \endcode
-However, there is no transposeInPlace() method.
+However, there is no `transposeInPlace()` method.
 
 
 \subsection TutorialSparse_Products Matrix products
@@ -284,18 +282,18 @@ dv2 = sm1 * dv1;
 dm2 = dm1 * sm1.adjoint();
 dm2 = 2. * sm1 * dm1;
     \endcode
-  - \b symmetric \b sparse-dense. The product of a sparse symmetric matrix with a dense matrix (or vector) can also be optimized by specifying the symmetry with selfadjointView():
+  - \b symmetric \b sparse-dense. The product of a sparse symmetric matrix with a dense matrix (or vector) can also be optimized by specifying the symmetry with `selfadjointView()`:
     \code
-dm2 = sm1.selfadjointView<>() * dm1;        // if all coefficients of A are stored
-dm2 = A.selfadjointView<Upper>() * dm1;     // if only the upper part of A is stored
-dm2 = A.selfadjointView<Lower>() * dm1;     // if only the lower part of A is stored
+dm2 = sm1.selfadjointView<>() * dm1;          // if all coefficients of sm1 are stored
+dm2 = sm1.selfadjointView<Upper>() * dm1;     // if only the upper part of sm1 is stored
+dm2 = sm1.selfadjointView<Lower>() * dm1;     // if only the lower part of sm1 is stored
     \endcode
   - \b sparse-sparse. For sparse-sparse products, two different algorithms are available. The default one is conservative and preserve the explicit zeros that might appear:
     \code
 sm3 = sm1 * sm2;
 sm3 = 4 * sm1.adjoint() * sm2;
     \endcode
-    The second algorithm prunes on the fly the explicit zeros, or the values smaller than a given threshold. It is enabled and controlled through the prune() functions:
+    The second algorithm prunes on the fly the explicit zeros, or the values smaller than a given threshold. It is enabled and controlled through the `prune()` functions:
     \code
 sm3 = (sm1 * sm2).pruned();                  // removes numerical zeros
 sm3 = (sm1 * sm2).pruned(ref);               // removes elements much smaller than ref
@@ -314,7 +312,7 @@ sm2 = sm1.transpose() * P;
 \subsection TutorialSparse_SubMatrices Block operations
 
 Regarding read-access, sparse matrices expose the same API than for dense matrices to access to sub-matrices such as blocks, columns, and rows. See \ref TutorialBlockOperations for a detailed introduction.
-However, for performance reasons, writing to a sub-sparse-matrix is much more limited, and currently only contiguous sets of columns (resp. rows) of a column-major (resp. row-major) SparseMatrix are writable. Moreover, this information has to be known at compile-time, leaving out methods such as <tt>block(...)</tt> and <tt>corner*(...)</tt>. The available API for write-access to a SparseMatrix are summarized below:
+However, for performance reasons, writing to a sub-sparse-matrix is much more limited, and currently only contiguous sets of columns (resp. rows) of a column-major (resp. row-major) SparseMatrix are writable. Moreover, this information has to be known at compile-time, leaving out methods such as `block(...)` and `corner*(...)`. The available API for write-access to a SparseMatrix are summarized below:
 \code
 SparseMatrix<double,ColMajor> sm1;
 sm1.col(j) = ...;
@@ -329,22 +327,22 @@ sm2.middleRows(i,nrows) = ...;
 sm2.bottomRows(nrows) = ...;
 \endcode
 
-In addition, sparse matrices expose the SparseMatrixBase::innerVector() and SparseMatrixBase::innerVectors() methods, which are aliases to the col/middleCols methods for a column-major storage, and to the row/middleRows methods for a row-major storage.
+In addition, sparse matrices expose the `SparseMatrixBase::innerVector()` and `SparseMatrixBase::innerVectors()` methods, which are aliases to the `col`/`middleCols` methods for a column-major storage, and to the `row`/`middleRows` methods for a row-major storage.
 
 \subsection TutorialSparse_TriangularSelfadjoint Triangular and selfadjoint views
 
-Just as with dense matrices, the triangularView() function can be used to address a triangular part of the matrix, and perform triangular solves with a dense right hand side:
+Just as with dense matrices, the `triangularView()` function can be used to address a triangular part of the matrix, and perform triangular solves with a dense right hand side:
 \code
 dm2 = sm1.triangularView<Lower>(dm1);
 dv2 = sm1.transpose().triangularView<Upper>(dv1);
 \endcode
 
-The selfadjointView() function permits various operations:
+The `selfadjointView()` function permits various operations:
  - optimized sparse-dense matrix products:
     \code
-dm2 = sm1.selfadjointView<>() * dm1;        // if all coefficients of A are stored
-dm2 = A.selfadjointView<Upper>() * dm1;     // if only the upper part of A is stored
-dm2 = A.selfadjointView<Lower>() * dm1;     // if only the lower part of A is stored
+dm2 = sm1.selfadjointView<>() * dm1;          // if all coefficients of sm1 are stored
+dm2 = sm1.selfadjointView<Upper>() * dm1;     // if only the upper part of sm1 is stored
+dm2 = sm1.selfadjointView<Lower>() * dm1;     // if only the lower part of sm1 is stored
     \endcode
  - copy of triangular parts:
     \code

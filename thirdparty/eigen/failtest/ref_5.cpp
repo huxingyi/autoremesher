@@ -2,10 +2,9 @@
 
 using namespace Eigen;
 
-void call_ref(Ref<VectorXf> a) { }
+void call_ref(Ref<VectorXf> a) {}
 
-int main()
-{
+int main() {
   VectorXf a(10);
   DenseBase<VectorXf> &ac(a);
 #ifdef EIGEN_SHOULD_FAIL_TO_BUILD

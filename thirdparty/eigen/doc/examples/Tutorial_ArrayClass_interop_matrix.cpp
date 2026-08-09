@@ -1,26 +1,22 @@
 #include <Eigen/Dense>
 #include <iostream>
 
-using namespace Eigen;
-using namespace std;
+using Eigen::MatrixXf;
 
-int main()
-{
-  MatrixXf m(2,2);
-  MatrixXf n(2,2);
-  MatrixXf result(2,2);
+int main() {
+  MatrixXf m(2, 2);
+  MatrixXf n(2, 2);
+  MatrixXf result(2, 2);
 
-  m << 1,2,
-       3,4;
-  n << 5,6,
-       7,8;
+  m << 1, 2, 3, 4;
+  n << 5, 6, 7, 8;
 
   result = m * n;
-  cout << "-- Matrix m*n: --" << endl << result << endl << endl;
+  std::cout << "-- Matrix m*n: --\n" << result << "\n\n";
   result = m.array() * n.array();
-  cout << "-- Array m*n: --" << endl << result << endl << endl;
+  std::cout << "-- Array m*n: --\n" << result << "\n\n";
   result = m.cwiseProduct(n);
-  cout << "-- With cwiseProduct: --" << endl << result << endl << endl;
+  std::cout << "-- With cwiseProduct: --\n" << result << "\n\n";
   result = m.array() + 4;
-  cout << "-- Array m + 4: --" << endl << result << endl << endl;
+  std::cout << "-- Array m + 4: --\n" << result << "\n\n";
 }

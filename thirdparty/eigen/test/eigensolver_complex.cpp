@@ -12,65 +12,61 @@
 #include <limits>
 #include <Eigen/Eigenvalues>
 #include <Eigen/LU>
+#include "CustomComplex.h"
 
-template<typename MatrixType> bool find_pivot(typename MatrixType::Scalar tol, MatrixType &diffs, Index col=0)
-{
+template <typename MatrixType>
+bool find_pivot(typename MatrixType::Scalar tol, MatrixType& diffs, Index col = 0) {
   bool match = diffs.diagonal().sum() <= tol;
-  if(match || col==diffs.cols())
-  {
+  if (match || col == diffs.cols()) {
     return match;
-  }
-  else
-  {
+  } else {
     Index n = diffs.cols();
-    std::vector<std::pair<Index,Index> > transpositions;
-    for(Index i=col; i<n; ++i)
-    {
+    std::vector<std::pair<Index, Index> > transpositions;
+    for (Index i = col; i < n; ++i) {
       Index best_index(0);
-      if(diffs.col(col).segment(col,n-i).minCoeff(&best_index) > tol)
-        break;
-      
+      if (diffs.col(col).segment(col, n - i).minCoeff(&best_index) > tol) break;
+
       best_index += col;
-      
+
       diffs.row(col).swap(diffs.row(best_index));
-      if(find_pivot(tol,diffs,col+1)) return true;
+      if (find_pivot(tol, diffs, col + 1)) return true;
       diffs.row(col).swap(diffs.row(best_index));
-      
+
       // move current pivot to the end
-      diffs.row(n-(i-col)-1).swap(diffs.row(best_index));
-      transpositions.push_back(std::pair<Index,Index>(n-(i-col)-1,best_index));
+      diffs.row(n - (i - col) - 1).swap(diffs.row(best_index));
+      transpositions.push_back(std::pair<Index, Index>(n - (i - col) - 1, best_index));
     }
     // restore
-    for(Index k=transpositions.size()-1; k>=0; --k)
+    for (Index k = transpositions.size() - 1; k >= 0; --k)
       diffs.row(transpositions[k].first).swap(diffs.row(transpositions[k].second));
   }
   return false;
 }
 
-/* Check that two column vectors are approximately equal upto permutations.
+/* Check that two column vectors are approximately equal up to permutations.
  * Initially, this method checked that the k-th power sums are equal for all k = 1, ..., vec1.rows(),
- * however this strategy is numerically inacurate because of numerical cancellation issues.
+ * however this strategy is numerically inaccurate because of numerical cancellation issues.
  */
-template<typename VectorType>
-void verify_is_approx_upto_permutation(const VectorType& vec1, const VectorType& vec2)
-{
+template <typename VectorType>
+void verify_is_approx_upto_permutation(const VectorType& vec1, const VectorType& vec2) {
   typedef typename VectorType::Scalar Scalar;
   typedef typename NumTraits<Scalar>::Real RealScalar;
 
   VERIFY(vec1.cols() == 1);
   VERIFY(vec2.cols() == 1);
   VERIFY(vec1.rows() == vec2.rows());
-  
+
   Index n = vec1.rows();
-  RealScalar tol = test_precision<RealScalar>()*test_precision<RealScalar>()*numext::maxi(vec1.squaredNorm(),vec2.squaredNorm());
-  Matrix<RealScalar,Dynamic,Dynamic> diffs = (vec1.rowwise().replicate(n) - vec2.rowwise().replicate(n).transpose()).cwiseAbs2();
-  
-  VERIFY( find_pivot(tol, diffs) );
+  RealScalar tol = test_precision<RealScalar>() * test_precision<RealScalar>() *
+                   numext::maxi(vec1.squaredNorm(), vec2.squaredNorm());
+  Matrix<RealScalar, Dynamic, Dynamic> diffs =
+      (vec1.rowwise().replicate(n) - vec2.rowwise().replicate(n).transpose()).cwiseAbs2();
+
+  VERIFY(find_pivot(tol, diffs));
 }
 
-
-template<typename MatrixType> void eigensolver(const MatrixType& m)
-{
+template <typename MatrixType>
+void eigensolver(const MatrixType& m) {
   /* this test covers the following files:
      ComplexEigenSolver.h, and indirectly ComplexSchur.h
   */
@@ -80,8 +76,8 @@ template<typename MatrixType> void eigensolver(const MatrixType& m)
   typedef typename MatrixType::Scalar Scalar;
   typedef typename NumTraits<Scalar>::Real RealScalar;
 
-  MatrixType a = MatrixType::Random(rows,cols);
-  MatrixType symmA =  a.adjoint() * a;
+  MatrixType a = MatrixType::Random(rows, cols);
+  MatrixType symmA = a.adjoint() * a;
 
   ComplexEigenSolver<MatrixType> ei0(symmA);
   VERIFY_IS_EQUAL(ei0.info(), Success);
@@ -110,17 +106,16 @@ template<typename MatrixType> void eigensolver(const MatrixType& m)
   VERIFY_IS_APPROX(ei1.eigenvalues(), eiNoEivecs.eigenvalues());
 
   // Regression test for issue #66
-  MatrixType z = MatrixType::Zero(rows,cols);
+  MatrixType z = MatrixType::Zero(rows, cols);
   ComplexEigenSolver<MatrixType> eiz(z);
   VERIFY((eiz.eigenvalues().cwiseEqual(0)).all());
 
   MatrixType id = MatrixType::Identity(rows, cols);
   VERIFY_IS_APPROX(id.operatorNorm(), RealScalar(1));
 
-  if (rows > 1 && rows < 20)
-  {
+  if (rows > 1 && rows < 20) {
     // Test matrix with NaN
-    a(0,0) = std::numeric_limits<typename MatrixType::RealScalar>::quiet_NaN();
+    a(0, 0) = std::numeric_limits<typename MatrixType::RealScalar>::quiet_NaN();
     ComplexEigenSolver<MatrixType> eiNaN(a);
     VERIFY_IS_EQUAL(eiNaN.info(), NoConvergence);
   }
@@ -136,41 +131,43 @@ template<typename MatrixType> void eigensolver(const MatrixType& m)
     a.setZero();
     ComplexEigenSolver<MatrixType> ei3(a);
     VERIFY_IS_EQUAL(ei3.info(), Success);
-    VERIFY_IS_MUCH_SMALLER_THAN(ei3.eigenvalues().norm(),RealScalar(1));
-    VERIFY((ei3.eigenvectors().transpose()*ei3.eigenvectors().transpose()).eval().isIdentity());
+    VERIFY_IS_MUCH_SMALLER_THAN(ei3.eigenvalues().norm(), RealScalar(1));
+    VERIFY((ei3.eigenvectors().transpose() * ei3.eigenvectors().transpose()).eval().isIdentity());
   }
 }
 
-template<typename MatrixType> void eigensolver_verify_assert(const MatrixType& m)
-{
+template <typename MatrixType>
+void eigensolver_verify_assert(const MatrixType& m) {
   ComplexEigenSolver<MatrixType> eig;
   VERIFY_RAISES_ASSERT(eig.eigenvectors());
   VERIFY_RAISES_ASSERT(eig.eigenvalues());
 
-  MatrixType a = MatrixType::Random(m.rows(),m.cols());
+  MatrixType a = MatrixType::Random(m.rows(), m.cols());
   eig.compute(a, false);
   VERIFY_RAISES_ASSERT(eig.eigenvectors());
 }
 
-void test_eigensolver_complex()
-{
+EIGEN_DECLARE_TEST(eigensolver_complex) {
   int s = 0;
-  for(int i = 0; i < g_repeat; i++) {
-    CALL_SUBTEST_1( eigensolver(Matrix4cf()) );
-    s = internal::random<int>(1,EIGEN_TEST_MAX_SIZE/4);
-    CALL_SUBTEST_2( eigensolver(MatrixXcd(s,s)) );
-    CALL_SUBTEST_3( eigensolver(Matrix<std::complex<float>, 1, 1>()) );
-    CALL_SUBTEST_4( eigensolver(Matrix3f()) );
+  for (int i = 0; i < g_repeat; i++) {
+    CALL_SUBTEST_1(eigensolver(Matrix4cf()));
+    s = internal::random<int>(1, EIGEN_TEST_MAX_SIZE / 4);
+    CALL_SUBTEST_2(eigensolver(MatrixXcd(s, s)));
+    CALL_SUBTEST_3(eigensolver(Matrix<std::complex<float>, 1, 1>()));
+    CALL_SUBTEST_4(eigensolver(Matrix3f()));
     TEST_SET_BUT_UNUSED_VARIABLE(s)
   }
-  CALL_SUBTEST_1( eigensolver_verify_assert(Matrix4cf()) );
-  s = internal::random<int>(1,EIGEN_TEST_MAX_SIZE/4);
-  CALL_SUBTEST_2( eigensolver_verify_assert(MatrixXcd(s,s)) );
-  CALL_SUBTEST_3( eigensolver_verify_assert(Matrix<std::complex<float>, 1, 1>()) );
-  CALL_SUBTEST_4( eigensolver_verify_assert(Matrix3f()) );
+  CALL_SUBTEST_1(eigensolver_verify_assert(Matrix4cf()));
+  s = internal::random<int>(1, EIGEN_TEST_MAX_SIZE / 4);
+  CALL_SUBTEST_2(eigensolver_verify_assert(MatrixXcd(s, s)));
+  CALL_SUBTEST_3(eigensolver_verify_assert(Matrix<std::complex<float>, 1, 1>()));
+  CALL_SUBTEST_4(eigensolver_verify_assert(Matrix3f()));
 
   // Test problem size constructors
   CALL_SUBTEST_5(ComplexEigenSolver<MatrixXf> tmp(s));
-  
+
+  // Test custom complex scalar type.
+  CALL_SUBTEST_6(eigensolver(Matrix<CustomComplex<double>, 5, 5>()));
+
   TEST_SET_BUT_UNUSED_VARIABLE(s)
 }

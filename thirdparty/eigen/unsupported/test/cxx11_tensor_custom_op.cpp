@@ -13,7 +13,6 @@
 
 using Eigen::Tensor;
 
-
 struct InsertZeros {
   DSizes<DenseIndex, 2> dimensions(const Tensor<float, 2>& input) const {
     DSizes<DenseIndex, 2> result;
@@ -23,40 +22,37 @@ struct InsertZeros {
   }
 
   template <typename Output, typename Device>
-  void eval(const Tensor<float, 2>& input, Output& output, const Device& device) const
-  {
+  void eval(const Tensor<float, 2>& input, Output& output, const Device& device) const {
     array<DenseIndex, 2> strides;
     strides[0] = 2;
     strides[1] = 2;
     output.stride(strides).device(device) = input;
 
-    Eigen::DSizes<DenseIndex, 2> offsets(1,1);
-    Eigen::DSizes<DenseIndex, 2> extents(output.dimension(0)-1, output.dimension(1)-1);
+    Eigen::DSizes<DenseIndex, 2> offsets(1, 1);
+    Eigen::DSizes<DenseIndex, 2> extents(output.dimension(0) - 1, output.dimension(1) - 1);
     output.slice(offsets, extents).stride(strides).device(device) = input.constant(0.0f);
   }
 };
 
-static void test_custom_unary_op()
-{
-  Tensor<float, 2> tensor(3,5);
+static void test_custom_unary_op() {
+  Tensor<float, 2> tensor(3, 5);
   tensor.setRandom();
 
   Tensor<float, 2> result = tensor.customOp(InsertZeros());
   VERIFY_IS_EQUAL(result.dimension(0), 6);
   VERIFY_IS_EQUAL(result.dimension(1), 10);
 
-  for (int i = 0; i < 6; i+=2) {
-    for (int j = 0; j < 10; j+=2) {
-      VERIFY_IS_EQUAL(result(i, j), tensor(i/2, j/2));
+  for (int i = 0; i < 6; i += 2) {
+    for (int j = 0; j < 10; j += 2) {
+      VERIFY_IS_EQUAL(result(i, j), tensor(i / 2, j / 2));
     }
   }
-  for (int i = 1; i < 6; i+=2) {
-    for (int j = 1; j < 10; j+=2) {
+  for (int i = 1; i < 6; i += 2) {
+    for (int j = 1; j < 10; j += 2) {
       VERIFY_IS_EQUAL(result(i, j), 0);
     }
   }
 }
-
 
 struct BatchMatMul {
   DSizes<DenseIndex, 3> dimensions(const Tensor<float, 3>& input1, const Tensor<float, 3>& input2) const {
@@ -68,9 +64,8 @@ struct BatchMatMul {
   }
 
   template <typename Output, typename Device>
-  void eval(const Tensor<float, 3>& input1, const Tensor<float, 3>& input2,
-            Output& output, const Device& device) const
-  {
+  void eval(const Tensor<float, 3>& input1, const Tensor<float, 3>& input2, Output& output,
+            const Device& device) const {
     typedef Tensor<float, 3>::DimensionPair DimPair;
     array<DimPair, 1> dims;
     dims[0] = DimPair(1, 0);
@@ -80,12 +75,10 @@ struct BatchMatMul {
   }
 };
 
-
-static void test_custom_binary_op()
-{
-  Tensor<float, 3> tensor1(2,3,5);
+static void test_custom_binary_op() {
+  Tensor<float, 3> tensor1(2, 3, 5);
   tensor1.setRandom();
-  Tensor<float, 3> tensor2(3,7,5);
+  Tensor<float, 3> tensor2(3, 7, 5);
   tensor2.setRandom();
 
   Tensor<float, 3> result = tensor1.customOp(tensor2, BatchMatMul());
@@ -103,9 +96,7 @@ static void test_custom_binary_op()
   }
 }
 
-
-void test_cxx11_tensor_custom_op()
-{
+EIGEN_DECLARE_TEST(cxx11_tensor_custom_op) {
   CALL_SUBTEST(test_custom_unary_op());
   CALL_SUBTEST(test_custom_binary_op());
 }

@@ -8,9 +8,9 @@
 
 using namespace Eigen;
 
-void foo(){
-    MatrixXf m;
-    CwiseUnaryView<internal::scalar_real_ref_op<double>,CV_QUALIFIER MatrixXf>(m).coeffRef(0, 0) = 1.0f;
+void foo() {
+  MatrixXf m;
+  CwiseUnaryView<internal::scalar_real_ref_op<float>, CV_QUALIFIER MatrixXf>(m).coeffRef(0, 0) = 1.0f;
 }
 
 int main() {}

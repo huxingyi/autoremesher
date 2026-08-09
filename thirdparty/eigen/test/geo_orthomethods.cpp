@@ -16,17 +16,15 @@
    Geometry/OrthoMethods.h
 */
 
-template<typename Scalar> void orthomethods_3()
-{
+template <typename Scalar>
+void orthomethods_3() {
   typedef typename NumTraits<Scalar>::Real RealScalar;
-  typedef Matrix<Scalar,3,3> Matrix3;
-  typedef Matrix<Scalar,3,1> Vector3;
+  typedef Matrix<Scalar, 3, 3> Matrix3;
+  typedef Matrix<Scalar, 3, 1> Vector3;
 
-  typedef Matrix<Scalar,4,1> Vector4;
+  typedef Matrix<Scalar, 4, 1> Vector4;
 
-  Vector3 v0 = Vector3::Random(),
-          v1 = Vector3::Random(),
-          v2 = Vector3::Random();
+  Vector3 v0 = Vector3::Random(), v1 = Vector3::Random(), v2 = Vector3::Random();
 
   // cross product
   VERIFY_IS_MUCH_SMALLER_THAN(v1.cross(v2).dot(v1), Scalar(1));
@@ -35,55 +33,82 @@ template<typename Scalar> void orthomethods_3()
   VERIFY_IS_MUCH_SMALLER_THAN(v2.dot(v1.cross(v2)), Scalar(1));
   VERIFY_IS_MUCH_SMALLER_THAN(v1.cross(Vector3::Random()).dot(v1), Scalar(1));
   Matrix3 mat3;
-  mat3 << v0.normalized(),
-         (v0.cross(v1)).normalized(),
-         (v0.cross(v1).cross(v0)).normalized();
+  mat3 << v0.normalized(), (v0.cross(v1)).normalized(), (v0.cross(v1).cross(v0)).normalized();
   VERIFY(mat3.isUnitary());
-  
+
   mat3.setRandom();
-  VERIFY_IS_APPROX(v0.cross(mat3*v1), -(mat3*v1).cross(v0));
+  VERIFY_IS_APPROX(v0.cross(mat3 * v1), -(mat3 * v1).cross(v0));
   VERIFY_IS_APPROX(v0.cross(mat3.lazyProduct(v1)), -(mat3.lazyProduct(v1)).cross(v0));
 
   // colwise/rowwise cross product
   mat3.setRandom();
   Vector3 vec3 = Vector3::Random();
   Matrix3 mcross;
-  int i = internal::random<int>(0,2);
+  int i = internal::random<int>(0, 2);
   mcross = mat3.colwise().cross(vec3);
   VERIFY_IS_APPROX(mcross.col(i), mat3.col(i).cross(vec3));
-  
+
   VERIFY_IS_MUCH_SMALLER_THAN((mat3.adjoint() * mat3.colwise().cross(vec3)).diagonal().cwiseAbs().sum(), Scalar(1));
-  VERIFY_IS_MUCH_SMALLER_THAN((mat3.adjoint() * mat3.colwise().cross(Vector3::Random())).diagonal().cwiseAbs().sum(), Scalar(1));
-  
+  VERIFY_IS_MUCH_SMALLER_THAN((mat3.adjoint() * mat3.colwise().cross(Vector3::Random())).diagonal().cwiseAbs().sum(),
+                              Scalar(1));
+
   VERIFY_IS_MUCH_SMALLER_THAN((vec3.adjoint() * mat3.colwise().cross(vec3)).cwiseAbs().sum(), Scalar(1));
   VERIFY_IS_MUCH_SMALLER_THAN((vec3.adjoint() * Matrix3::Random().colwise().cross(vec3)).cwiseAbs().sum(), Scalar(1));
-  
+
   mcross = mat3.rowwise().cross(vec3);
   VERIFY_IS_APPROX(mcross.row(i), mat3.row(i).cross(vec3));
 
   // cross3
-  Vector4 v40 = Vector4::Random(),
-          v41 = Vector4::Random(),
-          v42 = Vector4::Random();
+  Vector4 v40 = Vector4::Random(), v41 = Vector4::Random(), v42 = Vector4::Random();
   v40.w() = v41.w() = v42.w() = 0;
   v42.template head<3>() = v40.template head<3>().cross(v41.template head<3>());
   VERIFY_IS_APPROX(v40.cross3(v41), v42);
   VERIFY_IS_MUCH_SMALLER_THAN(v40.cross3(Vector4::Random()).dot(v40), Scalar(1));
-  
+
   // check mixed product
   typedef Matrix<RealScalar, 3, 1> RealVector3;
   RealVector3 rv1 = RealVector3::Random();
-  VERIFY_IS_APPROX(v1.cross(rv1.template cast<Scalar>()), v1.cross(rv1));
-  VERIFY_IS_APPROX(rv1.template cast<Scalar>().cross(v1), rv1.cross(v1));
+  v2 = rv1.template cast<Scalar>();
+  VERIFY_IS_APPROX(v1.cross(v2), v1.cross(rv1));
+  VERIFY_IS_APPROX(v2.cross(v1), rv1.cross(v1));
 }
 
-template<typename Scalar, int Size> void orthomethods(int size=Size)
-{
+template <typename Scalar>
+void orthomethods_2() {
   typedef typename NumTraits<Scalar>::Real RealScalar;
-  typedef Matrix<Scalar,Size,1> VectorType;
-  typedef Matrix<Scalar,3,Size> Matrix3N;
-  typedef Matrix<Scalar,Size,3> MatrixN3;
-  typedef Matrix<Scalar,3,1> Vector3;
+  typedef Matrix<Scalar, 2, 1> Vector2;
+  typedef Matrix<Scalar, 3, 1> Vector3;
+
+  Vector3 v30 = Vector3::Random(), v31 = Vector3::Random();
+  Vector2 v20 = v30.template head<2>();
+  Vector2 v21 = v31.template head<2>();
+
+  VERIFY_IS_MUCH_SMALLER_THAN(v20.cross(v20), Scalar(1));
+  VERIFY_IS_MUCH_SMALLER_THAN(v21.cross(v21), Scalar(1));
+  VERIFY_IS_APPROX(v20.cross(v21), v30.cross(v31).z());
+
+  Vector2 v20Rot90(numext::conj(-v20.y()), numext::conj(v20.x()));
+  VERIFY_IS_APPROX(v20.cross(v20Rot90), v20.squaredNorm());
+  VERIFY_IS_APPROX(v20.cross(-v20Rot90), -v20.squaredNorm());
+  Vector2 v21Rot90(numext::conj(-v21.y()), numext::conj(v21.x()));
+  VERIFY_IS_APPROX(v21.cross(v21Rot90), v21.squaredNorm());
+  VERIFY_IS_APPROX(v21.cross(-v21Rot90), -v21.squaredNorm());
+
+  // check mixed product
+  typedef Matrix<RealScalar, 2, 1> RealVector2;
+  RealVector2 rv21 = RealVector2::Random();
+  v21 = rv21.template cast<Scalar>();
+  VERIFY_IS_APPROX(v20.cross(v21), v20.cross(rv21));
+  VERIFY_IS_APPROX(v21.cross(v20), rv21.cross(v20));
+}
+
+template <typename Scalar, int Size>
+void orthomethods(int size = Size) {
+  typedef typename NumTraits<Scalar>::Real RealScalar;
+  typedef Matrix<Scalar, Size, 1> VectorType;
+  typedef Matrix<Scalar, 3, Size> Matrix3N;
+  typedef Matrix<Scalar, Size, 3> MatrixN3;
+  typedef Matrix<Scalar, 3, 1> Vector3;
 
   VectorType v0 = VectorType::Random(size);
 
@@ -91,10 +116,9 @@ template<typename Scalar, int Size> void orthomethods(int size=Size)
   VERIFY_IS_MUCH_SMALLER_THAN(v0.unitOrthogonal().dot(v0), Scalar(1));
   VERIFY_IS_APPROX(v0.unitOrthogonal().norm(), RealScalar(1));
 
-  if (size>=3)
-  {
+  if (size >= 3) {
     v0.template head<2>().setZero();
-    v0.tail(size-2).setRandom();
+    v0.tail(size - 2).setRandom();
 
     VERIFY_IS_MUCH_SMALLER_THAN(v0.unitOrthogonal().dot(v0), Scalar(1));
     VERIFY_IS_APPROX(v0.unitOrthogonal().norm(), RealScalar(1));
@@ -102,32 +126,34 @@ template<typename Scalar, int Size> void orthomethods(int size=Size)
 
   // colwise/rowwise cross product
   Vector3 vec3 = Vector3::Random();
-  int i = internal::random<int>(0,size-1);
+  int i = internal::random<int>(0, size - 1);
 
-  Matrix3N mat3N(3,size), mcross3N(3,size);
+  Matrix3N mat3N(3, size), mcross3N(3, size);
   mat3N.setRandom();
   mcross3N = mat3N.colwise().cross(vec3);
   VERIFY_IS_APPROX(mcross3N.col(i), mat3N.col(i).cross(vec3));
 
-  MatrixN3 matN3(size,3), mcrossN3(size,3);
+  MatrixN3 matN3(size, 3), mcrossN3(size, 3);
   matN3.setRandom();
   mcrossN3 = matN3.rowwise().cross(vec3);
   VERIFY_IS_APPROX(mcrossN3.row(i), matN3.row(i).cross(vec3));
 }
 
-void test_geo_orthomethods()
-{
-  for(int i = 0; i < g_repeat; i++) {
-    CALL_SUBTEST_1( orthomethods_3<float>() );
-    CALL_SUBTEST_2( orthomethods_3<double>() );
-    CALL_SUBTEST_4( orthomethods_3<std::complex<double> >() );
-    CALL_SUBTEST_1( (orthomethods<float,2>()) );
-    CALL_SUBTEST_2( (orthomethods<double,2>()) );
-    CALL_SUBTEST_1( (orthomethods<float,3>()) );
-    CALL_SUBTEST_2( (orthomethods<double,3>()) );
-    CALL_SUBTEST_3( (orthomethods<float,7>()) );
-    CALL_SUBTEST_4( (orthomethods<std::complex<double>,8>()) );
-    CALL_SUBTEST_5( (orthomethods<float,Dynamic>(36)) );
-    CALL_SUBTEST_6( (orthomethods<double,Dynamic>(35)) );
+EIGEN_DECLARE_TEST(geo_orthomethods) {
+  for (int i = 0; i < g_repeat; i++) {
+    CALL_SUBTEST_1(orthomethods_2<float>());
+    CALL_SUBTEST_2(orthomethods_2<double>());
+    CALL_SUBTEST_4(orthomethods_2<std::complex<double> >());
+    CALL_SUBTEST_1(orthomethods_3<float>());
+    CALL_SUBTEST_2(orthomethods_3<double>());
+    CALL_SUBTEST_4(orthomethods_3<std::complex<double> >());
+    CALL_SUBTEST_1((orthomethods<float, 2>()));
+    CALL_SUBTEST_2((orthomethods<double, 2>()));
+    CALL_SUBTEST_1((orthomethods<float, 3>()));
+    CALL_SUBTEST_2((orthomethods<double, 3>()));
+    CALL_SUBTEST_3((orthomethods<float, 7>()));
+    CALL_SUBTEST_4((orthomethods<std::complex<double>, 8>()));
+    CALL_SUBTEST_5((orthomethods<float, Dynamic>(36)));
+    CALL_SUBTEST_6((orthomethods<double, Dynamic>(35)));
   }
 }

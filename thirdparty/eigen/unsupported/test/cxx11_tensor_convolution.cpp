@@ -11,59 +11,58 @@
 
 #include <Eigen/CXX11/Tensor>
 
-using Eigen::Tensor;
 using Eigen::DefaultDevice;
+using Eigen::Tensor;
 
 template <int DataLayout>
-static void test_evals()
-{
+static void test_evals() {
   Tensor<float, 2, DataLayout> input(3, 3);
   Tensor<float, 1, DataLayout> kernel(2);
 
   input.setRandom();
   kernel.setRandom();
 
-  Tensor<float, 2, DataLayout> result(2,3);
+  Tensor<float, 2, DataLayout> result(2, 3);
   result.setZero();
-  Eigen::array<Tensor<float, 2>::Index, 1> dims3{{0}};
+  Eigen::array<Tensor<float, 2>::Index, 1> dims3;
+  dims3[0] = 0;
 
   typedef TensorEvaluator<decltype(input.convolve(kernel, dims3)), DefaultDevice> Evaluator;
   Evaluator eval(input.convolve(kernel, dims3), DefaultDevice());
   eval.evalTo(result.data());
-  EIGEN_STATIC_ASSERT(Evaluator::NumDims==2ul, YOU_MADE_A_PROGRAMMING_MISTAKE);
+  EIGEN_STATIC_ASSERT(Evaluator::NumDims == 2ul, YOU_MADE_A_PROGRAMMING_MISTAKE);
   VERIFY_IS_EQUAL(eval.dimensions()[0], 2);
   VERIFY_IS_EQUAL(eval.dimensions()[1], 3);
 
-  VERIFY_IS_APPROX(result(0,0), input(0,0)*kernel(0) + input(1,0)*kernel(1));  // index 0
-  VERIFY_IS_APPROX(result(0,1), input(0,1)*kernel(0) + input(1,1)*kernel(1));  // index 2
-  VERIFY_IS_APPROX(result(0,2), input(0,2)*kernel(0) + input(1,2)*kernel(1));  // index 4
-  VERIFY_IS_APPROX(result(1,0), input(1,0)*kernel(0) + input(2,0)*kernel(1));  // index 1
-  VERIFY_IS_APPROX(result(1,1), input(1,1)*kernel(0) + input(2,1)*kernel(1));  // index 3
-  VERIFY_IS_APPROX(result(1,2), input(1,2)*kernel(0) + input(2,2)*kernel(1));  // index 5
+  VERIFY_IS_APPROX(result(0, 0), input(0, 0) * kernel(0) + input(1, 0) * kernel(1));  // index 0
+  VERIFY_IS_APPROX(result(0, 1), input(0, 1) * kernel(0) + input(1, 1) * kernel(1));  // index 2
+  VERIFY_IS_APPROX(result(0, 2), input(0, 2) * kernel(0) + input(1, 2) * kernel(1));  // index 4
+  VERIFY_IS_APPROX(result(1, 0), input(1, 0) * kernel(0) + input(2, 0) * kernel(1));  // index 1
+  VERIFY_IS_APPROX(result(1, 1), input(1, 1) * kernel(0) + input(2, 1) * kernel(1));  // index 3
+  VERIFY_IS_APPROX(result(1, 2), input(1, 2) * kernel(0) + input(2, 2) * kernel(1));  // index 5
 }
 
 template <int DataLayout>
-static void test_expr()
-{
+static void test_expr() {
   Tensor<float, 2, DataLayout> input(3, 3);
   Tensor<float, 2, DataLayout> kernel(2, 2);
   input.setRandom();
   kernel.setRandom();
 
-  Tensor<float, 2, DataLayout> result(2,2);
+  Tensor<float, 2, DataLayout> result(2, 2);
   Eigen::array<ptrdiff_t, 2> dims;
   dims[0] = 0;
   dims[1] = 1;
   result = input.convolve(kernel, dims);
 
-  VERIFY_IS_APPROX(result(0,0), input(0,0)*kernel(0,0) + input(0,1)*kernel(0,1) +
-                                input(1,0)*kernel(1,0) + input(1,1)*kernel(1,1));
-  VERIFY_IS_APPROX(result(0,1), input(0,1)*kernel(0,0) + input(0,2)*kernel(0,1) +
-                                input(1,1)*kernel(1,0) + input(1,2)*kernel(1,1));
-  VERIFY_IS_APPROX(result(1,0), input(1,0)*kernel(0,0) + input(1,1)*kernel(0,1) +
-                                input(2,0)*kernel(1,0) + input(2,1)*kernel(1,1));
-  VERIFY_IS_APPROX(result(1,1), input(1,1)*kernel(0,0) + input(1,2)*kernel(0,1) +
-                                input(2,1)*kernel(1,0) + input(2,2)*kernel(1,1));
+  VERIFY_IS_APPROX(result(0, 0), input(0, 0) * kernel(0, 0) + input(0, 1) * kernel(0, 1) + input(1, 0) * kernel(1, 0) +
+                                     input(1, 1) * kernel(1, 1));
+  VERIFY_IS_APPROX(result(0, 1), input(0, 1) * kernel(0, 0) + input(0, 2) * kernel(0, 1) + input(1, 1) * kernel(1, 0) +
+                                     input(1, 2) * kernel(1, 1));
+  VERIFY_IS_APPROX(result(1, 0), input(1, 0) * kernel(0, 0) + input(1, 1) * kernel(0, 1) + input(2, 0) * kernel(1, 0) +
+                                     input(2, 1) * kernel(1, 1));
+  VERIFY_IS_APPROX(result(1, 1), input(1, 1) * kernel(0, 0) + input(1, 2) * kernel(0, 1) + input(2, 1) * kernel(1, 0) +
+                                     input(2, 2) * kernel(1, 1));
 }
 
 template <int DataLayout>
@@ -130,14 +129,11 @@ static void test_strides() {
   result = input.stride(stride_of_3).convolve(kernel, dims).stride(stride_of_2);
 
   VERIFY_IS_EQUAL(result.dimension(0), 2);
-  VERIFY_IS_APPROX(result(0), (input(0)*kernel(0) + input(3)*kernel(1) +
-                               input(6)*kernel(2)));
-  VERIFY_IS_APPROX(result(1), (input(6)*kernel(0) + input(9)*kernel(1) +
-                               input(12)*kernel(2)));
+  VERIFY_IS_APPROX(result(0), (input(0) * kernel(0) + input(3) * kernel(1) + input(6) * kernel(2)));
+  VERIFY_IS_APPROX(result(1), (input(6) * kernel(0) + input(9) * kernel(1) + input(12) * kernel(2)));
 }
 
-void test_cxx11_tensor_convolution()
-{
+EIGEN_DECLARE_TEST(cxx11_tensor_convolution) {
   CALL_SUBTEST(test_evals<ColMajor>());
   CALL_SUBTEST(test_evals<RowMajor>());
   CALL_SUBTEST(test_expr<ColMajor>());

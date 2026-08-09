@@ -12,13 +12,12 @@
 
 #include <Eigen/CXX11/Tensor>
 
-using Eigen::Tensor;
 using Eigen::array;
+using Eigen::Tensor;
 
 template <int DataLayout>
-static void test_simple_reverse()
-{
-  Tensor<float, 4, DataLayout> tensor(2,3,5,7);
+static void test_simple_reverse() {
+  Tensor<float, 4, DataLayout> tensor(2, 3, 5, 7);
   tensor.setRandom();
 
   array<bool, 4> dim_rev;
@@ -39,7 +38,7 @@ static void test_simple_reverse()
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 5; ++k) {
         for (int l = 0; l < 7; ++l) {
-          VERIFY_IS_EQUAL(tensor(i,j,k,l), reversed_tensor(i,2-j,4-k,l));
+          VERIFY_IS_EQUAL(tensor(i, j, k, l), reversed_tensor(i, 2 - j, 4 - k, l));
         }
       }
     }
@@ -57,12 +56,11 @@ static void test_simple_reverse()
   VERIFY_IS_EQUAL(reversed_tensor.dimension(2), 5);
   VERIFY_IS_EQUAL(reversed_tensor.dimension(3), 7);
 
-
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 5; ++k) {
         for (int l = 0; l < 7; ++l) {
-          VERIFY_IS_EQUAL(tensor(i,j,k,l), reversed_tensor(1-i,j,k,l));
+          VERIFY_IS_EQUAL(tensor(i, j, k, l), reversed_tensor(1 - i, j, k, l));
         }
       }
     }
@@ -80,23 +78,20 @@ static void test_simple_reverse()
   VERIFY_IS_EQUAL(reversed_tensor.dimension(2), 5);
   VERIFY_IS_EQUAL(reversed_tensor.dimension(3), 7);
 
-
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 5; ++k) {
         for (int l = 0; l < 7; ++l) {
-          VERIFY_IS_EQUAL(tensor(i,j,k,l), reversed_tensor(1-i,j,k,6-l));
+          VERIFY_IS_EQUAL(tensor(i, j, k, l), reversed_tensor(1 - i, j, k, 6 - l));
         }
       }
     }
   }
 }
 
-
 template <int DataLayout>
-static void test_expr_reverse(bool LValue)
-{
-  Tensor<float, 4, DataLayout> tensor(2,3,5,7);
+static void test_expr_reverse(bool LValue) {
+  Tensor<float, 4, DataLayout> tensor(2, 3, 5, 7);
   tensor.setRandom();
 
   array<bool, 4> dim_rev;
@@ -112,7 +107,7 @@ static void test_expr_reverse(bool LValue)
     expected = tensor.reverse(dim_rev);
   }
 
-  Tensor<float, 4, DataLayout> result(2,3,5,7);
+  Tensor<float, 4, DataLayout> result(2, 3, 5, 7);
 
   array<ptrdiff_t, 4> src_slice_dim;
   src_slice_dim[0] = 2;
@@ -129,11 +124,9 @@ static void test_expr_reverse(bool LValue)
 
   for (int i = 0; i < 5; ++i) {
     if (LValue) {
-      result.slice(dst_slice_start, dst_slice_dim).reverse(dim_rev) =
-          tensor.slice(src_slice_start, src_slice_dim);
+      result.slice(dst_slice_start, dst_slice_dim).reverse(dim_rev) = tensor.slice(src_slice_start, src_slice_dim);
     } else {
-      result.slice(dst_slice_start, dst_slice_dim) =
-          tensor.slice(src_slice_start, src_slice_dim).reverse(dim_rev);
+      result.slice(dst_slice_start, dst_slice_dim) = tensor.slice(src_slice_start, src_slice_dim).reverse(dim_rev);
     }
     src_slice_start[2] += 1;
     dst_slice_start[2] += 1;
@@ -148,7 +141,7 @@ static void test_expr_reverse(bool LValue)
     for (int j = 0; j < expected.dimension(1); ++j) {
       for (int k = 0; k < expected.dimension(2); ++k) {
         for (int l = 0; l < expected.dimension(3); ++l) {
-          VERIFY_IS_EQUAL(result(i,j,k,l), expected(i,j,k,l));
+          VERIFY_IS_EQUAL(result(i, j, k, l), expected(i, j, k, l));
         }
       }
     }
@@ -157,13 +150,11 @@ static void test_expr_reverse(bool LValue)
   dst_slice_start[2] = 0;
   result.setRandom();
   for (int i = 0; i < 5; ++i) {
-     if (LValue) {
-       result.slice(dst_slice_start, dst_slice_dim).reverse(dim_rev) =
-           tensor.slice(dst_slice_start, dst_slice_dim);
-     } else {
-       result.slice(dst_slice_start, dst_slice_dim) =
-           tensor.reverse(dim_rev).slice(dst_slice_start, dst_slice_dim);
-     }
+    if (LValue) {
+      result.slice(dst_slice_start, dst_slice_dim).reverse(dim_rev) = tensor.slice(dst_slice_start, dst_slice_dim);
+    } else {
+      result.slice(dst_slice_start, dst_slice_dim) = tensor.reverse(dim_rev).slice(dst_slice_start, dst_slice_dim);
+    }
     dst_slice_start[2] += 1;
   }
 
@@ -171,16 +162,14 @@ static void test_expr_reverse(bool LValue)
     for (int j = 0; j < expected.dimension(1); ++j) {
       for (int k = 0; k < expected.dimension(2); ++k) {
         for (int l = 0; l < expected.dimension(3); ++l) {
-          VERIFY_IS_EQUAL(result(i,j,k,l), expected(i,j,k,l));
+          VERIFY_IS_EQUAL(result(i, j, k, l), expected(i, j, k, l));
         }
       }
     }
   }
 }
 
-
-void test_cxx11_tensor_reverse()
-{
+EIGEN_DECLARE_TEST(cxx11_tensor_reverse) {
   CALL_SUBTEST(test_simple_reverse<ColMajor>());
   CALL_SUBTEST(test_simple_reverse<RowMajor>());
   CALL_SUBTEST(test_expr_reverse<ColMajor>(true));

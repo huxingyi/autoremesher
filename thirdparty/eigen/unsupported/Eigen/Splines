@@ -10,22 +10,27 @@
 #ifndef EIGEN_SPLINES_MODULE_H
 #define EIGEN_SPLINES_MODULE_H
 
-namespace Eigen 
-{
+namespace Eigen {
 /**
-  * \defgroup Splines_Module Spline and spline fitting module
-  *
-  * This module provides a simple multi-dimensional spline class while
-  * offering most basic functionality to fit a spline to point sets.
-  *
-  * \code
-  * #include <unsupported/Eigen/Splines>
-  * \endcode
-  */
+ * \defgroup Splines_Module Spline and spline fitting module
+ *
+ * This module provides a simple multi-dimensional spline class while
+ * offering most basic functionality to fit a spline to point sets.
+ *
+ * \code
+ * #include <unsupported/Eigen/Splines>
+ * \endcode
+ */
 }
 
+#include "../../Eigen/src/Core/util/DisableStupidWarnings.h"
+
+// IWYU pragma: begin_exports
 #include "src/Splines/SplineFwd.h"
 #include "src/Splines/Spline.h"
 #include "src/Splines/SplineFitting.h"
+// IWYU pragma: end_exports
 
-#endif // EIGEN_SPLINES_MODULE_H
+#include "../../Eigen/src/Core/util/ReenableStupidWarnings.h"
+
+#endif  // EIGEN_SPLINES_MODULE_H

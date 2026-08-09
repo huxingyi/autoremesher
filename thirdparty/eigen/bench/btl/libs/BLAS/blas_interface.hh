@@ -22,24 +22,27 @@
 
 #include <c_interface_base.h>
 #include <complex>
-extern "C"
-{
+extern "C" {
 #include "blas.h"
 
-  // Cholesky Factorization
+// Cholesky Factorization
 //   void spotrf_(const char* uplo, const int* n, float *a, const int* ld, int* info);
 //   void dpotrf_(const char* uplo, const int* n, double *a, const int* ld, int* info);
-  void ssytrd_(char *uplo, const int *n, float *a, const int *lda, float *d, float *e, float *tau, float *work, int *lwork, int *info );
-  void dsytrd_(char *uplo, const int *n, double *a, const int *lda, double *d, double *e, double *tau, double *work, int *lwork, int *info );
-  void sgehrd_( const int *n, int *ilo, int *ihi, float *a, const int *lda, float *tau, float *work, int *lwork, int *info );
-  void dgehrd_( const int *n, int *ilo, int *ihi, double *a, const int *lda, double *tau, double *work, int *lwork, int *info );
+void ssytrd_(char *uplo, const int *n, float *a, const int *lda, float *d, float *e, float *tau, float *work,
+             int *lwork, int *info);
+void dsytrd_(char *uplo, const int *n, double *a, const int *lda, double *d, double *e, double *tau, double *work,
+             int *lwork, int *info);
+void sgehrd_(const int *n, int *ilo, int *ihi, float *a, const int *lda, float *tau, float *work, int *lwork,
+             int *info);
+void dgehrd_(const int *n, int *ilo, int *ihi, double *a, const int *lda, double *tau, double *work, int *lwork,
+             int *info);
 
-  // LU row pivoting
+// LU row pivoting
 //   void dgetrf_( int *m, int *n, double *a, int *lda, int *ipiv, int *info );
 //   void sgetrf_(const int* m, const int* n, float *a, const int* ld, int* ipivot, int* info);
-  // LU full pivoting
-  void sgetc2_(const int* n, float *a, const int *lda, int *ipiv, int *jpiv, int*info );
-  void dgetc2_(const int* n, double *a, const int *lda, int *ipiv, int *jpiv, int*info );
+// LU full pivoting
+void sgetc2_(const int *n, float *a, const int *lda, int *ipiv, int *jpiv, int *info);
+void dgetc2_(const int *n, double *a, const int *lda, int *ipiv, int *jpiv, int *info);
 #ifdef HAS_LAPACK
 #endif
 }
@@ -47,12 +50,11 @@ extern "C"
 #define MAKE_STRING2(S) #S
 #define MAKE_STRING(S) MAKE_STRING2(S)
 
-#define CAT2(A,B) A##B
-#define CAT(A,B) CAT2(A,B)
+#define CAT2(A, B) A##B
+#define CAT(A, B) CAT2(A, B)
 
-
-template<class real> class blas_interface;
-
+template <class real>
+class blas_interface;
 
 static char notrans = 'N';
 static char trans = 'T';
@@ -62,22 +64,16 @@ static char right = 'R';
 static char left = 'L';
 static int intone = 1;
 
-
-
-#define SCALAR        float
+#define SCALAR float
 #define SCALAR_PREFIX s
 #include "blas_interface_impl.hh"
 #undef SCALAR
 #undef SCALAR_PREFIX
 
-
-#define SCALAR        double
+#define SCALAR double
 #define SCALAR_PREFIX d
 #include "blas_interface_impl.hh"
 #undef SCALAR
 #undef SCALAR_PREFIX
 
 #endif
-
-
-

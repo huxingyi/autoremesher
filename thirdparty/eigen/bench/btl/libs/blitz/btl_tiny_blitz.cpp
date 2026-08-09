@@ -26,13 +26,10 @@
 
 BTL_MAIN;
 
-int main()
-{
-  bench_static<Action_axpy,tiny_blitz_interface>();
-  bench_static<Action_matrix_matrix_product,tiny_blitz_interface>();
-  bench_static<Action_matrix_vector_product,tiny_blitz_interface>();
+int main() {
+  bench_static<Action_axpy, tiny_blitz_interface>();
+  bench_static<Action_matrix_matrix_product, tiny_blitz_interface>();
+  bench_static<Action_matrix_vector_product, tiny_blitz_interface>();
 
   return 0;
 }
-
-

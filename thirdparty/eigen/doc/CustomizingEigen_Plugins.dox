@@ -59,7 +59,7 @@ operator+(const Scalar& scalar, const MatrixBase<Derived>& mat)
 { return CwiseBinaryOp<internal::scalar_sum_op<Scalar>, const ConstantReturnType, Derived>(Constant(rows(),cols(),scalar), mat.derived()); }
 \endcode
 
-Then one can the following declaration in the config.h or whatever prerequisites header file of his project:
+Then one can add the following declaration in the config.h or whatever prerequisites header file of his project:
 \code
 #define EIGEN_MATRIXBASE_PLUGIN "MatrixBaseAddons.h"
 \endcode

@@ -1,0 +1,78 @@
+.test:windows:
+  extends: .common:windows
+  stage: test
+  script:
+    - ./ci/scripts/test.windows.script.ps1
+  after_script:
+    - ./ci/scripts/test.windows.after_script.ps1
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_PROJECT_NAMESPACE == "libeigen"
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_PROJECT_NAMESPACE == "libeigen"
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_PROJECT_NAMESPACE == "libeigen"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_PROJECT_NAMESPACE == "libeigen" && $CI_MERGE_REQUEST_LABELS =~ "/all-tests/"
+  tags:
+    - eigen-runner
+    - windows
+    - x86-64
+  allow_failure:
+    exit_codes: 42
+
+##### MSVC #####################################################################
+
+# MSVC 14.29 (VS 2019) 64 bit
+
+test:windows:x86-64:msvc-14.29:default:official:
+  extends: .test:windows
+  needs: [ build:windows:x86-64:msvc-14.29:default ]
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:windows:x86-64:msvc-14.29:default:unsupported:
+  extends: test:windows:x86-64:msvc-14.29:default:official
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+test:windows:x86-64:msvc-14.29:avx2:official:
+  extends: .test:windows
+  needs: [ build:windows:x86-64:msvc-14.29:avx2 ]
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:windows:x86-64:msvc-14.29:avx2:unsupported:
+  extends: test:windows:x86-64:msvc-14.29:avx2:official
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+test:windows:x86-64:msvc-14.29:avx512dq:official:
+  extends: .test:windows
+  needs: [ build:windows:x86-64:msvc-14.29:avx512dq ]
+  tags:
+    - eigen-runner
+    - windows
+    - x86-64
+    - avx512
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:windows:x86-64:msvc-14.29:avx512dq:unsupported:
+  extends: test:windows:x86-64:msvc-14.29:avx512dq:official
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+# MSVC 14.29 (VS 2019) + CUDA
+
+.test:windows:cuda:
+  extends: .test:windows
+  allow_failure: true
+  variables:
+    EIGEN_CI_CTEST_LABEL: gpu
+  tags:
+    - eigen-runner
+    - windows
+    - x86-64
+    - cuda
+
+# MSVC 14.29 + CUDA 11.4
+test:windows:x86-64:cuda-11.4:msvc-14.29:
+  extends: .test:windows:cuda
+  needs: [ build:windows:x86-64:cuda-11.4:msvc-14.29 ]

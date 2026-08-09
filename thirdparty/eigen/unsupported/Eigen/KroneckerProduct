@@ -10,27 +10,26 @@
 #define EIGEN_KRONECKER_PRODUCT_MODULE_H
 
 #include "../../Eigen/Core"
-
-#include "../../Eigen/src/Core/util/DisableStupidWarnings.h"
-
-#include "../../Eigen/src/SparseCore/SparseUtil.h"
+#include "../../Eigen/SparseCore"
 
 namespace Eigen {
 
 /**
-  * \defgroup KroneckerProduct_Module KroneckerProduct module
-  *
-  * This module contains an experimental Kronecker product implementation.
-  *
-  * \code
-  * #include <Eigen/KroneckerProduct>
-  * \endcode
-  */
+ * \defgroup KroneckerProduct_Module KroneckerProduct module
+ *
+ * This module contains an experimental Kronecker product implementation.
+ *
+ * \code
+ * #include <Eigen/KroneckerProduct>
+ * \endcode
+ */
 
-} // namespace Eigen
+}  // namespace Eigen
 
+// IWYU pragma: begin_exports
 #include "src/KroneckerProduct/KroneckerTensorProduct.h"
+// IWYU pragma: end_exports
 
 #include "../../Eigen/src/Core/util/ReenableStupidWarnings.h"
 
-#endif // EIGEN_KRONECKER_PRODUCT_MODULE_H
+#endif  // EIGEN_KRONECKER_PRODUCT_MODULE_H

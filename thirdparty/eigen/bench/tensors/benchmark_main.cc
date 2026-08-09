@@ -38,24 +38,22 @@ static int g_name_column_width = 20;
 
 static int Round(int n) {
   int base = 1;
-  while (base*10 < n) {
+  while (base * 10 < n) {
     base *= 10;
   }
-  if (n < 2*base) {
-    return 2*base;
+  if (n < 2 * base) {
+    return 2 * base;
   }
-  if (n < 5*base) {
-    return 5*base;
+  if (n < 5 * base) {
+    return 5 * base;
   }
-  return 10*base;
+  return 10 * base;
 }
 
 #ifdef __APPLE__
-  #include <mach/mach_time.h>
-  static mach_timebase_info_data_t g_time_info;
-  static void __attribute__((constructor)) init_info() {
-    mach_timebase_info(&g_time_info);
-  }
+#include <mach/mach_time.h>
+static mach_timebase_info_data_t g_time_info;
+static void __attribute__((constructor)) init_info() { mach_timebase_info(&g_time_info); }
 #endif
 
 static int64_t NanoTime() {
@@ -92,9 +90,7 @@ Benchmark* Benchmark::Range(int lo, int hi) {
   return this;
 }
 
-const char* Benchmark::Name() {
-  return name_;
-}
+const char* Benchmark::Name() { return name_; }
 bool Benchmark::ShouldRun(int argc, char* argv[]) {
   if (argc == 1) {
     return true;  // With no arguments, we run all benchmarks.
@@ -157,42 +153,40 @@ void Benchmark::RunWithArg(int arg) {
   RunRepeatedlyWithArg(iterations, arg);
   while (g_benchmark_total_time_ns < 1e9 && iterations < 1e9) {
     int last = iterations;
-    if (g_benchmark_total_time_ns/iterations == 0) {
+    if (g_benchmark_total_time_ns / iterations == 0) {
       iterations = 1e9;
     } else {
-      iterations = 1e9 / (g_benchmark_total_time_ns/iterations);
+      iterations = 1e9 / (g_benchmark_total_time_ns / iterations);
     }
-    iterations = std::max(last + 1, std::min(iterations + iterations/2, 100*last));
+    iterations = std::max(last + 1, std::min(iterations + iterations / 2, 100 * last));
     iterations = Round(iterations);
     RunRepeatedlyWithArg(iterations, arg);
   }
   char throughput[100];
   throughput[0] = '\0';
   if (g_benchmark_total_time_ns > 0 && g_flops_processed > 0) {
-    double mflops_processed = static_cast<double>(g_flops_processed)/1e6;
-    double seconds = static_cast<double>(g_benchmark_total_time_ns)/1e9;
-    snprintf(throughput, sizeof(throughput), " %8.2f MFlops/s", mflops_processed/seconds);
+    double mflops_processed = static_cast<double>(g_flops_processed) / 1e6;
+    double seconds = static_cast<double>(g_benchmark_total_time_ns) / 1e9;
+    snprintf(throughput, sizeof(throughput), " %8.2f MFlops/s", mflops_processed / seconds);
   }
   char full_name[100];
   if (fn_range_ != NULL) {
-    if (arg >= (1<<20)) {
-      snprintf(full_name, sizeof(full_name), "%s/%dM", name_, arg/(1<<20));
-    } else if (arg >= (1<<10)) {
-      snprintf(full_name, sizeof(full_name), "%s/%dK", name_, arg/(1<<10));
+    if (arg >= (1 << 20)) {
+      snprintf(full_name, sizeof(full_name), "%s/%dM", name_, arg / (1 << 20));
+    } else if (arg >= (1 << 10)) {
+      snprintf(full_name, sizeof(full_name), "%s/%dK", name_, arg / (1 << 10));
     } else {
       snprintf(full_name, sizeof(full_name), "%s/%d", name_, arg);
     }
   } else {
     snprintf(full_name, sizeof(full_name), "%s", name_);
   }
-  printf("%-*s %10d %10" PRId64 "%s\n", g_name_column_width, full_name,
-         iterations, g_benchmark_total_time_ns/iterations, throughput);
+  printf("%-*s %10d %10" PRId64 "%s\n", g_name_column_width, full_name, iterations,
+         g_benchmark_total_time_ns / iterations, throughput);
   fflush(stdout);
 }
 }  // namespace testing
-void SetBenchmarkFlopsProcessed(int64_t x) {
-  g_flops_processed = x;
-}
+void SetBenchmarkFlopsProcessed(int64_t x) { g_flops_processed = x; }
 void StopBenchmarkTiming() {
   if (g_benchmark_start_time_ns != 0) {
     g_benchmark_total_time_ns += NanoTime() - g_benchmark_start_time_ns;

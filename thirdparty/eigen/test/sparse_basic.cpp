@@ -9,29 +9,37 @@
 // Public License v. 2.0. If a copy of the MPL was not distributed
 // with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#ifndef EIGEN_SPARSE_TEST_INCLUDED_FROM_SPARSE_EXTRA
 static long g_realloc_count = 0;
 #define EIGEN_SPARSE_COMPRESSED_STORAGE_REALLOCATE_PLUGIN g_realloc_count++;
 
+static long g_dense_op_sparse_count = 0;
+#define EIGEN_SPARSE_ASSIGNMENT_FROM_DENSE_OP_SPARSE_PLUGIN g_dense_op_sparse_count++;
+#define EIGEN_SPARSE_ASSIGNMENT_FROM_SPARSE_ADD_DENSE_PLUGIN g_dense_op_sparse_count += 10;
+#define EIGEN_SPARSE_ASSIGNMENT_FROM_SPARSE_SUB_DENSE_PLUGIN g_dense_op_sparse_count += 20;
+#endif
+
 #include "sparse.h"
 
-template<typename SparseMatrixType> void sparse_basic(const SparseMatrixType& ref)
-{
+template <typename SparseMatrixType>
+void sparse_basic(const SparseMatrixType& ref) {
   typedef typename SparseMatrixType::StorageIndex StorageIndex;
-  typedef Matrix<StorageIndex,2,1> Vector2;
-  
+  typedef Matrix<StorageIndex, 2, 1> Vector2;
+
   const Index rows = ref.rows();
   const Index cols = ref.cols();
-  //const Index inner = ref.innerSize();
-  //const Index outer = ref.outerSize();
+  const Index inner = ref.innerSize();
+  const Index outer = ref.outerSize();
 
   typedef typename SparseMatrixType::Scalar Scalar;
   typedef typename SparseMatrixType::RealScalar RealScalar;
   enum { Flags = SparseMatrixType::Flags };
 
-  double density = (std::max)(8./(rows*cols), 0.01);
-  typedef Matrix<Scalar,Dynamic,Dynamic> DenseMatrix;
-  typedef Matrix<Scalar,Dynamic,1> DenseVector;
-  Scalar eps = 1e-6;
+  double density = (std::max)(8. / (rows * cols), 0.01);
+  typedef Matrix<Scalar, Dynamic, Dynamic> DenseMatrix;
+  typedef Matrix<Scalar, Dynamic, 1> DenseVector;
+  typedef Matrix<Scalar, Dynamic, Dynamic, SparseMatrixType::IsRowMajor ? RowMajor : ColMajor> CompatibleDenseMatrix;
+  Scalar eps = Scalar(1e-6);
 
   Scalar s1 = internal::random<Scalar>();
   {
@@ -44,104 +52,230 @@ template<typename SparseMatrixType> void sparse_basic(const SparseMatrixType& re
     initSparse<Scalar>(density, refMat, m, 0, &zeroCoords, &nonzeroCoords);
 
     // test coeff and coeffRef
-    for (std::size_t i=0; i<zeroCoords.size(); ++i)
-    {
-      VERIFY_IS_MUCH_SMALLER_THAN( m.coeff(zeroCoords[i].x(),zeroCoords[i].y()), eps );
-      if(internal::is_same<SparseMatrixType,SparseMatrix<Scalar,Flags> >::value)
-        VERIFY_RAISES_ASSERT( m.coeffRef(zeroCoords[i].x(),zeroCoords[i].y()) = 5 );
+    for (std::size_t i = 0; i < zeroCoords.size(); ++i) {
+      VERIFY_IS_MUCH_SMALLER_THAN(m.coeff(zeroCoords[i].x(), zeroCoords[i].y()), eps);
+      if (internal::is_same<SparseMatrixType, SparseMatrix<Scalar, Flags>>::value)
+        VERIFY_RAISES_ASSERT(m.coeffRef(zeroCoords[i].x(), zeroCoords[i].y()) = 5);
     }
     VERIFY_IS_APPROX(m, refMat);
 
-    if(!nonzeroCoords.empty()) {
+    if (!nonzeroCoords.empty()) {
       m.coeffRef(nonzeroCoords[0].x(), nonzeroCoords[0].y()) = Scalar(5);
       refMat.coeffRef(nonzeroCoords[0].x(), nonzeroCoords[0].y()) = Scalar(5);
     }
 
     VERIFY_IS_APPROX(m, refMat);
 
-      // test assertion
-      VERIFY_RAISES_ASSERT( m.coeffRef(-1,1) = 0 );
-      VERIFY_RAISES_ASSERT( m.coeffRef(0,m.cols()) = 0 );
-    }
+    // test assertion
+    VERIFY_RAISES_ASSERT(m.coeffRef(-1, 1) = 0);
+    VERIFY_RAISES_ASSERT(m.coeffRef(0, m.cols()) = 0);
+  }
 
-    // test insert (inner random)
-    {
-      DenseMatrix m1(rows,cols);
-      m1.setZero();
-      SparseMatrixType m2(rows,cols);
-      bool call_reserve = internal::random<int>()%2;
-      Index nnz = internal::random<int>(1,int(rows)/2);
-      if(call_reserve)
-      {
-        if(internal::random<int>()%2)
-          m2.reserve(VectorXi::Constant(m2.outerSize(), int(nnz)));
-        else
-          m2.reserve(m2.outerSize() * nnz);
-      }
-      g_realloc_count = 0;
-      for (Index j=0; j<cols; ++j)
-      {
-        for (Index k=0; k<nnz; ++k)
-        {
-          Index i = internal::random<Index>(0,rows-1);
-          if (m1.coeff(i,j)==Scalar(0))
-            m2.insert(i,j) = m1(i,j) = internal::random<Scalar>();
-        }
-      }
-      
-      if(call_reserve && !SparseMatrixType::IsRowMajor)
-      {
-        VERIFY(g_realloc_count==0);
-      }
-      
-      m2.finalize();
-      VERIFY_IS_APPROX(m2,m1);
+  // test insert (inner random)
+  {
+    DenseMatrix m1(rows, cols);
+    m1.setZero();
+    SparseMatrixType m2(rows, cols);
+    bool call_reserve = internal::random<int>() % 2;
+    Index nnz = internal::random<int>(1, int(rows) / 2);
+    if (call_reserve) {
+      if (internal::random<int>() % 2)
+        m2.reserve(VectorXi::Constant(m2.outerSize(), int(nnz)));
+      else
+        m2.reserve(m2.outerSize() * nnz);
     }
-
-    // test insert (fully random)
-    {
-      DenseMatrix m1(rows,cols);
-      m1.setZero();
-      SparseMatrixType m2(rows,cols);
-      if(internal::random<int>()%2)
-        m2.reserve(VectorXi::Constant(m2.outerSize(), 2));
-      for (int k=0; k<rows*cols; ++k)
-      {
-        Index i = internal::random<Index>(0,rows-1);
-        Index j = internal::random<Index>(0,cols-1);
-        if ((m1.coeff(i,j)==Scalar(0)) && (internal::random<int>()%2))
-          m2.insert(i,j) = m1(i,j) = internal::random<Scalar>();
-        else
-        {
+    g_realloc_count = 0;
+    for (Index j = 0; j < cols; ++j) {
+      for (Index k = 0; k < nnz; ++k) {
+        Index i = internal::random<Index>(0, rows - 1);
+        if (m1.coeff(i, j) == Scalar(0)) {
           Scalar v = internal::random<Scalar>();
-          m2.coeffRef(i,j) += v;
-          m1(i,j) += v;
+          if (v == Scalar(0)) v = Scalar(1);
+          m1(i, j) = v;
+          m2.insert(i, j) = v;
         }
       }
-      VERIFY_IS_APPROX(m2,m1);
     }
-    
-    // test insert (un-compressed)
-    for(int mode=0;mode<4;++mode)
-    {
-      DenseMatrix m1(rows,cols);
-      m1.setZero();
-      SparseMatrixType m2(rows,cols);
-      VectorXi r(VectorXi::Constant(m2.outerSize(), ((mode%2)==0) ? int(m2.innerSize()) : std::max<int>(1,int(m2.innerSize())/8)));
-      m2.reserve(r);
-      for (Index k=0; k<rows*cols; ++k)
-      {
-        Index i = internal::random<Index>(0,rows-1);
-        Index j = internal::random<Index>(0,cols-1);
-        if (m1.coeff(i,j)==Scalar(0))
-          m2.insert(i,j) = m1(i,j) = internal::random<Scalar>();
-        if(mode==3)
-          m2.reserve(r);
+
+    if (call_reserve && !SparseMatrixType::IsRowMajor) {
+      VERIFY(g_realloc_count == 0);
+    }
+
+    VERIFY_IS_APPROX(m2, m1);
+  }
+
+  // test insert (fully random)
+  {
+    DenseMatrix m1(rows, cols);
+    m1.setZero();
+    SparseMatrixType m2(rows, cols);
+    if (internal::random<int>() % 2) m2.reserve(VectorXi::Constant(m2.outerSize(), 2));
+    for (int k = 0; k < rows * cols; ++k) {
+      Index i = internal::random<Index>(0, rows - 1);
+      Index j = internal::random<Index>(0, cols - 1);
+      if ((m1.coeff(i, j) == Scalar(0)) && (internal::random<int>() % 2)) {
+        Scalar v = internal::random<Scalar>();
+        if (v == Scalar(0)) v = Scalar(1);
+        m1(i, j) = v;
+        m2.insert(i, j) = v;
+      } else {
+        Scalar v = internal::random<Scalar>();
+        if (v == Scalar(0)) v = Scalar(1);
+        m1(i, j) = v;
+        m2.coeffRef(i, j) = v;
       }
-      if(internal::random<int>()%2)
-        m2.makeCompressed();
-      VERIFY_IS_APPROX(m2,m1);
     }
+    VERIFY_IS_APPROX(m2, m1);
+  }
+
+  // test insert (un-compressed)
+  for (int mode = 0; mode < 4; ++mode) {
+    DenseMatrix m1(rows, cols);
+    m1.setZero();
+    SparseMatrixType m2(rows, cols);
+    VectorXi r(VectorXi::Constant(m2.outerSize(),
+                                  ((mode % 2) == 0) ? int(m2.innerSize()) : std::max<int>(1, int(m2.innerSize()) / 8)));
+    m2.reserve(r);
+    for (Index k = 0; k < rows * cols; ++k) {
+      Index i = internal::random<Index>(0, rows - 1);
+      Index j = internal::random<Index>(0, cols - 1);
+      if (m1.coeff(i, j) == Scalar(0)) {
+        Scalar v = internal::random<Scalar>();
+        if (v == Scalar(0)) v = Scalar(1);
+        m1(i, j) = v;
+        m2.insert(i, j) = v;
+      }
+      if (mode == 3) m2.reserve(r);
+    }
+    if (internal::random<int>() % 2) m2.makeCompressed();
+    VERIFY_IS_APPROX(m2, m1);
+  }
+
+  // test removeOuterVectors / insertEmptyOuterVectors
+  {
+    for (int mode = 0; mode < 4; mode++) {
+      CompatibleDenseMatrix m1(rows, cols);
+      m1.setZero();
+      SparseMatrixType m2(rows, cols);
+      Vector<Index, Dynamic> reserveSizes(outer);
+      for (Index j = 0; j < outer; j++) reserveSizes(j) = internal::random<Index>(1, inner - 1);
+      m2.reserve(reserveSizes);
+      for (Index j = 0; j < outer; j++) {
+        Index i = internal::random<Index>(0, inner - 1);
+        Scalar val = internal::random<Scalar>();
+        m1.coeffRefByOuterInner(j, i) = val;
+        m2.insertByOuterInner(j, i) = val;
+      }
+      if (mode % 2 == 0) m2.makeCompressed();
+
+      if (mode < 2) {
+        Index num = internal::random<Index>(0, outer - 1);
+        Index start = internal::random<Index>(0, outer - num);
+
+        Index newRows = SparseMatrixType::IsRowMajor ? rows - num : rows;
+        Index newCols = SparseMatrixType::IsRowMajor ? cols : cols - num;
+
+        CompatibleDenseMatrix m3(newRows, newCols);
+        m3.setConstant(Scalar(NumTraits<RealScalar>::quiet_NaN()));
+
+        if (SparseMatrixType::IsRowMajor) {
+          m3.topRows(start) = m1.topRows(start);
+          m3.bottomRows(newRows - start) = m1.bottomRows(newRows - start);
+        } else {
+          m3.leftCols(start) = m1.leftCols(start);
+          m3.rightCols(newCols - start) = m1.rightCols(newCols - start);
+        }
+
+        SparseMatrixType m4 = m2;
+        m4.removeOuterVectors(start, num);
+
+        VERIFY_IS_CWISE_EQUAL(m3, m4.toDense());
+      } else {
+        Index num = internal::random<Index>(0, outer - 1);
+        Index start = internal::random<Index>(0, outer - 1);
+
+        Index newRows = SparseMatrixType::IsRowMajor ? rows + num : rows;
+        Index newCols = SparseMatrixType::IsRowMajor ? cols : cols + num;
+
+        CompatibleDenseMatrix m3(newRows, newCols);
+        m3.setConstant(Scalar(NumTraits<RealScalar>::quiet_NaN()));
+
+        if (SparseMatrixType::IsRowMajor) {
+          m3.topRows(start) = m1.topRows(start);
+          m3.middleRows(start, num).setZero();
+          m3.bottomRows(rows - start) = m1.bottomRows(rows - start);
+        } else {
+          m3.leftCols(start) = m1.leftCols(start);
+          m3.middleCols(start, num).setZero();
+          m3.rightCols(cols - start) = m1.rightCols(cols - start);
+        }
+
+        SparseMatrixType m4 = m2;
+        m4.insertEmptyOuterVectors(start, num);
+
+        VERIFY_IS_CWISE_EQUAL(m3, m4.toDense());
+      }
+    }
+  }
+
+  // test sort
+  if (inner > 1) {
+    bool StorageOrdersMatch = int(DenseMatrix::IsRowMajor) == int(SparseMatrixType::IsRowMajor);
+    DenseMatrix m1(rows, cols);
+    m1.setZero();
+    SparseMatrixType m2(rows, cols);
+    // generate random inner indices with no repeats
+    Vector<Index, Dynamic> innerIndices(inner);
+    innerIndices.setLinSpaced(inner, 0, inner - 1);
+    std::random_device rd;
+    std::mt19937 g(rd());
+    for (Index j = 0; j < outer; j++) {
+      std::shuffle(innerIndices.begin(), innerIndices.end(), g);
+      Index nzj = internal::random<Index>(2, inner / 2);
+      for (Index k = 0; k < nzj; k++) {
+        Index i = innerIndices[k];
+        Scalar val = internal::random<Scalar>();
+        m1.coeffRefByOuterInner(StorageOrdersMatch ? j : i, StorageOrdersMatch ? i : j) = val;
+        m2.insertByOuterInner(j, i) = val;
+      }
+    }
+
+    VERIFY_IS_APPROX(m2, m1);
+    // sort wrt greater
+    m2.template sortInnerIndices<std::greater<>>();
+    // verify that all inner vectors are not sorted wrt less
+    VERIFY_IS_EQUAL(m2.template innerIndicesAreSorted<std::less<>>(), 0);
+    // verify that all inner vectors are sorted wrt greater
+    VERIFY_IS_EQUAL(m2.template innerIndicesAreSorted<std::greater<>>(), m2.outerSize());
+    // verify that sort does not change evaluation
+    VERIFY_IS_APPROX(m2, m1);
+    // sort wrt less
+    m2.template sortInnerIndices<std::less<>>();
+    // verify that all inner vectors are sorted wrt less
+    VERIFY_IS_EQUAL(m2.template innerIndicesAreSorted<std::less<>>(), m2.outerSize());
+    // verify that all inner vectors are not sorted wrt greater
+    VERIFY_IS_EQUAL(m2.template innerIndicesAreSorted<std::greater<>>(), 0);
+    // verify that sort does not change evaluation
+    VERIFY_IS_APPROX(m2, m1);
+
+    m2.makeCompressed();
+    // sort wrt greater
+    m2.template sortInnerIndices<std::greater<>>();
+    // verify that all inner vectors are not sorted wrt less
+    VERIFY_IS_EQUAL(m2.template innerIndicesAreSorted<std::less<>>(), 0);
+    // verify that all inner vectors are sorted wrt greater
+    VERIFY_IS_EQUAL(m2.template innerIndicesAreSorted<std::greater<>>(), m2.outerSize());
+    // verify that sort does not change evaluation
+    VERIFY_IS_APPROX(m2, m1);
+    // sort wrt less
+    m2.template sortInnerIndices<std::less<>>();
+    // verify that all inner vectors are sorted wrt less
+    VERIFY_IS_EQUAL(m2.template innerIndicesAreSorted<std::less<>>(), m2.outerSize());
+    // verify that all inner vectors are not sorted wrt greater
+    VERIFY_IS_EQUAL(m2.template innerIndicesAreSorted<std::greater<>>(), 0);
+    // verify that sort does not change evaluation
+    VERIFY_IS_APPROX(m2, m1);
+  }
 
   // test basic computations
   {
@@ -158,29 +292,28 @@ template<typename SparseMatrixType> void sparse_basic(const SparseMatrixType& re
     initSparse<Scalar>(density, refM3, m3);
     initSparse<Scalar>(density, refM4, m4);
 
-    if(internal::random<bool>())
-      m1.makeCompressed();
+    if (internal::random<bool>()) m1.makeCompressed();
 
     Index m1_nnz = m1.nonZeros();
 
-    VERIFY_IS_APPROX(m1*s1, refM1*s1);
-    VERIFY_IS_APPROX(m1+m2, refM1+refM2);
-    VERIFY_IS_APPROX(m1+m2+m3, refM1+refM2+refM3);
-    VERIFY_IS_APPROX(m3.cwiseProduct(m1+m2), refM3.cwiseProduct(refM1+refM2));
-    VERIFY_IS_APPROX(m1*s1-m2, refM1*s1-refM2);
-    VERIFY_IS_APPROX(m4=m1/s1, refM1/s1);
+    VERIFY_IS_APPROX(m1 * s1, refM1 * s1);
+    VERIFY_IS_APPROX(m1 + m2, refM1 + refM2);
+    VERIFY_IS_APPROX(m1 + m2 + m3, refM1 + refM2 + refM3);
+    VERIFY_IS_APPROX(m3.cwiseProduct(m1 + m2), refM3.cwiseProduct(refM1 + refM2));
+    VERIFY_IS_APPROX(m1 * s1 - m2, refM1 * s1 - refM2);
+    VERIFY_IS_APPROX(m4 = m1 / s1, refM1 / s1);
     VERIFY_IS_EQUAL(m4.nonZeros(), m1_nnz);
 
-    if(SparseMatrixType::IsRowMajor)
+    if (SparseMatrixType::IsRowMajor)
       VERIFY_IS_APPROX(m1.innerVector(0).dot(refM2.row(0)), refM1.row(0).dot(refM2.row(0)));
     else
       VERIFY_IS_APPROX(m1.innerVector(0).dot(refM2.col(0)), refM1.col(0).dot(refM2.col(0)));
 
     DenseVector rv = DenseVector::Random(m1.cols());
     DenseVector cv = DenseVector::Random(m1.rows());
-    Index r = internal::random<Index>(0,m1.rows()-2);
-    Index c = internal::random<Index>(0,m1.cols()-1);
-    VERIFY_IS_APPROX(( m1.template block<1,Dynamic>(r,0,1,m1.cols()).dot(rv)) , refM1.row(r).dot(rv));
+    Index r = internal::random<Index>(0, m1.rows() - 2);
+    Index c = internal::random<Index>(0, m1.cols() - 1);
+    VERIFY_IS_APPROX((m1.template block<1, Dynamic>(r, 0, 1, m1.cols()).dot(rv)), refM1.row(r).dot(rv));
     VERIFY_IS_APPROX(m1.row(r).dot(rv), refM1.row(r).dot(rv));
     VERIFY_IS_APPROX(m1.col(c).dot(cv), refM1.col(c).dot(cv));
 
@@ -192,66 +325,118 @@ template<typename SparseMatrixType> void sparse_basic(const SparseMatrixType& re
     VERIFY_IS_APPROX(m3.cwiseProduct(refM4), refM3.cwiseProduct(refM4));
     // dense cwise* sparse
     VERIFY_IS_APPROX(refM4.cwiseProduct(m3), refM4.cwiseProduct(refM3));
-//     VERIFY_IS_APPROX(m3.cwise()/refM4, refM3.cwise()/refM4);
+    //     VERIFY_IS_APPROX(m3.cwise()/refM4, refM3.cwise()/refM4);
 
+    // mixed sparse-dense
     VERIFY_IS_APPROX(refM4 + m3, refM4 + refM3);
     VERIFY_IS_APPROX(m3 + refM4, refM3 + refM4);
     VERIFY_IS_APPROX(refM4 - m3, refM4 - refM3);
     VERIFY_IS_APPROX(m3 - refM4, refM3 - refM4);
-    VERIFY_IS_APPROX((RealScalar(0.5)*refM4 + RealScalar(0.5)*m3).eval(), RealScalar(0.5)*refM4 + RealScalar(0.5)*refM3);
-    VERIFY_IS_APPROX((RealScalar(0.5)*refM4 + m3*RealScalar(0.5)).eval(), RealScalar(0.5)*refM4 + RealScalar(0.5)*refM3);
-    VERIFY_IS_APPROX((RealScalar(0.5)*refM4 + m3.cwiseProduct(m3)).eval(), RealScalar(0.5)*refM4 + refM3.cwiseProduct(refM3));
+    VERIFY_IS_APPROX((RealScalar(0.5) * refM4 + RealScalar(0.5) * m3).eval(),
+                     RealScalar(0.5) * refM4 + RealScalar(0.5) * refM3);
+    VERIFY_IS_APPROX((RealScalar(0.5) * refM4 + m3 * RealScalar(0.5)).eval(),
+                     RealScalar(0.5) * refM4 + RealScalar(0.5) * refM3);
+    VERIFY_IS_APPROX((RealScalar(0.5) * refM4 + m3.cwiseProduct(m3)).eval(),
+                     RealScalar(0.5) * refM4 + refM3.cwiseProduct(refM3));
 
-    VERIFY_IS_APPROX((RealScalar(0.5)*refM4 + RealScalar(0.5)*m3).eval(), RealScalar(0.5)*refM4 + RealScalar(0.5)*refM3);
-    VERIFY_IS_APPROX((RealScalar(0.5)*refM4 + m3*RealScalar(0.5)).eval(), RealScalar(0.5)*refM4 + RealScalar(0.5)*refM3);
-    VERIFY_IS_APPROX((RealScalar(0.5)*refM4 + (m3+m3)).eval(), RealScalar(0.5)*refM4 + (refM3+refM3));
-    VERIFY_IS_APPROX(((refM3+m3)+RealScalar(0.5)*m3).eval(), RealScalar(0.5)*refM3 + (refM3+refM3));
-    VERIFY_IS_APPROX((RealScalar(0.5)*refM4 + (refM3+m3)).eval(), RealScalar(0.5)*refM4 + (refM3+refM3));
-    VERIFY_IS_APPROX((RealScalar(0.5)*refM4 + (m3+refM3)).eval(), RealScalar(0.5)*refM4 + (refM3+refM3));
-
+    VERIFY_IS_APPROX((RealScalar(0.5) * refM4 + RealScalar(0.5) * m3).eval(),
+                     RealScalar(0.5) * refM4 + RealScalar(0.5) * refM3);
+    VERIFY_IS_APPROX((RealScalar(0.5) * refM4 + m3 * RealScalar(0.5)).eval(),
+                     RealScalar(0.5) * refM4 + RealScalar(0.5) * refM3);
+    VERIFY_IS_APPROX((RealScalar(0.5) * refM4 + (m3 + m3)).eval(), RealScalar(0.5) * refM4 + (refM3 + refM3));
+    VERIFY_IS_APPROX(((refM3 + m3) + RealScalar(0.5) * m3).eval(), RealScalar(0.5) * refM3 + (refM3 + refM3));
+    VERIFY_IS_APPROX((RealScalar(0.5) * refM4 + (refM3 + m3)).eval(), RealScalar(0.5) * refM4 + (refM3 + refM3));
+    VERIFY_IS_APPROX((RealScalar(0.5) * refM4 + (m3 + refM3)).eval(), RealScalar(0.5) * refM4 + (refM3 + refM3));
 
     VERIFY_IS_APPROX(m1.sum(), refM1.sum());
 
-    m4 = m1; refM4 = m4;
+    m4 = m1;
+    refM4 = m4;
 
-    VERIFY_IS_APPROX(m1*=s1, refM1*=s1);
+    VERIFY_IS_APPROX(m1 *= s1, refM1 *= s1);
     VERIFY_IS_EQUAL(m1.nonZeros(), m1_nnz);
-    VERIFY_IS_APPROX(m1/=s1, refM1/=s1);
+    VERIFY_IS_APPROX(m1 /= s1, refM1 /= s1);
     VERIFY_IS_EQUAL(m1.nonZeros(), m1_nnz);
 
-    VERIFY_IS_APPROX(m1+=m2, refM1+=refM2);
-    VERIFY_IS_APPROX(m1-=m2, refM1-=refM2);
+    VERIFY_IS_APPROX(m1 += m2, refM1 += refM2);
+    VERIFY_IS_APPROX(m1 -= m2, refM1 -= refM2);
 
-    if (rows>=2 && cols>=2)
-    {
-      VERIFY_RAISES_ASSERT( m1 += m1.innerVector(0) );
-      VERIFY_RAISES_ASSERT( m1 -= m1.innerVector(0) );
-      VERIFY_RAISES_ASSERT( refM1 -= m1.innerVector(0) );
-      VERIFY_RAISES_ASSERT( refM1 += m1.innerVector(0) );
+    refM3 = refM1;
+
+    VERIFY_IS_APPROX(refM1 += m2, refM3 += refM2);
+    VERIFY_IS_APPROX(refM1 -= m2, refM3 -= refM2);
+
+    g_dense_op_sparse_count = 0;
+    VERIFY_IS_APPROX(refM1 = m2 + refM4, refM3 = refM2 + refM4);
+    VERIFY_IS_EQUAL(g_dense_op_sparse_count, 10);
+    g_dense_op_sparse_count = 0;
+    VERIFY_IS_APPROX(refM1 += m2 + refM4, refM3 += refM2 + refM4);
+    VERIFY_IS_EQUAL(g_dense_op_sparse_count, 1);
+    g_dense_op_sparse_count = 0;
+    VERIFY_IS_APPROX(refM1 -= m2 + refM4, refM3 -= refM2 + refM4);
+    VERIFY_IS_EQUAL(g_dense_op_sparse_count, 1);
+    g_dense_op_sparse_count = 0;
+    VERIFY_IS_APPROX(refM1 = refM4 + m2, refM3 = refM2 + refM4);
+    VERIFY_IS_EQUAL(g_dense_op_sparse_count, 1);
+    g_dense_op_sparse_count = 0;
+    VERIFY_IS_APPROX(refM1 += refM4 + m2, refM3 += refM2 + refM4);
+    VERIFY_IS_EQUAL(g_dense_op_sparse_count, 1);
+    g_dense_op_sparse_count = 0;
+    VERIFY_IS_APPROX(refM1 -= refM4 + m2, refM3 -= refM2 + refM4);
+    VERIFY_IS_EQUAL(g_dense_op_sparse_count, 1);
+
+    g_dense_op_sparse_count = 0;
+    VERIFY_IS_APPROX(refM1 = m2 - refM4, refM3 = refM2 - refM4);
+    VERIFY_IS_EQUAL(g_dense_op_sparse_count, 20);
+    g_dense_op_sparse_count = 0;
+    VERIFY_IS_APPROX(refM1 += m2 - refM4, refM3 += refM2 - refM4);
+    VERIFY_IS_EQUAL(g_dense_op_sparse_count, 1);
+    g_dense_op_sparse_count = 0;
+    VERIFY_IS_APPROX(refM1 -= m2 - refM4, refM3 -= refM2 - refM4);
+    VERIFY_IS_EQUAL(g_dense_op_sparse_count, 1);
+    g_dense_op_sparse_count = 0;
+    VERIFY_IS_APPROX(refM1 = refM4 - m2, refM3 = refM4 - refM2);
+    VERIFY_IS_EQUAL(g_dense_op_sparse_count, 1);
+    g_dense_op_sparse_count = 0;
+    VERIFY_IS_APPROX(refM1 += refM4 - m2, refM3 += refM4 - refM2);
+    VERIFY_IS_EQUAL(g_dense_op_sparse_count, 1);
+    g_dense_op_sparse_count = 0;
+    VERIFY_IS_APPROX(refM1 -= refM4 - m2, refM3 -= refM4 - refM2);
+    VERIFY_IS_EQUAL(g_dense_op_sparse_count, 1);
+    refM3 = m3;
+
+    if (rows >= 2 && cols >= 2) {
+      VERIFY_RAISES_ASSERT(m1 += m1.innerVector(0));
+      VERIFY_RAISES_ASSERT(m1 -= m1.innerVector(0));
+      VERIFY_RAISES_ASSERT(refM1 -= m1.innerVector(0));
+      VERIFY_RAISES_ASSERT(refM1 += m1.innerVector(0));
     }
-    m1 = m4; refM1 = refM4;
+    m1 = m4;
+    refM1 = refM4;
 
     // test aliasing
     VERIFY_IS_APPROX((m1 = -m1), (refM1 = -refM1));
     VERIFY_IS_EQUAL(m1.nonZeros(), m1_nnz);
-    m1 = m4; refM1 = refM4;
+    m1 = m4;
+    refM1 = refM4;
     VERIFY_IS_APPROX((m1 = m1.transpose()), (refM1 = refM1.transpose().eval()));
     VERIFY_IS_EQUAL(m1.nonZeros(), m1_nnz);
-    m1 = m4; refM1 = refM4;
+    m1 = m4;
+    refM1 = refM4;
     VERIFY_IS_APPROX((m1 = -m1.transpose()), (refM1 = -refM1.transpose().eval()));
     VERIFY_IS_EQUAL(m1.nonZeros(), m1_nnz);
-    m1 = m4; refM1 = refM4;
+    m1 = m4;
+    refM1 = refM4;
     VERIFY_IS_APPROX((m1 += -m1), (refM1 += -refM1));
     VERIFY_IS_EQUAL(m1.nonZeros(), m1_nnz);
-    m1 = m4; refM1 = refM4;
+    m1 = m4;
+    refM1 = refM4;
 
-    if(m1.isCompressed())
-    {
+    if (m1.isCompressed()) {
       VERIFY_IS_APPROX(m1.coeffs().sum(), m1.sum());
       m1.coeffs() += s1;
-      for(Index j = 0; j<m1.outerSize(); ++j)
-        for(typename SparseMatrixType::InnerIterator it(m1,j); it; ++it)
-          refM1(it.row(), it.col()) += s1;
+      for (Index j = 0; j < m1.outerSize(); ++j)
+        for (typename SparseMatrixType::InnerIterator it(m1, j); it; ++it) refM1(it.row(), it.col()) += s1;
       VERIFY_IS_APPROX(m1, refM1);
     }
 
@@ -261,12 +446,14 @@ template<typename SparseMatrixType> void sparse_basic(const SparseMatrixType& re
       SpBool mb1 = m1.real().template cast<bool>();
       SpBool mb2 = m2.real().template cast<bool>();
       VERIFY_IS_EQUAL(mb1.template cast<int>().sum(), refM1.real().template cast<bool>().count());
-      VERIFY_IS_EQUAL((mb1 && mb2).template cast<int>().sum(), (refM1.real().template cast<bool>() && refM2.real().template cast<bool>()).count());
-      VERIFY_IS_EQUAL((mb1 || mb2).template cast<int>().sum(), (refM1.real().template cast<bool>() || refM2.real().template cast<bool>()).count());
+      VERIFY_IS_EQUAL((mb1 && mb2).template cast<int>().sum(),
+                      (refM1.real().template cast<bool>() && refM2.real().template cast<bool>()).count());
+      VERIFY_IS_EQUAL((mb1 || mb2).template cast<int>().sum(),
+                      (refM1.real().template cast<bool>() || refM2.real().template cast<bool>()).count());
       SpBool mb3 = mb1 && mb2;
-      if(mb1.coeffs().all() && mb2.coeffs().all())
-      {
-        VERIFY_IS_EQUAL(mb3.nonZeros(), (refM1.real().template cast<bool>() && refM2.real().template cast<bool>()).count());
+      if (mb1.coeffs().all() && mb2.coeffs().all()) {
+        VERIFY_IS_EQUAL(mb3.nonZeros(),
+                        (refM1.real().template cast<bool>() && refM2.real().template cast<bool>()).count());
       }
     }
   }
@@ -278,23 +465,20 @@ template<typename SparseMatrixType> void sparse_basic(const SparseMatrixType& re
     initSparse<Scalar>(density, refMat2, m2);
     std::vector<Scalar> ref_value(m2.innerSize());
     std::vector<Index> ref_index(m2.innerSize());
-    if(internal::random<bool>())
-      m2.makeCompressed();
-    for(Index j = 0; j<m2.outerSize(); ++j)
-    {
+    if (internal::random<bool>()) m2.makeCompressed();
+    for (Index j = 0; j < m2.outerSize(); ++j) {
       Index count_forward = 0;
 
-      for(typename SparseMatrixType::InnerIterator it(m2,j); it; ++it)
-      {
-        ref_value[ref_value.size()-1-count_forward] = it.value();
-        ref_index[ref_index.size()-1-count_forward] = it.index();
+      for (typename SparseMatrixType::InnerIterator it(m2, j); it; ++it) {
+        ref_value[ref_value.size() - 1 - count_forward] = it.value();
+        ref_index[ref_index.size() - 1 - count_forward] = it.index();
         count_forward++;
       }
       Index count_reverse = 0;
-      for(typename SparseMatrixType::ReverseInnerIterator it(m2,j); it; --it)
-      {
-        VERIFY_IS_APPROX( std::abs(ref_value[ref_value.size()-count_forward+count_reverse])+1, std::abs(it.value())+1);
-        VERIFY_IS_EQUAL( ref_index[ref_index.size()-count_forward+count_reverse] , it.index());
+      for (typename SparseMatrixType::ReverseInnerIterator it(m2, j); it; --it) {
+        VERIFY_IS_APPROX(std::abs(ref_value[ref_value.size() - count_forward + count_reverse]) + 1,
+                         std::abs(it.value()) + 1);
+        VERIFY_IS_EQUAL(ref_index[ref_index.size() - count_forward + count_reverse], it.index());
         count_reverse++;
       }
       VERIFY_IS_EQUAL(count_forward, count_reverse);
@@ -310,7 +494,7 @@ template<typename SparseMatrixType> void sparse_basic(const SparseMatrixType& re
     VERIFY_IS_APPROX(m2.transpose(), refMat2.transpose());
 
     VERIFY_IS_APPROX(SparseMatrixType(m2.adjoint()), refMat2.adjoint());
-    
+
     // check isApprox handles opposite storage order
     typename Transpose<SparseMatrixType>::PlainObject m3(m2);
     VERIFY(m2.isApprox(m3));
@@ -324,73 +508,192 @@ template<typename SparseMatrixType> void sparse_basic(const SparseMatrixType& re
     int countFalseNonZero = 0;
     int countTrueNonZero = 0;
     m2.reserve(VectorXi::Constant(m2.outerSize(), int(m2.innerSize())));
-    for (Index j=0; j<m2.cols(); ++j)
-    {
-      for (Index i=0; i<m2.rows(); ++i)
-      {
-        float x = internal::random<float>(0,1);
-        if (x<0.1f)
-        {
+    for (Index j = 0; j < m2.cols(); ++j) {
+      for (Index i = 0; i < m2.rows(); ++i) {
+        float x = internal::random<float>(0, 1);
+        if (x < 0.1f) {
           // do nothing
-        }
-        else if (x<0.5f)
-        {
+        } else if (x < 0.5f) {
           countFalseNonZero++;
-          m2.insert(i,j) = Scalar(0);
-        }
-        else
-        {
+          m2.insert(i, j) = Scalar(0);
+        } else {
           countTrueNonZero++;
-          m2.insert(i,j) = Scalar(1);
-          refM2(i,j) = Scalar(1);
+          m2.insert(i, j) = Scalar(1);
+          refM2(i, j) = Scalar(1);
         }
       }
     }
-    if(internal::random<bool>())
-      m2.makeCompressed();
-    VERIFY(countFalseNonZero+countTrueNonZero == m2.nonZeros());
-    if(countTrueNonZero>0)
-      VERIFY_IS_APPROX(m2, refM2);
+    if (internal::random<bool>()) m2.makeCompressed();
+    VERIFY(countFalseNonZero + countTrueNonZero == m2.nonZeros());
+    if (countTrueNonZero > 0) VERIFY_IS_APPROX(m2, refM2);
     m2.prune(Scalar(1));
-    VERIFY(countTrueNonZero==m2.nonZeros());
+    VERIFY(countTrueNonZero == m2.nonZeros());
     VERIFY_IS_APPROX(m2, refM2);
   }
 
-  // test setFromTriplets
+  // test setFromTriplets / insertFromTriplets
   {
-    typedef Triplet<Scalar,StorageIndex> TripletType;
-    std::vector<TripletType> triplets;
-    Index ntriplets = rows*cols;
-    triplets.reserve(ntriplets);
-    DenseMatrix refMat_sum  = DenseMatrix::Zero(rows,cols);
-    DenseMatrix refMat_prod = DenseMatrix::Zero(rows,cols);
-    DenseMatrix refMat_last = DenseMatrix::Zero(rows,cols);
+    typedef Triplet<Scalar, StorageIndex> TripletType;
+    Index ntriplets = rows * cols;
 
-    for(Index i=0;i<ntriplets;++i)
-    {
-      StorageIndex r = internal::random<StorageIndex>(0,StorageIndex(rows-1));
-      StorageIndex c = internal::random<StorageIndex>(0,StorageIndex(cols-1));
+    std::vector<TripletType> triplets;
+
+    triplets.reserve(ntriplets);
+    DenseMatrix refMat_sum = DenseMatrix::Zero(rows, cols);
+    DenseMatrix refMat_prod = DenseMatrix::Zero(rows, cols);
+    DenseMatrix refMat_last = DenseMatrix::Zero(rows, cols);
+
+    for (Index i = 0; i < ntriplets; ++i) {
+      StorageIndex r = internal::random<StorageIndex>(0, StorageIndex(rows - 1));
+      StorageIndex c = internal::random<StorageIndex>(0, StorageIndex(cols - 1));
       Scalar v = internal::random<Scalar>();
-      triplets.push_back(TripletType(r,c,v));
-      refMat_sum(r,c) += v;
-      if(std::abs(refMat_prod(r,c))==0)
-        refMat_prod(r,c) = v;
+      triplets.push_back(TripletType(r, c, v));
+      refMat_sum(r, c) += v;
+      if (std::abs(refMat_prod(r, c)) == 0)
+        refMat_prod(r, c) = v;
       else
-        refMat_prod(r,c) *= v;
-      refMat_last(r,c) = v;
+        refMat_prod(r, c) *= v;
+      refMat_last(r, c) = v;
     }
-    SparseMatrixType m(rows,cols);
+
+    std::vector<TripletType> moreTriplets;
+    moreTriplets.reserve(ntriplets);
+    DenseMatrix refMat_sum_more = refMat_sum;
+    DenseMatrix refMat_prod_more = refMat_prod;
+    DenseMatrix refMat_last_more = refMat_last;
+
+    for (Index i = 0; i < ntriplets; ++i) {
+      StorageIndex r = internal::random<StorageIndex>(0, StorageIndex(rows - 1));
+      StorageIndex c = internal::random<StorageIndex>(0, StorageIndex(cols - 1));
+      Scalar v = internal::random<Scalar>();
+      moreTriplets.push_back(TripletType(r, c, v));
+      refMat_sum_more(r, c) += v;
+      if (std::abs(refMat_prod_more(r, c)) == 0)
+        refMat_prod_more(r, c) = v;
+      else
+        refMat_prod_more(r, c) *= v;
+      refMat_last_more(r, c) = v;
+    }
+
+    SparseMatrixType m(rows, cols);
+
+    // test setFromTriplets / insertFromTriplets
+
     m.setFromTriplets(triplets.begin(), triplets.end());
     VERIFY_IS_APPROX(m, refMat_sum);
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
+    VERIFY(m.isCompressed());
+    m.insertFromTriplets(moreTriplets.begin(), moreTriplets.end());
+    VERIFY_IS_APPROX(m, refMat_sum_more);
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
 
     m.setFromTriplets(triplets.begin(), triplets.end(), std::multiplies<Scalar>());
     VERIFY_IS_APPROX(m, refMat_prod);
-#if (defined(__cplusplus) && __cplusplus >= 201103L)
-    m.setFromTriplets(triplets.begin(), triplets.end(), [] (Scalar,Scalar b) { return b; });
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
+    VERIFY(m.isCompressed());
+    m.insertFromTriplets(moreTriplets.begin(), moreTriplets.end(), std::multiplies<Scalar>());
+    VERIFY_IS_APPROX(m, refMat_prod_more);
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
+
+    m.setFromTriplets(triplets.begin(), triplets.end(), [](Scalar, Scalar b) { return b; });
     VERIFY_IS_APPROX(m, refMat_last);
-#endif
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
+    m.setFromTriplets(triplets.begin(), triplets.end(), [](Scalar, Scalar b) { return b; });
+    VERIFY(m.isCompressed());
+    m.insertFromTriplets(moreTriplets.begin(), moreTriplets.end(), [](Scalar, Scalar b) { return b; });
+    VERIFY_IS_APPROX(m, refMat_last_more);
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
+
+    // insert into an uncompressed matrix
+
+    VectorXi reserveSizes(m.outerSize());
+    for (Index i = 0; i < m.outerSize(); i++) reserveSizes[i] = internal::random<int>(1, 7);
+
+    m.setFromTriplets(triplets.begin(), triplets.end());
+    m.reserve(reserveSizes);
+    VERIFY(!m.isCompressed());
+    m.insertFromTriplets(moreTriplets.begin(), moreTriplets.end());
+    VERIFY_IS_APPROX(m, refMat_sum_more);
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
+
+    m.setFromTriplets(triplets.begin(), triplets.end(), std::multiplies<Scalar>());
+    m.reserve(reserveSizes);
+    VERIFY(!m.isCompressed());
+    m.insertFromTriplets(moreTriplets.begin(), moreTriplets.end(), std::multiplies<Scalar>());
+    VERIFY_IS_APPROX(m, refMat_prod_more);
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
+
+    m.setFromTriplets(triplets.begin(), triplets.end(), [](Scalar, Scalar b) { return b; });
+    m.reserve(reserveSizes);
+    VERIFY(!m.isCompressed());
+    m.insertFromTriplets(moreTriplets.begin(), moreTriplets.end(), [](Scalar, Scalar b) { return b; });
+    VERIFY_IS_APPROX(m, refMat_last_more);
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
+
+    // test setFromSortedTriplets / insertFromSortedTriplets
+
+    struct triplet_comp {
+      inline bool operator()(const TripletType& a, const TripletType& b) {
+        return SparseMatrixType::IsRowMajor ? ((a.row() != b.row()) ? (a.row() < b.row()) : (a.col() < b.col()))
+                                            : ((a.col() != b.col()) ? (a.col() < b.col()) : (a.row() < b.row()));
+      }
+    };
+
+    // stable_sort is only necessary when the reduction functor is dependent on the order of the triplets
+    // this is the case with refMat_last
+    // for most cases, std::sort is sufficient and preferred
+
+    std::stable_sort(triplets.begin(), triplets.end(), triplet_comp());
+    std::stable_sort(moreTriplets.begin(), moreTriplets.end(), triplet_comp());
+
+    m.setFromSortedTriplets(triplets.begin(), triplets.end());
+    VERIFY_IS_APPROX(m, refMat_sum);
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
+    VERIFY(m.isCompressed());
+    m.insertFromSortedTriplets(moreTriplets.begin(), moreTriplets.end());
+    VERIFY_IS_APPROX(m, refMat_sum_more);
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
+
+    m.setFromSortedTriplets(triplets.begin(), triplets.end(), std::multiplies<Scalar>());
+    VERIFY_IS_APPROX(m, refMat_prod);
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
+    VERIFY(m.isCompressed());
+    m.insertFromSortedTriplets(moreTriplets.begin(), moreTriplets.end(), std::multiplies<Scalar>());
+    VERIFY_IS_APPROX(m, refMat_prod_more);
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
+
+    m.setFromSortedTriplets(triplets.begin(), triplets.end(), [](Scalar, Scalar b) { return b; });
+    VERIFY_IS_APPROX(m, refMat_last);
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
+    VERIFY(m.isCompressed());
+    m.insertFromSortedTriplets(moreTriplets.begin(), moreTriplets.end(), [](Scalar, Scalar b) { return b; });
+    VERIFY_IS_APPROX(m, refMat_last_more);
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
+
+    // insert into an uncompressed matrix
+
+    m.setFromSortedTriplets(triplets.begin(), triplets.end());
+    m.reserve(reserveSizes);
+    VERIFY(!m.isCompressed());
+    m.insertFromSortedTriplets(moreTriplets.begin(), moreTriplets.end());
+    VERIFY_IS_APPROX(m, refMat_sum_more);
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
+
+    m.setFromSortedTriplets(triplets.begin(), triplets.end(), std::multiplies<Scalar>());
+    m.reserve(reserveSizes);
+    VERIFY(!m.isCompressed());
+    m.insertFromSortedTriplets(moreTriplets.begin(), moreTriplets.end(), std::multiplies<Scalar>());
+    VERIFY_IS_APPROX(m, refMat_prod_more);
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
+
+    m.setFromSortedTriplets(triplets.begin(), triplets.end(), [](Scalar, Scalar b) { return b; });
+    m.reserve(reserveSizes);
+    VERIFY(!m.isCompressed());
+    m.insertFromSortedTriplets(moreTriplets.begin(), moreTriplets.end(), [](Scalar, Scalar b) { return b; });
+    VERIFY_IS_APPROX(m, refMat_last_more);
+    VERIFY_IS_EQUAL(m.innerIndicesAreSorted(), m.outerSize());
   }
-  
+
   // test Map
   {
     DenseMatrix refMat2(rows, cols), refMat3(rows, cols);
@@ -398,28 +701,24 @@ template<typename SparseMatrixType> void sparse_basic(const SparseMatrixType& re
     initSparse<Scalar>(density, refMat2, m2);
     initSparse<Scalar>(density, refMat3, m3);
     {
-      Map<SparseMatrixType> mapMat2(m2.rows(), m2.cols(), m2.nonZeros(), m2.outerIndexPtr(), m2.innerIndexPtr(), m2.valuePtr(), m2.innerNonZeroPtr());
-      Map<SparseMatrixType> mapMat3(m3.rows(), m3.cols(), m3.nonZeros(), m3.outerIndexPtr(), m3.innerIndexPtr(), m3.valuePtr(), m3.innerNonZeroPtr());
-      VERIFY_IS_APPROX(mapMat2+mapMat3, refMat2+refMat3);
-      VERIFY_IS_APPROX(mapMat2+mapMat3, refMat2+refMat3);
-    }
-    {
-      MappedSparseMatrix<Scalar,SparseMatrixType::Options,StorageIndex> mapMat2(m2.rows(), m2.cols(), m2.nonZeros(), m2.outerIndexPtr(), m2.innerIndexPtr(), m2.valuePtr(), m2.innerNonZeroPtr());
-      MappedSparseMatrix<Scalar,SparseMatrixType::Options,StorageIndex> mapMat3(m3.rows(), m3.cols(), m3.nonZeros(), m3.outerIndexPtr(), m3.innerIndexPtr(), m3.valuePtr(), m3.innerNonZeroPtr());
-      VERIFY_IS_APPROX(mapMat2+mapMat3, refMat2+refMat3);
-      VERIFY_IS_APPROX(mapMat2+mapMat3, refMat2+refMat3);
+      Map<SparseMatrixType> mapMat2(m2.rows(), m2.cols(), m2.nonZeros(), m2.outerIndexPtr(), m2.innerIndexPtr(),
+                                    m2.valuePtr(), m2.innerNonZeroPtr());
+      Map<SparseMatrixType> mapMat3(m3.rows(), m3.cols(), m3.nonZeros(), m3.outerIndexPtr(), m3.innerIndexPtr(),
+                                    m3.valuePtr(), m3.innerNonZeroPtr());
+      VERIFY_IS_APPROX(mapMat2 + mapMat3, refMat2 + refMat3);
+      VERIFY_IS_APPROX(mapMat2 + mapMat3, refMat2 + refMat3);
     }
 
-    Index i = internal::random<Index>(0,rows-1);
-    Index j = internal::random<Index>(0,cols-1);
-    m2.coeffRef(i,j) = 123;
-    if(internal::random<bool>())
-      m2.makeCompressed();
-    Map<SparseMatrixType> mapMat2(rows, cols, m2.nonZeros(), m2.outerIndexPtr(), m2.innerIndexPtr(), m2.valuePtr(),  m2.innerNonZeroPtr());
-    VERIFY_IS_EQUAL(m2.coeff(i,j),Scalar(123));
-    VERIFY_IS_EQUAL(mapMat2.coeff(i,j),Scalar(123));
-    mapMat2.coeffRef(i,j) = -123;
-    VERIFY_IS_EQUAL(m2.coeff(i,j),Scalar(-123));
+    Index i = internal::random<Index>(0, rows - 1);
+    Index j = internal::random<Index>(0, cols - 1);
+    m2.coeffRef(i, j) = 123;
+    if (internal::random<bool>()) m2.makeCompressed();
+    Map<SparseMatrixType> mapMat2(rows, cols, m2.nonZeros(), m2.outerIndexPtr(), m2.innerIndexPtr(), m2.valuePtr(),
+                                  m2.innerNonZeroPtr());
+    VERIFY_IS_EQUAL(m2.coeff(i, j), Scalar(123));
+    VERIFY_IS_EQUAL(mapMat2.coeff(i, j), Scalar(123));
+    mapMat2.coeffRef(i, j) = -123;
+    VERIFY_IS_EQUAL(m2.coeff(i, j), Scalar(-123));
   }
 
   // test triangularView
@@ -456,11 +755,15 @@ template<typename SparseMatrixType> void sparse_basic(const SparseMatrixType& re
     // check sparse-triangular to dense
     refMat3 = m2.template triangularView<StrictlyUpper>();
     VERIFY_IS_APPROX(refMat3, DenseMatrix(refMat2.template triangularView<StrictlyUpper>()));
+
+    // check sparse triangular view iteration-based evaluation
+    m2.setZero();
+    VERIFY_IS_CWISE_EQUAL(m2.template triangularView<UnitLower>().toDense(), DenseMatrix::Identity(rows, cols));
+    VERIFY_IS_CWISE_EQUAL(m2.template triangularView<UnitUpper>().toDense(), DenseMatrix::Identity(rows, cols));
   }
-  
+
   // test selfadjointView
-  if(!SparseMatrixType::IsRowMajor)
-  {
+  if (!SparseMatrixType::IsRowMajor) {
     DenseMatrix refMat2(rows, rows), refMat3(rows, rows);
     SparseMatrixType m2(rows, rows), m3(rows, rows);
     initSparse<Scalar>(density, refMat2, m2);
@@ -477,11 +780,11 @@ template<typename SparseMatrixType> void sparse_basic(const SparseMatrixType& re
     VERIFY_IS_APPROX(m3, refMat3);
 
     // selfadjointView only works for square matrices:
-    SparseMatrixType m4(rows, rows+1);
+    SparseMatrixType m4(rows, rows + 1);
     VERIFY_RAISES_ASSERT(m4.template selfadjointView<Lower>());
     VERIFY_RAISES_ASSERT(m4.template selfadjointView<Upper>());
   }
-  
+
   // test sparseView
   {
     DenseMatrix refMat2 = DenseMatrix::Zero(rows, rows);
@@ -490,10 +793,10 @@ template<typename SparseMatrixType> void sparse_basic(const SparseMatrixType& re
     VERIFY_IS_APPROX(m2.eval(), refMat2.sparseView().eval());
 
     // sparse view on expressions:
-    VERIFY_IS_APPROX((s1*m2).eval(), (s1*refMat2).sparseView().eval());
-    VERIFY_IS_APPROX((m2+m2).eval(), (refMat2+refMat2).sparseView().eval());
-    VERIFY_IS_APPROX((m2*m2).eval(), (refMat2.lazyProduct(refMat2)).sparseView().eval());
-    VERIFY_IS_APPROX((m2*m2).eval(), (refMat2*refMat2).sparseView().eval());
+    VERIFY_IS_APPROX((s1 * m2).eval(), (s1 * refMat2).sparseView().eval());
+    VERIFY_IS_APPROX((m2 + m2).eval(), (refMat2 + refMat2).sparseView().eval());
+    VERIFY_IS_APPROX((m2 * m2).eval(), (refMat2.lazyProduct(refMat2)).sparseView().eval());
+    VERIFY_IS_APPROX((m2 * m2).eval(), (refMat2 * refMat2).sparseView().eval());
   }
 
   // test diagonal
@@ -507,18 +810,18 @@ template<typename SparseMatrixType> void sparse_basic(const SparseMatrixType& re
     d = m2.diagonal().array();
     VERIFY_IS_APPROX(d, refMat2.diagonal().eval());
     VERIFY_IS_APPROX(const_cast<const SparseMatrixType&>(m2).diagonal(), refMat2.diagonal().eval());
-    
+
     initSparse<Scalar>(density, refMat2, m2, ForceNonZeroDiag);
-    m2.diagonal()      += refMat2.diagonal();
+    m2.diagonal() += refMat2.diagonal();
     refMat2.diagonal() += refMat2.diagonal();
     VERIFY_IS_APPROX(m2, refMat2);
   }
-  
+
   // test diagonal to sparse
   {
     DenseVector d = DenseVector::Random(rows);
     DenseMatrix refMat2 = d.asDiagonal();
-    SparseMatrixType m2(rows, rows);
+    SparseMatrixType m2;
     m2 = d.asDiagonal();
     VERIFY_IS_APPROX(m2, refMat2);
     SparseMatrixType m3(d.asDiagonal());
@@ -526,42 +829,70 @@ template<typename SparseMatrixType> void sparse_basic(const SparseMatrixType& re
     refMat2 += d.asDiagonal();
     m2 += d.asDiagonal();
     VERIFY_IS_APPROX(m2, refMat2);
+    m2.setZero();
+    m2 += d.asDiagonal();
+    refMat2.setZero();
+    refMat2 += d.asDiagonal();
+    VERIFY_IS_APPROX(m2, refMat2);
+    m2.setZero();
+    m2 -= d.asDiagonal();
+    refMat2.setZero();
+    refMat2 -= d.asDiagonal();
+    VERIFY_IS_APPROX(m2, refMat2);
+
+    initSparse<Scalar>(density, refMat2, m2);
+    m2.makeCompressed();
+    m2 += d.asDiagonal();
+    refMat2 += d.asDiagonal();
+    VERIFY_IS_APPROX(m2, refMat2);
+
+    initSparse<Scalar>(density, refMat2, m2);
+    m2.makeCompressed();
+    VectorXi res(rows);
+    for (Index i = 0; i < rows; ++i) res(i) = internal::random<int>(0, 3);
+    m2.reserve(res);
+    m2 -= d.asDiagonal();
+    refMat2 -= d.asDiagonal();
+    VERIFY_IS_APPROX(m2, refMat2);
   }
-  
+
   // test conservative resize
   {
-      std::vector< std::pair<StorageIndex,StorageIndex> > inc;
-      if(rows > 3 && cols > 2)
-        inc.push_back(std::pair<StorageIndex,StorageIndex>(-3,-2));
-      inc.push_back(std::pair<StorageIndex,StorageIndex>(0,0));
-      inc.push_back(std::pair<StorageIndex,StorageIndex>(3,2));
-      inc.push_back(std::pair<StorageIndex,StorageIndex>(3,0));
-      inc.push_back(std::pair<StorageIndex,StorageIndex>(0,3));
-      
-      for(size_t i = 0; i< inc.size(); i++) {
-        StorageIndex incRows = inc[i].first;
-        StorageIndex incCols = inc[i].second;
-        SparseMatrixType m1(rows, cols);
-        DenseMatrix refMat1 = DenseMatrix::Zero(rows, cols);
-        initSparse<Scalar>(density, refMat1, m1);
-        
-        m1.conservativeResize(rows+incRows, cols+incCols);
-        refMat1.conservativeResize(rows+incRows, cols+incCols);
-        if (incRows > 0) refMat1.bottomRows(incRows).setZero();
-        if (incCols > 0) refMat1.rightCols(incCols).setZero();
-        
-        VERIFY_IS_APPROX(m1, refMat1);
-        
-        // Insert new values
-        if (incRows > 0) 
-          m1.insert(m1.rows()-1, 0) = refMat1(refMat1.rows()-1, 0) = 1;
-        if (incCols > 0) 
-          m1.insert(0, m1.cols()-1) = refMat1(0, refMat1.cols()-1) = 1;
-          
-        VERIFY_IS_APPROX(m1, refMat1);
-          
-          
-      }
+    std::vector<std::pair<StorageIndex, StorageIndex>> inc;
+    if (rows > 3 && cols > 2) inc.push_back(std::pair<StorageIndex, StorageIndex>(-3, -2));
+    inc.push_back(std::pair<StorageIndex, StorageIndex>(0, 0));
+    inc.push_back(std::pair<StorageIndex, StorageIndex>(3, 2));
+    inc.push_back(std::pair<StorageIndex, StorageIndex>(3, 0));
+    inc.push_back(std::pair<StorageIndex, StorageIndex>(0, 3));
+    inc.push_back(std::pair<StorageIndex, StorageIndex>(0, -1));
+    inc.push_back(std::pair<StorageIndex, StorageIndex>(-1, 0));
+    inc.push_back(std::pair<StorageIndex, StorageIndex>(-1, -1));
+
+    for (size_t i = 0; i < inc.size(); i++) {
+      StorageIndex incRows = inc[i].first;
+      StorageIndex incCols = inc[i].second;
+      SparseMatrixType m1(rows, cols);
+      DenseMatrix refMat1 = DenseMatrix::Zero(rows, cols);
+      initSparse<Scalar>(density, refMat1, m1);
+
+      SparseMatrixType m2 = m1;
+      m2.makeCompressed();
+
+      m1.conservativeResize(rows + incRows, cols + incCols);
+      m2.conservativeResize(rows + incRows, cols + incCols);
+      refMat1.conservativeResize(rows + incRows, cols + incCols);
+      if (incRows > 0) refMat1.bottomRows(incRows).setZero();
+      if (incCols > 0) refMat1.rightCols(incCols).setZero();
+
+      VERIFY_IS_APPROX(m1, refMat1);
+      VERIFY_IS_APPROX(m2, refMat1);
+
+      // Insert new values
+      if (incRows > 0) m1.insert(m1.rows() - 1, 0) = refMat1(refMat1.rows() - 1, 0) = 1;
+      if (incCols > 0) m1.insert(0, m1.cols() - 1) = refMat1(0, refMat1.cols() - 1) = 1;
+
+      VERIFY_IS_APPROX(m1, refMat1);
+    }
   }
 
   // test Identity matrix
@@ -570,16 +901,14 @@ template<typename SparseMatrixType> void sparse_basic(const SparseMatrixType& re
     SparseMatrixType m1(rows, rows);
     m1.setIdentity();
     VERIFY_IS_APPROX(m1, refMat1);
-    for(int k=0; k<rows*rows/4; ++k)
-    {
-      Index i = internal::random<Index>(0,rows-1);
-      Index j = internal::random<Index>(0,rows-1);
+    for (int k = 0; k < rows * rows / 4; ++k) {
+      Index i = internal::random<Index>(0, rows - 1);
+      Index j = internal::random<Index>(0, rows - 1);
       Scalar v = internal::random<Scalar>();
-      m1.coeffRef(i,j) = v;
-      refMat1.coeffRef(i,j) = v;
+      m1.coeffRef(i, j) = v;
+      refMat1.coeffRef(i, j) = v;
       VERIFY_IS_APPROX(m1, refMat1);
-      if(internal::random<Index>(0,10)<2)
-        m1.makeCompressed();
+      if (internal::random<Index>(0, 10) < 2) m1.makeCompressed();
     }
     m1.setIdentity();
     refMat1.setIdentity();
@@ -594,96 +923,127 @@ template<typename SparseMatrixType> void sparse_basic(const SparseMatrixType& re
     SparseMatrixType m2(rows, cols);
     initSparse<Scalar>(density, refMat2, m2);
     IteratorType static_array[2];
-    static_array[0] = IteratorType(m2,0);
-    static_array[1] = IteratorType(m2,m2.outerSize()-1);
-    VERIFY( static_array[0] || m2.innerVector(static_array[0].outer()).nonZeros() == 0 );
-    VERIFY( static_array[1] || m2.innerVector(static_array[1].outer()).nonZeros() == 0 );
-    if(static_array[0] && static_array[1])
-    {
+    static_array[0] = IteratorType(m2, 0);
+    static_array[1] = IteratorType(m2, m2.outerSize() - 1);
+    VERIFY(static_array[0] || m2.innerVector(static_array[0].outer()).nonZeros() == 0);
+    VERIFY(static_array[1] || m2.innerVector(static_array[1].outer()).nonZeros() == 0);
+    if (static_array[0] && static_array[1]) {
       ++(static_array[1]);
-      static_array[1] = IteratorType(m2,0);
-      VERIFY( static_array[1] );
-      VERIFY( static_array[1].index() == static_array[0].index() );
-      VERIFY( static_array[1].outer() == static_array[0].outer() );
-      VERIFY( static_array[1].value() == static_array[0].value() );
+      static_array[1] = IteratorType(m2, 0);
+      VERIFY(static_array[1]);
+      VERIFY(static_array[1].index() == static_array[0].index());
+      VERIFY(static_array[1].outer() == static_array[0].outer());
+      VERIFY(static_array[1].value() == static_array[0].value());
     }
 
     std::vector<IteratorType> iters(2);
-    iters[0] = IteratorType(m2,0);
-    iters[1] = IteratorType(m2,m2.outerSize()-1);
+    iters[0] = IteratorType(m2, 0);
+    iters[1] = IteratorType(m2, m2.outerSize() - 1);
+  }
+
+  // test reserve with empty rows/columns
+  {
+    SparseMatrixType m1(0, cols);
+    m1.reserve(ArrayXi::Constant(m1.outerSize(), 1));
+    SparseMatrixType m2(rows, 0);
+    m2.reserve(ArrayXi::Constant(m2.outerSize(), 1));
+  }
+
+  // test move
+  {
+    using TransposedType = SparseMatrix<Scalar, SparseMatrixType::IsRowMajor ? ColMajor : RowMajor,
+                                        typename SparseMatrixType::StorageIndex>;
+    DenseMatrix refMat1 = DenseMatrix::Random(rows, cols);
+    SparseMatrixType m1(rows, cols);
+    initSparse<Scalar>(density, refMat1, m1);
+    // test move ctor
+    SparseMatrixType m2(std::move(m1));
+    VERIFY_IS_APPROX(m2, refMat1);
+    // test move assignment
+    m1 = std::move(m2);
+    VERIFY_IS_APPROX(m1, refMat1);
+    // test move ctor (SparseMatrixBase)
+    TransposedType m3(std::move(m1.transpose()));
+    VERIFY_IS_APPROX(m3, refMat1.transpose());
+    // test move assignment (SparseMatrixBase)
+    m2 = std::move(m3.transpose());
+    VERIFY_IS_APPROX(m2, refMat1);
   }
 }
 
-
-template<typename SparseMatrixType>
+template <typename SparseMatrixType>
 void big_sparse_triplet(Index rows, Index cols, double density) {
   typedef typename SparseMatrixType::StorageIndex StorageIndex;
   typedef typename SparseMatrixType::Scalar Scalar;
-  typedef Triplet<Scalar,Index> TripletType;
+  typedef Triplet<Scalar, Index> TripletType;
   std::vector<TripletType> triplets;
-  double nelements = density * rows*cols;
-  VERIFY(nelements>=0 && nelements <  NumTraits<StorageIndex>::highest());
+  double nelements = density * static_cast<double>(rows * cols);
+  VERIFY(nelements >= 0 && nelements < static_cast<double>(NumTraits<StorageIndex>::highest()));
   Index ntriplets = Index(nelements);
   triplets.reserve(ntriplets);
   Scalar sum = Scalar(0);
-  for(Index i=0;i<ntriplets;++i)
-  {
-    Index r = internal::random<Index>(0,rows-1);
-    Index c = internal::random<Index>(0,cols-1);
+  for (Index i = 0; i < ntriplets; ++i) {
+    Index r = internal::random<Index>(0, rows - 1);
+    Index c = internal::random<Index>(0, cols - 1);
     // use positive values to prevent numerical cancellation errors in sum
     Scalar v = numext::abs(internal::random<Scalar>());
-    triplets.push_back(TripletType(r,c,v));
+    triplets.push_back(TripletType(r, c, v));
     sum += v;
   }
-  SparseMatrixType m(rows,cols);
+  SparseMatrixType m(rows, cols);
   m.setFromTriplets(triplets.begin(), triplets.end());
   VERIFY(m.nonZeros() <= ntriplets);
   VERIFY_IS_APPROX(sum, m.sum());
 }
 
+template <int>
+void bug1105() {
+  // Regression test for bug 1105
+  int n = Eigen::internal::random<int>(200, 600);
+  SparseMatrix<std::complex<double>, 0, long> mat(n, n);
+  std::complex<double> val;
 
-void test_sparse_basic()
-{
-  for(int i = 0; i < g_repeat; i++) {
-    int r = Eigen::internal::random<int>(1,200), c = Eigen::internal::random<int>(1,200);
-    if(Eigen::internal::random<int>(0,4) == 0) {
-      r = c; // check square matrices in 25% of tries
+  for (int i = 0; i < n; ++i) {
+    mat.coeffRef(i, i % (n / 10)) = val;
+    VERIFY(mat.data().allocatedSize() < 20 * n);
+  }
+}
+
+#ifndef EIGEN_SPARSE_TEST_INCLUDED_FROM_SPARSE_EXTRA
+
+EIGEN_DECLARE_TEST(sparse_basic) {
+  g_dense_op_sparse_count = 0;  // Suppresses compiler warning.
+  for (int i = 0; i < g_repeat; i++) {
+    int r = Eigen::internal::random<int>(1, 200), c = Eigen::internal::random<int>(1, 200);
+    if (Eigen::internal::random<int>(0, 3) == 0) {
+      r = c;  // check square matrices in 25% of tries
     }
-    EIGEN_UNUSED_VARIABLE(r+c);
-    CALL_SUBTEST_1(( sparse_basic(SparseMatrix<double>(1, 1)) ));
-    CALL_SUBTEST_1(( sparse_basic(SparseMatrix<double>(8, 8)) ));
-    CALL_SUBTEST_2(( sparse_basic(SparseMatrix<std::complex<double>, ColMajor>(r, c)) ));
-    CALL_SUBTEST_2(( sparse_basic(SparseMatrix<std::complex<double>, RowMajor>(r, c)) ));
-    CALL_SUBTEST_1(( sparse_basic(SparseMatrix<double>(r, c)) ));
-    CALL_SUBTEST_5(( sparse_basic(SparseMatrix<double,ColMajor,long int>(r, c)) ));
-    CALL_SUBTEST_5(( sparse_basic(SparseMatrix<double,RowMajor,long int>(r, c)) ));
-    
-    r = Eigen::internal::random<int>(1,100);
-    c = Eigen::internal::random<int>(1,100);
-    if(Eigen::internal::random<int>(0,4) == 0) {
-      r = c; // check square matrices in 25% of tries
+    EIGEN_UNUSED_VARIABLE(r + c);
+    CALL_SUBTEST_1((sparse_basic(SparseMatrix<double>(1, 1))));
+    CALL_SUBTEST_1((sparse_basic(SparseMatrix<double>(8, 8))));
+    CALL_SUBTEST_2((sparse_basic(SparseMatrix<std::complex<double>, ColMajor>(r, c))));
+    CALL_SUBTEST_2((sparse_basic(SparseMatrix<std::complex<double>, RowMajor>(r, c))));
+    CALL_SUBTEST_2((sparse_basic(SparseMatrix<float, RowMajor>(r, c))));
+    CALL_SUBTEST_2((sparse_basic(SparseMatrix<float, ColMajor>(r, c))));
+    CALL_SUBTEST_3((sparse_basic(SparseMatrix<double, ColMajor>(r, c))));
+    CALL_SUBTEST_3((sparse_basic(SparseMatrix<double, RowMajor>(r, c))));
+    CALL_SUBTEST_4((sparse_basic(SparseMatrix<double, ColMajor, long int>(r, c))));
+    CALL_SUBTEST_4((sparse_basic(SparseMatrix<double, RowMajor, long int>(r, c))));
+
+    r = Eigen::internal::random<int>(1, 100);
+    c = Eigen::internal::random<int>(1, 100);
+    if (Eigen::internal::random<int>(0, 3) == 0) {
+      r = c;  // check square matrices in 25% of tries
     }
-    
-    CALL_SUBTEST_6(( sparse_basic(SparseMatrix<double,ColMajor,short int>(short(r), short(c))) ));
-    CALL_SUBTEST_6(( sparse_basic(SparseMatrix<double,RowMajor,short int>(short(r), short(c))) ));
+
+    CALL_SUBTEST_5((sparse_basic(SparseMatrix<double, ColMajor, short int>(short(r), short(c)))));
+    CALL_SUBTEST_5((sparse_basic(SparseMatrix<double, RowMajor, short int>(short(r), short(c)))));
   }
 
   // Regression test for bug 900: (manually insert higher values here, if you have enough RAM):
-  CALL_SUBTEST_3((big_sparse_triplet<SparseMatrix<float, RowMajor, int> >(10000, 10000, 0.125)));
-  CALL_SUBTEST_4((big_sparse_triplet<SparseMatrix<double, ColMajor, long int> >(10000, 10000, 0.125)));
+  CALL_SUBTEST_5((big_sparse_triplet<SparseMatrix<float, RowMajor, int>>(10000, 10000, 0.125)));
+  CALL_SUBTEST_5((big_sparse_triplet<SparseMatrix<double, ColMajor, long int>>(10000, 10000, 0.125)));
 
-  // Regression test for bug 1105
-#ifdef EIGEN_TEST_PART_7
-  {
-    int n = Eigen::internal::random<int>(200,600);
-    SparseMatrix<std::complex<double>,0, long> mat(n, n);
-    std::complex<double> val;
-
-    for(int i=0; i<n; ++i)
-    {
-      mat.coeffRef(i, i%(n/10)) = val;
-      VERIFY(mat.data().allocatedSize()<20*n);
-    }
-  }
-#endif
+  CALL_SUBTEST_5(bug1105<0>());
 }
+#endif

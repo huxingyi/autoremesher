@@ -7,34 +7,42 @@
 // Public License v. 2.0. If a copy of the MPL was not distributed
 // with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef EIGEN_AUTODIFF_MODULE
-#define EIGEN_AUTODIFF_MODULE
+#ifndef EIGEN_AUTODIFF_MODULE_H
+#define EIGEN_AUTODIFF_MODULE_H
+
+#include "../../Eigen/Core"
 
 namespace Eigen {
 
 /**
-  * \defgroup AutoDiff_Module Auto Diff module
-  *
-  * This module features forward automatic differentation via a simple
-  * templated scalar type wrapper AutoDiffScalar.
-  *
-  * Warning : this should NOT be confused with numerical differentiation, which
-  * is a different method and has its own module in Eigen : \ref NumericalDiff_Module.
-  *
-  * \code
-  * #include <unsupported/Eigen/AutoDiff>
-  * \endcode
-  */
+ * \defgroup AutoDiff_Module Auto Diff module
+ *
+ * This module features forward automatic differentation via a simple
+ * templated scalar type wrapper AutoDiffScalar.
+ *
+ * Warning : this should NOT be confused with numerical differentiation, which
+ * is a different method and has its own module in Eigen : \ref NumericalDiff_Module.
+ *
+ * \code
+ * #include <unsupported/Eigen/AutoDiff>
+ * \endcode
+ */
 //@{
 
-}
+}  // namespace Eigen
+#include "../../Eigen/src/Core/util/DisableStupidWarnings.h"
 
+// IWYU pragma: begin_exports
+#include "src/AutoDiff/CoherentPadOp.h"
 #include "src/AutoDiff/AutoDiffScalar.h"
 // #include "src/AutoDiff/AutoDiffVector.h"
 #include "src/AutoDiff/AutoDiffJacobian.h"
+// IWYU pragma: end_exports
+
+#include "../../Eigen/src/Core/util/ReenableStupidWarnings.h"
 
 namespace Eigen {
 //@}
 }
 
-#endif // EIGEN_AUTODIFF_MODULE
+#endif  // EIGEN_AUTODIFF_MODULE_H

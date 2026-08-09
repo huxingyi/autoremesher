@@ -25,6 +25,9 @@
 #include <Eigen/SparseCholesky>
 #include <Eigen/SparseLU>
 #include <Eigen/SparseQR>
+#if AUTO_REMESHER_USE_ACCELERATE
+#include <Eigen/AccelerateSupport>
+#endif
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -41,8 +44,50 @@ struct ConstrainedLeastSquares::Cache {
     Eigen::VectorXd rowShift;
     Eigen::VectorXd rowWeightRoot;
     Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
+#if AUTO_REMESHER_USE_ACCELERATE
+    Eigen::AccelerateLLT<Eigen::SparseMatrix<double>, Eigen::Lower> acceleratedSolver;
+    bool useAccelerated = true;
+#endif
     bool patternAnalyzed = false;
     bool factorized = false;
+
+    bool factorize()
+    {
+#if AUTO_REMESHER_USE_ACCELERATE
+        if (useAccelerated) {
+            if (!patternAnalyzed)
+                acceleratedSolver.analyzePattern(normalMatrix);
+            acceleratedSolver.factorize(normalMatrix);
+            if (acceleratedSolver.info() == Eigen::Success) {
+                patternAnalyzed = true;
+                return true;
+            }
+            useAccelerated = false;
+            patternAnalyzed = false;
+        }
+#endif
+        if (!patternAnalyzed)
+            solver.analyzePattern(normalMatrix);
+        solver.factorize(normalMatrix);
+        if (solver.info() != Eigen::Success)
+            return false;
+        patternAnalyzed = true;
+        return true;
+    }
+
+    Eigen::VectorXd solve(const Eigen::VectorXd& rightHandSide, bool* succeeded)
+    {
+#if AUTO_REMESHER_USE_ACCELERATE
+        if (useAccelerated) {
+            const Eigen::VectorXd solution = acceleratedSolver.solve(rightHandSide);
+            *succeeded = acceleratedSolver.info() == Eigen::Success && solution.allFinite();
+            return solution;
+        }
+#endif
+        const Eigen::VectorXd solution = solver.solve(rightHandSide);
+        *succeeded = solver.info() == Eigen::Success && solution.allFinite();
+        return solution;
+    }
 };
 
 ConstrainedLeastSquares::ConstrainedLeastSquares(size_t variableCount)
@@ -228,12 +273,7 @@ bool ConstrainedLeastSquares::solveReduced(std::vector<double>* solution)
     if (m_matrixDirty) {
         if (!buildReducedSystem())
             return false;
-        if (!cache.patternAnalyzed) {
-            cache.solver.analyzePattern(cache.normalMatrix);
-            cache.patternAnalyzed = true;
-        }
-        cache.solver.factorize(cache.normalMatrix);
-        if (cache.solver.info() != Eigen::Success)
+        if (!cache.factorize())
             return false;
         cache.factorized = true;
         m_matrixDirty = false;
@@ -246,8 +286,10 @@ bool ConstrainedLeastSquares::solveReduced(std::vector<double>* solution)
         scaledRightHandSide[row] = cache.rowWeightRoot[row]
             * (m_energyEquations[static_cast<size_t>(row)].rightHandSide - cache.rowShift[row]);
     }
-    const Eigen::VectorXd reducedSolution = cache.solver.solve(cache.scaledMatrix.transpose() * scaledRightHandSide);
-    if (cache.solver.info() != Eigen::Success || !reducedSolution.allFinite())
+    bool solveSucceeded = false;
+    const Eigen::VectorXd reducedSolution = cache.solve(cache.scaledMatrix.transpose() * scaledRightHandSide,
+        &solveSucceeded);
+    if (!solveSucceeded)
         return false;
 
     solution->resize(m_variableCount);

@@ -1,0 +1,40 @@
+# Base configuration for linux builds and tests.
+.common:linux:cross:
+  image: ubuntu:20.04
+  variables:
+    EIGEN_CI_TARGET_ARCH: ""
+    EIGEN_CI_ADDITIONAL_ARGS: ""
+    # If host matches target, use the following:
+    EIGEN_CI_C_COMPILER: ""
+    EIGEN_CI_CXX_COMPILER: ""
+    EIGEN_CI_INSTALL: "${EIGEN_CI_C_COMPILER} ${EIGEN_CI_CXX_COMPILER}"
+    # If host does not match the target, use the following:
+    EIGEN_CI_CROSS_TARGET_TRIPLE: ""
+    EIGEN_CI_CROSS_C_COMPILER: ${EIGEN_CI_C_COMPILER}
+    EIGEN_CI_CROSS_CXX_COMPILER: ${EIGEN_CI_CXX_COMPILER}
+    EIGEN_CI_CROSS_INSTALL: "${EIGEN_CI_CROSS_C_COMPILER} ${EIGEN_CI_CROSS_CXX_COMPILER}"
+  before_script:
+    # Call script in current shell - it sets up some environment variables.
+    - . ci/scripts/common.linux.before_script.sh
+  artifacts:
+    when: always
+    name: "$CI_JOB_NAME_SLUG-$CI_COMMIT_REF_SLUG"
+    paths:
+      - ${EIGEN_CI_BUILDDIR}/
+    expire_in: 5 days
+
+# Base configuration for Windows builds and tests.
+.common:windows:
+  variables:
+    EIGEN_CI_MSVC_ARCH: x64
+    EIGEN_CI_MSVC_VER: "14.29"
+    EIGEN_CI_ADDITIONAL_ARGS: ""
+    EIGEN_CI_BEFORE_SCRIPT: ""
+  before_script:
+     - . ci/scripts/common.windows.before_script.ps1
+  artifacts:
+    when: always
+    name: "$CI_JOB_NAME_SLUG-$CI_COMMIT_REF_NAME"
+    paths:
+      - ${EIGEN_CI_BUILDDIR}/
+    expire_in: 5 days

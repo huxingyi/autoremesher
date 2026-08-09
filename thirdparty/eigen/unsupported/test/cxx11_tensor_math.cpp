@@ -11,11 +11,10 @@
 
 #include <Eigen/CXX11/Tensor>
 
-using Eigen::Tensor;
 using Eigen::RowMajor;
+using Eigen::Tensor;
 
-static void test_tanh()
-{
+static void test_tanh() {
   Tensor<float, 1> vec1(6);
   vec1.setRandom();
 
@@ -26,8 +25,7 @@ static void test_tanh()
   }
 }
 
-static void test_sigmoid()
-{
+static void test_sigmoid() {
   Tensor<float, 1> vec1(6);
   vec1.setRandom();
 
@@ -38,9 +36,7 @@ static void test_sigmoid()
   }
 }
 
-
-void test_cxx11_tensor_math()
-{
+EIGEN_DECLARE_TEST(cxx11_tensor_math) {
   CALL_SUBTEST(test_tanh());
   CALL_SUBTEST(test_sigmoid());
 }

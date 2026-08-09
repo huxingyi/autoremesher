@@ -12,29 +12,25 @@
 #include <Eigen/CXX11/Tensor>
 using Eigen::Tensor;
 
-
-static void test_simple_assign()
-{
-  Tensor<int, 3> random(2,3,7);
+static void test_simple_assign() {
+  Tensor<int, 3> random(2, 3, 7);
   random.setRandom();
 
   TensorMap<Tensor<const int, 3> > constant(random.data(), 2, 3, 7);
-  Tensor<int, 3> result(2,3,7);
+  Tensor<int, 3> result(2, 3, 7);
   result = constant;
 
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 7; ++k) {
-        VERIFY_IS_EQUAL((result(i,j,k)), random(i,j,k));
+        VERIFY_IS_EQUAL((result(i, j, k)), random(i, j, k));
       }
     }
   }
 }
 
-
-static void test_assign_of_const_tensor()
-{
-  Tensor<int, 3> random(2,3,7);
+static void test_assign_of_const_tensor() {
+  Tensor<int, 3> random(2, 3, 7);
   random.setRandom();
 
   TensorMap<Tensor<const int, 3> > constant1(random.data(), 2, 3, 7);
@@ -47,16 +43,14 @@ static void test_assign_of_const_tensor()
 
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
-      VERIFY_IS_EQUAL((result1(i,j)), random(i,j,0));
-      VERIFY_IS_EQUAL((result2(i,j)), random(i,j,0));
-      VERIFY_IS_EQUAL((result3(i,j)), random(i,j,0));
+      VERIFY_IS_EQUAL((result1(i, j)), random(i, j, 0));
+      VERIFY_IS_EQUAL((result2(i, j)), random(i, j, 0));
+      VERIFY_IS_EQUAL((result3(i, j)), random(i, j, 0));
     }
   }
 }
 
-
-void test_cxx11_tensor_const()
-{
+EIGEN_DECLARE_TEST(cxx11_tensor_const) {
   CALL_SUBTEST(test_simple_assign());
   CALL_SUBTEST(test_assign_of_const_tensor());
 }

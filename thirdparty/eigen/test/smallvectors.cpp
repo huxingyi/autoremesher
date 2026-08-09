@@ -7,18 +7,15 @@
 // Public License v. 2.0. If a copy of the MPL was not distributed
 // with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#define EIGEN_NO_STATIC_ASSERT
 #include "main.h"
 
-template<typename Scalar> void smallVectors()
-{
+template <typename Scalar>
+void smallVectors() {
   typedef Matrix<Scalar, 1, 2> V2;
   typedef Matrix<Scalar, 3, 1> V3;
   typedef Matrix<Scalar, 1, 4> V4;
   typedef Matrix<Scalar, Dynamic, 1> VX;
-  Scalar x1 = internal::random<Scalar>(),
-         x2 = internal::random<Scalar>(),
-         x3 = internal::random<Scalar>(),
+  Scalar x1 = internal::random<Scalar>(), x2 = internal::random<Scalar>(), x3 = internal::random<Scalar>(),
          x4 = internal::random<Scalar>();
   V2 v2(x1, x2);
   V3 v3(x1, x2, x3);
@@ -33,35 +30,17 @@ template<typename Scalar> void smallVectors()
   VERIFY_IS_APPROX(x3, v4.z());
   VERIFY_IS_APPROX(x4, v4.w());
 
-  if (!NumTraits<Scalar>::IsInteger)
-  {
-    VERIFY_RAISES_ASSERT(V3(2, 1))
-    VERIFY_RAISES_ASSERT(V3(3, 2))
-    VERIFY_RAISES_ASSERT(V3(Scalar(3), 1))
-    VERIFY_RAISES_ASSERT(V3(3, Scalar(1)))
-    VERIFY_RAISES_ASSERT(V3(Scalar(3), Scalar(1)))
-    VERIFY_RAISES_ASSERT(V3(Scalar(123), Scalar(123)))
-
-    VERIFY_RAISES_ASSERT(V4(1, 3))
-    VERIFY_RAISES_ASSERT(V4(2, 4))
-    VERIFY_RAISES_ASSERT(V4(1, Scalar(4)))
-    VERIFY_RAISES_ASSERT(V4(Scalar(1), 4))
-    VERIFY_RAISES_ASSERT(V4(Scalar(1), Scalar(4)))
-    VERIFY_RAISES_ASSERT(V4(Scalar(123), Scalar(123)))
-
-    VERIFY_RAISES_ASSERT(VX(3, 2))
-    VERIFY_RAISES_ASSERT(VX(Scalar(3), 1))
-    VERIFY_RAISES_ASSERT(VX(3, Scalar(1)))
-    VERIFY_RAISES_ASSERT(VX(Scalar(3), Scalar(1)))
-    VERIFY_RAISES_ASSERT(VX(Scalar(123), Scalar(123)))
-  }
+  VERIFY_RAISES_ASSERT(V3(2, 1))
+  VERIFY_RAISES_ASSERT(V3(3, 2))
+  VERIFY_RAISES_ASSERT(V4(1, 3))
+  VERIFY_RAISES_ASSERT(V4(2, 4))
+  VERIFY_RAISES_ASSERT(VX(3, 2))
 }
 
-void test_smallvectors()
-{
-  for(int i = 0; i < g_repeat; i++) {
-    CALL_SUBTEST(smallVectors<int>() );
-    CALL_SUBTEST(smallVectors<float>() );
-    CALL_SUBTEST(smallVectors<double>() );
+EIGEN_DECLARE_TEST(smallvectors) {
+  for (int i = 0; i < g_repeat; i++) {
+    CALL_SUBTEST(smallVectors<int>());
+    CALL_SUBTEST(smallVectors<float>());
+    CALL_SUBTEST(smallVectors<double>());
   }
 }

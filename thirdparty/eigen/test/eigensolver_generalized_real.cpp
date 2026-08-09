@@ -13,8 +13,8 @@
 #include <Eigen/Eigenvalues>
 #include <Eigen/LU>
 
-template<typename MatrixType> void generalized_eigensolver_real(const MatrixType& m)
-{
+template <typename MatrixType>
+void generalized_eigensolver_real(const MatrixType& m) {
   /* this test covers the following files:
      GeneralizedEigenSolver.h
   */
@@ -25,12 +25,12 @@ template<typename MatrixType> void generalized_eigensolver_real(const MatrixType
   typedef std::complex<Scalar> ComplexScalar;
   typedef Matrix<Scalar, MatrixType::RowsAtCompileTime, 1> VectorType;
 
-  MatrixType a = MatrixType::Random(rows,cols);
-  MatrixType b = MatrixType::Random(rows,cols);
-  MatrixType a1 = MatrixType::Random(rows,cols);
-  MatrixType b1 = MatrixType::Random(rows,cols);
-  MatrixType spdA =  a.adjoint() * a + a1.adjoint() * a1;
-  MatrixType spdB =  b.adjoint() * b + b1.adjoint() * b1;
+  MatrixType a = MatrixType::Random(rows, cols);
+  MatrixType b = MatrixType::Random(rows, cols);
+  MatrixType a1 = MatrixType::Random(rows, cols);
+  MatrixType b1 = MatrixType::Random(rows, cols);
+  MatrixType spdA = a.adjoint() * a + a1.adjoint() * a1;
+  MatrixType spdB = b.adjoint() * b + b1.adjoint() * b1;
 
   // lets compare to GeneralizedSelfAdjointEigenSolver
   {
@@ -40,41 +40,41 @@ template<typename MatrixType> void generalized_eigensolver_real(const MatrixType
     VERIFY_IS_EQUAL(eig.eigenvalues().imag().cwiseAbs().maxCoeff(), 0);
 
     VectorType realEigenvalues = eig.eigenvalues().real();
-    std::sort(realEigenvalues.data(), realEigenvalues.data()+realEigenvalues.size());
+    std::sort(realEigenvalues.data(), realEigenvalues.data() + realEigenvalues.size());
     VERIFY_IS_APPROX(realEigenvalues, symmEig.eigenvalues());
 
     // check eigenvectors
     typename GeneralizedEigenSolver<MatrixType>::EigenvectorsType D = eig.eigenvalues().asDiagonal();
     typename GeneralizedEigenSolver<MatrixType>::EigenvectorsType V = eig.eigenvectors();
-    VERIFY_IS_APPROX(spdA*V, spdB*V*D);
+    VERIFY_IS_APPROX(spdA * V, spdB * V * D);
   }
 
   // non symmetric case:
   {
     GeneralizedEigenSolver<MatrixType> eig(rows);
-    // TODO enable full-prealocation of required memory, this probably requires an in-place mode for HessenbergDecomposition
-    //Eigen::internal::set_is_malloc_allowed(false);
-    eig.compute(a,b);
-    //Eigen::internal::set_is_malloc_allowed(true);
-    for(Index k=0; k<cols; ++k)
-    {
-      Matrix<ComplexScalar,Dynamic,Dynamic> tmp = (eig.betas()(k)*a).template cast<ComplexScalar>() - eig.alphas()(k)*b;
-      if(tmp.size()>1 && tmp.norm()>(std::numeric_limits<Scalar>::min)())
-        tmp /= tmp.norm();
-      VERIFY_IS_MUCH_SMALLER_THAN( std::abs(tmp.determinant()), Scalar(1) );
+    // TODO enable full-prealocation of required memory, this probably requires an in-place mode for
+    // HessenbergDecomposition
+    // Eigen::internal::set_is_malloc_allowed(false);
+    eig.compute(a, b);
+    // Eigen::internal::set_is_malloc_allowed(true);
+    for (Index k = 0; k < cols; ++k) {
+      Matrix<ComplexScalar, Dynamic, Dynamic> tmp =
+          (eig.betas()(k) * a).template cast<ComplexScalar>() - eig.alphas()(k) * b;
+      if (tmp.size() > 1 && tmp.norm() > (std::numeric_limits<Scalar>::min)()) tmp /= tmp.norm();
+      VERIFY_IS_MUCH_SMALLER_THAN(std::abs(tmp.determinant()), Scalar(1));
     }
     // check eigenvectors
     typename GeneralizedEigenSolver<MatrixType>::EigenvectorsType D = eig.eigenvalues().asDiagonal();
     typename GeneralizedEigenSolver<MatrixType>::EigenvectorsType V = eig.eigenvectors();
-    VERIFY_IS_APPROX(a*V, b*V*D);
+    VERIFY_IS_APPROX(a * V, b * V * D);
   }
 
   // regression test for bug 1098
   {
-    GeneralizedSelfAdjointEigenSolver<MatrixType> eig1(a.adjoint() * a,b.adjoint() * b);
-    eig1.compute(a.adjoint() * a,b.adjoint() * b);
-    GeneralizedEigenSolver<MatrixType> eig2(a.adjoint() * a,b.adjoint() * b);
-    eig2.compute(a.adjoint() * a,b.adjoint() * b);
+    GeneralizedSelfAdjointEigenSolver<MatrixType> eig1(a.adjoint() * a, b.adjoint() * b);
+    eig1.compute(a.adjoint() * a, b.adjoint() * b);
+    GeneralizedEigenSolver<MatrixType> eig2(a.adjoint() * a, b.adjoint() * b);
+    eig2.compute(a.adjoint() * a, b.adjoint() * b);
   }
 
   // check without eigenvectors
@@ -85,19 +85,55 @@ template<typename MatrixType> void generalized_eigensolver_real(const MatrixType
   }
 }
 
-void test_eigensolver_generalized_real()
-{
-  for(int i = 0; i < g_repeat; i++) {
+template <typename MatrixType>
+void generalized_eigensolver_assert() {
+  GeneralizedEigenSolver<MatrixType> eig;
+  // all raise assert if uninitialized
+  VERIFY_RAISES_ASSERT(eig.info());
+  VERIFY_RAISES_ASSERT(eig.eigenvectors());
+  VERIFY_RAISES_ASSERT(eig.eigenvalues());
+  VERIFY_RAISES_ASSERT(eig.alphas());
+  VERIFY_RAISES_ASSERT(eig.betas());
+
+  // none raise assert after compute called
+  eig.compute(MatrixType::Random(20, 20), MatrixType::Random(20, 20));
+  VERIFY(eig.info() == Success);
+  eig.eigenvectors();
+  eig.eigenvalues();
+  eig.alphas();
+  eig.betas();
+
+  // eigenvectors() raises assert, if eigenvectors were not requested
+  eig.compute(MatrixType::Random(20, 20), MatrixType::Random(20, 20), false);
+  VERIFY(eig.info() == Success);
+  VERIFY_RAISES_ASSERT(eig.eigenvectors());
+  eig.eigenvalues();
+  eig.alphas();
+  eig.betas();
+
+  // all except info raise assert if realQZ did not converge
+  eig.setMaxIterations(0);  // force real QZ to fail.
+  eig.compute(MatrixType::Random(20, 20), MatrixType::Random(20, 20));
+  VERIFY(eig.info() == NoConvergence);
+  VERIFY_RAISES_ASSERT(eig.eigenvectors());
+  VERIFY_RAISES_ASSERT(eig.eigenvalues());
+  VERIFY_RAISES_ASSERT(eig.alphas());
+  VERIFY_RAISES_ASSERT(eig.betas());
+}
+
+EIGEN_DECLARE_TEST(eigensolver_generalized_real) {
+  for (int i = 0; i < g_repeat; i++) {
     int s = 0;
-    CALL_SUBTEST_1( generalized_eigensolver_real(Matrix4f()) );
-    s = internal::random<int>(1,EIGEN_TEST_MAX_SIZE/4);
-    CALL_SUBTEST_2( generalized_eigensolver_real(MatrixXd(s,s)) );
+    CALL_SUBTEST_1(generalized_eigensolver_real(Matrix4f()));
+    s = internal::random<int>(1, EIGEN_TEST_MAX_SIZE / 4);
+    CALL_SUBTEST_2(generalized_eigensolver_real(MatrixXd(s, s)));
 
     // some trivial but implementation-wise special cases
-    CALL_SUBTEST_2( generalized_eigensolver_real(MatrixXd(1,1)) );
-    CALL_SUBTEST_2( generalized_eigensolver_real(MatrixXd(2,2)) );
-    CALL_SUBTEST_3( generalized_eigensolver_real(Matrix<double,1,1>()) );
-    CALL_SUBTEST_4( generalized_eigensolver_real(Matrix2d()) );
+    CALL_SUBTEST_2(generalized_eigensolver_real(MatrixXd(1, 1)));
+    CALL_SUBTEST_2(generalized_eigensolver_real(MatrixXd(2, 2)));
+    CALL_SUBTEST_3(generalized_eigensolver_real(Matrix<double, 1, 1>()));
+    CALL_SUBTEST_4(generalized_eigensolver_real(Matrix2d()));
+    CALL_SUBTEST_5(generalized_eigensolver_assert<MatrixXd>());
     TEST_SET_BUT_UNUSED_VARIABLE(s)
   }
 }

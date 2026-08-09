@@ -24,93 +24,74 @@
 #include "timers/portable_timer.hh"
 
 template <class Action>
-class Portable_Perf_Analyzer{
-public:
-  Portable_Perf_Analyzer( void ):_nb_calc(1),_nb_init(1),_chronos(){
-    MESSAGE("Portable_Perf_Analyzer Ctor");
-  };
-  Portable_Perf_Analyzer( const Portable_Perf_Analyzer & ){
+class Portable_Perf_Analyzer {
+ public:
+  Portable_Perf_Analyzer(void) : _nb_calc(1), _nb_init(1), _chronos() { MESSAGE("Portable_Perf_Analyzer Ctor"); };
+  Portable_Perf_Analyzer(const Portable_Perf_Analyzer&) {
     INFOS("Copy Ctor not implemented");
     exit(0);
   };
-  ~Portable_Perf_Analyzer( void ){
-    MESSAGE("Portable_Perf_Analyzer Dtor");
-  };
+  ~Portable_Perf_Analyzer(void) { MESSAGE("Portable_Perf_Analyzer Dtor"); };
 
-
-
-  inline double eval_mflops(int size)
-  {
-
+  inline double eval_mflops(int size) {
     Action action(size);
 
-//     double time_baseline = time_init(action);
-//     while (time_baseline < MIN_TIME_INIT)
-//     {
-//       _nb_init *= 2;
-//       time_baseline = time_init(action);
-//     }
-//
-//     // optimize
-//     for (int i=1; i<NB_TRIES; ++i)
-//       time_baseline = std::min(time_baseline, time_init(action));
-//
-//     time_baseline = time_baseline/(double(_nb_init));
+    //     double time_baseline = time_init(action);
+    //     while (time_baseline < MIN_TIME_INIT)
+    //     {
+    //       _nb_init *= 2;
+    //       time_baseline = time_init(action);
+    //     }
+    //
+    //     // optimize
+    //     for (int i=1; i<NB_TRIES; ++i)
+    //       time_baseline = std::min(time_baseline, time_init(action));
+    //
+    //     time_baseline = time_baseline/(double(_nb_init));
 
     double time_action = time_calculate(action);
-    while (time_action < MIN_TIME)
-    {
+    while (time_action < MIN_TIME) {
       _nb_calc *= 2;
       time_action = time_calculate(action);
     }
 
     // optimize
-    for (int i=1; i<NB_TRIES; ++i)
-      time_action = std::min(time_action, time_calculate(action));
+    for (int i = 1; i < NB_TRIES; ++i) time_action = std::min(time_action, time_calculate(action));
 
-//     INFOS("size="<<size);
-//     INFOS("_nb_init="<<_nb_init);
-//     INFOS("_nb_calc="<<_nb_calc);
+    //     INFOS("size="<<size);
+    //     INFOS("_nb_init="<<_nb_init);
+    //     INFOS("_nb_calc="<<_nb_calc);
 
     time_action = time_action / (double(_nb_calc));
 
     action.check_result();
 
-
     double time_baseline = time_init(action);
-    for (int i=1; i<NB_TRIES; ++i)
-      time_baseline = std::min(time_baseline, time_init(action));
-    time_baseline = time_baseline/(double(_nb_init));
+    for (int i = 1; i < NB_TRIES; ++i) time_baseline = std::min(time_baseline, time_init(action));
+    time_baseline = time_baseline / (double(_nb_init));
 
-
-
-//     INFOS("time_baseline="<<time_baseline);
-//     INFOS("time_action="<<time_action);
+    //     INFOS("time_baseline="<<time_baseline);
+    //     INFOS("time_action="<<time_action);
 
     time_action = time_action - time_baseline;
 
-//     INFOS("time_corrected="<<time_action);
+    //     INFOS("time_corrected="<<time_action);
 
-    return action.nb_op_base()/(time_action*1000000.0);
+    return action.nb_op_base() / (time_action * 1000000.0);
   }
 
-  inline double time_init(Action & action)
-  {
+  inline double time_init(Action& action) {
     // time measurement
     _chronos.start();
-    for (int ii=0; ii<_nb_init; ii++)
-      action.initialize();
+    for (int ii = 0; ii < _nb_init; ii++) action.initialize();
     _chronos.stop();
     return _chronos.user_time();
   }
 
-
-  inline double time_calculate(Action & action)
-  {
+  inline double time_calculate(Action& action) {
     // time measurement
     _chronos.start();
-    for (int ii=0;ii<_nb_calc;ii++)
-    {
+    for (int ii = 0; ii < _nb_calc; ii++) {
       action.initialize();
       action.calculate();
     }
@@ -118,17 +99,12 @@ public:
     return _chronos.user_time();
   }
 
-  unsigned long long get_nb_calc( void )
-  {
-    return _nb_calc;
-  }
+  unsigned long long get_nb_calc(void) { return _nb_calc; }
 
-
-private:
+ private:
   unsigned long long _nb_calc;
   unsigned long long _nb_init;
   Portable_Timer _chronos;
-
 };
 
-#endif //_PORTABLE_PERF_ANALYZER_HH
+#endif  //_PORTABLE_PERF_ANALYZER_HH

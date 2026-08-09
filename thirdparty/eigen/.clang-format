@@ -1,0 +1,19 @@
+---
+BasedOnStyle: Google
+ColumnLimit:  120
+---
+Language:     Cpp
+BasedOnStyle: Google
+ColumnLimit:  120
+StatementMacros:
+  - EIGEN_STATIC_ASSERT
+  - EIGEN_INITIALIZE_COEFFS_IF_THAT_OPTION_IS_ENABLED
+  - EIGEN_INTERNAL_DENSE_STORAGE_CTOR_PLUGIN
+SortIncludes: false
+AttributeMacros:
+- EIGEN_STRONG_INLINE
+- EIGEN_ALWAYS_INLINE
+- EIGEN_DEVICE_FUNC
+- EIGEN_DONT_INLINE
+- EIGEN_DEPRECATED
+- EIGEN_UNUSED

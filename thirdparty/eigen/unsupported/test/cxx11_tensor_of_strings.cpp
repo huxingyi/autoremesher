@@ -14,8 +14,7 @@
 using Eigen::Tensor;
 using Eigen::TensorMap;
 
-static void test_assign()
-{
+static void test_assign() {
   std::string data1[6];
   TensorMap<Tensor<std::string, 2>> mat1(data1, 2, 3);
   std::string data2[6];
@@ -23,10 +22,10 @@ static void test_assign()
 
   for (int i = 0; i < 6; ++i) {
     std::ostringstream s1;
-    s1 << "abc" << i*3;
+    s1 << "abc" << i * 3;
     data1[i] = s1.str();
     std::ostringstream s2;
-    s2 << "def" << i*5;
+    s2 << "def" << i * 5;
     data2[i] = s2.str();
   }
 
@@ -43,29 +42,27 @@ static void test_assign()
 
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
-      VERIFY_IS_EQUAL(rslt1(i,j), data1[i+2*j]);
-      VERIFY_IS_EQUAL(rslt2(i,j), data2[i+2*j]);
-      VERIFY_IS_EQUAL(rslt3(i,j), data1[i+2*j]);
-      VERIFY_IS_EQUAL(rslt4(i,j), data2[i+2*j]);
-      VERIFY_IS_EQUAL(rslt5(i,j), data1[i+2*j]);
-      VERIFY_IS_EQUAL(rslt6(i,j), data2[i+2*j]);
+      VERIFY_IS_EQUAL(rslt1(i, j), data1[i + 2 * j]);
+      VERIFY_IS_EQUAL(rslt2(i, j), data2[i + 2 * j]);
+      VERIFY_IS_EQUAL(rslt3(i, j), data1[i + 2 * j]);
+      VERIFY_IS_EQUAL(rslt4(i, j), data2[i + 2 * j]);
+      VERIFY_IS_EQUAL(rslt5(i, j), data1[i + 2 * j]);
+      VERIFY_IS_EQUAL(rslt6(i, j), data2[i + 2 * j]);
     }
   }
 }
 
-
-static void test_concat()
-{
+static void test_concat() {
   Tensor<std::string, 2> t1(2, 3);
   Tensor<std::string, 2> t2(2, 3);
 
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       std::ostringstream s1;
-      s1 << "abc" << i + j*2;
+      s1 << "abc" << i + j * 2;
       t1(i, j) = s1.str();
       std::ostringstream s2;
-      s2 << "def" << i*5 + j*32;
+      s2 << "def" << i * 5 + j * 32;
       t2(i, j) = s2.str();
     }
   }
@@ -76,20 +73,18 @@ static void test_concat()
 
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
-      VERIFY_IS_EQUAL(result(i, j),   t1(i, j));
-      VERIFY_IS_EQUAL(result(i, j+3), t2(i, j));
+      VERIFY_IS_EQUAL(result(i, j), t1(i, j));
+      VERIFY_IS_EQUAL(result(i, j + 3), t2(i, j));
     }
   }
 }
 
-
-static void test_slices()
-{
+static void test_slices() {
   Tensor<std::string, 2> data(2, 6);
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       std::ostringstream s1;
-      s1 << "abc" << i + j*2;
+      s1 << "abc" << i + j * 2;
       data(i, j) = s1.str();
     }
   }
@@ -103,15 +98,13 @@ static void test_slices()
 
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
-      VERIFY_IS_EQUAL(data(i, j),   t1(i, j));
-      VERIFY_IS_EQUAL(data(i, j+3), t2(i, j));
+      VERIFY_IS_EQUAL(data(i, j), t1(i, j));
+      VERIFY_IS_EQUAL(data(i, j + 3), t2(i, j));
     }
   }
 }
 
-
-static void test_additions()
-{
+static void test_additions() {
   Tensor<std::string, 1> data1(3);
   Tensor<std::string, 1> data2(3);
   for (int i = 0; i < 3; ++i) {
@@ -130,19 +123,15 @@ static void test_additions()
   }
 }
 
-
-static void test_initialization()
-{
+static void test_initialization() {
   Tensor<std::string, 2> a(2, 3);
   a.setConstant(std::string("foo"));
-  for (int i = 0; i < 2*3; ++i) {
+  for (int i = 0; i < 2 * 3; ++i) {
     VERIFY_IS_EQUAL(a(i), std::string("foo"));
   }
 }
 
-
-void test_cxx11_tensor_of_strings()
-{
+EIGEN_DECLARE_TEST(cxx11_tensor_of_strings) {
   // Beware: none of this is likely to ever work on a GPU.
   CALL_SUBTEST(test_assign());
   CALL_SUBTEST(test_concat());

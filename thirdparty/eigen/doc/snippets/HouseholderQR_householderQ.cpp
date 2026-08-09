@@ -1,4 +1,4 @@
-MatrixXf A(MatrixXf::Random(5,3)), thinQ(MatrixXf::Identity(5,3)), Q;
+MatrixXf A(MatrixXf::Random(5, 3)), thinQ(MatrixXf::Identity(5, 3)), Q;
 A.setRandom();
 HouseholderQR<MatrixXf> qr(A);
 Q = qr.householderQ();

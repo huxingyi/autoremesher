@@ -8,8 +8,9 @@
 
 using namespace Eigen;
 
-void foo(CV_QUALIFIER Matrix3d &m){
-    Block<Matrix3d> b(m.block(0,0,3,3));
+void foo(CV_QUALIFIER Matrix3d &m) {
+  Block<Matrix3d> b(m.block(0, 0, 3, 3));
+  EIGEN_UNUSED_VARIABLE(b);
 }
 
 int main() {}

@@ -7,23 +7,30 @@ project(EigenDoc)
 if(CMAKE_COMPILER_IS_GNUCXX)
   if(CMAKE_SYSTEM_NAME MATCHES Linux)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O1 -g1")
-  endif(CMAKE_SYSTEM_NAME MATCHES Linux)
-endif(CMAKE_COMPILER_IS_GNUCXX)
+  endif()
+endif()
 
 option(EIGEN_INTERNAL_DOCUMENTATION "Build internal documentation" OFF)
-
+option(EIGEN_DOC_USE_MATHJAX "Use MathJax for rendering math in HTML docs" ON)
 
 # Set some Doxygen flags
 set(EIGEN_DOXY_PROJECT_NAME             "Eigen")
 set(EIGEN_DOXY_OUTPUT_DIRECTORY_SUFFIX  "")
-set(EIGEN_DOXY_INPUT                    "\"${Eigen_SOURCE_DIR}/Eigen\" \"${Eigen_SOURCE_DIR}/doc\"")
+set(EIGEN_DOXY_INPUT                    "\"${Eigen_SOURCE_DIR}/doc\" \"${Eigen_SOURCE_DIR}/Eigen\"")
 set(EIGEN_DOXY_HTML_COLORSTYLE_HUE      "220")
 set(EIGEN_DOXY_TAGFILES                 "")
+
 if(EIGEN_INTERNAL_DOCUMENTATION)
   set(EIGEN_DOXY_INTERNAL                 "YES")
-else(EIGEN_INTERNAL_DOCUMENTATION)
+else()
   set(EIGEN_DOXY_INTERNAL                 "NO")
-endif(EIGEN_INTERNAL_DOCUMENTATION)
+endif()
+
+if (EIGEN_DOC_USE_MATHJAX)
+  set(EIGEN_DOXY_USE_MATHJAX "YES")
+else ()
+  set(EIGEN_DOXY_USE_MATHJAX "NO")
+endif()
 
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in
@@ -32,7 +39,7 @@ configure_file(
 
 set(EIGEN_DOXY_PROJECT_NAME             "Eigen-unsupported")
 set(EIGEN_DOXY_OUTPUT_DIRECTORY_SUFFIX  "/unsupported")
-set(EIGEN_DOXY_INPUT                    "\"${Eigen_SOURCE_DIR}/unsupported/Eigen\" \"${Eigen_SOURCE_DIR}/unsupported/doc\"")
+set(EIGEN_DOXY_INPUT                    "\"${Eigen_SOURCE_DIR}/unsupported/doc\" \"${Eigen_SOURCE_DIR}/unsupported/Eigen\"")
 set(EIGEN_DOXY_HTML_COLORSTYLE_HUE      "0")
 set(EIGEN_DOXY_TAGFILES                 "\"${Eigen_BINARY_DIR}/doc/Eigen.doxytags=..\"")
 #set(EIGEN_DOXY_TAGFILES                 "")
@@ -76,7 +83,6 @@ add_custom_target(
   doc-eigen-prerequisites
   ALL
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/html/
-  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/eigen_navtree_hacks.js           ${CMAKE_CURRENT_BINARY_DIR}/html/
   COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/Eigen_Silly_Professor_64x64.png  ${CMAKE_CURRENT_BINARY_DIR}/html/
   COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/ftv2pnode.png                    ${CMAKE_CURRENT_BINARY_DIR}/html/
   COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/ftv2node.png                     ${CMAKE_CURRENT_BINARY_DIR}/html/
@@ -88,7 +94,6 @@ add_custom_target(
   doc-unsupported-prerequisites
   ALL
   COMMAND ${CMAKE_COMMAND} -E make_directory ${Eigen_BINARY_DIR}/doc/html/unsupported
-  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/eigen_navtree_hacks.js           ${CMAKE_CURRENT_BINARY_DIR}/html/unsupported/
   COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/Eigen_Silly_Professor_64x64.png  ${CMAKE_CURRENT_BINARY_DIR}/html/unsupported/
   COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/ftv2pnode.png                    ${CMAKE_CURRENT_BINARY_DIR}/html/unsupported/
   COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/ftv2node.png                     ${CMAKE_CURRENT_BINARY_DIR}/html/unsupported/
@@ -103,10 +108,15 @@ add_custom_target(doc ALL
   COMMAND doxygen Doxyfile-unsupported
   COMMAND ${CMAKE_COMMAND} -E copy ${Eigen_BINARY_DIR}/doc/html/group__TopicUnalignedArrayAssert.html ${Eigen_BINARY_DIR}/doc/html/TopicUnalignedArrayAssert.html
   COMMAND ${CMAKE_COMMAND} -E rename html eigen-doc
-  COMMAND ${CMAKE_COMMAND} -E remove eigen-doc/eigen-doc.tgz
+  COMMAND ${CMAKE_COMMAND} -E remove eigen-doc/eigen-doc.tgz eigen-doc/unsupported/_formulas.log eigen-doc/_formulas.log
   COMMAND ${CMAKE_COMMAND} -E tar cfz eigen-doc.tgz eigen-doc
   COMMAND ${CMAKE_COMMAND} -E rename eigen-doc.tgz eigen-doc/eigen-doc.tgz
   COMMAND ${CMAKE_COMMAND} -E rename eigen-doc html
   WORKING_DIRECTORY ${Eigen_BINARY_DIR}/doc)
 
 add_dependencies(doc doc-eigen-prerequisites doc-unsupported-prerequisites)
+
+add_custom_target(install-doc ALL
+  COMMAND ${CMAKE_COMMAND} -E copy_directory ${Eigen_BINARY_DIR}/doc ${CMAKE_INSTALL_FULL_DOCDIR}
+)
+add_dependencies(install-doc doc)

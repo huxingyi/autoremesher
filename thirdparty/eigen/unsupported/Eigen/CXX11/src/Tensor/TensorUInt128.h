@@ -10,40 +10,40 @@
 #ifndef EIGEN_CXX11_TENSOR_TENSOR_UINT128_H
 #define EIGEN_CXX11_TENSOR_TENSOR_UINT128_H
 
+// IWYU pragma: private
+#include "./InternalHeaderCheck.h"
+
 namespace Eigen {
 namespace internal {
-
 
 template <uint64_t n>
 struct static_val {
   static const uint64_t value = n;
   EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE operator uint64_t() const { return n; }
 
-  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE static_val() { }
+  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE static_val() {}
 
   template <typename T>
   EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE static_val(const T& v) {
+    EIGEN_UNUSED_VARIABLE(v);
     eigen_assert(v == n);
   }
 };
 
-
 template <typename HIGH = uint64_t, typename LOW = uint64_t>
-struct TensorUInt128
-{
+struct TensorUInt128 {
   HIGH high;
   LOW low;
 
-  template<typename OTHER_HIGH, typename OTHER_LOW>
-  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
-  TensorUInt128(const TensorUInt128<OTHER_HIGH, OTHER_LOW>& other) : high(other.high), low(other.low) {
+  template <typename OTHER_HIGH, typename OTHER_LOW>
+  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE TensorUInt128(const TensorUInt128<OTHER_HIGH, OTHER_LOW>& other)
+      : high(other.high), low(other.low) {
     EIGEN_STATIC_ASSERT(sizeof(OTHER_HIGH) <= sizeof(HIGH), YOU_MADE_A_PROGRAMMING_MISTAKE);
     EIGEN_STATIC_ASSERT(sizeof(OTHER_LOW) <= sizeof(LOW), YOU_MADE_A_PROGRAMMING_MISTAKE);
   }
 
-  template<typename OTHER_HIGH, typename OTHER_LOW>
-  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
-  TensorUInt128& operator = (const TensorUInt128<OTHER_HIGH, OTHER_LOW>& other) {
+  template <typename OTHER_HIGH, typename OTHER_LOW>
+  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE TensorUInt128& operator=(const TensorUInt128<OTHER_HIGH, OTHER_LOW>& other) {
     EIGEN_STATIC_ASSERT(sizeof(OTHER_HIGH) <= sizeof(HIGH), YOU_MADE_A_PROGRAMMING_MISTAKE);
     EIGEN_STATIC_ASSERT(sizeof(OTHER_LOW) <= sizeof(LOW), YOU_MADE_A_PROGRAMMING_MISTAKE);
     high = other.high;
@@ -51,46 +51,35 @@ struct TensorUInt128
     return *this;
   }
 
-  template<typename T>
-  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
-  explicit TensorUInt128(const T& x) : high(0), low(x) {
-    eigen_assert((static_cast<typename conditional<sizeof(T) == 8, uint64_t, uint32_t>::type>(x) <= NumTraits<uint64_t>::highest()));
+  template <typename T>
+  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE explicit TensorUInt128(const T& x) : high(0), low(x) {
+    eigen_assert(
+        (static_cast<std::conditional_t<sizeof(T) == 8, uint64_t, uint32_t>>(x) <= NumTraits<uint64_t>::highest()));
     eigen_assert(x >= 0);
   }
 
-  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
-  TensorUInt128(HIGH y, LOW x) : high(y), low(x) { }
+  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE TensorUInt128(HIGH y, LOW x) : high(y), low(x) {}
 
-  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE operator LOW() const {
-    return low;
-  }
-  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE LOW lower() const {
-    return low;
-  }
-  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE HIGH upper() const {
-    return high;
-  }
+  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE operator LOW() const { return low; }
+  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE LOW lower() const { return low; }
+  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE HIGH upper() const { return high; }
 };
 
-
 template <typename HL, typename LL, typename HR, typename LR>
-EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
-bool operator == (const TensorUInt128<HL, LL>& lhs, const TensorUInt128<HR, LR>& rhs)
-{
-  return (lhs.high == rhs.high) & (lhs.low == rhs.low);
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE bool operator==(const TensorUInt128<HL, LL>& lhs,
+                                                      const TensorUInt128<HR, LR>& rhs) {
+  return (lhs.high == rhs.high) && (lhs.low == rhs.low);
 }
 
 template <typename HL, typename LL, typename HR, typename LR>
-EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
-bool operator != (const TensorUInt128<HL, LL>& lhs, const TensorUInt128<HR, LR>& rhs)
-{
-  return (lhs.high != rhs.high) | (lhs.low != rhs.low);
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE bool operator!=(const TensorUInt128<HL, LL>& lhs,
+                                                      const TensorUInt128<HR, LR>& rhs) {
+  return (lhs.high != rhs.high) || (lhs.low != rhs.low);
 }
 
 template <typename HL, typename LL, typename HR, typename LR>
-EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
-bool operator >= (const TensorUInt128<HL, LL>& lhs, const TensorUInt128<HR, LR>& rhs)
-{
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE bool operator>=(const TensorUInt128<HL, LL>& lhs,
+                                                      const TensorUInt128<HR, LR>& rhs) {
   if (lhs.high != rhs.high) {
     return lhs.high > rhs.high;
   }
@@ -98,9 +87,8 @@ bool operator >= (const TensorUInt128<HL, LL>& lhs, const TensorUInt128<HR, LR>&
 }
 
 template <typename HL, typename LL, typename HR, typename LR>
-EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
-bool operator < (const TensorUInt128<HL, LL>& lhs, const TensorUInt128<HR, LR>& rhs)
-{
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE bool operator<(const TensorUInt128<HL, LL>& lhs,
+                                                     const TensorUInt128<HR, LR>& rhs) {
   if (lhs.high != rhs.high) {
     return lhs.high < rhs.high;
   }
@@ -108,9 +96,8 @@ bool operator < (const TensorUInt128<HL, LL>& lhs, const TensorUInt128<HR, LR>& 
 }
 
 template <typename HL, typename LL, typename HR, typename LR>
-EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
-TensorUInt128<uint64_t, uint64_t> operator + (const TensorUInt128<HL, LL>& lhs, const TensorUInt128<HR, LR>& rhs)
-{
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE TensorUInt128<uint64_t, uint64_t> operator+(const TensorUInt128<HL, LL>& lhs,
+                                                                                  const TensorUInt128<HR, LR>& rhs) {
   TensorUInt128<uint64_t, uint64_t> result(lhs.high + rhs.high, lhs.low + rhs.low);
   if (result.low < rhs.low) {
     result.high += 1;
@@ -119,9 +106,8 @@ TensorUInt128<uint64_t, uint64_t> operator + (const TensorUInt128<HL, LL>& lhs, 
 }
 
 template <typename HL, typename LL, typename HR, typename LR>
-EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE
-TensorUInt128<uint64_t, uint64_t> operator - (const TensorUInt128<HL, LL>& lhs, const TensorUInt128<HR, LR>& rhs)
-{
+EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE TensorUInt128<uint64_t, uint64_t> operator-(const TensorUInt128<HL, LL>& lhs,
+                                                                                  const TensorUInt128<HR, LR>& rhs) {
   TensorUInt128<uint64_t, uint64_t> result(lhs.high - rhs.high, lhs.low - rhs.low);
   if (result.low > lhs.low) {
     result.high -= 1;
@@ -129,11 +115,9 @@ TensorUInt128<uint64_t, uint64_t> operator - (const TensorUInt128<HL, LL>& lhs, 
   return result;
 }
 
-
 template <typename HL, typename LL, typename HR, typename LR>
-static EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE
-TensorUInt128<uint64_t, uint64_t> operator * (const TensorUInt128<HL, LL>& lhs, const TensorUInt128<HR, LR>& rhs)
-{
+static EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE TensorUInt128<uint64_t, uint64_t> operator*(
+    const TensorUInt128<HL, LL>& lhs, const TensorUInt128<HR, LR>& rhs) {
   // Split each 128-bit integer into 4 32-bit integers, and then do the
   // multiplications by hand as follow:
   //   lhs      a  b  c  d
@@ -206,10 +190,9 @@ TensorUInt128<uint64_t, uint64_t> operator * (const TensorUInt128<HL, LL>& lhs, 
 }
 
 template <typename HL, typename LL, typename HR, typename LR>
-static EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE
-TensorUInt128<uint64_t, uint64_t> operator / (const TensorUInt128<HL, LL>& lhs, const TensorUInt128<HR, LR>& rhs)
-{
-  if (rhs == TensorUInt128<static_val<0>, static_val<1> >(1)) {
+static EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE TensorUInt128<uint64_t, uint64_t> operator/(
+    const TensorUInt128<HL, LL>& lhs, const TensorUInt128<HR, LR>& rhs) {
+  if (rhs == TensorUInt128<static_val<0>, static_val<1>>(1)) {
     return TensorUInt128<uint64_t, uint64_t>(lhs.high, lhs.low);
   } else if (lhs < rhs) {
     return TensorUInt128<uint64_t, uint64_t>(0);
@@ -226,7 +209,7 @@ TensorUInt128<uint64_t, uint64_t> operator / (const TensorUInt128<HL, LL>& lhs, 
 
     tmp = TensorUInt128<uint64_t, uint64_t>(lhs.high, lhs.low);
     TensorUInt128<uint64_t, uint64_t> result(0);
-    while (power2 != TensorUInt128<static_val<0>, static_val<0> >(0)) {
+    while (power2 != TensorUInt128<static_val<0>, static_val<0>>(0)) {
       if (tmp >= d) {
         tmp = tmp - d;
         result = result + power2;
@@ -240,9 +223,7 @@ TensorUInt128<uint64_t, uint64_t> operator / (const TensorUInt128<HL, LL>& lhs, 
   }
 }
 
-
 }  // namespace internal
 }  // namespace Eigen
-
 
 #endif  // EIGEN_CXX11_TENSOR_TENSOR_UINT128_H

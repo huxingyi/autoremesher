@@ -10,29 +10,29 @@
 #ifndef EIGEN_CXX11_TENSOR_TENSOR_INITIALIZER_H
 #define EIGEN_CXX11_TENSOR_TENSOR_INITIALIZER_H
 
-#if EIGEN_HAS_VARIADIC_TEMPLATES
-
 #include <initializer_list>
+
+// IWYU pragma: private
+#include "./InternalHeaderCheck.h"
 
 namespace Eigen {
 
-/** \class TensorInitializer
-  * \ingroup CXX11_Tensor_Module
-  *
-  * \brief Helper template to initialize Tensors from std::initializer_lists.
-  */
 namespace internal {
 
+/**
+ * \ingroup CXX11_Tensor_Module
+ *
+ * \brief Helper template to initialize Tensors from std::initializer_lists.
+ */
 template <typename Derived, int N>
 struct Initializer {
-  typedef std::initializer_list<
-    typename Initializer<Derived, N - 1>::InitList> InitList;
+  typedef std::initializer_list<typename Initializer<Derived, N - 1>::InitList> InitList;
 
   static void run(TensorEvaluator<Derived, DefaultDevice>& tensor,
                   Eigen::array<typename traits<Derived>::Index, traits<Derived>::NumDimensions>* indices,
                   const InitList& vals) {
     int i = 0;
-    for (auto v : vals) {
+    for (const auto& v : vals) {
       (*indices)[traits<Derived>::NumDimensions - N] = i++;
       Initializer<Derived, N - 1>::run(tensor, indices, v);
     }
@@ -48,7 +48,7 @@ struct Initializer<Derived, 1> {
                   const InitList& vals) {
     int i = 0;
     // There is likely a faster way to do that than iterating.
-    for (auto v : vals) {
+    for (const auto& v : vals) {
       (*indices)[traits<Derived>::NumDimensions - 1] = i++;
       tensor.coeffRef(*indices) = v;
     }
@@ -60,12 +60,10 @@ struct Initializer<Derived, 0> {
   typedef typename traits<Derived>::Scalar InitList;
 
   static void run(TensorEvaluator<Derived, DefaultDevice>& tensor,
-                  Eigen::array<typename traits<Derived>::Index, traits<Derived>::NumDimensions>*,
-                  const InitList& v) {
+                  Eigen::array<typename traits<Derived>::Index, traits<Derived>::NumDimensions>*, const InitList& v) {
     tensor.coeffRef(0) = v;
   }
 };
-
 
 template <typename Derived, int N>
 void initialize_tensor(TensorEvaluator<Derived, DefaultDevice>& tensor,
@@ -76,7 +74,5 @@ void initialize_tensor(TensorEvaluator<Derived, DefaultDevice>& tensor,
 
 }  // namespace internal
 }  // namespace Eigen
-
-#endif  // EIGEN_HAS_VARIADIC_TEMPLATES
 
 #endif  // EIGEN_CXX11_TENSOR_TENSOR_INITIALIZER_H

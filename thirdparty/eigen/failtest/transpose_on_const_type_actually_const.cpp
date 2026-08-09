@@ -8,9 +8,9 @@
 
 using namespace Eigen;
 
-void foo(){
-    MatrixXf m;
-    Transpose<CV_QUALIFIER MatrixXf>(m).coeffRef(0, 0) = 1.0f;
+void foo() {
+  MatrixXf m;
+  Transpose<CV_QUALIFIER MatrixXf>(m).coeffRef(0, 0) = 1.0f;
 }
 
 int main() {}
