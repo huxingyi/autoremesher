@@ -37,7 +37,6 @@
 #include <QTimer>
 #include <QTranslator>
 #include <QtGlobal>
-#include <geogram/basic/common.h>
 #include <iostream>
 
 struct HeadlessParams {
@@ -76,7 +75,6 @@ static HeadlessParams parseHeadlessArgs(QCommandLineParser& parser)
 
 int main(int argc, char** argv)
 {
-
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
@@ -141,8 +139,6 @@ int main(int argc, char** argv)
     parser.process(app);
 
     bool headlessMode = parser.isSet("input");
-
-    GEO::initialize();
 
     QSurfaceFormat format = QSurfaceFormat::defaultFormat();
     format.setProfile(QSurfaceFormat::OpenGLContextProfile::CoreProfile);

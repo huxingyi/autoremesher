@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved. 
+ *  Copyright (c) 2026 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved. 
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +22,6 @@
 #include <AutoRemesher/PositionKey>
 #include <AutoRemesher/QuadExtractor>
 #include <algorithm>
-#include <exploragram/hexdom/polygon.h>
 #include <limits>
 #include <map>
 #include <queue>
