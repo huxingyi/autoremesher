@@ -6,13 +6,19 @@ foreach(snippet_src ${snippets_SRCS})
   get_filename_component(snippet ${snippet_src} NAME_WE)
   set(compile_snippet_target compile_${snippet})
   set(compile_snippet_src ${compile_snippet_target}.cpp)
+
   file(READ ${snippet_src} snippet_source_code)
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/compile_snippet.cpp.in
-                 ${CMAKE_CURRENT_BINARY_DIR}/${compile_snippet_src})
+                ${CMAKE_CURRENT_BINARY_DIR}/${compile_snippet_src})
   add_executable(${compile_snippet_target}
-                 ${CMAKE_CURRENT_BINARY_DIR}/${compile_snippet_src})
+                ${CMAKE_CURRENT_BINARY_DIR}/${compile_snippet_src})
   if(EIGEN_STANDARD_LIBRARIES_TO_LINK_TO)
     target_link_libraries(${compile_snippet_target} ${EIGEN_STANDARD_LIBRARIES_TO_LINK_TO})
+  endif()
+  target_link_libraries(${compile_snippet_target} Eigen3::Eigen)
+
+  if(${snippet_src} MATCHES "deprecated")
+    set_target_properties(${compile_snippet_target} PROPERTIES COMPILE_FLAGS "-DEIGEN_NO_DEPRECATED_WARNING")
   endif()
   add_custom_command(
     TARGET ${compile_snippet_target}
@@ -23,4 +29,4 @@ foreach(snippet_src ${snippets_SRCS})
   add_dependencies(all_snippets ${compile_snippet_target})
   set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/${compile_snippet_src}
                               PROPERTIES OBJECT_DEPENDS ${snippet_src})
-endforeach(snippet_src)
+endforeach()

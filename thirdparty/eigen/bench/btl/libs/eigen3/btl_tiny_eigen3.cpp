@@ -30,17 +30,13 @@
 
 BTL_MAIN;
 
-int main()
-{
-
-  bench_static<Action_axpy,eigen2_interface>();
-  bench_static<Action_matrix_matrix_product,eigen2_interface>();
-  bench_static<Action_matrix_vector_product,eigen2_interface>();
-  bench_static<Action_atv_product,eigen2_interface>();
-  bench_static<Action_cholesky,eigen2_interface>();
-  bench_static<Action_trisolve,eigen2_interface>();
+int main() {
+  bench_static<Action_axpy, eigen2_interface>();
+  bench_static<Action_matrix_matrix_product, eigen2_interface>();
+  bench_static<Action_matrix_vector_product, eigen2_interface>();
+  bench_static<Action_atv_product, eigen2_interface>();
+  bench_static<Action_cholesky, eigen2_interface>();
+  bench_static<Action_trisolve, eigen2_interface>();
 
   return 0;
 }
-
-

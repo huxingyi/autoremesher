@@ -1,0 +1,41 @@
+ # Push a nightly tag if the pipeline succeeded.
+deploy:tag:nightly:
+  stage: deploy
+  image: alpine:edge
+  dependencies: []
+  before_script:
+    - apk add git
+  script:
+    - git tag -f nightly $CI_COMMIT_SHORT_SHA
+    - git push -f $EIGEN_CI_GIT_PUSH_URL tag nightly
+  tags:
+    - saas-linux-small-amd64
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_PROJECT_NAMESPACE == "libeigen" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_PROJECT_NAMESPACE == "libeigen" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Upload docs if pipeline succeeded.
+deploy:docs:
+  stage: deploy
+  image: busybox
+  dependencies: [ build:linux:docs ]
+  variables:
+    PAGES_PREFIX: docs-nightly
+  script:
+    - echo "Deploying site to $CI_PAGES_URL"
+    - mv ${EIGEN_CI_BUILDDIR}/doc/html public
+  pages:
+    path_prefix: $PAGES_PREFIX
+    expire_in: never
+  artifacts:
+    name: "$CI_JOB_NAME_SLUG-$CI_COMMIT_REF_SLUG"
+    paths:
+      - public
+  tags:
+    - saas-linux-small-amd64
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_PROJECT_NAMESPACE == "libeigen"
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_PROJECT_NAMESPACE == "libeigen"
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_PROJECT_NAMESPACE == "libeigen"
+      variables:
+        PAGES_PREFIX: docs-$CI_COMMIT_REF_NAME

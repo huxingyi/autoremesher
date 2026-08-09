@@ -13,10 +13,9 @@
 
 using Eigen::Tensor;
 
-template<int DataLayout>
-static void test_simple_patch()
-{
-  Tensor<float, 4, DataLayout> tensor(2,3,5,7);
+template <int DataLayout>
+static void test_simple_patch() {
+  Tensor<float, 4, DataLayout> tensor(2, 3, 5, 7);
   tensor.setRandom();
   array<ptrdiff_t, 4> patch_dims;
 
@@ -83,9 +82,9 @@ static void test_simple_patch()
     VERIFY_IS_EQUAL(twod_patch.dimension(1), 2);
     VERIFY_IS_EQUAL(twod_patch.dimension(2), 2);
     VERIFY_IS_EQUAL(twod_patch.dimension(3), 1);
-    VERIFY_IS_EQUAL(twod_patch.dimension(4), 2*2*4*7);
+    VERIFY_IS_EQUAL(twod_patch.dimension(4), 2 * 2 * 4 * 7);
   } else {
-    VERIFY_IS_EQUAL(twod_patch.dimension(0), 2*2*4*7);
+    VERIFY_IS_EQUAL(twod_patch.dimension(0), 2 * 2 * 4 * 7);
     VERIFY_IS_EQUAL(twod_patch.dimension(1), 1);
     VERIFY_IS_EQUAL(twod_patch.dimension(2), 2);
     VERIFY_IS_EQUAL(twod_patch.dimension(3), 2);
@@ -105,9 +104,9 @@ static void test_simple_patch()
           for (int x = 0; x < 2; ++x) {
             for (int y = 0; y < 2; ++y) {
               if (DataLayout == ColMajor) {
-                VERIFY_IS_EQUAL(tensor(i,j+x,k+y,l), twod_patch(0,x,y,0,patch_loc));
+                VERIFY_IS_EQUAL(tensor(i, j + x, k + y, l), twod_patch(0, x, y, 0, patch_loc));
               } else {
-                VERIFY_IS_EQUAL(tensor(i,j+x,k+y,l), twod_patch(patch_loc,0,x,y,0));
+                VERIFY_IS_EQUAL(tensor(i, j + x, k + y, l), twod_patch(patch_loc, 0, x, y, 0));
               }
             }
           }
@@ -128,9 +127,9 @@ static void test_simple_patch()
     VERIFY_IS_EQUAL(threed_patch.dimension(1), 2);
     VERIFY_IS_EQUAL(threed_patch.dimension(2), 3);
     VERIFY_IS_EQUAL(threed_patch.dimension(3), 5);
-    VERIFY_IS_EQUAL(threed_patch.dimension(4), 2*2*3*3);
+    VERIFY_IS_EQUAL(threed_patch.dimension(4), 2 * 2 * 3 * 3);
   } else {
-    VERIFY_IS_EQUAL(threed_patch.dimension(0), 2*2*3*3);
+    VERIFY_IS_EQUAL(threed_patch.dimension(0), 2 * 2 * 3 * 3);
     VERIFY_IS_EQUAL(threed_patch.dimension(1), 1);
     VERIFY_IS_EQUAL(threed_patch.dimension(2), 2);
     VERIFY_IS_EQUAL(threed_patch.dimension(3), 3);
@@ -151,9 +150,9 @@ static void test_simple_patch()
             for (int y = 0; y < 3; ++y) {
               for (int z = 0; z < 5; ++z) {
                 if (DataLayout == ColMajor) {
-                  VERIFY_IS_EQUAL(tensor(i,j+x,k+y,l+z), threed_patch(0,x,y,z,patch_loc));
+                  VERIFY_IS_EQUAL(tensor(i, j + x, k + y, l + z), threed_patch(0, x, y, z, patch_loc));
                 } else {
-                  VERIFY_IS_EQUAL(tensor(i,j+x,k+y,l+z), threed_patch(patch_loc,0,x,y,z));
+                  VERIFY_IS_EQUAL(tensor(i, j + x, k + y, l + z), threed_patch(patch_loc, 0, x, y, z));
                 }
               }
             }
@@ -164,9 +163,8 @@ static void test_simple_patch()
   }
 }
 
-void test_cxx11_tensor_patch()
-{
-   CALL_SUBTEST(test_simple_patch<ColMajor>());
-   CALL_SUBTEST(test_simple_patch<RowMajor>());
-   //   CALL_SUBTEST(test_expr_shuffling());
+EIGEN_DECLARE_TEST(cxx11_tensor_patch) {
+  CALL_SUBTEST(test_simple_patch<ColMajor>());
+  CALL_SUBTEST(test_simple_patch<RowMajor>());
+  //   CALL_SUBTEST(test_expr_shuffling());
 }

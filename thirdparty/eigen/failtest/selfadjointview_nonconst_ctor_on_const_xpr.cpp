@@ -8,8 +8,6 @@
 
 using namespace Eigen;
 
-void foo(CV_QUALIFIER Matrix3d &m){
-    SelfAdjointView<Matrix3d,Upper> t(m);
-}
+void foo(CV_QUALIFIER Matrix3d &m) { SelfAdjointView<Matrix3d, Upper> t(m); }
 
 int main() {}

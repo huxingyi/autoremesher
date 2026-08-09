@@ -1,0 +1,143 @@
+; Definition file for eigen_lapack.dll, containing only the C++ implementations.
+
+LIBRARY eigen_lapack
+EXPORTS
+    ; Eigen C/C++ implementations
+    ; Utilities
+    xerbla_
+
+    ; Eigenvalues
+    ssyev_
+    dsyev_
+
+    ; LU
+    sgetrf_
+    sgetrs_
+    dgetrf_
+    dgetrs_
+    cgetrf_
+    cgetrs_
+    zgetrf_
+    zgetrs_
+
+    ; QR
+    spotrf_
+    spotrs_
+    dpotrf_
+    dpotrs_
+    cpotrf_
+    cpotrs_
+    zpotrf_
+    zpotrs_
+
+    ; SVD
+    sgesdd_
+    sgesvd_
+    dgesdd_
+    dgesvd_
+    cgesdd_
+    cgesvd_
+    zgesdd_
+    zgesvd_
+
+    ; Time
+    second_
+    dsecnd_
+
+    ; Fortran implementations
+    ; clacgv_
+    ; zlacgv_
+    ; sladiv_
+    ; dladiv_
+    ; cladiv_
+    ; zladiv_
+    ; slamch_
+    ; dlamch_
+    ; slamc3_
+    ; dlamc3_
+    ; slapy2_
+    ; dlapy2_
+    ; slapy3_
+    ; dlapy3_
+    ; slarf_
+    ; dlarf_
+    ; clarf_
+    ; zlarf_
+    ; slarfb_
+    ; dlarfb_
+    ; clarfb_
+    ; zlarfb_
+    ; slarfg_
+    ; dlarfg_
+    ; clarfg_
+    ; zlarfg_
+    ; slarft_
+    ; dlarft_
+    ; clarft_
+    ; zlarft_
+    ; ilaclc_
+    ; ilaclr_
+    ; iladlc_
+    ; iladlr_
+    ; ilaslc_
+    ; ilaslr_
+    ; ilazlc_
+    ; ilazlr_
+
+    ; Missing
+    ; csymv_
+    ; zsymv_
+    ; cspmv_
+    ; zspmv_
+    ; csyr_
+    ; zsyr_
+    ; cspr_
+    ; zspr_
+    ; sgemt_
+    ; dgemt_
+    ; cgemt_
+    ; zgemt_
+    ; sgema_
+    ; dgema_
+    ; cgema_
+    ; zgema_
+    ; sgems_
+    ; dgems_
+    ; cgems_
+    ; zgems_
+    ; sgetf2_
+    ; dgetf2_
+    ; cgetf2_
+    ; zgetf2_
+    ; slaswp_
+    ; dlaswp_
+    ; claswp_
+    ; zlaswp_
+    ; sgesv_
+    ; dgesv_
+    ; cgesv_
+    ; zgesv_
+    ; spotf2_
+    ; dpotf2_
+    ; cpotf2_
+    ; zpotf2_
+    ; slauu2_
+    ; dlauu2_
+    ; clauu2_
+    ; zlauu2_
+    ; slauum_
+    ; dlauum_
+    ; clauum_
+    ; zlauum_
+    ; strti2_
+    ; dtrti2_
+    ; ctrti2_
+    ; ztrti2_
+    ; strtri_
+    ; dtrtri_
+    ; ctrtri_
+    ; ztrtri_
+    ; spotri_
+    ; dpotri_
+    ; cpotri_
+    ; zpotri_

@@ -11,16 +11,15 @@
 
 #include <Eigen/CXX11/Tensor>
 
-using Eigen::Tensor;
 using Eigen::RowMajor;
+using Eigen::Tensor;
 
-static void test_0d()
-{
+static void test_0d() {
   Tensor<int, 0> scalar1;
   Tensor<int, 0, RowMajor> scalar2;
 
-  TensorMap<Tensor<const int, 0> > scalar3(scalar1.data());
-  TensorMap<Tensor<const int, 0, RowMajor> > scalar4(scalar2.data());
+  TensorMap<const Tensor<int, 0> > scalar3(scalar1.data());
+  TensorMap<const Tensor<int, 0, RowMajor> > scalar4(scalar2.data());
 
   scalar1() = 7;
   scalar2() = 13;
@@ -32,20 +31,25 @@ static void test_0d()
   VERIFY_IS_EQUAL(scalar4(), 13);
 }
 
-static void test_1d()
-{
+static void test_1d() {
   Tensor<int, 1> vec1(6);
   Tensor<int, 1, RowMajor> vec2(6);
 
-  TensorMap<Tensor<const int, 1> > vec3(vec1.data(), 6);
-  TensorMap<Tensor<const int, 1, RowMajor> > vec4(vec2.data(), 6);
+  TensorMap<const Tensor<int, 1> > vec3(vec1.data(), 6);
+  TensorMap<const Tensor<int, 1, RowMajor> > vec4(vec2.data(), 6);
 
-  vec1(0) = 4;  vec2(0) = 0;
-  vec1(1) = 8;  vec2(1) = 1;
-  vec1(2) = 15; vec2(2) = 2;
-  vec1(3) = 16; vec2(3) = 3;
-  vec1(4) = 23; vec2(4) = 4;
-  vec1(5) = 42; vec2(5) = 5;
+  vec1(0) = 4;
+  vec2(0) = 0;
+  vec1(1) = 8;
+  vec2(1) = 1;
+  vec1(2) = 15;
+  vec2(2) = 2;
+  vec1(3) = 16;
+  vec2(3) = 3;
+  vec1(4) = 23;
+  vec2(4) = 4;
+  vec1(5) = 42;
+  vec2(5) = 5;
 
   VERIFY_IS_EQUAL(vec1.rank(), 1);
   VERIFY_IS_EQUAL(vec1.size(), 6);
@@ -66,27 +70,26 @@ static void test_1d()
   VERIFY_IS_EQUAL(vec4(5), 5);
 }
 
-static void test_2d()
-{
-  Tensor<int, 2> mat1(2,3);
-  Tensor<int, 2, RowMajor> mat2(2,3);
+static void test_2d() {
+  Tensor<int, 2> mat1(2, 3);
+  Tensor<int, 2, RowMajor> mat2(2, 3);
 
-  mat1(0,0) = 0;
-  mat1(0,1) = 1;
-  mat1(0,2) = 2;
-  mat1(1,0) = 3;
-  mat1(1,1) = 4;
-  mat1(1,2) = 5;
+  mat1(0, 0) = 0;
+  mat1(0, 1) = 1;
+  mat1(0, 2) = 2;
+  mat1(1, 0) = 3;
+  mat1(1, 1) = 4;
+  mat1(1, 2) = 5;
 
-  mat2(0,0) = 0;
-  mat2(0,1) = 1;
-  mat2(0,2) = 2;
-  mat2(1,0) = 3;
-  mat2(1,1) = 4;
-  mat2(1,2) = 5;
+  mat2(0, 0) = 0;
+  mat2(0, 1) = 1;
+  mat2(0, 2) = 2;
+  mat2(1, 0) = 3;
+  mat2(1, 1) = 4;
+  mat2(1, 2) = 5;
 
-  TensorMap<Tensor<const int, 2> > mat3(mat1.data(), 2, 3);
-  TensorMap<Tensor<const int, 2, RowMajor> > mat4(mat2.data(), 2, 3);
+  TensorMap<const Tensor<int, 2> > mat3(mat1.data(), 2, 3);
+  TensorMap<const Tensor<int, 2, RowMajor> > mat4(mat2.data(), 2, 3);
 
   VERIFY_IS_EQUAL(mat3.rank(), 2);
   VERIFY_IS_EQUAL(mat3.size(), 6);
@@ -98,48 +101,47 @@ static void test_2d()
   VERIFY_IS_EQUAL(mat4.dimension(0), 2);
   VERIFY_IS_EQUAL(mat4.dimension(1), 3);
 
-  VERIFY_IS_EQUAL(mat3(0,0), 0);
-  VERIFY_IS_EQUAL(mat3(0,1), 1);
-  VERIFY_IS_EQUAL(mat3(0,2), 2);
-  VERIFY_IS_EQUAL(mat3(1,0), 3);
-  VERIFY_IS_EQUAL(mat3(1,1), 4);
-  VERIFY_IS_EQUAL(mat3(1,2), 5);
+  VERIFY_IS_EQUAL(mat3(0, 0), 0);
+  VERIFY_IS_EQUAL(mat3(0, 1), 1);
+  VERIFY_IS_EQUAL(mat3(0, 2), 2);
+  VERIFY_IS_EQUAL(mat3(1, 0), 3);
+  VERIFY_IS_EQUAL(mat3(1, 1), 4);
+  VERIFY_IS_EQUAL(mat3(1, 2), 5);
 
-  VERIFY_IS_EQUAL(mat4(0,0), 0);
-  VERIFY_IS_EQUAL(mat4(0,1), 1);
-  VERIFY_IS_EQUAL(mat4(0,2), 2);
-  VERIFY_IS_EQUAL(mat4(1,0), 3);
-  VERIFY_IS_EQUAL(mat4(1,1), 4);
-  VERIFY_IS_EQUAL(mat4(1,2), 5);
+  VERIFY_IS_EQUAL(mat4(0, 0), 0);
+  VERIFY_IS_EQUAL(mat4(0, 1), 1);
+  VERIFY_IS_EQUAL(mat4(0, 2), 2);
+  VERIFY_IS_EQUAL(mat4(1, 0), 3);
+  VERIFY_IS_EQUAL(mat4(1, 1), 4);
+  VERIFY_IS_EQUAL(mat4(1, 2), 5);
 }
 
-static void test_3d()
-{
-  Tensor<int, 3> mat1(2,3,7);
-  Tensor<int, 3, RowMajor> mat2(2,3,7);
+static void test_3d() {
+  Tensor<int, 3> mat1(2, 3, 7);
+  Tensor<int, 3, RowMajor> mat2(2, 3, 7);
 
   int val = 0;
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 7; ++k) {
-        mat1(i,j,k) = val;
-        mat2(i,j,k) = val;
+        mat1(i, j, k) = val;
+        mat2(i, j, k) = val;
         val++;
       }
     }
   }
 
-  TensorMap<Tensor<const int, 3> > mat3(mat1.data(), 2, 3, 7);
-  TensorMap<Tensor<const int, 3, RowMajor> > mat4(mat2.data(), 2, 3, 7);
+  TensorMap<const Tensor<int, 3> > mat3(mat1.data(), 2, 3, 7);
+  TensorMap<const Tensor<int, 3, RowMajor> > mat4(mat2.data(), 2, 3, 7);
 
   VERIFY_IS_EQUAL(mat3.rank(), 3);
-  VERIFY_IS_EQUAL(mat3.size(), 2*3*7);
+  VERIFY_IS_EQUAL(mat3.size(), 2 * 3 * 7);
   VERIFY_IS_EQUAL(mat3.dimension(0), 2);
   VERIFY_IS_EQUAL(mat3.dimension(1), 3);
   VERIFY_IS_EQUAL(mat3.dimension(2), 7);
 
   VERIFY_IS_EQUAL(mat4.rank(), 3);
-  VERIFY_IS_EQUAL(mat4.size(), 2*3*7);
+  VERIFY_IS_EQUAL(mat4.size(), 2 * 3 * 7);
   VERIFY_IS_EQUAL(mat4.dimension(0), 2);
   VERIFY_IS_EQUAL(mat4.dimension(1), 3);
   VERIFY_IS_EQUAL(mat4.dimension(2), 7);
@@ -148,26 +150,24 @@ static void test_3d()
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 7; ++k) {
-        VERIFY_IS_EQUAL(mat3(i,j,k), val);
-        VERIFY_IS_EQUAL(mat4(i,j,k), val);
+        VERIFY_IS_EQUAL(mat3(i, j, k), val);
+        VERIFY_IS_EQUAL(mat4(i, j, k), val);
         val++;
       }
     }
   }
 }
 
-
-static void test_from_tensor()
-{
-  Tensor<int, 3> mat1(2,3,7);
-  Tensor<int, 3, RowMajor> mat2(2,3,7);
+static void test_from_tensor() {
+  Tensor<int, 3> mat1(2, 3, 7);
+  Tensor<int, 3, RowMajor> mat2(2, 3, 7);
 
   int val = 0;
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 7; ++k) {
-        mat1(i,j,k) = val;
-        mat2(i,j,k) = val;
+        mat1(i, j, k) = val;
+        mat2(i, j, k) = val;
         val++;
       }
     }
@@ -177,13 +177,13 @@ static void test_from_tensor()
   TensorMap<Tensor<int, 3, RowMajor> > mat4(mat2);
 
   VERIFY_IS_EQUAL(mat3.rank(), 3);
-  VERIFY_IS_EQUAL(mat3.size(), 2*3*7);
+  VERIFY_IS_EQUAL(mat3.size(), 2 * 3 * 7);
   VERIFY_IS_EQUAL(mat3.dimension(0), 2);
   VERIFY_IS_EQUAL(mat3.dimension(1), 3);
   VERIFY_IS_EQUAL(mat3.dimension(2), 7);
 
   VERIFY_IS_EQUAL(mat4.rank(), 3);
-  VERIFY_IS_EQUAL(mat4.size(), 2*3*7);
+  VERIFY_IS_EQUAL(mat4.size(), 2 * 3 * 7);
   VERIFY_IS_EQUAL(mat4.dimension(0), 2);
   VERIFY_IS_EQUAL(mat4.dimension(1), 3);
   VERIFY_IS_EQUAL(mat4.dimension(2), 7);
@@ -192,14 +192,14 @@ static void test_from_tensor()
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 7; ++k) {
-        VERIFY_IS_EQUAL(mat3(i,j,k), val);
-        VERIFY_IS_EQUAL(mat4(i,j,k), val);
+        VERIFY_IS_EQUAL(mat3(i, j, k), val);
+        VERIFY_IS_EQUAL(mat4(i, j, k), val);
         val++;
       }
     }
   }
 
-  TensorFixedSize<int, Sizes<2,3,7> > mat5;
+  TensorFixedSize<int, Sizes<2, 3, 7> > mat5;
 
   val = 0;
   for (int i = 0; i < 2; ++i) {
@@ -215,10 +215,10 @@ static void test_from_tensor()
     }
   }
 
-  TensorMap<TensorFixedSize<int, Sizes<2,3,7> > > mat6(mat5);
+  TensorMap<TensorFixedSize<int, Sizes<2, 3, 7> > > mat6(mat5);
 
   VERIFY_IS_EQUAL(mat6.rank(), 3);
-  VERIFY_IS_EQUAL(mat6.size(), 2*3*7);
+  VERIFY_IS_EQUAL(mat6.size(), 2 * 3 * 7);
   VERIFY_IS_EQUAL(mat6.dimension(0), 2);
   VERIFY_IS_EQUAL(mat6.dimension(1), 3);
   VERIFY_IS_EQUAL(mat6.dimension(2), 7);
@@ -227,13 +227,12 @@ static void test_from_tensor()
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 7; ++k) {
-        VERIFY_IS_EQUAL(mat6(i,j,k), val);
+        VERIFY_IS_EQUAL(mat6(i, j, k), val);
         val++;
       }
     }
   }
 }
-
 
 static int f(const TensorMap<Tensor<int, 3> >& tensor) {
   //  Size<0> empty;
@@ -243,15 +242,14 @@ static int f(const TensorMap<Tensor<int, 3> >& tensor) {
   return result();
 }
 
-static void test_casting()
-{
-  Tensor<int, 3> tensor(2,3,7);
+static void test_casting() {
+  Tensor<int, 3> tensor(2, 3, 7);
 
   int val = 0;
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 7; ++k) {
-        tensor(i,j,k) = val;
+        tensor(i, j, k) = val;
         val++;
       }
     }
@@ -265,8 +263,52 @@ static void test_casting()
   VERIFY_IS_EQUAL(sum1, 861);
 }
 
-void test_cxx11_tensor_map()
-{
+template <typename T>
+static const T& add_const(T& value) {
+  return value;
+}
+
+static void test_0d_const_tensor() {
+  Tensor<int, 0> scalar1;
+  Tensor<int, 0, RowMajor> scalar2;
+
+  TensorMap<const Tensor<int, 0> > scalar3(add_const(scalar1).data());
+  TensorMap<const Tensor<int, 0, RowMajor> > scalar4(add_const(scalar2).data());
+
+  scalar1() = 7;
+  scalar2() = 13;
+
+  VERIFY_IS_EQUAL(scalar1.rank(), 0);
+  VERIFY_IS_EQUAL(scalar1.size(), 1);
+
+  VERIFY_IS_EQUAL(scalar3(), 7);
+  VERIFY_IS_EQUAL(scalar4(), 13);
+}
+
+static void test_0d_const_tensor_map() {
+  Tensor<int, 0> scalar1;
+  Tensor<int, 0, RowMajor> scalar2;
+
+  const TensorMap<Tensor<int, 0> > scalar3(scalar1.data());
+  const TensorMap<Tensor<int, 0, RowMajor> > scalar4(scalar2.data());
+
+  // Although TensorMap is constant, we still can write to the underlying
+  // storage, because we map over non-constant Tensor.
+  scalar3() = 7;
+  scalar4() = 13;
+
+  VERIFY_IS_EQUAL(scalar1(), 7);
+  VERIFY_IS_EQUAL(scalar2(), 13);
+
+  // Pointer to the underlying storage is also non-const.
+  scalar3.data()[0] = 8;
+  scalar4.data()[0] = 14;
+
+  VERIFY_IS_EQUAL(scalar1(), 8);
+  VERIFY_IS_EQUAL(scalar2(), 14);
+}
+
+EIGEN_DECLARE_TEST(cxx11_tensor_map) {
   CALL_SUBTEST(test_0d());
   CALL_SUBTEST(test_1d());
   CALL_SUBTEST(test_2d());
@@ -274,4 +316,7 @@ void test_cxx11_tensor_map()
 
   CALL_SUBTEST(test_from_tensor());
   CALL_SUBTEST(test_casting());
+
+  CALL_SUBTEST(test_0d_const_tensor());
+  CALL_SUBTEST(test_0d_const_tensor_map());
 }

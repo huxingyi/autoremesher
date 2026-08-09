@@ -1,0 +1,10 @@
+checkformat:clangformat:
+  stage: checkformat
+  image: alpine:3.19
+  only:
+    - merge_requests
+  allow_failure: true
+  before_script:
+    - apk add --no-cache git clang17-extra-tools python3
+  script:
+    - git clang-format --diff --commit ${CI_MERGE_REQUEST_DIFF_BASE_SHA}

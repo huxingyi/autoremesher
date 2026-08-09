@@ -13,10 +13,9 @@
 
 using Eigen::Tensor;
 
-template<int DataLayout>
-static void test_simple_inflation()
-{
-  Tensor<float, 4, DataLayout> tensor(2,3,5,7);
+template <int DataLayout>
+static void test_simple_inflation() {
+  Tensor<float, 4, DataLayout> tensor(2, 3, 5, 7);
   tensor.setRandom();
   array<ptrdiff_t, 4> strides;
 
@@ -37,7 +36,7 @@ static void test_simple_inflation()
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 5; ++k) {
         for (int l = 0; l < 7; ++l) {
-          VERIFY_IS_EQUAL(tensor(i,j,k,l), no_stride(i,j,k,l));
+          VERIFY_IS_EQUAL(tensor(i, j, k, l), no_stride(i, j, k, l));
         }
       }
     }
@@ -59,14 +58,10 @@ static void test_simple_inflation()
     for (int j = 0; j < 9; ++j) {
       for (int k = 0; k < 9; ++k) {
         for (int l = 0; l < 19; ++l) {
-          if (i % 2 == 0 &&
-              j % 4 == 0 &&
-              k % 2 == 0 &&
-              l % 3 == 0) {
-            VERIFY_IS_EQUAL(inflated(i,j,k,l),
-                            tensor(i/2, j/4, k/2, l/3));
+          if (i % 2 == 0 && j % 4 == 0 && k % 2 == 0 && l % 3 == 0) {
+            VERIFY_IS_EQUAL(inflated(i, j, k, l), tensor(i / 2, j / 4, k / 2, l / 3));
           } else {
-            VERIFY_IS_EQUAL(0, inflated(i,j,k,l));
+            VERIFY_IS_EQUAL(0, inflated(i, j, k, l));
           }
         }
       }
@@ -74,8 +69,7 @@ static void test_simple_inflation()
   }
 }
 
-void test_cxx11_tensor_inflation()
-{
+EIGEN_DECLARE_TEST(cxx11_tensor_inflation) {
   CALL_SUBTEST(test_simple_inflation<ColMajor>());
   CALL_SUBTEST(test_simple_inflation<RowMajor>());
 }

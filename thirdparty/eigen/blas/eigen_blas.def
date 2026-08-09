@@ -1,0 +1,222 @@
+; Definition file for eigen_blas.dll.
+
+LIBRARY eigen_blas
+EXPORTS
+    ; Utilities
+    lsame_
+    xerbla_
+
+    ; Level 1
+    saxpy_
+    daxpy_
+    caxpy_
+    zaxpy_
+    ; caxpyc_
+    ; zaxpyc_
+    scopy_
+    dcopy_
+    ccopy_
+    zcopy_
+    sdot_
+    sdsdot_
+    dsdot_
+    ddot_
+    cdotc_
+    zdotc_
+    cdotu_
+    zdotu_
+    cdotcw_
+    zdotcw_
+    cdotuw_
+    zdotuw_
+    snrm2_
+    dnrm2_
+    scnrm2_
+    dznrm2_
+    srot_
+    drot_
+    csrot_
+    zdrot_
+    srotg_
+    drotg_
+    crotg_
+    zrotg_
+    srotm_
+    drotm_
+    srotmg_
+    drotmg_
+    sscal_
+    dscal_
+    cscal_
+    zscal_
+    csscal_
+    zdscal_
+    sswap_
+    dswap_
+    cswap_
+    zswap_
+    sasum_
+    scasum_
+    dasum_
+    dzasum_
+    ; ismax_
+    ; idmax_
+    ; icmax_
+    ; izmax_
+    isamax_
+    idamax_
+    icamax_
+    izamax_
+    isamin_
+    idamin_
+    icamin_
+    izamin_
+    ; ismin_
+    ; idmin_
+    ; icmin_
+    ; izmin_
+    ; samax_
+    ; damax_
+    ; scamax_
+    ; dzamax_
+    ; samin_
+    ; damin_
+    ; scamin_
+    ; dzamin_
+    ; smax_
+    ; dmax_
+    ; cmax_
+    ; zmax_
+    ; smin_
+    ; dmin_
+    ; cmin_
+    ; zmin_
+    
+    
+    ; Level 2
+    sgemv_
+    dgemv_
+    cgemv_
+    zgemv_
+    sger_
+    dger_
+    cgerc_
+    zgerc_
+    cgeru_
+    zgeru_
+    ssymv_
+    dsymv_
+    ssyr_
+    dsyr_
+    ssyr2_
+    dsyr2_
+    ; csyr2_
+    ; zsyr2_
+    strmv_
+    dtrmv_
+    ctrmv_
+    ztrmv_
+    strsv_
+    dtrsv_
+    ctrsv_
+    ztrsv_
+    stpsv_
+    dtpsv_
+    ctpsv_
+    ztpsv_
+    stpmv_
+    dtpmv_
+    ctpmv_
+    ztpmv_
+    stbmv_
+    dtbmv_
+    ctbmv_
+    ztbmv_
+    stbsv_
+    dtbsv_
+    ctbsv_
+    ztbsv_
+    sspmv_
+    dspmv_
+    sspr_
+    dspr_
+    ; cspr_
+    ; zspr_
+    sspr2_
+    dspr2_
+    ; cspr2_
+    ; zspr2_
+    cher_
+    zher_
+    chpr_
+    zhpr_
+    cher2_
+    zher2_
+    chpr2_
+    zhpr2_
+    chemv_
+    zhemv_
+    chpmv_
+    zhpmv_
+    ; snorm_
+    ; dnorm_
+    ; cnorm_
+    ; znorm_
+    sgbmv_
+    dgbmv_
+    cgbmv_
+    zgbmv_
+    ssbmv_
+    dsbmv_
+    ; csbmv_
+    ; zsbmv_
+    chbmv_
+    zhbmv_
+
+    ; Level 3 BLAS
+    sgemm_
+    dgemm_
+    cgemm_
+    zgemm_
+    ; cgemm3m_
+    ; zgemm3m_
+    ; sge2mm_
+    ; dge2mm_
+    ; cge2mm_
+    ; zge2mm_
+    ssymm_
+    dsymm_
+    csymm_
+    zsymm_
+    ; csymm3m_
+    ; zsymm3m_
+    ssyrk_
+    dsyrk_
+    csyrk_
+    zsyrk_
+    ssyr2k_
+    dsyr2k_
+    csyr2k_
+    zsyr2k_
+    strmm_
+    dtrmm_
+    ctrmm_
+    ztrmm_
+    strsm_
+    dtrsm_
+    ctrsm_
+    ztrsm_
+    chemm_
+    zhemm_
+    ; chemm3m_
+    ; zhemm3m_
+    cherk_
+    zherk_
+    cher2k_
+    zher2k_
+    ; cher2m_
+    ; zher2m_
+    sgemmtr_
+    dgemmtr_
+    cgemmtr_
+    zgemmtr_

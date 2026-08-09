@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved.
+ *  Copyright (c) 2026 Jeremy HU <jeremy-at-dust3d dot org>. All rights reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -24,13 +24,12 @@
 #include <AutoRemesher/MeshSeparator>
 #include <AutoRemesher/Parameterizer>
 #include <AutoRemesher/QuadExtractor>
-#include <QDebug>
 #include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
-#include <geogram_report_progress.h>
+#include <iostream>
 #include <limits>
 #include <mutex>
 #include <queue>
@@ -66,39 +65,12 @@
 #include <unordered_map>
 #include <unordered_set>
 
-thread_local void* geogram_report_progress_tag;
-thread_local int geogram_report_progress_round;
-thread_local int geogram_report_miq_iter = 0;
-thread_local geogram_report_progress_handler geogram_report_progress_callback;
-
-static std::atomic_flag s_geogramProgressLock = ATOMIC_FLAG_INIT;
-
-struct GeogramProgressLockGuard {
-    GeogramProgressLockGuard()
-    {
-        constexpr int kMaxAttempts = 6000;
-        int attempts = 0;
-        while (s_geogramProgressLock.test_and_set(std::memory_order_acquire)) {
-            if (++attempts > kMaxAttempts) {
-                std::cerr
-                    << "Warning: Geogram progress lock appears abandoned "
-                    << "(previous run may have crashed). Recovering."
-                    << std::endl;
-                s_geogramProgressLock.clear(std::memory_order_release);
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                attempts = 0;
-            } else {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            }
-        }
-    }
-    ~GeogramProgressLockGuard()
-    {
-        s_geogramProgressLock.clear(std::memory_order_release);
-    }
-};
-
 namespace AutoRemesher {
+
+namespace {
+    const float parallelPhaseBegin = 0.03f;
+    const float parallelPhaseEnd = 0.95f;
+}
 
 const double AutoRemesher::m_defaultSharpEdgeDegrees = 90;
 
@@ -125,7 +97,7 @@ void AutoRemesher::initializeVoxelSize()
     double triangleArea = area / m_targetTriangleCount;
     m_voxelSize = std::sqrt(triangleArea / (0.86602540378 * 0.5));
 #if AUTO_REMESHER_DEBUG
-    qDebug() << "Area:" << area << " voxelSize:" << m_voxelSize;
+    std::cerr << "Area: " << area << " voxelSize: " << m_voxelSize << std::endl;
 #endif
 }
 
@@ -137,46 +109,6 @@ double AutoRemesher::calculateMeshArea(const std::vector<Vector3>& vertices,
         area += Vector3::area(vertices[it[0]], vertices[it[1]], vertices[it[2]]);
     }
     return area;
-}
-
-struct ReportProgressContext {
-    size_t islandIndex;
-    AutoRemesher* autoRemesher;
-};
-
-static void ReportProgress(void* tag, float progress)
-{
-    ReportProgressContext* context = (ReportProgressContext*)tag;
-#if AUTO_REMESHER_DEBUG
-    //qDebug() << "Island[" << context->islandIndex << "]: round(" << geogram_report_progress_round << ") progress(" << (100 * progress) << "%)";
-#endif
-    int r = geogram_report_progress_round;
-    float base = 0.0f;
-    float span = 0.0f;
-    switch (r) {
-    case 0:
-        base = 0.0f;
-        span = 0.015f;
-        break;
-    case 1:
-        base = 0.015f;
-        span = 0.01f;
-        break;
-    case 2:
-        base = 0.025f;
-        span = 0.015f;
-        break;
-    case 3:
-        base = 0.04f;
-        span = 0.02f;
-        break;
-    default:
-        base = 0.06f;
-        span = 0.94f;
-        break;
-    }
-    float totalProgress = 0.3f + 0.6f * (base + span * progress);
-    context->autoRemesher->updateProgress(context->islandIndex, totalProgress);
 }
 
 void AutoRemesher::resample(std::vector<Vector3>& vertices,
@@ -310,7 +242,7 @@ void AutoRemesher::resample(std::vector<Vector3>& vertices,
     }
 
 #if AUTO_REMESHER_DEBUG
-    qDebug() << "Island[" << islandIndex << "]: Uniformly remeshing on target edge length:" << voxelSize;
+    std::cerr << "Island[" << islandIndex << "]: Uniformly remeshing on target edge length: " << voxelSize << std::endl;
 #endif
     IsotropicRemesher isotropicRemesher(vertices, triangles);
     isotropicRemesher.setTargetEdgeLength(voxelSize);
@@ -322,7 +254,7 @@ void AutoRemesher::resample(std::vector<Vector3>& vertices,
     vertices = isotropicRemesher.remeshedVertices();
     triangles = isotropicRemesher.remeshedTriangles();
 #if AUTO_REMESHER_DEBUG
-    qDebug() << "Island[" << islandIndex << "]: Uniformly remesh done, vertex count:" << vertices.size() << " triangle count:" << triangles.size();
+    std::cerr << "Island[" << islandIndex << "]: Uniformly remesh done, vertex count: " << vertices.size() << " triangle count: " << triangles.size() << std::endl;
 #endif
 }
 
@@ -331,23 +263,18 @@ void AutoRemesher::updateProgress(size_t threadIndex, float progress)
     if (nullptr == m_progressHandler)
         return;
 
+    std::lock_guard<std::mutex> lock(m_progressMutex);
+    if (progress > m_threadProgress[threadIndex])
+        m_threadProgress[threadIndex] = progress;
     float islandWeightedAvg = 0.0;
-    {
-        std::lock_guard<std::mutex> lock(m_progressMutex);
-        if (progress > m_threadProgress[threadIndex])
-            m_threadProgress[threadIndex] = progress;
-        for (size_t i = 0; i < m_threadProgress.size(); ++i)
-            islandWeightedAvg += m_threadProgress[i] * m_threadProgressWeights[i];
-    }
-    m_progressHandler(m_tag, islandWeightedAvg, "");
+    for (size_t i = 0; i < m_threadProgress.size(); ++i)
+        islandWeightedAvg += m_threadProgress[i] * m_threadProgressWeights[i];
+    m_progressHandler(m_tag,
+        parallelPhaseBegin + (parallelPhaseEnd - parallelPhaseBegin) * islandWeightedAvg, "");
 }
 
 bool AutoRemesher::remesh()
 {
-    geogram_report_progress_tag = nullptr;
-    geogram_report_progress_round = 0;
-    geogram_report_progress_callback = nullptr;
-
     if (nullptr != m_progressHandler)
         m_progressHandler(m_tag, 0.0, "Initializing...");
 
@@ -374,7 +301,7 @@ bool AutoRemesher::remesh()
     }
 
 #if AUTO_REMESHER_DEBUG
-    qDebug() << "Split to islands:" << trianglesIslands.size();
+    std::cerr << "Split to islands: " << trianglesIslands.size() << std::endl;
 #endif
 
     struct IslandContext {
@@ -418,7 +345,7 @@ bool AutoRemesher::remesh()
         islandContexes.push_back(context);
     }
     if (nullptr != m_progressHandler)
-        m_progressHandler(m_tag, 0.03f, "Building island contexts...");
+        m_progressHandler(m_tag, parallelPhaseBegin, "Building island contexts...");
     auto t_buildEnd = std::chrono::high_resolution_clock::now();
 
     {
@@ -547,29 +474,21 @@ bool AutoRemesher::remesh()
                 if (vertices.empty() || triangles.empty())
                     continue;
 
-                ReportProgressContext reportProgressContext;
-                reportProgressContext.islandIndex = i;
-                reportProgressContext.autoRemesher = thread.autoRemesher;
-                geogram_report_progress_tag = &reportProgressContext;
-                geogram_report_progress_round = 0;
-                geogram_report_progress_callback = ReportProgress;
-
                 thread.autoRemesher->updateProgress(thread.islandIndex, 0.3f);
                 thread.parameterizer = new Parameterizer(&vertices,
                     &triangles,
                     nullptr);
-                thread.parameterizer->setScaling(thread.island->scaling);
+                if (thread.island->scaling > 0.0)
+                    thread.parameterizer->setScaling(thread.island->scaling);
                 thread.parameterizer->setGradientAdaptivity(thread.island->adaptivity);
                 thread.parameterizer->setAnisotropy(thread.island->anisotropy);
                 thread.parameterizer->setSharpEdgeDegrees(thread.island->sharpEdgeDegrees);
                 bool parameterizeSucceeded = true;
                 try {
-                    GeogramProgressLockGuard lock;
                     thread.parameterizer->parameterize();
                 } catch (const std::exception& e) {
-                    // Geogram reports failed assertions by throwing (e.g. the
-                    // manifold checks in quad_cover). One pathological island must
-                    // not abort the whole remesh, so log it and skip its quads.
+                    // A pathological island must not abort the whole remesh,
+                    // so log the parameterizer failure and skip its quads.
                     parameterizeSucceeded = false;
                     std::cerr << "Island " << (thread.islandIndex + 1)
                               << ": parameterization failed (" << e.what()
@@ -594,14 +513,6 @@ bool AutoRemesher::remesh()
                     // Capture singular vertex positions for the [param] preview
                     thread.capturedSingularVertices = thread.parameterizer->singularVertexPositions();
                     thread.capturedSingularVertexIndices = thread.parameterizer->singularVertexIndices();
-                    if (nullptr != getenv("AUTOREMESHER_DEBUG_FILL")) {
-                        static std::mutex s_singularDumpMutex;
-                        std::lock_guard<std::mutex> lock(s_singularDumpMutex);
-                        FILE* fp = fopen("debug-singular.txt", "ab");
-                        for (const auto& p : thread.capturedSingularVertices)
-                            fprintf(fp, "%f %f %f\n", p.x(), p.y(), p.z());
-                        fclose(fp);
-                    }
                     thread.remesher = new QuadExtractor(&vertices,
                         &triangles,
                         uvs);
@@ -637,7 +548,7 @@ bool AutoRemesher::remesh()
     auto t_parallelEnd = std::chrono::high_resolution_clock::now();
 
     if (nullptr != m_progressHandler)
-        m_progressHandler(m_tag, 0.95f, "Merging mesh islands...");
+        m_progressHandler(m_tag, parallelPhaseEnd, "Merging mesh islands...");
 
     // Merge isotropic UVs from all islands (for [param] preview)
     m_isotropicTriangleUvs.clear();
@@ -707,17 +618,17 @@ bool AutoRemesher::remesh()
     auto t_mergeMs = std::chrono::duration_cast<std::chrono::milliseconds>(t_mergeEnd - t_parallelEnd).count();
     auto t_totalMs = std::chrono::duration_cast<std::chrono::milliseconds>(t_mergeEnd - t_start).count();
 
-    qDebug() << "Quad mesh breakdown: total" << t_totalMs << "ms"
-             << "| voxel" << t_voxelMs << "ms"
-             << "| split" << t_splitMs << "ms"
-             << "| build" << t_buildMs << "ms"
-             << "| parallel" << t_parallelWallMs << "ms"
-             << "  (param" << parameterizeTimeAccumulated.load() << "ms"
-             << "| extract" << extractTimeAccumulated.load() << "ms)"
-             << "| merge" << t_mergeMs << "ms";
+    std::cerr << "Quad mesh breakdown: total " << t_totalMs << "ms"
+              << " | voxel " << t_voxelMs << "ms"
+              << " | split " << t_splitMs << "ms"
+              << " | build " << t_buildMs << "ms"
+              << " | parallel " << t_parallelWallMs << "ms"
+              << " (param " << parameterizeTimeAccumulated.load() << "ms"
+              << " | extract " << extractTimeAccumulated.load() << "ms)"
+              << " | merge " << t_mergeMs << "ms" << std::endl;
 
 #if AUTO_REMESHER_DEBUG
-    qDebug() << "Remesh done";
+    std::cerr << "Remesh done" << std::endl;
 #endif
 
     if (nullptr != m_progressHandler)

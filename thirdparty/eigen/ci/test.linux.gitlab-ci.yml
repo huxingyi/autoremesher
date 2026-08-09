@@ -1,0 +1,400 @@
+.test:linux:
+  extends: .common:linux:cross
+  stage: test
+  script:
+    - . ci/scripts/test.linux.script.sh
+  after_script:
+    - . ci/scripts/test.linux.after_script.sh
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_PROJECT_NAMESPACE == "libeigen"
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_PROJECT_NAMESPACE == "libeigen"
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_PROJECT_NAMESPACE == "libeigen"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_PROJECT_NAMESPACE == "libeigen" && $CI_MERGE_REQUEST_LABELS =~ "/all-tests/"
+  tags:
+    - saas-linux-2xlarge-amd64
+  allow_failure:
+    exit_codes: 42
+
+##### x86-64 ###################################################################
+.test:linux:x86-64:
+  extends: .test:linux
+  variables:
+    EIGEN_CI_TARGET_ARCH: x86_64
+    EIGEN_CI_CROSS_TARGET_TRIPLE: x86_64-linux-gnu
+
+# GCC-6 (minimum on Ubuntu 18.04)
+.test:linux:x86-64:gcc-6:default:
+  extends: .test:linux:x86-64
+  image: ubuntu:18.04
+  needs: [ build:linux:cross:x86-64:gcc-6:default ]
+  variables:
+    EIGEN_CI_INSTALL: g++-6
+
+test:linux:x86-64:gcc-6:default:official:
+  extends: .test:linux:x86-64:gcc-6:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:x86-64:gcc-6:default:unsupported:
+  extends: .test:linux:x86-64:gcc-6:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+# GCC-10 (modern stable)
+.test:linux:x86-64:gcc-10:default:
+  extends: .test:linux:x86-64
+  needs: [ build:linux:cross:x86-64:gcc-10:default ]
+  variables:
+    EIGEN_CI_INSTALL: g++-10
+
+test:linux:x86-64:gcc-10:default:official:
+  extends: .test:linux:x86-64:gcc-10:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:x86-64:gcc-10:default:unsupported:
+  extends: .test:linux:x86-64:gcc-10:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+.test:linux:x86-64:gcc-10:avx:
+  extends: .test:linux:x86-64
+  needs: [ build:linux:cross:x86-64:gcc-10:avx ]
+  variables:
+    EIGEN_CI_INSTALL: g++-10
+
+test:linux:x86-64:gcc-10:avx:official:
+  extends: .test:linux:x86-64:gcc-10:avx
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:x86-64:gcc-10:avx:unsupported:
+  extends: .test:linux:x86-64:gcc-10:avx
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+.test:linux:x86-64:gcc-10:avx2:
+  extends: .test:linux:x86-64
+  needs: [ build:linux:cross:x86-64:gcc-10:avx2 ]
+  variables:
+    EIGEN_CI_INSTALL: g++-10
+
+test:linux:x86-64:gcc-10:avx2:official:
+  extends: .test:linux:x86-64:gcc-10:avx2
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:x86-64:gcc-10:avx2:unsupported:
+  extends: .test:linux:x86-64:gcc-10:avx2
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+.test:linux:x86-64:gcc-10:avx512dq:
+  extends: .test:linux:x86-64
+  needs: [ build:linux:cross:x86-64:gcc-10:avx512dq ]
+  variables:
+    EIGEN_CI_INSTALL: g++-10
+  tags:
+    - eigen-runner
+    - linux
+    - x86-64
+    - avx512
+
+test:linux:x86-64:gcc-10:avx512dq:official:
+  extends: .test:linux:x86-64:gcc-10:avx512dq
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:x86-64:gcc-10:avx512dq:unsupported:
+  extends: .test:linux:x86-64:gcc-10:avx512dq
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+# Clang-6 (minimum on Ubuntu 20.04)
+.test:linux:x86-64:clang-6:default:
+  extends: .test:linux:x86-64
+  image: ubuntu:20.04
+  needs: [ build:linux:cross:x86-64:clang-6:default ]
+  variables:
+    EIGEN_CI_INSTALL: g++-8 clang-6.0 lld-6.0
+
+test:linux:x86-64:clang-6:default:official:
+  extends: .test:linux:x86-64:clang-6:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:x86-64:clang-6:default:unsupported:
+  extends: .test:linux:x86-64:clang-6:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+# Clang-12 (modern stable)
+.test:linux:x86-64:clang-12:default:
+  extends: .test:linux:x86-64
+  needs: [ build:linux:cross:x86-64:clang-12:default ]
+  variables:
+    EIGEN_CI_INSTALL: clang-12
+
+test:linux:x86-64:clang-12:default:official:
+  extends: .test:linux:x86-64:clang-12:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:x86-64:clang-12:default:unsupported:
+  extends: .test:linux:x86-64:clang-12:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+.test:linux:x86-64:clang-12:avx:
+  extends: .test:linux:x86-64
+  needs: [ build:linux:cross:x86-64:clang-12:avx ]
+  variables:
+    EIGEN_CI_INSTALL: clang-12
+
+test:linux:x86-64:clang-12:avx:official:
+  extends: .test:linux:x86-64:clang-12:avx
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:x86-64:clang-12:avx:unsupported:
+  extends: .test:linux:x86-64:clang-12:avx
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+.test:linux:x86-64:clang-12:avx2:
+  extends: .test:linux:x86-64
+  needs: [ build:linux:cross:x86-64:clang-12:avx2 ]
+  variables:
+    EIGEN_CI_INSTALL: clang-12
+
+test:linux:x86-64:clang-12:avx2:official:
+  extends: .test:linux:x86-64:clang-12:avx2
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:x86-64:clang-12:avx2:unsupported:
+  extends: .test:linux:x86-64:clang-12:avx2
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+.test:linux:x86-64:clang-12:avx512dq:
+  extends: .test:linux:x86-64
+  needs: [ build:linux:cross:x86-64:clang-12:avx512dq ]
+  variables:
+    EIGEN_CI_INSTALL: clang-12
+  tags:
+    - eigen-runner
+    - linux
+    - x86-64
+    - avx512
+
+test:linux:x86-64:clang-12:avx512dq:official:
+  extends: .test:linux:x86-64:clang-12:avx512dq
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:x86-64:clang-12:avx512dq:unsupported:
+  extends: .test:linux:x86-64:clang-12:avx512dq
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+##### CUDA #####################################################################
+.test:linux:cuda:
+  extends: .test:linux
+  allow_failure: true
+  variables:
+    EIGEN_CI_CTEST_LABEL: gpu
+  tags:
+    - saas-linux-medium-amd64-gpu-standard
+
+# GCC-10, CUDA-12.2
+test:linux:cuda-12.2:gcc-10:
+  extends: .test:linux:cuda
+  image: nvidia/cuda:12.2.0-devel-ubuntu20.04
+  needs: [ build:linux:cuda-12.2:gcc-10 ]
+  variables:
+    EIGEN_CI_CXX_COMPILER: g++-10
+    EIGEN_CI_CC_COMPILER: gcc-10
+
+# Clang-12, CUDA-12.2
+test:linux:cuda-12.2:clang-12:
+  extends: .test:linux:cuda
+  image: nvidia/cuda:12.2.0-devel-ubuntu20.04
+  needs: [ build:linux:cuda-12.2:clang-12 ]
+  variables:
+    EIGEN_CI_CXX_COMPILER: clang++-12
+    EIGEN_CI_CC_COMPILER: clang-12
+
+##### arm ######################################################################
+
+.test:linux:arm:
+  extends: .test:linux
+  variables:
+    EIGEN_CI_TARGET_ARCH: arm
+    EIGEN_CI_CROSS_TARGET_TRIPLE: arm-linux-gnueabihf
+    EIGEN_CI_CTEST_ARGS: --timeout 2000
+
+.test:linux:arm:gcc-10:default:
+  extends: .test:linux:arm
+  needs: [ build:linux:cross:arm:gcc-10:default ]
+  variables:
+    EIGEN_CI_CROSS_INSTALL: g++-10-arm-linux-gnueabihf qemu-user-static
+
+test:linux:arm:gcc-10:default:official:
+  extends: .test:linux:arm:gcc-10:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:arm:gcc-10:default:unsupported:
+  extends: .test:linux:arm:gcc-10:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+.test:linux:arm:clang-12:default:
+  extends: .test:linux:arm
+  needs: [ build:linux:cross:arm:clang-12:default ]
+  variables:
+    EIGEN_CI_CROSS_INSTALL: g++-10-arm-linux-gnueabihf clang-12 qemu-user-static
+
+test:linux:arm:clang-12:default:official:
+  extends: .test:linux:arm:clang-12:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:arm:clang-12:default:unsupported:
+  extends: .test:linux:arm:clang-12:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+##### aarch64 ##################################################################
+
+.test:linux:aarch64:
+  extends: .test:linux
+  variables:
+    EIGEN_CI_TARGET_ARCH: aarch64
+    EIGEN_CI_CROSS_TARGET_TRIPLE: aarch64-linux-gnu
+  tags:
+    - saas-linux-large-arm64
+
+.test:linux:aarch64:gcc-10:default:
+  extends: .test:linux:aarch64
+  needs: [ build:linux:cross:aarch64:gcc-10:default ]
+  variables:
+    EIGEN_CI_INSTALL: g++-10
+
+test:linux:aarch64:gcc-10:default:official:
+  extends: .test:linux:aarch64:gcc-10:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:aarch64:gcc-10:default:unsupported:
+  extends: .test:linux:aarch64:gcc-10:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+.test:linux:aarch64:clang-12:default:
+  extends: .test:linux:aarch64
+  needs: [ build:linux:cross:aarch64:clang-12:default ]
+  variables:
+    EIGEN_CI_INSTALL: clang-12
+
+test:linux:aarch64:clang-12:default:official:
+  extends: .test:linux:aarch64:clang-12:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:aarch64:clang-12:default:unsupported:
+  extends: .test:linux:aarch64:clang-12:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+##### ppc64le ##################################################################
+
+.test:linux:ppc64le:
+  extends: .test:linux
+  image: ubuntu:24.04
+  variables:
+    EIGEN_CI_TARGET_ARCH: ppc64le
+    EIGEN_CI_CROSS_TARGET_TRIPLE: powerpc64le-linux-gnu
+    EIGEN_CI_CTEST_ARGS: --timeout 2000
+
+.test:linux:ppc64le:gcc-14:default:
+  extends: .test:linux:ppc64le
+  needs: [ build:linux:cross:ppc64le:gcc-14:default ]
+  variables:
+    EIGEN_CI_CROSS_INSTALL: g++-14-powerpc64le-linux-gnu qemu-user-static
+
+test:linux:ppc64le:gcc-14:default:official:
+  extends: .test:linux:ppc64le:gcc-14:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:ppc64le:gcc-14:default:unsupported:
+  extends: .test:linux:ppc64le:gcc-14:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+.test:linux:ppc64le:clang-16:default:
+  extends: .test:linux:ppc64le
+  needs: [ build:linux:cross:ppc64le:clang-16:default ]
+  variables:
+    EIGEN_CI_CROSS_INSTALL: g++-14-powerpc64le-linux-gnu clang-16 qemu-user-static
+
+test:linux:ppc64le:clang-16:default:official:
+  extends: .test:linux:ppc64le:clang-16:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:ppc64le:clang-16:default:unsupported:
+  extends: .test:linux:ppc64le:clang-16:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+##### loongarch64 ##############################################################
+
+.test:linux:loongarch64:
+  extends: .test:linux
+  image: ubuntu:24.04
+  variables:
+    EIGEN_CI_TARGET_ARCH: loongarch64
+    EIGEN_CI_CROSS_TARGET_TRIPLE: loongarch64-linux-gnu
+    EIGEN_CI_CROSS_INSTALL: g++-14-loongarch64-linux-gnu qemu-user-static
+    EIGEN_CI_CTEST_ARGS: --timeout 2000
+
+# GCC-14 (Ubuntu 24)
+.test:linux:loongarch64:gcc-14:default:
+  extends: .test:linux:loongarch64
+  image: ubuntu:24.04
+  needs: [ build:linux:cross:loongarch64:gcc-14:default ]
+
+test:linux:loongarch64:gcc-14:default:official:
+  extends: .test:linux:loongarch64:gcc-14:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Official
+
+test:linux:loongarch64:gcc-14:default:unsupported:
+  extends: .test:linux:loongarch64:gcc-14:default
+  variables:
+    EIGEN_CI_CTEST_LABEL: Unsupported
+
+##### MR Smoke Tests ###########################################################
+
+test:linux:x86-64:gcc-10:default:smoketest:
+  extends: .test:linux:x86-64:gcc-10:default
+  needs: [ build:linux:cross:x86-64:gcc-10:default:smoketest ]
+  variables:
+    EIGEN_CI_CTEST_LABEL: smoketest
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  tags:
+    - saas-linux-medium-amd64
+
+test:linux:x86-64:clang-12:default:smoketest:
+  extends: .test:linux:x86-64:clang-12:default
+  needs: [ build:linux:cross:x86-64:clang-12:default:smoketest ]
+  variables:
+    EIGEN_CI_CTEST_LABEL: smoketest
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  tags:
+    - saas-linux-medium-amd64

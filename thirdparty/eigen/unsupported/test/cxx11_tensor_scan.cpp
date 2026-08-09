@@ -14,9 +14,8 @@
 
 using Eigen::Tensor;
 
-template <int DataLayout, typename Type=float, bool Exclusive = false>
-static void test_1d_scan()
-{
+template <int DataLayout, typename Type = float, bool Exclusive = false>
+static void test_1d_scan() {
   int size = 50;
   Tensor<Type, 1, DataLayout> tensor(size);
   tensor.setRandom();
@@ -48,9 +47,8 @@ static void test_1d_scan()
   }
 }
 
-template <int DataLayout, typename Type=float>
-static void test_4d_scan()
-{
+template <int DataLayout, typename Type = float>
+static void test_4d_scan() {
   int size = 5;
   Tensor<Type, 4, DataLayout> tensor(size, size, size, size);
   tensor.setRandom();
@@ -98,7 +96,7 @@ static void test_tensor_maps() {
   }
 }
 
-void test_cxx11_tensor_scan() {
+EIGEN_DECLARE_TEST(cxx11_tensor_scan) {
   CALL_SUBTEST((test_1d_scan<ColMajor, float, true>()));
   CALL_SUBTEST((test_1d_scan<ColMajor, float, false>()));
   CALL_SUBTEST((test_1d_scan<RowMajor, float, true>()));

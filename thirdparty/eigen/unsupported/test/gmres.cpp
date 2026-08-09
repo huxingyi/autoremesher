@@ -11,21 +11,20 @@
 #include "../../test/sparse_solver.h"
 #include <Eigen/IterativeSolvers>
 
-template<typename T> void test_gmres_T()
-{
+template <typename T>
+void test_gmres_T() {
   GMRES<SparseMatrix<T>, DiagonalPreconditioner<T> > gmres_colmajor_diag;
-  GMRES<SparseMatrix<T>, IdentityPreconditioner    > gmres_colmajor_I;
-  GMRES<SparseMatrix<T>, IncompleteLUT<T> >           gmres_colmajor_ilut;
-  //GMRES<SparseMatrix<T>, SSORPreconditioner<T> >     gmres_colmajor_ssor;
+  GMRES<SparseMatrix<T>, IdentityPreconditioner> gmres_colmajor_I;
+  GMRES<SparseMatrix<T>, IncompleteLUT<T> > gmres_colmajor_ilut;
+  // GMRES<SparseMatrix<T>, SSORPreconditioner<T> >     gmres_colmajor_ssor;
 
-  CALL_SUBTEST( check_sparse_square_solving(gmres_colmajor_diag)  );
-//   CALL_SUBTEST( check_sparse_square_solving(gmres_colmajor_I)     );
-  CALL_SUBTEST( check_sparse_square_solving(gmres_colmajor_ilut)     );
-  //CALL_SUBTEST( check_sparse_square_solving(gmres_colmajor_ssor)     );
+  CALL_SUBTEST(check_sparse_square_solving(gmres_colmajor_diag));
+  //   CALL_SUBTEST( check_sparse_square_solving(gmres_colmajor_I)     );
+  CALL_SUBTEST(check_sparse_square_solving(gmres_colmajor_ilut));
+  // CALL_SUBTEST( check_sparse_square_solving(gmres_colmajor_ssor)     );
 }
 
-void test_gmres()
-{
+EIGEN_DECLARE_TEST(gmres) {
   CALL_SUBTEST_1(test_gmres_T<double>());
   CALL_SUBTEST_2(test_gmres_T<std::complex<double> >());
 }

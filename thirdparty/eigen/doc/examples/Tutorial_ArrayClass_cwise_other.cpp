@@ -1,19 +1,11 @@
 #include <Eigen/Dense>
 #include <iostream>
 
-using namespace Eigen;
-using namespace std;
-
-int main()
-{
-  ArrayXf a = ArrayXf::Random(5);
+int main() {
+  Eigen::ArrayXf a = Eigen::ArrayXf::Random(5);
   a *= 2;
-  cout << "a =" << endl 
-       << a << endl;
-  cout << "a.abs() =" << endl 
-       << a.abs() << endl;
-  cout << "a.abs().sqrt() =" << endl 
-       << a.abs().sqrt() << endl;
-  cout << "a.min(a.abs().sqrt()) =" << endl 
-       << a.min(a.abs().sqrt()) << endl;
+  std::cout << "a =" << std::endl << a << std::endl;
+  std::cout << "a.abs() =" << std::endl << a.abs() << std::endl;
+  std::cout << "a.abs().sqrt() =" << std::endl << a.abs().sqrt() << std::endl;
+  std::cout << "a.min(a.abs().sqrt()) =" << std::endl << a.min(a.abs().sqrt()) << std::endl;
 }

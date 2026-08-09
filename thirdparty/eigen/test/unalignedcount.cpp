@@ -12,42 +12,58 @@ static int nb_loadu;
 static int nb_store;
 static int nb_storeu;
 
-#define EIGEN_DEBUG_ALIGNED_LOAD    { nb_load++;    }
-#define EIGEN_DEBUG_UNALIGNED_LOAD  { nb_loadu++;   }
-#define EIGEN_DEBUG_ALIGNED_STORE   { nb_store++;   }
-#define EIGEN_DEBUG_UNALIGNED_STORE { nb_storeu++;  }
+#define EIGEN_DEBUG_ALIGNED_LOAD \
+  { nb_load++; }
+#define EIGEN_DEBUG_UNALIGNED_LOAD \
+  { nb_loadu++; }
+#define EIGEN_DEBUG_ALIGNED_STORE \
+  { nb_store++; }
+#define EIGEN_DEBUG_UNALIGNED_STORE \
+  { nb_storeu++; }
 
-#define VERIFY_ALIGNED_UNALIGNED_COUNT(XPR,AL,UL,AS,US) {\
-    nb_load = nb_loadu = nb_store = nb_storeu = 0; \
-    XPR; \
-    if(!(nb_load==AL && nb_loadu==UL && nb_store==AS && nb_storeu==US)) \
+#define VERIFY_ALIGNED_UNALIGNED_COUNT(XPR, AL, UL, AS, US)                                                \
+  {                                                                                                        \
+    nb_load = nb_loadu = nb_store = nb_storeu = 0;                                                         \
+    XPR;                                                                                                   \
+    if (!(nb_load == AL && nb_loadu == UL && nb_store == AS && nb_storeu == US))                           \
       std::cerr << " >> " << nb_load << ", " << nb_loadu << ", " << nb_store << ", " << nb_storeu << "\n"; \
-    VERIFY( (#XPR) && nb_load==AL && nb_loadu==UL && nb_store==AS && nb_storeu==US ); \
+    VERIFY((#XPR) && nb_load == AL && nb_loadu == UL && nb_store == AS && nb_storeu == US);                \
   }
-
 
 #include "main.h"
 
-void test_unalignedcount()
-{
-  #if defined(EIGEN_VECTORIZE_AVX)
+EIGEN_DECLARE_TEST(unalignedcount) {
+#if defined(EIGEN_VECTORIZE_AVX512)
+  VectorXf a(48), b(48);
+  a.fill(0);
+  b.fill(1);
+  VERIFY_ALIGNED_UNALIGNED_COUNT(a += b, 6, 0, 3, 0);
+  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0, 48) += b.segment(0, 48), 3, 3, 3, 0);
+  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0, 48) -= b.segment(0, 48), 3, 3, 3, 0);
+  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0, 48) *= 3.5, 3, 0, 3, 0);
+  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0, 48) /= 3.5, 3, 0, 3, 0);
+#elif defined(EIGEN_VECTORIZE_AVX)
   VectorXf a(40), b(40);
+  a.fill(0);
+  b.fill(1);
   VERIFY_ALIGNED_UNALIGNED_COUNT(a += b, 10, 0, 5, 0);
-  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0,40) += b.segment(0,40), 5, 5, 5, 0);
-  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0,40) -= b.segment(0,40), 5, 5, 5, 0);
-  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0,40) *= 3.5, 5, 0, 5, 0);
-  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0,40) /= 3.5, 5, 0, 5, 0);
-  #elif defined(EIGEN_VECTORIZE_SSE)
+  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0, 40) += b.segment(0, 40), 5, 5, 5, 0);
+  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0, 40) -= b.segment(0, 40), 5, 5, 5, 0);
+  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0, 40) *= 3.5, 5, 0, 5, 0);
+  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0, 40) /= 3.5, 5, 0, 5, 0);
+#elif defined(EIGEN_VECTORIZE_SSE)
   VectorXf a(40), b(40);
+  a.fill(0);
+  b.fill(1);
   VERIFY_ALIGNED_UNALIGNED_COUNT(a += b, 20, 0, 10, 0);
-  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0,40) += b.segment(0,40), 10, 10, 10, 0);
-  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0,40) -= b.segment(0,40), 10, 10, 10, 0);
-  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0,40) *= 3.5, 10, 0, 10, 0);
-  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0,40) /= 3.5, 10, 0, 10, 0);
-  #else
+  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0, 40) += b.segment(0, 40), 10, 10, 10, 0);
+  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0, 40) -= b.segment(0, 40), 10, 10, 10, 0);
+  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0, 40) *= 3.5, 10, 0, 10, 0);
+  VERIFY_ALIGNED_UNALIGNED_COUNT(a.segment(0, 40) /= 3.5, 10, 0, 10, 0);
+#else
   // The following line is to eliminate "variable not used" warnings
   nb_load = nb_loadu = nb_store = nb_storeu = 0;
   int a(0), b(0);
-  VERIFY(a==b);
-  #endif
+  VERIFY(a == b);
+#endif
 }

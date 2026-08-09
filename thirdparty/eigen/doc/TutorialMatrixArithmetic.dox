@@ -10,7 +10,7 @@ between matrices, vectors and scalars with Eigen.
 \section TutorialArithmeticIntroduction Introduction
 
 Eigen offers matrix/vector arithmetic operations either through overloads of common C++ arithmetic operators such as +, -, *,
-or through special methods such as dot(), cross(), etc.
+or through special methods such as \link MatrixBase::dot() dot()\endlink, \link MatrixBase::cross() cross()\endlink, etc.
 For the Matrix class (matrices and vectors), operators are only overloaded to support
 linear-algebraic operations. For example, \c matrix1 \c * \c matrix2 means matrix-matrix product,
 and \c vector \c + \c scalar is just not allowed. If you want to perform all kinds of array operations,
@@ -100,7 +100,7 @@ As for basic arithmetic operators, \c transpose() and \c adjoint() simply return
 <td>
 \verbinclude tut_arithmetic_transpose_aliasing.out
 </td></tr></table>
-This is the so-called \ref TopicAliasing "aliasing issue". In "debug mode", i.e., when \ref TopicAssertions "assertions" have not been disabled, such common pitfalls are automatically detected. 
+This is the so-called \ref TopicAliasing "aliasing issue". In "debug mode", i.e., when \ref TopicAssertions "assertions" have not been disabled, such common pitfalls are automatically detected.
 
 For \em in-place transposition, as for instance in <tt>a = a.transpose()</tt>, simply use the \link DenseBase::transposeInPlace() transposeInPlace()\endlink  function:
 <table class="example">
@@ -158,7 +158,7 @@ For dot product and cross product, you need the \link MatrixBase::dot() dot()\en
 \verbinclude tut_arithmetic_dot_cross.out
 </td></tr></table>
 
-Remember that cross product is only for vectors of size 3. Dot product is for vectors of any sizes.
+Cross product is defined in Eigen not only for vectors of size 3 but also for those of size 2, check \link MatrixBase::cross() the doc\endlink for details. Dot product is for vectors of any sizes.
 When using complex numbers, Eigen's dot product is conjugate-linear in the first variable and linear in the
 second variable.
 

@@ -101,10 +101,16 @@ m1.colPivHouseholderQr();
 ?geqp3
 \endcode</td></tr>
 <tr class="alt"><td>Singular value decomposition \n \c EIGEN_USE_LAPACKE </td><td>\code
-JacobiSVD<MatrixXd> svd;
-svd.compute(m1, ComputeThinV);
+JacobiSVD<MatrixXd, ComputeThinV> svd;
+svd.compute(m1);
 \endcode</td><td>\code
 ?gesvd
+\endcode</td></tr>
+<tr class="alt"><td>Singular value decomposition \n \c EIGEN_USE_LAPACKE \n \c EIGEN_USE_LAPACKE_STRICT </td><td>\code
+BDCSVD<MatrixXd> svd;
+svd.compute(m1);
+\endcode</td><td>\code
+?gesdd
 \endcode</td></tr>
 <tr><td>Eigen-value decompositions \n \c EIGEN_USE_LAPACKE \n \c EIGEN_USE_LAPACKE_STRICT </td><td>\code
 EigenSolver<MatrixXd> es(m1);

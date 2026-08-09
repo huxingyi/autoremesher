@@ -88,7 +88,7 @@ You may wonder, isn't it overengineering to have the storage in a separate class
 
 Let's look at this constructor, in src/Core/DenseStorage.h. You can see that there are many partial template specializations of DenseStorages here, treating separately the cases where dimensions are Dynamic or fixed at compile-time. The partial specialization that we are looking at is:
 \code
-template<typename T, int _Cols> class DenseStorage<T, Dynamic, Dynamic, _Cols>
+template<typename T, int Cols_> class DenseStorage<T, Dynamic, Dynamic, Cols_>
 \endcode
 
 Here, the constructor called is DenseStorage::DenseStorage(int size, int rows, int columns)
@@ -101,7 +101,7 @@ inline DenseStorage(int size, int rows, int) : m_data(internal::aligned_new<T>(s
 
 Here, the \a m_data member is the actual array of coefficients of the matrix. As you see, it is dynamically allocated. Rather than calling new[] or malloc(), as you can see, we have our own internal::aligned_new defined in src/Core/util/Memory.h. What it does is that if vectorization is enabled, then it uses a platform-specific call to allocate a 128-bit-aligned array, as that is very useful for vectorization with both SSE2 and AltiVec. If vectorization is disabled, it amounts to the standard new[].
 
-As you can see, the constructor also sets the \a m_rows member to \a size. Notice that there is no \a m_columns member: indeed, in this partial specialization of DenseStorage, we know the number of columns at compile-time, since the _Cols template parameter is different from Dynamic. Namely, in our case, _Cols is 1, which is to say that our vector is just a matrix with 1 column. Hence, there is no need to store the number of columns as a runtime variable.
+As you can see, the constructor also sets the \a m_rows member to \a size. Notice that there is no \a m_columns member: indeed, in this partial specialization of DenseStorage, we know the number of columns at compile-time, since the Cols_ template parameter is different from Dynamic. Namely, in our case, Cols_ is 1, which is to say that our vector is just a matrix with 1 column. Hence, there is no need to store the number of columns as a runtime variable.
 
 When you call VectorXf::data() to get the pointer to the array of coefficients, it returns DenseStorage::data() which returns the \a m_data member.
 
@@ -212,6 +212,11 @@ Thus, the operator+ hasn't performed any actual computation. To summarize, the o
 
 \section Assignment The assignment
 
+<div class="warningbox">
+<strong>PLEASE HELP US IMPROVING THIS SECTION.</strong>
+This page reflects how %Eigen worked until 3.2, but since %Eigen 3.3 the assignment is more sophisticated as it involves an Assignment expression, and the creation of so called evaluator which are responsible for the evaluation of each kind of expressions.
+</div>
+
 At this point, the expression \a v + \a w has finished evaluating, so, in the process of compiling the line of code
 \code
 u = v + w;
@@ -273,7 +278,7 @@ So internal::assign_selector takes 4 template parameters, but the 2 last ones ar
 
 EvalBeforeAssigning is here to enforce the EvalBeforeAssigningBit. As explained <a href="TopicLazyEvaluation.html">here</a>, certain expressions have this flag which makes them automatically evaluate into temporaries before assigning them to another expression. This is the case of the Product expression, in order to avoid strange aliasing effects when doing "m = m * m;" However, of course here our CwiseBinaryOp expression doesn't have the EvalBeforeAssigningBit: we said since the beginning that we didn't want a temporary to be introduced here. So if you go to src/Core/CwiseBinaryOp.h, you'll see that the Flags in internal::traits\<CwiseBinaryOp\> don't include the EvalBeforeAssigningBit. The Flags member of CwiseBinaryOp is then imported from the internal::traits by the EIGEN_GENERIC_PUBLIC_INTERFACE macro. Anyway, here the template parameter EvalBeforeAssigning has the value \c false.
 
-NeedToTranspose is here for the case where the user wants to copy a row-vector into a column-vector. We allow this as a special exception to the general rule that in assignments we require the dimesions to match. Anyway, here both the left-hand and right-hand sides are column vectors, in the sense that ColsAtCompileTime is equal to 1. So NeedToTranspose is \c false too.
+NeedToTranspose is here for the case where the user wants to copy a row-vector into a column-vector. We allow this as a special exception to the general rule that in assignments we require the dimensions to match. Anyway, here both the left-hand and right-hand sides are column vectors, in the sense that ColsAtCompileTime is equal to 1. So NeedToTranspose is \c false too.
 
 So, here we are in the partial specialization:
 \code

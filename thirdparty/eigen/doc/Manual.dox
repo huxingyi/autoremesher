@@ -15,7 +15,6 @@ namespace Eigen {
 
 
 /** \page UserManual_Generalities General topics
-  - \subpage Eigen2ToEigen3
   - \subpage TopicFunctionTakingEigenTypes
   - \subpage TopicPreprocessorDirectives
   - \subpage TopicAssertions
@@ -40,7 +39,6 @@ namespace Eigen {
   - \subpage TopicVectorization
   - \subpage TopicEigenExpressionTemplates
   - \subpage TopicScalarTypes
-  - \subpage GettingStarted
   - \subpage TutorialSparse_example_details
   - \subpage TopicWritingEfficientProductExpression
   - \subpage Experimental
@@ -64,42 +62,46 @@ namespace Eigen {
     \ingroup DenseMatrixManipulation_chapter */
 /** \addtogroup TutorialBlockOperations
     \ingroup DenseMatrixManipulation_chapter */
+/** \addtogroup TutorialSlicingIndexing
+    \ingroup DenseMatrixManipulation_chapter */
 /** \addtogroup TutorialAdvancedInitialization
     \ingroup DenseMatrixManipulation_chapter */
 /** \addtogroup TutorialReductionsVisitorsBroadcasting
     \ingroup DenseMatrixManipulation_chapter */
-/** \addtogroup TutorialMapClass
+/** \addtogroup TutorialReshape
     \ingroup DenseMatrixManipulation_chapter */
-/** \addtogroup TutorialReshapeSlicing
+/** \addtogroup TutorialSTL
+    \ingroup DenseMatrixManipulation_chapter */
+/** \addtogroup TutorialMapClass
     \ingroup DenseMatrixManipulation_chapter */
 /** \addtogroup TopicAliasing
     \ingroup DenseMatrixManipulation_chapter */
 /** \addtogroup TopicStorageOrders
     \ingroup DenseMatrixManipulation_chapter */
-    
+
 /** \addtogroup DenseMatrixManipulation_Alignement
-    \ingroup DenseMatrixManipulation_chapter */
-/** \addtogroup TopicUnalignedArrayAssert
-    \ingroup DenseMatrixManipulation_Alignement */
-/** \addtogroup TopicFixedSizeVectorizable
-    \ingroup DenseMatrixManipulation_Alignement */
-/** \addtogroup TopicStructHavingEigenMembers
-    \ingroup DenseMatrixManipulation_Alignement */
-/** \addtogroup TopicStlContainers
-    \ingroup DenseMatrixManipulation_Alignement */
-/** \addtogroup TopicPassingByValue
-    \ingroup DenseMatrixManipulation_Alignement */
-/** \addtogroup TopicWrongStackAlignment
-    \ingroup DenseMatrixManipulation_Alignement */
-    
+    \ingroup DenseMatrixManipulation_chapter        */
+/**     \addtogroup TopicUnalignedArrayAssert
+        \ingroup DenseMatrixManipulation_Alignement */
+/**     \addtogroup TopicFixedSizeVectorizable
+        \ingroup DenseMatrixManipulation_Alignement */
+/**     \addtogroup TopicStructHavingEigenMembers
+        \ingroup DenseMatrixManipulation_Alignement */
+/**     \addtogroup TopicStlContainers
+        \ingroup DenseMatrixManipulation_Alignement */
+/**     \addtogroup TopicPassingByValue
+        \ingroup DenseMatrixManipulation_Alignement */
+/**     \addtogroup TopicWrongStackAlignment
+        \ingroup DenseMatrixManipulation_Alignement */
+
 /** \addtogroup DenseMatrixManipulation_Reference
-    \ingroup DenseMatrixManipulation_chapter */
-/** \addtogroup Core_Module
-    \ingroup DenseMatrixManipulation_Reference */  
-/** \addtogroup Jacobi_Module
-    \ingroup DenseMatrixManipulation_Reference */ 
-/** \addtogroup Householder_Module
-    \ingroup DenseMatrixManipulation_Reference */ 
+    \ingroup DenseMatrixManipulation_chapter       */
+/**     \addtogroup Core_Module
+        \ingroup DenseMatrixManipulation_Reference */
+/**     \addtogroup Jacobi_Module
+        \ingroup DenseMatrixManipulation_Reference */
+/**     \addtogroup Householder_Module
+        \ingroup DenseMatrixManipulation_Reference */
 
 /** \addtogroup CoeffwiseMathFunctions
     \ingroup DenseMatrixManipulation_chapter */
@@ -115,7 +117,7 @@ namespace Eigen {
     \ingroup DenseLinearSolvers_chapter */
 /** \addtogroup TopicLinearAlgebraDecompositions
     \ingroup DenseLinearSolvers_chapter */
-/** \addtogroup LeastSquares 
+/** \addtogroup LeastSquares
     \ingroup DenseLinearSolvers_chapter */
 /** \addtogroup InplaceDecomposition
     \ingroup DenseLinearSolvers_chapter */
@@ -165,7 +167,7 @@ namespace Eigen {
 /** \addtogroup Sparse_Module
     \ingroup Sparse_Reference */
 /** \addtogroup Support_modules
-    \ingroup Sparse_Reference */    
+    \ingroup Sparse_Reference */
 
 /** \addtogroup SparseQuickRefPage
     \ingroup Sparse_chapter */
@@ -176,7 +178,7 @@ namespace Eigen {
 
 /** \addtogroup TutorialGeometry
     \ingroup Geometry_chapter */
-    
+
 /** \addtogroup Geometry_Reference
     \ingroup Geometry_chapter */
 /** \addtogroup Geometry_Module

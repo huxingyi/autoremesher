@@ -27,38 +27,34 @@
 
 using namespace std;
 
-template<class Interface>
+template <class Interface>
 class Action_axpby {
-
-public :
-
+ public:
   // Ctor
-  Action_axpby( int size ):_alpha(0.5),_beta(0.95),_size(size)
-  {
+  Action_axpby(int size) : _alpha(0.5), _beta(0.95), _size(size) {
     MESSAGE("Action_axpby Ctor");
 
     // STL vector initialization
-    init_vector<pseudo_random>(X_stl,_size);
-    init_vector<pseudo_random>(Y_stl,_size);
-    init_vector<null_function>(resu_stl,_size);
+    init_vector<pseudo_random>(X_stl, _size);
+    init_vector<pseudo_random>(Y_stl, _size);
+    init_vector<null_function>(resu_stl, _size);
 
     // generic matrix and vector initialization
-    Interface::vector_from_stl(X_ref,X_stl);
-    Interface::vector_from_stl(Y_ref,Y_stl);
+    Interface::vector_from_stl(X_ref, X_stl);
+    Interface::vector_from_stl(Y_ref, Y_stl);
 
-    Interface::vector_from_stl(X,X_stl);
-    Interface::vector_from_stl(Y,Y_stl);
+    Interface::vector_from_stl(X, X_stl);
+    Interface::vector_from_stl(Y, Y_stl);
   }
 
   // invalidate copy ctor
-  Action_axpby( const  Action_axpby & )
-  {
+  Action_axpby(const Action_axpby&) {
     INFOS("illegal call to Action_axpby Copy Ctor");
     exit(1);
   }
 
   // Dtor
-  ~Action_axpby( void ){
+  ~Action_axpby(void) {
     MESSAGE("Action_axpby Dtor");
 
     // deallocation
@@ -70,44 +66,37 @@ public :
   }
 
   // action name
-  static inline std::string name( void )
-  {
-    return "axpby_"+Interface::name();
+  static inline std::string name(void) { return "axpby_" + Interface::name(); }
+
+  double nb_op_base(void) { return 3.0 * _size; }
+
+  inline void initialize(void) {
+    Interface::copy_vector(X_ref, X, _size);
+    Interface::copy_vector(Y_ref, Y, _size);
   }
 
-  double nb_op_base( void ){
-    return 3.0*_size;
-  }
-
-  inline void initialize( void ){
-    Interface::copy_vector(X_ref,X,_size);
-    Interface::copy_vector(Y_ref,Y,_size);
-  }
-
-  inline void calculate( void ) {
+  inline void calculate(void) {
     BTL_ASM_COMMENT("mybegin axpby");
-    Interface::axpby(_alpha,X,_beta,Y,_size);
+    Interface::axpby(_alpha, X, _beta, Y, _size);
     BTL_ASM_COMMENT("myend axpby");
   }
 
-  void check_result( void ){
-    if (_size>128) return;
+  void check_result(void) {
+    if (_size > 128) return;
     // calculation check
-    Interface::vector_to_stl(Y,resu_stl);
+    Interface::vector_to_stl(Y, resu_stl);
 
-    STL_interface<typename Interface::real_type>::axpby(_alpha,X_stl,_beta,Y_stl,_size);
+    STL_interface<typename Interface::real_type>::axpby(_alpha, X_stl, _beta, Y_stl, _size);
 
-    typename Interface::real_type error=
-      STL_interface<typename Interface::real_type>::norm_diff(Y_stl,resu_stl);
+    typename Interface::real_type error = STL_interface<typename Interface::real_type>::norm_diff(Y_stl, resu_stl);
 
-    if (error>1.e-6){
+    if (error > 1.e-6) {
       INFOS("WRONG CALCULATION...residual=" << error);
       exit(2);
     }
   }
 
-private :
-
+ private:
   typename Interface::stl_vector X_stl;
   typename Interface::stl_vector Y_stl;
   typename Interface::stl_vector resu_stl;

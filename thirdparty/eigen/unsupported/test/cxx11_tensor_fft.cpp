@@ -28,13 +28,13 @@ static void test_fft_2D_golden() {
 
   Tensor<std::complex<float>, 2, DataLayout> output = input.template fft<Eigen::BothParts, Eigen::FFT_FORWARD>(fft);
 
-  std::complex<float> output_golden[6]; // in ColMajor order
+  std::complex<float> output_golden[6];  // in ColMajor order
   output_golden[0] = std::complex<float>(21, 0);
   output_golden[1] = std::complex<float>(-9, 0);
   output_golden[2] = std::complex<float>(-3, 1.73205);
-  output_golden[3] = std::complex<float>( 0, 0);
+  output_golden[3] = std::complex<float>(0, 0);
   output_golden[4] = std::complex<float>(-3, -1.73205);
-  output_golden[5] = std::complex<float>(0 ,0);
+  output_golden[5] = std::complex<float>(0, 0);
 
   std::complex<float> c_offset = std::complex<float>(1.0, 1.0);
 
@@ -45,14 +45,13 @@ static void test_fft_2D_golden() {
     VERIFY_IS_APPROX(output(3) + c_offset, output_golden[3] + c_offset);
     VERIFY_IS_APPROX(output(4) + c_offset, output_golden[4] + c_offset);
     VERIFY_IS_APPROX(output(5) + c_offset, output_golden[5] + c_offset);
-  }
-  else {
-    VERIFY_IS_APPROX(output(0)+ c_offset, output_golden[0]+ c_offset);
-    VERIFY_IS_APPROX(output(1)+ c_offset, output_golden[2]+ c_offset);
-    VERIFY_IS_APPROX(output(2)+ c_offset, output_golden[4]+ c_offset);
-    VERIFY_IS_APPROX(output(3)+ c_offset, output_golden[1]+ c_offset);
-    VERIFY_IS_APPROX(output(4)+ c_offset, output_golden[3]+ c_offset);
-    VERIFY_IS_APPROX(output(5)+ c_offset, output_golden[5]+ c_offset);
+  } else {
+    VERIFY_IS_APPROX(output(0) + c_offset, output_golden[0] + c_offset);
+    VERIFY_IS_APPROX(output(1) + c_offset, output_golden[2] + c_offset);
+    VERIFY_IS_APPROX(output(2) + c_offset, output_golden[4] + c_offset);
+    VERIFY_IS_APPROX(output(3) + c_offset, output_golden[1] + c_offset);
+    VERIFY_IS_APPROX(output(4) + c_offset, output_golden[3] + c_offset);
+    VERIFY_IS_APPROX(output(5) + c_offset, output_golden[5] + c_offset);
   }
 }
 
@@ -88,25 +87,25 @@ static void test_fft_complex_input_golden() {
   std::complex<float> forward_golden_result[5];
   std::complex<float> reverse_golden_result[5];
 
-  forward_golden_result[0] = std::complex<float>(15.000000000000000,+15.000000000000000);
+  forward_golden_result[0] = std::complex<float>(15.000000000000000, +15.000000000000000);
   forward_golden_result[1] = std::complex<float>(-5.940954801177935, +0.940954801177934);
   forward_golden_result[2] = std::complex<float>(-3.312299240582266, -1.687700759417735);
   forward_golden_result[3] = std::complex<float>(-1.687700759417735, -3.312299240582266);
-  forward_golden_result[4] = std::complex<float>( 0.940954801177934, -5.940954801177935);
+  forward_golden_result[4] = std::complex<float>(0.940954801177934, -5.940954801177935);
 
-  reverse_golden_result[0] = std::complex<float>( 3.000000000000000, + 3.000000000000000);
-  reverse_golden_result[1] = std::complex<float>( 0.188190960235587, - 1.188190960235587);
-  reverse_golden_result[2] = std::complex<float>(-0.337540151883547, - 0.662459848116453);
-  reverse_golden_result[3] = std::complex<float>(-0.662459848116453, - 0.337540151883547);
-  reverse_golden_result[4] = std::complex<float>(-1.188190960235587, + 0.188190960235587);
+  reverse_golden_result[0] = std::complex<float>(3.000000000000000, +3.000000000000000);
+  reverse_golden_result[1] = std::complex<float>(0.188190960235587, -1.188190960235587);
+  reverse_golden_result[2] = std::complex<float>(-0.337540151883547, -0.662459848116453);
+  reverse_golden_result[3] = std::complex<float>(-0.662459848116453, -0.337540151883547);
+  reverse_golden_result[4] = std::complex<float>(-1.188190960235587, +0.188190960235587);
 
-  for(int i = 0; i < 5; ++i) {
+  for (int i = 0; i < 5; ++i) {
     VERIFY_IS_APPROX(forward_output_both_parts(i), forward_golden_result[i]);
     VERIFY_IS_APPROX(forward_output_real_part(i), forward_golden_result[i].real());
     VERIFY_IS_APPROX(forward_output_imag_part(i), forward_golden_result[i].imag());
   }
 
-  for(int i = 0; i < 5; ++i) {
+  for (int i = 0; i < 5; ++i) {
     VERIFY_IS_APPROX(reverse_output_both_parts(i), reverse_golden_result[i]);
     VERIFY_IS_APPROX(reverse_output_real_part(i), reverse_golden_result[i].real());
     VERIFY_IS_APPROX(reverse_output_imag_part(i), reverse_golden_result[i].imag());
@@ -145,14 +144,13 @@ static void test_fft_real_input_golden() {
   std::complex<float> forward_golden_result[5];
   std::complex<float> reverse_golden_result[5];
 
-
-  forward_golden_result[0] = std::complex<float>(  15, 0);
+  forward_golden_result[0] = std::complex<float>(15, 0);
   forward_golden_result[1] = std::complex<float>(-2.5, +3.44095480117793);
   forward_golden_result[2] = std::complex<float>(-2.5, +0.81229924058227);
   forward_golden_result[3] = std::complex<float>(-2.5, -0.81229924058227);
   forward_golden_result[4] = std::complex<float>(-2.5, -3.44095480117793);
 
-  reverse_golden_result[0] = std::complex<float>( 3.0, 0);
+  reverse_golden_result[0] = std::complex<float>(3.0, 0);
   reverse_golden_result[1] = std::complex<float>(-0.5, -0.688190960235587);
   reverse_golden_result[2] = std::complex<float>(-0.5, -0.162459848116453);
   reverse_golden_result[3] = std::complex<float>(-0.5, +0.162459848116453);
@@ -161,23 +159,21 @@ static void test_fft_real_input_golden() {
   std::complex<float> c_offset(1.0, 1.0);
   float r_offset = 1.0;
 
-  for(int i = 0; i < 5; ++i) {
+  for (int i = 0; i < 5; ++i) {
     VERIFY_IS_APPROX(forward_output_both_parts(i) + c_offset, forward_golden_result[i] + c_offset);
-    VERIFY_IS_APPROX(forward_output_real_part(i)  + r_offset, forward_golden_result[i].real() + r_offset);
-    VERIFY_IS_APPROX(forward_output_imag_part(i)  + r_offset, forward_golden_result[i].imag() + r_offset);
+    VERIFY_IS_APPROX(forward_output_real_part(i) + r_offset, forward_golden_result[i].real() + r_offset);
+    VERIFY_IS_APPROX(forward_output_imag_part(i) + r_offset, forward_golden_result[i].imag() + r_offset);
   }
 
-  for(int i = 0; i < 5; ++i) {
+  for (int i = 0; i < 5; ++i) {
     VERIFY_IS_APPROX(reverse_output_both_parts(i) + c_offset, reverse_golden_result[i] + c_offset);
-    VERIFY_IS_APPROX(reverse_output_real_part(i)  + r_offset, reverse_golden_result[i].real() + r_offset);
-    VERIFY_IS_APPROX(reverse_output_imag_part(i)  + r_offset, reverse_golden_result[i].imag() + r_offset);
+    VERIFY_IS_APPROX(reverse_output_real_part(i) + r_offset, reverse_golden_result[i].real() + r_offset);
+    VERIFY_IS_APPROX(reverse_output_imag_part(i) + r_offset, reverse_golden_result[i].imag() + r_offset);
   }
 }
 
-
 template <int DataLayout, typename RealScalar, bool isComplexInput, int FFTResultType, int FFTDirection, int TensorRank>
 static void test_fft_real_input_energy() {
-
   Eigen::DSizes<ptrdiff_t, TensorRank> dimensions;
   ptrdiff_t total_size = 1;
   for (int i = 0; i < TensorRank; ++i) {
@@ -186,7 +182,7 @@ static void test_fft_real_input_energy() {
   }
   const DSizes<ptrdiff_t, TensorRank> arr = dimensions;
 
-  typedef typename internal::conditional<isComplexInput == true, std::complex<RealScalar>, RealScalar>::type InputScalar;
+  typedef std::conditional_t<isComplexInput == true, std::complex<RealScalar>, RealScalar> InputScalar;
 
   Tensor<InputScalar, TensorRank, DataLayout> input;
   input.resize(arr);
@@ -197,7 +193,7 @@ static void test_fft_real_input_energy() {
     fft[i] = i;
   }
 
-  typedef typename internal::conditional<FFTResultType == Eigen::BothParts, std::complex<RealScalar>, RealScalar>::type OutputScalar;
+  typedef std::conditional_t<FFTResultType == Eigen::BothParts, std::complex<RealScalar>, RealScalar> OutputScalar;
   Tensor<OutputScalar, TensorRank, DataLayout> output;
   output = input.template fft<FFTResultType, FFTDirection>(fft);
 
@@ -216,58 +212,85 @@ static void test_fft_real_input_energy() {
     energy_after_fft += numext::abs2(output(i));
   }
 
-  if(FFTDirection == FFT_FORWARD) {
+  if (FFTDirection == FFT_FORWARD) {
     VERIFY_IS_APPROX(energy_original, energy_after_fft / total_size);
-  }
-  else {
+  } else {
     VERIFY_IS_APPROX(energy_original, energy_after_fft * total_size);
   }
 }
 
-void test_cxx11_tensor_fft() {
-    test_fft_complex_input_golden();
-    test_fft_real_input_golden();
+template <typename RealScalar>
+static void test_fft_non_power_of_2_round_trip(int exponent) {
+  int n = (1 << exponent) + 1;
 
-    test_fft_2D_golden<ColMajor>();
-    test_fft_2D_golden<RowMajor>();
+  Eigen::DSizes<ptrdiff_t, 1> dimensions;
+  dimensions[0] = n;
+  const DSizes<ptrdiff_t, 1> arr = dimensions;
+  Tensor<RealScalar, 1, ColMajor, ptrdiff_t> input;
 
-    test_fft_real_input_energy<ColMajor, float,  true,  Eigen::BothParts, FFT_FORWARD, 1>();
-    test_fft_real_input_energy<ColMajor, double, true,  Eigen::BothParts, FFT_FORWARD, 1>();
-    test_fft_real_input_energy<ColMajor, float,  false,  Eigen::BothParts, FFT_FORWARD, 1>();
-    test_fft_real_input_energy<ColMajor, double, false,  Eigen::BothParts, FFT_FORWARD, 1>();
+  input.resize(arr);
+  input.setRandom();
 
-    test_fft_real_input_energy<ColMajor, float,  true,  Eigen::BothParts, FFT_FORWARD, 2>();
-    test_fft_real_input_energy<ColMajor, double, true,  Eigen::BothParts, FFT_FORWARD, 2>();
-    test_fft_real_input_energy<ColMajor, float,  false,  Eigen::BothParts, FFT_FORWARD, 2>();
-    test_fft_real_input_energy<ColMajor, double, false,  Eigen::BothParts, FFT_FORWARD, 2>();
+  array<int, 1> fft;
+  fft[0] = 0;
 
-    test_fft_real_input_energy<ColMajor, float,  true,  Eigen::BothParts, FFT_FORWARD, 3>();
-    test_fft_real_input_energy<ColMajor, double, true,  Eigen::BothParts, FFT_FORWARD, 3>();
-    test_fft_real_input_energy<ColMajor, float,  false,  Eigen::BothParts, FFT_FORWARD, 3>();
-    test_fft_real_input_energy<ColMajor, double, false,  Eigen::BothParts, FFT_FORWARD, 3>();
+  Tensor<std::complex<RealScalar>, 1, ColMajor> forward = input.template fft<BothParts, FFT_FORWARD>(fft);
 
-    test_fft_real_input_energy<ColMajor, float,  true,  Eigen::BothParts, FFT_FORWARD, 4>();
-    test_fft_real_input_energy<ColMajor, double, true,  Eigen::BothParts, FFT_FORWARD, 4>();
-    test_fft_real_input_energy<ColMajor, float,  false,  Eigen::BothParts, FFT_FORWARD, 4>();
-    test_fft_real_input_energy<ColMajor, double, false,  Eigen::BothParts, FFT_FORWARD, 4>();
+  Tensor<RealScalar, 1, ColMajor, ptrdiff_t> output = forward.template fft<RealPart, FFT_REVERSE>(fft);
 
-    test_fft_real_input_energy<RowMajor, float,  true,  Eigen::BothParts, FFT_FORWARD, 1>();
-    test_fft_real_input_energy<RowMajor, double, true,  Eigen::BothParts, FFT_FORWARD, 1>();
-    test_fft_real_input_energy<RowMajor, float,  false,  Eigen::BothParts, FFT_FORWARD, 1>();
-    test_fft_real_input_energy<RowMajor, double, false,  Eigen::BothParts, FFT_FORWARD, 1>();
+  for (int i = 0; i < n; ++i) {
+    RealScalar tol = test_precision<RealScalar>() * (std::abs(input[i]) + std::abs(output[i]) + 1);
+    VERIFY_IS_APPROX_OR_LESS_THAN(std::abs(input[i] - output[i]), tol);
+  }
+}
 
-    test_fft_real_input_energy<RowMajor, float,  true,  Eigen::BothParts, FFT_FORWARD, 2>();
-    test_fft_real_input_energy<RowMajor, double, true,  Eigen::BothParts, FFT_FORWARD, 2>();
-    test_fft_real_input_energy<RowMajor, float,  false,  Eigen::BothParts, FFT_FORWARD, 2>();
-    test_fft_real_input_energy<RowMajor, double, false,  Eigen::BothParts, FFT_FORWARD, 2>();
+EIGEN_DECLARE_TEST(cxx11_tensor_fft) {
+  test_fft_complex_input_golden();
+  test_fft_real_input_golden();
 
-    test_fft_real_input_energy<RowMajor, float,  true,  Eigen::BothParts, FFT_FORWARD, 3>();
-    test_fft_real_input_energy<RowMajor, double, true,  Eigen::BothParts, FFT_FORWARD, 3>();
-    test_fft_real_input_energy<RowMajor, float,  false,  Eigen::BothParts, FFT_FORWARD, 3>();
-    test_fft_real_input_energy<RowMajor, double, false,  Eigen::BothParts, FFT_FORWARD, 3>();
+  test_fft_2D_golden<ColMajor>();
+  test_fft_2D_golden<RowMajor>();
 
-    test_fft_real_input_energy<RowMajor, float,  true,  Eigen::BothParts, FFT_FORWARD, 4>();
-    test_fft_real_input_energy<RowMajor, double, true,  Eigen::BothParts, FFT_FORWARD, 4>();
-    test_fft_real_input_energy<RowMajor, float,  false,  Eigen::BothParts, FFT_FORWARD, 4>();
-    test_fft_real_input_energy<RowMajor, double, false,  Eigen::BothParts, FFT_FORWARD, 4>();
+  test_fft_real_input_energy<ColMajor, float, true, Eigen::BothParts, FFT_FORWARD, 1>();
+  test_fft_real_input_energy<ColMajor, double, true, Eigen::BothParts, FFT_FORWARD, 1>();
+  test_fft_real_input_energy<ColMajor, float, false, Eigen::BothParts, FFT_FORWARD, 1>();
+  test_fft_real_input_energy<ColMajor, double, false, Eigen::BothParts, FFT_FORWARD, 1>();
+
+  test_fft_real_input_energy<ColMajor, float, true, Eigen::BothParts, FFT_FORWARD, 2>();
+  test_fft_real_input_energy<ColMajor, double, true, Eigen::BothParts, FFT_FORWARD, 2>();
+  test_fft_real_input_energy<ColMajor, float, false, Eigen::BothParts, FFT_FORWARD, 2>();
+  test_fft_real_input_energy<ColMajor, double, false, Eigen::BothParts, FFT_FORWARD, 2>();
+
+  test_fft_real_input_energy<ColMajor, float, true, Eigen::BothParts, FFT_FORWARD, 3>();
+  test_fft_real_input_energy<ColMajor, double, true, Eigen::BothParts, FFT_FORWARD, 3>();
+  test_fft_real_input_energy<ColMajor, float, false, Eigen::BothParts, FFT_FORWARD, 3>();
+  test_fft_real_input_energy<ColMajor, double, false, Eigen::BothParts, FFT_FORWARD, 3>();
+
+  test_fft_real_input_energy<ColMajor, float, true, Eigen::BothParts, FFT_FORWARD, 4>();
+  test_fft_real_input_energy<ColMajor, double, true, Eigen::BothParts, FFT_FORWARD, 4>();
+  test_fft_real_input_energy<ColMajor, float, false, Eigen::BothParts, FFT_FORWARD, 4>();
+  test_fft_real_input_energy<ColMajor, double, false, Eigen::BothParts, FFT_FORWARD, 4>();
+
+  test_fft_real_input_energy<RowMajor, float, true, Eigen::BothParts, FFT_FORWARD, 1>();
+  test_fft_real_input_energy<RowMajor, double, true, Eigen::BothParts, FFT_FORWARD, 1>();
+  test_fft_real_input_energy<RowMajor, float, false, Eigen::BothParts, FFT_FORWARD, 1>();
+  test_fft_real_input_energy<RowMajor, double, false, Eigen::BothParts, FFT_FORWARD, 1>();
+
+  test_fft_real_input_energy<RowMajor, float, true, Eigen::BothParts, FFT_FORWARD, 2>();
+  test_fft_real_input_energy<RowMajor, double, true, Eigen::BothParts, FFT_FORWARD, 2>();
+  test_fft_real_input_energy<RowMajor, float, false, Eigen::BothParts, FFT_FORWARD, 2>();
+  test_fft_real_input_energy<RowMajor, double, false, Eigen::BothParts, FFT_FORWARD, 2>();
+
+  test_fft_real_input_energy<RowMajor, float, true, Eigen::BothParts, FFT_FORWARD, 3>();
+  test_fft_real_input_energy<RowMajor, double, true, Eigen::BothParts, FFT_FORWARD, 3>();
+  test_fft_real_input_energy<RowMajor, float, false, Eigen::BothParts, FFT_FORWARD, 3>();
+  test_fft_real_input_energy<RowMajor, double, false, Eigen::BothParts, FFT_FORWARD, 3>();
+
+  test_fft_real_input_energy<RowMajor, float, true, Eigen::BothParts, FFT_FORWARD, 4>();
+  test_fft_real_input_energy<RowMajor, double, true, Eigen::BothParts, FFT_FORWARD, 4>();
+  test_fft_real_input_energy<RowMajor, float, false, Eigen::BothParts, FFT_FORWARD, 4>();
+  test_fft_real_input_energy<RowMajor, double, false, Eigen::BothParts, FFT_FORWARD, 4>();
+
+  test_fft_non_power_of_2_round_trip<float>(7);
+  test_fft_non_power_of_2_round_trip<double>(7);
 }

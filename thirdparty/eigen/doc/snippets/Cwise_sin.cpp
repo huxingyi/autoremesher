@@ -1,2 +1,2 @@
-Array3d v(M_PI, M_PI/2, M_PI/3);
+Array3d v(EIGEN_PI, EIGEN_PI / 2, EIGEN_PI / 3);
 cout << v.sin() << endl;

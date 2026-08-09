@@ -10,47 +10,60 @@
 #ifndef EIGEN_CXX11_TENSOR_TENSOR_CONTRACTION_BLOCKING_H
 #define EIGEN_CXX11_TENSOR_TENSOR_CONTRACTION_BLOCKING_H
 
+// IWYU pragma: private
+#include "./InternalHeaderCheck.h"
 
 namespace Eigen {
 namespace internal {
 
-enum {
-  ShardByRow = 0,
-  ShardByCol = 1
-};
-
+enum { ShardByRow = 0, ShardByCol = 1 };
 
 // Default Blocking Strategy
-template <typename LhsMapper, typename RhsMapper, typename Index, int ShardingType=ShardByCol>
+template <typename ResScalar, typename LhsScalar, typename RhsScalar, typename StorageIndex,
+          int ShardingType = ShardByCol>
 class TensorContractionBlocking {
  public:
+  /*
+    adding EIGEN_DEVICE_FUNC unconditionally to 'TensorContractionBlocking' constructor in `TensorContractionBlocking.h`
+      requires adding EIGEN_DEVICE_FUNC to `computeProductBlockingSizes` in `GeneralBlockPanelKernel.h`
+      which in turn, requires adding EIGEN_DEVICE_FUNC to `evaluateProductBlockingSizesHeuristic` in
+    `GeneralBlockPanelKernel.h` which in turn, requires adding EIGEN_DEVICE_FUNC to `manage_caching_sizes` in
+    `GeneralBlockPanelKernel.h` (else HIPCC will error out)
 
-  typedef typename LhsMapper::Scalar LhsScalar;
-  typedef typename RhsMapper::Scalar RhsScalar;
+    However adding EIGEN_DEVICE_FUNC to `manage_caching_sizes` in `GeneralBlockPanelKernel.h`
+    results in NVCC erroring out with the following error
 
-  EIGEN_DEVICE_FUNC TensorContractionBlocking(Index k, Index m, Index n, Index num_threads = 1) :
-      kc_(k), mc_(m), nc_(n)
-  {
+    ../Eigen/src/Core/products/GeneralBlockPanelKernel.h(57): error #2901:
+       dynamic initialization is not supported for function-scope static variables within a __device__/__global__
+    function
+  */
+
+#if !defined(EIGEN_HIPCC)
+  EIGEN_DEVICE_FUNC
+#endif
+  TensorContractionBlocking(StorageIndex k, StorageIndex m, StorageIndex n, StorageIndex num_threads = 1)
+      : kc_(k), mc_(m), nc_(n) {
     if (ShardingType == ShardByCol) {
       computeProductBlockingSizes<LhsScalar, RhsScalar, 1>(kc_, mc_, nc_, num_threads);
-    }
-    else {
+    } else {
       computeProductBlockingSizes<LhsScalar, RhsScalar, 1>(kc_, nc_, mc_, num_threads);
     }
+
+    const int rhs_packet_size = internal::packet_traits<RhsScalar>::size;
+    kc_ = (rhs_packet_size <= 8 || kc_ <= rhs_packet_size) ? kc_ : (kc_ / rhs_packet_size) * rhs_packet_size;
   }
 
-  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE Index kc() const { return kc_; }
-  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE Index mc() const { return mc_; }
-  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE Index nc() const { return nc_; }
+  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE StorageIndex kc() const { return kc_; }
+  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE StorageIndex mc() const { return mc_; }
+  EIGEN_DEVICE_FUNC EIGEN_ALWAYS_INLINE StorageIndex nc() const { return nc_; }
 
  private:
-  Index kc_;
-  Index mc_;
-  Index nc_;
+  StorageIndex kc_;
+  StorageIndex mc_;
+  StorageIndex nc_;
 };
 
+}  // end namespace internal
+}  // end namespace Eigen
 
-} // end namespace internal
-} // end namespace Eigen
-
-#endif // EIGEN_CXX11_TENSOR_TENSOR_CONTRACTION_BLOCKING_H
+#endif  // EIGEN_CXX11_TENSOR_TENSOR_CONTRACTION_BLOCKING_H

@@ -1,3 +1,13 @@
+include(CheckLanguage)
+check_language(Fortran)
+if(CMAKE_Fortran_COMPILER)
+  enable_language(Fortran)
+  set(EIGEN_Fortran_COMPILER_WORKS ON)
+else()
+  set(EIGEN_Fortran_COMPILER_WORKS OFF)
+endif()
+
+if (EIGEN_Fortran_COMPILER_WORKS)
 
 macro(ei_add_blas_test testname)
 
@@ -17,7 +27,7 @@ macro(ei_add_blas_test testname)
   add_test(${testname} "${Eigen_SOURCE_DIR}/blas/testing/runblastest.sh" "${testname}" "${Eigen_SOURCE_DIR}/blas/testing/${testname}.dat")
   add_dependencies(buildtests ${targetname})
   
-endmacro(ei_add_blas_test)
+endmacro()
 
 ei_add_blas_test(sblat1)
 ei_add_blas_test(sblat2)
@@ -37,4 +47,6 @@ ei_add_blas_test(zblat3)
 
 # add_custom_target(level1)
 # add_dependencies(level1 sblat1)
+
+endif()
 

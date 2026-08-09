@@ -16,9 +16,8 @@
 #include "main.h"
 #include <Eigen/Dense>
 
-template<typename MatrixType>
-void dontalign(const MatrixType& m)
-{
+template <typename MatrixType>
+void dontalign(const MatrixType& m) {
   typedef typename MatrixType::Scalar Scalar;
   typedef Matrix<Scalar, MatrixType::RowsAtCompileTime, 1> VectorType;
   typedef Matrix<Scalar, MatrixType::RowsAtCompileTime, MatrixType::RowsAtCompileTime> SquareMatrixType;
@@ -26,14 +25,14 @@ void dontalign(const MatrixType& m)
   Index rows = m.rows();
   Index cols = m.cols();
 
-  MatrixType a = MatrixType::Random(rows,cols);
-  SquareMatrixType square = SquareMatrixType::Random(rows,rows);
+  MatrixType a = MatrixType::Random(rows, cols);
+  SquareMatrixType square = SquareMatrixType::Random(rows, rows);
   VectorType v = VectorType::Random(rows);
 
   VERIFY_IS_APPROX(v, square * square.colPivHouseholderQr().solve(v));
   square = square.inverse().eval();
   a = square * a;
-  square = square*square;
+  square = square * square;
   v = square * v;
   v = a.adjoint() * v;
   VERIFY(square.determinant() != Scalar(0));
@@ -44,8 +43,7 @@ void dontalign(const MatrixType& m)
   internal::aligned_delete(array, rows);
 }
 
-void test_dontalign()
-{
+EIGEN_DECLARE_TEST(dontalign) {
 #if defined EIGEN_TEST_PART_1 || defined EIGEN_TEST_PART_5
   dontalign(Matrix3d());
   dontalign(Matrix4f());

@@ -11,17 +11,15 @@
 
 #include <Eigen/CXX11/Tensor>
 
-using Eigen::Tensor;
 using Eigen::RowMajor;
+using Eigen::Tensor;
 
-
-static void test_0d()
-{
+static void test_0d() {
   TensorFixedSize<float, Sizes<> > scalar1;
   TensorFixedSize<float, Sizes<>, RowMajor> scalar2;
   VERIFY_IS_EQUAL(scalar1.rank(), 0);
   VERIFY_IS_EQUAL(scalar1.size(), 1);
-  VERIFY_IS_EQUAL(array_prod(scalar1.dimensions()), 1);
+  VERIFY_IS_EQUAL(internal::array_prod(scalar1.dimensions()), 1);
 
   scalar1() = 7.0;
   scalar2() = 13.0;
@@ -44,8 +42,7 @@ static void test_0d()
   VERIFY_IS_APPROX(scalar3(), 7.0f + 13.0f);
 }
 
-static void test_1d()
-{
+static void test_1d() {
   TensorFixedSize<float, Sizes<6> > vec1;
   TensorFixedSize<float, Sizes<6>, RowMajor> vec2;
 
@@ -53,12 +50,18 @@ static void test_1d()
   //  VERIFY_IS_EQUAL((vec1.dimensions()[0]), 6);
   //  VERIFY_IS_EQUAL((vec1.dimension(0)), 6);
 
-  vec1(0) = 4.0;  vec2(0) = 0.0;
-  vec1(1) = 8.0;  vec2(1) = 1.0;
-  vec1(2) = 15.0; vec2(2) = 2.0;
-  vec1(3) = 16.0; vec2(3) = 3.0;
-  vec1(4) = 23.0; vec2(4) = 4.0;
-  vec1(5) = 42.0; vec2(5) = 5.0;
+  vec1(0) = 4.0;
+  vec2(0) = 0.0;
+  vec1(1) = 8.0;
+  vec2(1) = 1.0;
+  vec1(2) = 15.0;
+  vec2(2) = 2.0;
+  vec1(3) = 16.0;
+  vec2(3) = 3.0;
+  vec1(4) = 23.0;
+  vec2(4) = 4.0;
+  vec1(5) = 42.0;
+  vec2(5) = 5.0;
 
   // Test against shallow copy.
   TensorFixedSize<float, Sizes<6> > copy = vec1;
@@ -103,17 +106,22 @@ static void test_1d()
   VERIFY_IS_APPROX(vec3(5), 42.0f + 5.0f);
 }
 
-static void test_tensor_map()
-{
+static void test_tensor_map() {
   TensorFixedSize<float, Sizes<6> > vec1;
   TensorFixedSize<float, Sizes<6>, RowMajor> vec2;
 
-  vec1(0) = 4.0;  vec2(0) = 0.0;
-  vec1(1) = 8.0;  vec2(1) = 1.0;
-  vec1(2) = 15.0; vec2(2) = 2.0;
-  vec1(3) = 16.0; vec2(3) = 3.0;
-  vec1(4) = 23.0; vec2(4) = 4.0;
-  vec1(5) = 42.0; vec2(5) = 5.0;
+  vec1(0) = 4.0;
+  vec2(0) = 0.0;
+  vec1(1) = 8.0;
+  vec2(1) = 1.0;
+  vec1(2) = 15.0;
+  vec2(2) = 2.0;
+  vec1(3) = 16.0;
+  vec2(3) = 3.0;
+  vec1(4) = 23.0;
+  vec2(4) = 4.0;
+  vec1(5) = 42.0;
+  vec2(5) = 5.0;
 
   float data3[6];
   TensorMap<TensorFixedSize<float, Sizes<6> > > vec3(data3, 6);
@@ -127,62 +135,60 @@ static void test_tensor_map()
   VERIFY_IS_APPROX(vec3(5), sqrtf(42.0) + 5.0f);
 }
 
-static void test_2d()
-{
+static void test_2d() {
   float data1[6];
-  TensorMap<TensorFixedSize<float, Sizes<2, 3> > > mat1(data1,2,3);
+  TensorMap<TensorFixedSize<float, Sizes<2, 3> > > mat1(data1, 2, 3);
   float data2[6];
-  TensorMap<TensorFixedSize<float, Sizes<2, 3>, RowMajor> > mat2(data2,2,3);
+  TensorMap<TensorFixedSize<float, Sizes<2, 3>, RowMajor> > mat2(data2, 2, 3);
 
-  VERIFY_IS_EQUAL((mat1.size()), 2*3);
+  VERIFY_IS_EQUAL((mat1.size()), 2 * 3);
   VERIFY_IS_EQUAL(mat1.rank(), 2);
   //  VERIFY_IS_EQUAL((mat1.dimension(0)), 2);
   //  VERIFY_IS_EQUAL((mat1.dimension(1)), 3);
 
-  mat1(0,0) = 0.0;
-  mat1(0,1) = 1.0;
-  mat1(0,2) = 2.0;
-  mat1(1,0) = 3.0;
-  mat1(1,1) = 4.0;
-  mat1(1,2) = 5.0;
+  mat1(0, 0) = 0.0;
+  mat1(0, 1) = 1.0;
+  mat1(0, 2) = 2.0;
+  mat1(1, 0) = 3.0;
+  mat1(1, 1) = 4.0;
+  mat1(1, 2) = 5.0;
 
-  mat2(0,0) = -0.0;
-  mat2(0,1) = -1.0;
-  mat2(0,2) = -2.0;
-  mat2(1,0) = -3.0;
-  mat2(1,1) = -4.0;
-  mat2(1,2) = -5.0;
+  mat2(0, 0) = -0.0;
+  mat2(0, 1) = -1.0;
+  mat2(0, 2) = -2.0;
+  mat2(1, 0) = -3.0;
+  mat2(1, 1) = -4.0;
+  mat2(1, 2) = -5.0;
 
   TensorFixedSize<float, Sizes<2, 3> > mat3;
   TensorFixedSize<float, Sizes<2, 3>, RowMajor> mat4;
   mat3 = mat1.abs();
   mat4 = mat2.abs();
 
-  VERIFY_IS_EQUAL((mat3.size()), 2*3);
-    //  VERIFY_IS_EQUAL((mat3.dimension(0)), 2);
-    //  VERIFY_IS_EQUAL((mat3.dimension(1)), 3);
+  VERIFY_IS_EQUAL((mat3.size()), 2 * 3);
+  //  VERIFY_IS_EQUAL((mat3.dimension(0)), 2);
+  //  VERIFY_IS_EQUAL((mat3.dimension(1)), 3);
 
-  VERIFY_IS_APPROX(mat3(0,0), 0.0f);
-  VERIFY_IS_APPROX(mat3(0,1), 1.0f);
-  VERIFY_IS_APPROX(mat3(0,2), 2.0f);
-  VERIFY_IS_APPROX(mat3(1,0), 3.0f);
-  VERIFY_IS_APPROX(mat3(1,1), 4.0f);
-  VERIFY_IS_APPROX(mat3(1,2), 5.0f);
+  VERIFY_IS_APPROX(mat3(0, 0), 0.0f);
+  VERIFY_IS_APPROX(mat3(0, 1), 1.0f);
+  VERIFY_IS_APPROX(mat3(0, 2), 2.0f);
+  VERIFY_IS_APPROX(mat3(1, 0), 3.0f);
+  VERIFY_IS_APPROX(mat3(1, 1), 4.0f);
+  VERIFY_IS_APPROX(mat3(1, 2), 5.0f);
 
-  VERIFY_IS_APPROX(mat4(0,0), 0.0f);
-  VERIFY_IS_APPROX(mat4(0,1), 1.0f);
-  VERIFY_IS_APPROX(mat4(0,2), 2.0f);
-  VERIFY_IS_APPROX(mat4(1,0), 3.0f);
-  VERIFY_IS_APPROX(mat4(1,1), 4.0f);
-  VERIFY_IS_APPROX(mat4(1,2), 5.0f);
+  VERIFY_IS_APPROX(mat4(0, 0), 0.0f);
+  VERIFY_IS_APPROX(mat4(0, 1), 1.0f);
+  VERIFY_IS_APPROX(mat4(0, 2), 2.0f);
+  VERIFY_IS_APPROX(mat4(1, 0), 3.0f);
+  VERIFY_IS_APPROX(mat4(1, 1), 4.0f);
+  VERIFY_IS_APPROX(mat4(1, 2), 5.0f);
 }
 
-static void test_3d()
-{
+static void test_3d() {
   TensorFixedSize<float, Sizes<2, 3, 7> > mat1;
   TensorFixedSize<float, Sizes<2, 3, 7>, RowMajor> mat2;
 
-  VERIFY_IS_EQUAL((mat1.size()), 2*3*7);
+  VERIFY_IS_EQUAL((mat1.size()), 2 * 3 * 7);
   VERIFY_IS_EQUAL(mat1.rank(), 3);
   //  VERIFY_IS_EQUAL((mat1.dimension(0)), 2);
   //  VERIFY_IS_EQUAL((mat1.dimension(1)), 3);
@@ -192,8 +198,8 @@ static void test_3d()
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 7; ++k) {
-        mat1(i,j,k) = val;
-        mat2(i,j,k) = val;
+        mat1(i, j, k) = val;
+        mat2(i, j, k) = val;
         val += 1.0f;
       }
     }
@@ -204,33 +210,30 @@ static void test_3d()
   TensorFixedSize<float, Sizes<2, 3, 7>, RowMajor> mat4;
   mat4 = mat2.sqrt();
 
-  VERIFY_IS_EQUAL((mat3.size()), 2*3*7);
+  VERIFY_IS_EQUAL((mat3.size()), 2 * 3 * 7);
   //  VERIFY_IS_EQUAL((mat3.dimension(0)), 2);
   //  VERIFY_IS_EQUAL((mat3.dimension(1)), 3);
   //  VERIFY_IS_EQUAL((mat3.dimension(2)), 7);
-
 
   val = 0.0f;
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 7; ++k) {
-        VERIFY_IS_APPROX(mat3(i,j,k), sqrtf(val));
-        VERIFY_IS_APPROX(mat4(i,j,k), sqrtf(val));
+        VERIFY_IS_APPROX(mat3(i, j, k), sqrtf(val));
+        VERIFY_IS_APPROX(mat4(i, j, k), sqrtf(val));
         val += 1.0f;
       }
     }
   }
 }
 
-
-static void test_array()
-{
+static void test_array() {
   TensorFixedSize<float, Sizes<2, 3, 7> > mat1;
   float val = 0.0f;
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 7; ++k) {
-        mat1(i,j,k) = val;
+        mat1(i, j, k) = val;
         val += 1.0f;
       }
     }
@@ -243,15 +246,14 @@ static void test_array()
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 7; ++k) {
-        VERIFY_IS_APPROX(mat3(i,j,k), powf(val, 3.5f));
+        VERIFY_IS_APPROX(mat3(i, j, k), powf(val, 3.5f));
         val += 1.0f;
       }
     }
   }
 }
 
-void test_cxx11_tensor_fixed_size()
-{
+EIGEN_DECLARE_TEST(cxx11_tensor_fixed_size) {
   CALL_SUBTEST(test_0d());
   CALL_SUBTEST(test_1d());
   CALL_SUBTEST(test_tensor_map());

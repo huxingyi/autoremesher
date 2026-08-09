@@ -73,8 +73,10 @@ void QuadMeshGenerator::generate()
     m_autoRemesher->setSmoothNormalDegrees(m_parameters.smoothNormalDegrees);
     m_autoRemesher->setTag(this);
     m_autoRemesher->setProgressHandler(reportProgressHandler);
-    if (!m_autoRemesher->remesh())
+    if (!m_autoRemesher->remesh()) {
+        emit finished();
         return;
+    }
 
     delete m_remeshedVertices;
     m_remeshedVertices = new std::vector<AutoRemesher::Vector3>(m_autoRemesher->remeshedVertices());

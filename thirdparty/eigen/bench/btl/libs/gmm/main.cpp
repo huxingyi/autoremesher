@@ -24,28 +24,24 @@
 
 BTL_MAIN;
 
-int main()
-{
+int main() {
+  bench<Action_axpy<gmm_interface<REAL_TYPE> > >(MIN_AXPY, MAX_AXPY, NB_POINT);
+  bench<Action_axpby<gmm_interface<REAL_TYPE> > >(MIN_AXPY, MAX_AXPY, NB_POINT);
 
-  bench<Action_axpy<gmm_interface<REAL_TYPE> > >(MIN_AXPY,MAX_AXPY,NB_POINT);
-  bench<Action_axpby<gmm_interface<REAL_TYPE> > >(MIN_AXPY,MAX_AXPY,NB_POINT);
+  bench<Action_matrix_vector_product<gmm_interface<REAL_TYPE> > >(MIN_MV, MAX_MV, NB_POINT);
+  bench<Action_atv_product<gmm_interface<REAL_TYPE> > >(MIN_MV, MAX_MV, NB_POINT);
 
-  bench<Action_matrix_vector_product<gmm_interface<REAL_TYPE> > >(MIN_MV,MAX_MV,NB_POINT);
-  bench<Action_atv_product<gmm_interface<REAL_TYPE> > >(MIN_MV,MAX_MV,NB_POINT);
+  bench<Action_matrix_matrix_product<gmm_interface<REAL_TYPE> > >(MIN_MM, MAX_MM, NB_POINT);
+  //   bench<Action_ata_product<gmm_interface<REAL_TYPE> > >(MIN_MM,MAX_MM,NB_POINT);
+  //   bench<Action_aat_product<gmm_interface<REAL_TYPE> > >(MIN_MM,MAX_MM,NB_POINT);
 
-  bench<Action_matrix_matrix_product<gmm_interface<REAL_TYPE> > >(MIN_MM,MAX_MM,NB_POINT);
-//   bench<Action_ata_product<gmm_interface<REAL_TYPE> > >(MIN_MM,MAX_MM,NB_POINT);
-//   bench<Action_aat_product<gmm_interface<REAL_TYPE> > >(MIN_MM,MAX_MM,NB_POINT);
+  bench<Action_trisolve<gmm_interface<REAL_TYPE> > >(MIN_MM, MAX_MM, NB_POINT);
+  // bench<Action_lu_solve<blitz_LU_solve_interface<REAL_TYPE> > >(MIN_LU,MAX_LU,NB_POINT);
 
-  bench<Action_trisolve<gmm_interface<REAL_TYPE> > >(MIN_MM,MAX_MM,NB_POINT);
-  //bench<Action_lu_solve<blitz_LU_solve_interface<REAL_TYPE> > >(MIN_LU,MAX_LU,NB_POINT);
+  bench<Action_partial_lu<gmm_interface<REAL_TYPE> > >(MIN_MM, MAX_MM, NB_POINT);
 
-  bench<Action_partial_lu<gmm_interface<REAL_TYPE> > >(MIN_MM,MAX_MM,NB_POINT);
-  
-  bench<Action_hessenberg<gmm_interface<REAL_TYPE> > >(MIN_MM,MAX_MM,NB_POINT);
-  bench<Action_tridiagonalization<gmm_interface<REAL_TYPE> > >(MIN_MM,MAX_MM,NB_POINT);
+  bench<Action_hessenberg<gmm_interface<REAL_TYPE> > >(MIN_MM, MAX_MM, NB_POINT);
+  bench<Action_tridiagonalization<gmm_interface<REAL_TYPE> > >(MIN_MM, MAX_MM, NB_POINT);
 
   return 0;
 }
-
-

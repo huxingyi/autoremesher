@@ -8,7 +8,4 @@
 
 using namespace Eigen;
 
-int main()
-{
-  LDLT<Matrix<SCALAR,Dynamic,Dynamic> > ldlt(Matrix<SCALAR,Dynamic,Dynamic>::Random(10,10));
-}
+int main() { LDLT<Matrix<SCALAR, Dynamic, Dynamic> > ldlt(Matrix<SCALAR, Dynamic, Dynamic>::Random(10, 10)); }

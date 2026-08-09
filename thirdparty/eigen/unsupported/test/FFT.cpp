@@ -1,2 +1,2 @@
-#define test_FFTW test_FFT
-#include "FFTW.cpp"
+#define EIGEN_FFT_DEFAULT 1
+#include "fft_test_shared.h"

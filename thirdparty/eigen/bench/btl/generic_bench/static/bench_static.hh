@@ -32,14 +32,11 @@
 
 using namespace std;
 
+template <template <class> class Perf_Analyzer, template <class> class Action, template <class, int> class Interface>
+BTL_DONT_INLINE void bench_static(void) {
+  if (BtlConfig::skipAction(Action<Interface<REAL_TYPE, 10> >::name())) return;
 
-template <template<class> class Perf_Analyzer, template<class> class Action, template<class,int> class Interface>
-BTL_DONT_INLINE  void bench_static(void)
-{
-  if (BtlConfig::skipAction(Action<Interface<REAL_TYPE,10> >::name()))
-    return;
-
-  string filename = "bench_" + Action<Interface<REAL_TYPE,10> >::name() + ".dat";
+  string filename = "bench_" + Action<Interface<REAL_TYPE, 10> >::name() + ".dat";
 
   INFOS("starting " << filename);
 
@@ -48,33 +45,17 @@ BTL_DONT_INLINE  void bench_static(void)
   std::vector<double> tab_mflops;
   std::vector<double> tab_sizes;
 
-  static_size_generator<max_size,Perf_Analyzer,Action,Interface>::go(tab_sizes,tab_mflops);
+  static_size_generator<max_size, Perf_Analyzer, Action, Interface>::go(tab_sizes, tab_mflops);
 
-  dump_xy_file(tab_sizes,tab_mflops,filename);
+  dump_xy_file(tab_sizes, tab_mflops, filename);
 }
 
 // default Perf Analyzer
-template <template<class> class Action, template<class,int> class Interface>
-BTL_DONT_INLINE  void bench_static(void)
-{
-  bench_static<Portable_Perf_Analyzer,Action,Interface>();
-  //bench_static<Mixed_Perf_Analyzer,Action,Interface>();
-  //bench_static<X86_Perf_Analyzer,Action,Interface>();
+template <template <class> class Action, template <class, int> class Interface>
+BTL_DONT_INLINE void bench_static(void) {
+  bench_static<Portable_Perf_Analyzer, Action, Interface>();
+  // bench_static<Mixed_Perf_Analyzer,Action,Interface>();
+  // bench_static<X86_Perf_Analyzer,Action,Interface>();
 }
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

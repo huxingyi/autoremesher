@@ -11,24 +11,27 @@
 
 #include <Eigen/CXX11/Tensor>
 
-using Eigen::Tensor;
 using Eigen::RowMajor;
+using Eigen::Tensor;
 
-static void test_1d()
-{
+static void test_1d() {
   Tensor<int, 1> vec1(6);
   Tensor<int, 1, RowMajor> vec2(6);
-  vec1(0) = 4;  vec2(0) = 0;
-  vec1(1) = 8;  vec2(1) = 1;
-  vec1(2) = 15; vec2(2) = 2;
-  vec1(3) = 16; vec2(3) = 3;
-  vec1(4) = 23; vec2(4) = 4;
-  vec1(5) = 42; vec2(5) = 5;
+  vec1(0) = 4;
+  vec2(0) = 0;
+  vec1(1) = 8;
+  vec2(1) = 1;
+  vec1(2) = 15;
+  vec2(2) = 2;
+  vec1(3) = 16;
+  vec2(3) = 3;
+  vec1(4) = 23;
+  vec2(4) = 4;
+  vec1(5) = 42;
+  vec2(5) = 5;
 
-  int col_major[6];
-  int row_major[6];
-  memset(col_major, 0, 6*sizeof(int));
-  memset(row_major, 0, 6*sizeof(int));
+  int col_major[6] = {0};
+  int row_major[6] = {0};
   TensorMap<Tensor<int, 1> > vec3(col_major, 6);
   TensorMap<Tensor<int, 1, RowMajor> > vec4(row_major, 6);
 
@@ -69,89 +72,83 @@ static void test_1d()
   VERIFY_IS_EQUAL(vec2(5), 5);
 }
 
-static void test_2d()
-{
-  Tensor<int, 2> mat1(2,3);
-  Tensor<int, 2, RowMajor> mat2(2,3);
+static void test_2d() {
+  Tensor<int, 2> mat1(2, 3);
+  Tensor<int, 2, RowMajor> mat2(2, 3);
 
-  mat1(0,0) = 0;
-  mat1(0,1) = 1;
-  mat1(0,2) = 2;
-  mat1(1,0) = 3;
-  mat1(1,1) = 4;
-  mat1(1,2) = 5;
+  mat1(0, 0) = 0;
+  mat1(0, 1) = 1;
+  mat1(0, 2) = 2;
+  mat1(1, 0) = 3;
+  mat1(1, 1) = 4;
+  mat1(1, 2) = 5;
 
-  mat2(0,0) = 0;
-  mat2(0,1) = 1;
-  mat2(0,2) = 2;
-  mat2(1,0) = 3;
-  mat2(1,1) = 4;
-  mat2(1,2) = 5;
+  mat2(0, 0) = 0;
+  mat2(0, 1) = 1;
+  mat2(0, 2) = 2;
+  mat2(1, 0) = 3;
+  mat2(1, 1) = 4;
+  mat2(1, 2) = 5;
 
-  int col_major[6];
-  int row_major[6];
-  memset(col_major, 0, 6*sizeof(int));
-  memset(row_major, 0, 6*sizeof(int));
+  int col_major[6] = {0};
+  int row_major[6] = {0};
   TensorMap<Tensor<int, 2> > mat3(row_major, 2, 3);
   TensorMap<Tensor<int, 2, RowMajor> > mat4(col_major, 2, 3);
 
   mat3 = mat1;
   mat4 = mat2;
 
-  VERIFY_IS_EQUAL(mat3(0,0), 0);
-  VERIFY_IS_EQUAL(mat3(0,1), 1);
-  VERIFY_IS_EQUAL(mat3(0,2), 2);
-  VERIFY_IS_EQUAL(mat3(1,0), 3);
-  VERIFY_IS_EQUAL(mat3(1,1), 4);
-  VERIFY_IS_EQUAL(mat3(1,2), 5);
+  VERIFY_IS_EQUAL(mat3(0, 0), 0);
+  VERIFY_IS_EQUAL(mat3(0, 1), 1);
+  VERIFY_IS_EQUAL(mat3(0, 2), 2);
+  VERIFY_IS_EQUAL(mat3(1, 0), 3);
+  VERIFY_IS_EQUAL(mat3(1, 1), 4);
+  VERIFY_IS_EQUAL(mat3(1, 2), 5);
 
-  VERIFY_IS_EQUAL(mat4(0,0), 0);
-  VERIFY_IS_EQUAL(mat4(0,1), 1);
-  VERIFY_IS_EQUAL(mat4(0,2), 2);
-  VERIFY_IS_EQUAL(mat4(1,0), 3);
-  VERIFY_IS_EQUAL(mat4(1,1), 4);
-  VERIFY_IS_EQUAL(mat4(1,2), 5);
+  VERIFY_IS_EQUAL(mat4(0, 0), 0);
+  VERIFY_IS_EQUAL(mat4(0, 1), 1);
+  VERIFY_IS_EQUAL(mat4(0, 2), 2);
+  VERIFY_IS_EQUAL(mat4(1, 0), 3);
+  VERIFY_IS_EQUAL(mat4(1, 1), 4);
+  VERIFY_IS_EQUAL(mat4(1, 2), 5);
 
   mat1.setZero();
   mat2.setZero();
   mat1 = mat3;
   mat2 = mat4;
 
-  VERIFY_IS_EQUAL(mat1(0,0), 0);
-  VERIFY_IS_EQUAL(mat1(0,1), 1);
-  VERIFY_IS_EQUAL(mat1(0,2), 2);
-  VERIFY_IS_EQUAL(mat1(1,0), 3);
-  VERIFY_IS_EQUAL(mat1(1,1), 4);
-  VERIFY_IS_EQUAL(mat1(1,2), 5);
+  VERIFY_IS_EQUAL(mat1(0, 0), 0);
+  VERIFY_IS_EQUAL(mat1(0, 1), 1);
+  VERIFY_IS_EQUAL(mat1(0, 2), 2);
+  VERIFY_IS_EQUAL(mat1(1, 0), 3);
+  VERIFY_IS_EQUAL(mat1(1, 1), 4);
+  VERIFY_IS_EQUAL(mat1(1, 2), 5);
 
-  VERIFY_IS_EQUAL(mat2(0,0), 0);
-  VERIFY_IS_EQUAL(mat2(0,1), 1);
-  VERIFY_IS_EQUAL(mat2(0,2), 2);
-  VERIFY_IS_EQUAL(mat2(1,0), 3);
-  VERIFY_IS_EQUAL(mat2(1,1), 4);
-  VERIFY_IS_EQUAL(mat2(1,2), 5);
+  VERIFY_IS_EQUAL(mat2(0, 0), 0);
+  VERIFY_IS_EQUAL(mat2(0, 1), 1);
+  VERIFY_IS_EQUAL(mat2(0, 2), 2);
+  VERIFY_IS_EQUAL(mat2(1, 0), 3);
+  VERIFY_IS_EQUAL(mat2(1, 1), 4);
+  VERIFY_IS_EQUAL(mat2(1, 2), 5);
 }
 
-static void test_3d()
-{
-  Tensor<int, 3> mat1(2,3,7);
-  Tensor<int, 3, RowMajor> mat2(2,3,7);
+static void test_3d() {
+  Tensor<int, 3> mat1(2, 3, 7);
+  Tensor<int, 3, RowMajor> mat2(2, 3, 7);
 
   int val = 0;
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 7; ++k) {
-        mat1(i,j,k) = val;
-        mat2(i,j,k) = val;
+        mat1(i, j, k) = val;
+        mat2(i, j, k) = val;
         val++;
       }
     }
   }
 
-  int col_major[2*3*7];
-  int row_major[2*3*7];
-  memset(col_major, 0, 2*3*7*sizeof(int));
-  memset(row_major, 0, 2*3*7*sizeof(int));
+  int col_major[2 * 3 * 7] = {0};
+  int row_major[2 * 3 * 7] = {0};
   TensorMap<Tensor<int, 3> > mat3(col_major, 2, 3, 7);
   TensorMap<Tensor<int, 3, RowMajor> > mat4(row_major, 2, 3, 7);
 
@@ -162,8 +159,8 @@ static void test_3d()
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 7; ++k) {
-        VERIFY_IS_EQUAL(mat3(i,j,k), val);
-        VERIFY_IS_EQUAL(mat4(i,j,k), val);
+        VERIFY_IS_EQUAL(mat3(i, j, k), val);
+        VERIFY_IS_EQUAL(mat4(i, j, k), val);
         val++;
       }
     }
@@ -178,16 +175,15 @@ static void test_3d()
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
       for (int k = 0; k < 7; ++k) {
-        VERIFY_IS_EQUAL(mat1(i,j,k), val);
-        VERIFY_IS_EQUAL(mat2(i,j,k), val);
+        VERIFY_IS_EQUAL(mat1(i, j, k), val);
+        VERIFY_IS_EQUAL(mat2(i, j, k), val);
         val++;
       }
     }
   }
 }
 
-static void test_same_type()
-{
+static void test_same_type() {
   Tensor<int, 1> orig_tensor(5);
   Tensor<int, 1> dest_tensor(5);
   orig_tensor.setRandom();
@@ -224,12 +220,11 @@ static void test_same_type()
   VERIFY_IS_EQUAL(orig_map.data(), orig_data);
   VERIFY_IS_EQUAL(dest_map.data(), dest_data);
   for (int i = 0; i < 5; ++i) {
-    VERIFY_IS_EQUAL(dest[i], i+1);
+    VERIFY_IS_EQUAL(dest[i], i + 1);
   }
 }
 
-static void test_auto_resize()
-{
+static void test_auto_resize() {
   Tensor<int, 1> tensor1;
   Tensor<int, 1> tensor2(3);
   Tensor<int, 1> tensor3(5);
@@ -252,9 +247,7 @@ static void test_auto_resize()
   }
 }
 
-
-static void test_compound_assign()
-{
+static void test_compound_assign() {
   Tensor<int, 1> start_tensor(10);
   Tensor<int, 1> offset_tensor(10);
   start_tensor.setRandom();
@@ -286,7 +279,6 @@ static void test_compound_assign()
 }
 
 static void test_std_initializers_tensor() {
-#if EIGEN_HAS_VARIADIC_TEMPLATES
   Tensor<int, 1> a(3);
   a.setValues({0, 1, 2});
   VERIFY_IS_EQUAL(a(0), 0);
@@ -328,9 +320,8 @@ static void test_std_initializers_tensor() {
   VERIFY_IS_EQUAL(b(1, 2), 5);
 
   Eigen::Tensor<int, 3> c(3, 2, 4);
-  c.setValues({{{0, 1, 2, 3}, {4, 5, 6, 7}},
-               {{10, 11, 12, 13}, {14, 15, 16, 17}},
-               {{20, 21, 22, 23}, {24, 25, 26, 27}}});
+  c.setValues(
+      {{{0, 1, 2, 3}, {4, 5, 6, 7}}, {{10, 11, 12, 13}, {14, 15, 16, 17}}, {{20, 21, 22, 23}, {24, 25, 26, 27}}});
   VERIFY_IS_EQUAL(c(0, 0, 0), 0);
   VERIFY_IS_EQUAL(c(0, 0, 1), 1);
   VERIFY_IS_EQUAL(c(0, 0, 2), 2);
@@ -355,11 +346,9 @@ static void test_std_initializers_tensor() {
   VERIFY_IS_EQUAL(c(2, 1, 1), 25);
   VERIFY_IS_EQUAL(c(2, 1, 2), 26);
   VERIFY_IS_EQUAL(c(2, 1, 3), 27);
-#endif  // EIGEN_HAS_VARIADIC_TEMPLATES
 }
 
-void test_cxx11_tensor_assign()
-{
+EIGEN_DECLARE_TEST(cxx11_tensor_assign) {
   CALL_SUBTEST(test_1d());
   CALL_SUBTEST(test_2d());
   CALL_SUBTEST(test_3d());

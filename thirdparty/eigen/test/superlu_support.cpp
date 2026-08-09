@@ -12,12 +12,11 @@
 
 #include <Eigen/SuperLUSupport>
 
-void test_superlu_support()
-{
+EIGEN_DECLARE_TEST(superlu_support) {
   SuperLU<SparseMatrix<double> > superlu_double_colmajor;
   SuperLU<SparseMatrix<std::complex<double> > > superlu_cplxdouble_colmajor;
-  CALL_SUBTEST_1( check_sparse_square_solving(superlu_double_colmajor)      );
-  CALL_SUBTEST_2( check_sparse_square_solving(superlu_cplxdouble_colmajor)  );
-  CALL_SUBTEST_1( check_sparse_square_determinant(superlu_double_colmajor)      );
-  CALL_SUBTEST_2( check_sparse_square_determinant(superlu_cplxdouble_colmajor)  );
+  CALL_SUBTEST_1(check_sparse_square_solving(superlu_double_colmajor));
+  CALL_SUBTEST_2(check_sparse_square_solving(superlu_cplxdouble_colmajor));
+  CALL_SUBTEST_1(check_sparse_square_determinant(superlu_double_colmajor));
+  CALL_SUBTEST_2(check_sparse_square_determinant(superlu_cplxdouble_colmajor));
 }

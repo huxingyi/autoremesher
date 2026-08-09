@@ -685,10 +685,6 @@ void MainWindow::updateProgressDetailed(float progress, const QString& status)
 {
     m_progressBar->setValue((int)(progress * 100));
     m_progressBar->show();
-
-    if (progress >= 1.0f) {
-        m_progressBar->hide();
-    }
 }
 
 MainWindow::~MainWindow()

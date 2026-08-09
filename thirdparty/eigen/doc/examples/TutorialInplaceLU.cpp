@@ -1,61 +1,53 @@
 #include <iostream>
-struct init {
-  init() { std::cout << "[" << "init" << "]" << std::endl; }
-};
-init init_obj;
-// [init]
-#include <iostream>
 #include <Eigen/Dense>
 
-using namespace std;
-using namespace Eigen;
-
-int main()
-{
-  MatrixXd A(2,2);
+int main() {
+  std::cout << "[init]\n";
+  Eigen::MatrixXd A(2, 2);
   A << 2, -1, 1, 3;
-  cout << "Here is the input matrix A before decomposition:\n" << A << endl;
-cout << "[init]" << endl;
+  std::cout << "Here is the input matrix A before decomposition:\n" << A << "\n";
+  std::cout << "[init]\n";
 
-cout << "[declaration]" << endl;
-  PartialPivLU<Ref<MatrixXd> > lu(A);
-  cout << "Here is the input matrix A after decomposition:\n" << A << endl;
-cout << "[declaration]" << endl;
+  std::cout << "[declaration]\n";
+  Eigen::PartialPivLU<Eigen::Ref<Eigen::MatrixXd> > lu(A);
+  std::cout << "Here is the input matrix A after decomposition:\n" << A << "\n";
+  std::cout << "[declaration]\n";
 
-cout << "[matrixLU]" << endl;
-  cout << "Here is the matrix storing the L and U factors:\n" << lu.matrixLU() << endl;
-cout << "[matrixLU]" << endl;
+  std::cout << "[matrixLU]\n";
+  std::cout << "Here is the matrix storing the L and U factors:\n" << lu.matrixLU() << "\n";
+  std::cout << "[matrixLU]\n";
 
-cout << "[solve]" << endl;
-  MatrixXd A0(2,2); A0 << 2, -1, 1, 3;
-  VectorXd b(2);    b << 1, 2;
-  VectorXd x = lu.solve(b);
-  cout << "Residual: " << (A0 * x - b).norm() << endl;
-cout << "[solve]" << endl;
+  std::cout << "[solve]\n";
+  Eigen::MatrixXd A0(2, 2);
+  A0 << 2, -1, 1, 3;
+  Eigen::VectorXd b(2);
+  b << 1, 2;
+  Eigen::VectorXd x = lu.solve(b);
+  std::cout << "Residual: " << (A0 * x - b).norm() << "\n";
+  std::cout << "[solve]\n";
 
-cout << "[modifyA]" << endl;
+  std::cout << "[modifyA]\n";
   A << 3, 4, -2, 1;
   x = lu.solve(b);
-  cout << "Residual: " << (A0 * x - b).norm() << endl;
-cout << "[modifyA]" << endl;
+  std::cout << "Residual: " << (A0 * x - b).norm() << "\n";
+  std::cout << "[modifyA]\n";
 
-cout << "[recompute]" << endl;
-  A0 = A; // save A
+  std::cout << "[recompute]\n";
+  A0 = A;  // save A
   lu.compute(A);
   x = lu.solve(b);
-  cout << "Residual: " << (A0 * x - b).norm() << endl;
-cout << "[recompute]" << endl;
+  std::cout << "Residual: " << (A0 * x - b).norm() << "\n";
+  std::cout << "[recompute]\n";
 
-cout << "[recompute_bis0]" << endl;
-  MatrixXd A1(2,2);
-  A1 << 5,-2,3,4;
+  std::cout << "[recompute_bis0]\n";
+  Eigen::MatrixXd A1(2, 2);
+  A1 << 5, -2, 3, 4;
   lu.compute(A1);
-  cout << "Here is the input matrix A1 after decomposition:\n" << A1 << endl;
-cout << "[recompute_bis0]" << endl;
+  std::cout << "Here is the input matrix A1 after decomposition:\n" << A1 << "\n";
+  std::cout << "[recompute_bis0]\n";
 
-cout << "[recompute_bis1]" << endl;
+  std::cout << "[recompute_bis1]\n";
   x = lu.solve(b);
-  cout << "Residual: " << (A1 * x - b).norm() << endl;
-cout << "[recompute_bis1]" << endl;
-
+  std::cout << "Residual: " << (A1 * x - b).norm() << "\n";
+  std::cout << "[recompute_bis1]\n";
 }

@@ -1,0 +1,38 @@
+# This file is part of Eigen, a lightweight C++ template library
+# for linear algebra.
+#
+# Copyright (C) 2023, The Eigen Authors
+#
+# This Source Code Form is subject to the terms of the Mozilla
+# Public License v. 2.0. If a copy of the MPL was not distributed
+# with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+default:
+# automatically cancels a job when a new pipeline for the same branch is triggered
+  interruptible: true
+
+stages:
+  - checkformat
+  - build
+  - test
+  - deploy
+
+variables:
+  # CMake build directory.
+  EIGEN_CI_BUILDDIR: .build
+  # Specify the CMake build target.
+  EIGEN_CI_BUILD_TARGET: ""
+  # If a test regex is specified, that will be selected.
+  # Otherwise, we will try a label if specified.
+  EIGEN_CI_CTEST_REGEX: ""
+  EIGEN_CI_CTEST_LABEL: ""
+  EIGEN_CI_CTEST_ARGS: ""
+
+include:
+  - "/ci/checkformat.gitlab-ci.yml"
+  - "/ci/common.gitlab-ci.yml"
+  - "/ci/build.linux.gitlab-ci.yml"
+  - "/ci/build.windows.gitlab-ci.yml"
+  - "/ci/test.linux.gitlab-ci.yml"
+  - "/ci/test.windows.gitlab-ci.yml"
+  - "/ci/deploy.gitlab-ci.yml"

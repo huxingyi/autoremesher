@@ -1,0 +1,4 @@
+# First major clang-format MR (https://gitlab.com/libeigen/eigen/-/merge_requests/1429).
+f38e16c193d489c278c189bc06b448a94adb45fb
+# Formatting of tests, examples, benchmarks, et cetera (https://gitlab.com/libeigen/eigen/-/merge_requests/1432).
+46e9cdb7fea25d7f7aef4332b9c3ead3857e213d

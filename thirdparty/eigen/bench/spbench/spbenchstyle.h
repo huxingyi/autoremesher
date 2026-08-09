@@ -10,8 +10,7 @@
 #ifndef SPBENCHSTYLE_H
 #define SPBENCHSTYLE_H
 
-void printBenchStyle(std::ofstream& out)
-{
+void printBenchStyle(std::ofstream& out) {
   out << "<xsl:stylesheet id='stylesheet' version='1.0' \
       xmlns:xsl='http://www.w3.org/1999/XSL/Transform' >\n \
       <xsl:template match='xsl:stylesheet' />\n \
@@ -23,7 +22,7 @@ void printBenchStyle(std::ofstream& out)
           </style>\n \
         </head>\n \
         <body>";
-  out<<"<table border='1' width='100%' height='100%'>\n \
+  out << "<table border='1' width='100%' height='100%'>\n \
         <TR> <!-- Write the table header -->\n \
         <TH>Matrix</TH> <TH>N</TH> <TH> NNZ</TH>  <TH> Sym</TH>  <TH> SPD</TH> <TH> </TH>\n \
           <xsl:for-each select='BENCH/AVAILSOLVER/SOLVER'>\n \
@@ -36,8 +35,8 @@ void printBenchStyle(std::ofstream& out)
             </TH>\n \
           </xsl:for-each>\n \
         </TR>";
-        
-  out<<"  <xsl:for-each select='BENCH/LINEARSYSTEM'>\n \
+
+  out << "  <xsl:for-each select='BENCH/LINEARSYSTEM'>\n \
           <TR> <!-- print statistics for one linear system-->\n \
             <TH rowspan='4'> <xsl:value-of select='MATRIX/NAME' /> </TH>\n \
             <TD rowspan='4'> <xsl:value-of select='MATRIX/SIZE' /> </TD>\n \
@@ -50,7 +49,7 @@ void printBenchStyle(std::ofstream& out)
               <TD> <xsl:value-of select='TIME/COMPUTE' /> </TD>\n \
             </xsl:for-each>\n \
           </TR>";
-  out<<"  <TR>\n \
+  out << "  <TR>\n \
             <TH> Solve Time </TH>\n \
             <xsl:for-each select='SOLVER_STAT'>\n \
               <xsl:sort select='@ID' data-type='number'/>\n \
@@ -71,7 +70,7 @@ void printBenchStyle(std::ofstream& out)
               </xsl:choose>\n \
             </xsl:for-each>\n \
           </TR>";
-  out<<"  <TR>\n \
+  out << "  <TR>\n \
               <TH> Error </TH>\n \
               <xsl:for-each select='SOLVER_STAT'>\n \
                 <xsl:sort select='@ID' data-type='number'/>\n \
@@ -89,7 +88,6 @@ void printBenchStyle(std::ofstream& out)
     </html>\n \
   </xsl:template>\n \
   </xsl:stylesheet>\n\n";
-  
 }
 
 #endif

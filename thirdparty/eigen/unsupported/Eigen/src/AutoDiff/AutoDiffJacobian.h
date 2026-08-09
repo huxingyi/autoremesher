@@ -10,36 +10,26 @@
 #ifndef EIGEN_AUTODIFF_JACOBIAN_H
 #define EIGEN_AUTODIFF_JACOBIAN_H
 
-namespace Eigen
-{
+// IWYU pragma: private
+#include "./InternalHeaderCheck.h"
 
-template<typename Functor> class AutoDiffJacobian : public Functor
-{
-public:
+namespace Eigen {
+
+template <typename Functor>
+class AutoDiffJacobian : public Functor {
+ public:
   AutoDiffJacobian() : Functor() {}
   AutoDiffJacobian(const Functor& f) : Functor(f) {}
 
   // forward constructors
-#if EIGEN_HAS_VARIADIC_TEMPLATES
-  template<typename... T>
-  AutoDiffJacobian(const T& ...Values) : Functor(Values...) {}
-#else
-  template<typename T0>
-  AutoDiffJacobian(const T0& a0) : Functor(a0) {}
-  template<typename T0, typename T1>
-  AutoDiffJacobian(const T0& a0, const T1& a1) : Functor(a0, a1) {}
-  template<typename T0, typename T1, typename T2>
-  AutoDiffJacobian(const T0& a0, const T1& a1, const T2& a2) : Functor(a0, a1, a2) {}
-#endif
+  template <typename... T>
+  AutoDiffJacobian(const T&... Values) : Functor(Values...) {}
 
   typedef typename Functor::InputType InputType;
   typedef typename Functor::ValueType ValueType;
   typedef typename ValueType::Scalar Scalar;
 
-  enum {
-    InputsAtCompileTime = InputType::RowsAtCompileTime,
-    ValuesAtCompileTime = ValueType::RowsAtCompileTime
-  };
+  enum { InputsAtCompileTime = InputType::RowsAtCompileTime, ValuesAtCompileTime = ValueType::RowsAtCompileTime };
 
   typedef Matrix<Scalar, ValuesAtCompileTime, InputsAtCompileTime> JacobianType;
   typedef typename JacobianType::Index Index;
@@ -50,30 +40,15 @@ public:
   typedef Matrix<ActiveScalar, InputsAtCompileTime, 1> ActiveInput;
   typedef Matrix<ActiveScalar, ValuesAtCompileTime, 1> ActiveValue;
 
-#if EIGEN_HAS_VARIADIC_TEMPLATES
   // Some compilers don't accept variadic parameters after a default parameter,
   // i.e., we can't just write _jac=0 but we need to overload operator():
-  EIGEN_STRONG_INLINE
-  void operator() (const InputType& x, ValueType* v) const
-  {
-      this->operator()(x, v, 0);
-  }
-  template<typename... ParamsType>
-  void operator() (const InputType& x, ValueType* v, JacobianType* _jac,
-                   const ParamsType&... Params) const
-#else
-  void operator() (const InputType& x, ValueType* v, JacobianType* _jac=0) const
-#endif
-  {
-    eigen_assert(v!=0);
+  EIGEN_STRONG_INLINE void operator()(const InputType& x, ValueType* v) const { this->operator()(x, v, 0); }
+  template <typename... ParamsType>
+  void operator()(const InputType& x, ValueType* v, JacobianType* _jac, const ParamsType&... Params) const {
+    eigen_assert(v != 0);
 
-    if (!_jac)
-    {
-#if EIGEN_HAS_VARIADIC_TEMPLATES
+    if (!_jac) {
       Functor::operator()(x, v, Params...);
-#else
-      Functor::operator()(x, v);
-#endif
       return;
     }
 
@@ -82,27 +57,20 @@ public:
     ActiveInput ax = x.template cast<ActiveScalar>();
     ActiveValue av(jac.rows());
 
-    if(InputsAtCompileTime==Dynamic)
-      for (Index j=0; j<jac.rows(); j++)
-        av[j].derivatives().resize(x.rows());
+    if (InputsAtCompileTime == Dynamic)
+      for (Index j = 0; j < jac.rows(); j++) av[j].derivatives().resize(x.rows());
 
-    for (Index i=0; i<jac.cols(); i++)
-      ax[i].derivatives() = DerivativeType::Unit(x.rows(),i);
+    for (Index i = 0; i < jac.cols(); i++) ax[i].derivatives() = DerivativeType::Unit(x.rows(), i);
 
-#if EIGEN_HAS_VARIADIC_TEMPLATES
     Functor::operator()(ax, &av, Params...);
-#else
-    Functor::operator()(ax, &av);
-#endif
 
-    for (Index i=0; i<jac.rows(); i++)
-    {
+    for (Index i = 0; i < jac.rows(); i++) {
       (*v)[i] = av[i].value();
       jac.row(i) = av[i].derivatives();
     }
   }
 };
 
-}
+}  // namespace Eigen
 
-#endif // EIGEN_AUTODIFF_JACOBIAN_H
+#endif  // EIGEN_AUTODIFF_JACOBIAN_H

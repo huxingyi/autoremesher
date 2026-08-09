@@ -1,15 +1,31 @@
 include(EigenTesting)
 include(CheckCXXSourceCompiles)
 
-# configure the "site" and "buildname" 
+
+# configure the "site" and "buildname"
 ei_set_sitename()
 
 # retrieve and store the build string
 ei_set_build_string()
 
 add_custom_target(buildtests)
-add_custom_target(check COMMAND "ctest")
+
+if (NOT EIGEN_CTEST_ARGS)
+  # By default, run tests in parallel on all available cores.
+  set(EIGEN_CTEST_ARGS "" CACHE STRING "-j0")
+endif()
+add_custom_target(check COMMAND "ctest" ${EIGEN_CTEST_ARGS})
+
 add_dependencies(check buildtests)
+
+# Convenience target for only building GPU tests.
+add_custom_target(buildtests_gpu)
+add_custom_target(check_gpu COMMAND "ctest" "--output-on-failure"
+                                            "--no-compress-output"
+                                            "--build-no-clean"
+                                            "-T" "test"
+                                            "-L" "gpu")
+add_dependencies(check_gpu buildtests_gpu)
 
 # check whether /bin/bash exists (disabled as not used anymore)
 # find_file(EIGEN_BIN_BASH_EXISTS "/bin/bash" PATHS "/" NO_DEFAULT_PATH)
@@ -22,7 +38,7 @@ set(EIGEN_DASHBOARD_BUILD_TARGET "buildtests" CACHE STRING "Target to be built i
 set(EIGEN_CTEST_ERROR_EXCEPTION "" CACHE STRING "Regular expression for build error messages to be filtered out")
 
 # Overwrite default DartConfiguration.tcl such that ctest can build our unit tests.
-# Recall that our unit tests are not in the "all" target, so we have to explicitely ask ctest to build our custom 'buildtests' target.
+# Recall that our unit tests are not in the "all" target, so we have to explicitly ask ctest to build our custom 'buildtests' target.
 # At this stage, we can also add custom flags to the build tool through the user defined EIGEN_TEST_BUILD_FLAGS variable.
 file(READ  "${CMAKE_CURRENT_BINARY_DIR}/DartConfiguration.tcl" EIGEN_DART_CONFIG_FILE)
 # try to grab the default flags
@@ -41,7 +57,7 @@ ei_init_testing()
 
 # configure Eigen related testing options
 option(EIGEN_NO_ASSERTION_CHECKING "Disable checking of assertions using exceptions" OFF)
-option(EIGEN_DEBUG_ASSERTS "Enable advanced debuging of assertions" OFF)
+option(EIGEN_DEBUG_ASSERTS "Enable advanced debugging of assertions" OFF)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
   option(EIGEN_COVERAGE_TESTING "Enable/disable gcov" OFF)
@@ -49,10 +65,10 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     set(COVERAGE_FLAGS "-fprofile-arcs -ftest-coverage")
     set(CTEST_CUSTOM_COVERAGE_EXCLUDE "/test/")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COVERAGE_FLAGS}")
-  endif(EIGEN_COVERAGE_TESTING)
-  
+  endif()
+
 elseif(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS")
-endif(CMAKE_COMPILER_IS_GNUCXX)
+endif()
 
 

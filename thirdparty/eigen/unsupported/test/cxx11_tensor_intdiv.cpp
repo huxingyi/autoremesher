@@ -11,9 +11,7 @@
 
 #include <Eigen/CXX11/Tensor>
 
-
-void test_signed_32bit()
-{
+void test_signed_32bit() {
   // Divide by one
   const Eigen::internal::TensorIntDivisor<int32_t, false> div_by_one(1);
 
@@ -46,9 +44,7 @@ void test_signed_32bit()
   }
 }
 
-
-void test_unsigned_32bit()
-{
+void test_unsigned_32bit() {
   for (uint32_t i = 1; i < 25000; ++i) {
     const Eigen::internal::TensorIntDivisor<uint32_t> div(i);
 
@@ -60,9 +56,7 @@ void test_unsigned_32bit()
   }
 }
 
-
-void test_signed_64bit()
-{
+void test_signed_64bit() {
   for (int64_t i = 1; i < 25000; ++i) {
     const Eigen::internal::TensorIntDivisor<int64_t> div(i);
 
@@ -74,9 +68,7 @@ void test_signed_64bit()
   }
 }
 
-
-void test_unsigned_64bit()
-{
+void test_unsigned_64bit() {
   for (uint64_t i = 1; i < 25000; ++i) {
     const Eigen::internal::TensorIntDivisor<uint64_t> div(i);
 
@@ -94,12 +86,10 @@ void test_powers_32bit() {
     for (int num_expon = 0; num_expon < 32; num_expon++) {
       int32_t start_num = (1 << num_expon) - 100;
       int32_t end_num = (1 << num_expon) + 100;
-      if (start_num < 0)
-        start_num = 0;
+      if (start_num < 0) start_num = 0;
       for (int32_t num = start_num; num < end_num; num++) {
-        Eigen::internal::TensorIntDivisor<int32_t> divider =
-          Eigen::internal::TensorIntDivisor<int32_t>(div);
-        int32_t result = num/div;
+        Eigen::internal::TensorIntDivisor<int32_t> divider = Eigen::internal::TensorIntDivisor<int32_t>(div);
+        int32_t result = num / div;
         int32_t result_op = divider.divide(num);
         VERIFY_IS_EQUAL(result_op, result);
       }
@@ -113,11 +103,10 @@ void test_powers_64bit() {
     for (int num_expon = 0; num_expon < 63; num_expon++) {
       int64_t start_num = (1ull << num_expon) - 10;
       int64_t end_num = (1ull << num_expon) + 10;
-      if (start_num < 0)
-        start_num = 0;
+      if (start_num < 0) start_num = 0;
       for (int64_t num = start_num; num < end_num; num++) {
         Eigen::internal::TensorIntDivisor<int64_t> divider(div);
-        int64_t result = num/div;
+        int64_t result = num / div;
         int64_t result_op = divider.divide(num);
         VERIFY_IS_EQUAL(result_op, result);
       }
@@ -130,13 +119,12 @@ void test_specific() {
   int64_t div = 209715200;
   int64_t num = 3238002688ll;
   Eigen::internal::TensorIntDivisor<int64_t> divider(div);
-  int64_t result = num/div;
+  int64_t result = num / div;
   int64_t result_op = divider.divide(num);
   VERIFY_IS_EQUAL(result, result_op);
 }
 
-void test_cxx11_tensor_intdiv()
-{
+EIGEN_DECLARE_TEST(cxx11_tensor_intdiv) {
   CALL_SUBTEST_1(test_signed_32bit());
   CALL_SUBTEST_2(test_unsigned_32bit());
   CALL_SUBTEST_3(test_signed_64bit());

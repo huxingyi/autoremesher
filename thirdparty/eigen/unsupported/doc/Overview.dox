@@ -1,7 +1,7 @@
 /// \brief Namespace containing all symbols from the %Eigen library.
 namespace Eigen {
 
-/** \mainpage %Eigen's unsupported modules
+/** \mainpage notitle
 
 This is the API documentation for %Eigen's unsupported modules.
 
@@ -10,6 +10,8 @@ These modules are contributions from various users. They are provided "as is", w
 Click on the \e Modules tab at the top of this page to get a list of all unsupported modules.
 
 Don't miss the <a href="../index.html">official Eigen documentation</a>.
+
+ \subpage SYCL_EIGEN "SYCL backend for Eigen"
 
 */
 
@@ -26,3 +28,4 @@ subject to be included in %Eigen in the future.
 /// \internal \brief Namespace containing low-level routines from the %Eigen library.
 namespace internal {}
 }
+

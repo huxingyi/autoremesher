@@ -1,0 +1,74 @@
+# Base configuration for windows builds.
+.build:windows:
+  needs: []
+  extends: .common:windows
+  stage: build
+  variables:
+    EIGEN_CI_BUILD_TARGET: buildtests
+    # Reduce overall build size and compile time.
+    # Note: /d2ReducedOptimizeHugeFunctions is only available in VS 2019.
+    EIGEN_CI_TEST_CUSTOM_CXX_FLAGS: "/d2ReducedOptimizeHugeFunctions;/DEIGEN_STRONG_INLINE=inline;/Os"
+  script:
+     - ./ci/scripts/build.windows.script.ps1
+  tags:
+    - eigen-runner
+    - windows
+    - x86-64
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_PROJECT_NAMESPACE == "libeigen"
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_PROJECT_NAMESPACE == "libeigen"
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_PROJECT_NAMESPACE == "libeigen"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_PROJECT_NAMESPACE == "libeigen" && $CI_MERGE_REQUEST_LABELS =~ "/all-tests/"
+
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG-BUILD"
+    paths:
+      - ${EIGEN_CI_BUILDDIR}/
+
+######### MSVC #################################################################
+
+# MSVC 14.29 (VS 2019) 32 bit
+
+build:windows:x86:msvc-14.29:default:
+  extends: .build:windows
+  variables:
+    EIGEN_CI_MSVC_ARCH: "x64_x86"
+
+# MSVC 14.29 (VS 2019) 64 bit
+
+build:windows:x86-64:msvc-14.29:default:
+  extends: .build:windows
+
+build:windows:x86-64:msvc-14.29:avx2:
+  extends: .build:windows
+  variables:
+    EIGEN_CI_ADDITIONAL_ARGS: "-DEIGEN_TEST_AVX2=on"
+
+build:windows:x86-64:msvc-14.29:avx512dq:
+  extends: .build:windows
+  variables:
+    EIGEN_CI_ADDITIONAL_ARGS: "-DEIGEN_TEST_AVX512DQ=on"
+
+
+# MSVC 14.29 (VS 2019) + CUDA
+
+.build:windows:cuda:
+  extends: .build:windows
+  variables:
+    # Compute architectures present in the GitLab CI runners.
+    EIGEN_CI_CUDA_COMPUTE_ARCH: "50;75"
+    EIGEN_CI_BUILD_TARGET: buildtests_gpu
+    EIGEN_CI_ADDITIONAL_ARGS:
+      -DEIGEN_TEST_CUDA=on
+      -DEIGEN_CUDA_COMPUTE_ARCH=${EIGEN_CI_CUDA_COMPUTE_ARCH}
+  tags:
+    - eigen-runner
+    - windows
+    - x86-64
+    - cuda
+
+# MSVC 14.29 + CUDA 11.4
+build:windows:x86-64:cuda-11.4:msvc-14.29:
+  extends: .build:windows:cuda
+  variables:
+    EIGEN_CI_BEFORE_SCRIPT: $$env:CUDA_PATH=$$env:CUDA_PATH_V11_4

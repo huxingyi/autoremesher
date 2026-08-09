@@ -11,11 +11,10 @@
 
 #include <Eigen/CXX11/Tensor>
 
-using Eigen::Tensor;
 using Eigen::RowMajor;
+using Eigen::Tensor;
 
-static void test_assign()
-{
+static void test_assign() {
   float data1[6];
   TensorMap<Tensor<const float, 2>> mat1(data1, 2, 3);
   float data2[6];
@@ -39,19 +38,17 @@ static void test_assign()
 
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
-      VERIFY_IS_APPROX(rslt1(i,j), static_cast<float>(i + 2*j));
-      VERIFY_IS_APPROX(rslt2(i,j), static_cast<float>(-i - 2*j));
-      VERIFY_IS_APPROX(rslt3(i,j), static_cast<float>(i + 2*j));
-      VERIFY_IS_APPROX(rslt4(i,j), static_cast<float>(-i - 2*j));
-      VERIFY_IS_APPROX(rslt5(i,j), static_cast<float>(i + 2*j));
-      VERIFY_IS_APPROX(rslt6(i,j), static_cast<float>(-i - 2*j));
+      VERIFY_IS_APPROX(rslt1(i, j), static_cast<float>(i + 2 * j));
+      VERIFY_IS_APPROX(rslt2(i, j), static_cast<float>(-i - 2 * j));
+      VERIFY_IS_APPROX(rslt3(i, j), static_cast<float>(i + 2 * j));
+      VERIFY_IS_APPROX(rslt4(i, j), static_cast<float>(-i - 2 * j));
+      VERIFY_IS_APPROX(rslt5(i, j), static_cast<float>(i + 2 * j));
+      VERIFY_IS_APPROX(rslt6(i, j), static_cast<float>(-i - 2 * j));
     }
   }
 }
 
-
-static void test_plus()
-{
+static void test_plus() {
   float data1[6];
   TensorMap<Tensor<const float, 2>> mat1(data1, 2, 3);
   float data2[6];
@@ -69,15 +66,13 @@ static void test_plus()
 
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
-      VERIFY_IS_APPROX(sum1(i,j), 0.0f);
-      VERIFY_IS_APPROX(sum2(i,j), 0.0f);
+      VERIFY_IS_APPROX(sum1(i, j), 0.0f);
+      VERIFY_IS_APPROX(sum2(i, j), 0.0f);
     }
   }
 }
 
-
-static void test_plus_equal()
-{
+static void test_plus_equal() {
   float data1[6];
   TensorMap<Tensor<const float, 2>> mat1(data1, 2, 3);
   float data2[6];
@@ -91,14 +86,12 @@ static void test_plus_equal()
 
   for (int i = 0; i < 2; ++i) {
     for (int j = 0; j < 3; ++j) {
-      VERIFY_IS_APPROX(mat2(i,j), 0.0f);
+      VERIFY_IS_APPROX(mat2(i, j), 0.0f);
     }
   }
 }
 
-
-void test_cxx11_tensor_of_const_values()
-{
+EIGEN_DECLARE_TEST(cxx11_tensor_of_const_values) {
   CALL_SUBTEST(test_assign());
   CALL_SUBTEST(test_plus());
   CALL_SUBTEST(test_plus_equal());

@@ -58,8 +58,9 @@ static void test_2D_fft_ifft_invariant(int dim0, int dim1) {
 
   for (int i = 0; i < dim0; ++i) {
     for (int j = 0; j < dim1; ++j) {
-      //std::cout << "[" << i << "][" << j << "]" <<  "  Original data: " << tensor(i,j) << " Transformed data:" << tensor_after_fft_ifft(i,j) << std::endl;
-      VERIFY_IS_APPROX(static_cast<float>(tensor(i,j)), static_cast<float>(std::real(tensor_after_fft_ifft(i,j))));
+      // std::cout << "[" << i << "][" << j << "]" <<  "  Original data: " << tensor(i,j) << " Transformed data:" <<
+      // tensor_after_fft_ifft(i,j) << std::endl;
+      VERIFY_IS_APPROX(static_cast<float>(tensor(i, j)), static_cast<float>(std::real(tensor_after_fft_ifft(i, j))));
     }
   }
 }
@@ -90,7 +91,8 @@ static void test_3D_fft_ifft_invariant(int dim0, int dim1, int dim2) {
   for (int i = 0; i < dim0; ++i) {
     for (int j = 0; j < dim1; ++j) {
       for (int k = 0; k < dim2; ++k) {
-        VERIFY_IS_APPROX(static_cast<float>(tensor(i,j,k)), static_cast<float>(std::real(tensor_after_fft_ifft(i,j,k))));
+        VERIFY_IS_APPROX(static_cast<float>(tensor(i, j, k)),
+                         static_cast<float>(std::real(tensor_after_fft_ifft(i, j, k))));
       }
     }
   }
@@ -124,31 +126,32 @@ static void test_sub_fft_ifft_invariant(int dim0, int dim1, int dim2, int dim3) 
     for (int j = 0; j < dim1; ++j) {
       for (int k = 0; k < dim2; ++k) {
         for (int l = 0; l < dim3; ++l) {
-          VERIFY_IS_APPROX(static_cast<float>(tensor(i,j,k,l)), static_cast<float>(tensor_after_fft_ifft(i,j,k,l)));
+          VERIFY_IS_APPROX(static_cast<float>(tensor(i, j, k, l)),
+                           static_cast<float>(tensor_after_fft_ifft(i, j, k, l)));
         }
       }
     }
   }
 }
 
-void test_cxx11_tensor_ifft() {
+EIGEN_DECLARE_TEST(cxx11_tensor_ifft) {
   CALL_SUBTEST(test_1D_fft_ifft_invariant<ColMajor>(4));
   CALL_SUBTEST(test_1D_fft_ifft_invariant<ColMajor>(16));
   CALL_SUBTEST(test_1D_fft_ifft_invariant<ColMajor>(32));
-  CALL_SUBTEST(test_1D_fft_ifft_invariant<ColMajor>(1024*1024));
+  CALL_SUBTEST(test_1D_fft_ifft_invariant<ColMajor>(1024 * 1024));
 
-  CALL_SUBTEST(test_2D_fft_ifft_invariant<ColMajor>(4,4));
-  CALL_SUBTEST(test_2D_fft_ifft_invariant<ColMajor>(8,16));
-  CALL_SUBTEST(test_2D_fft_ifft_invariant<ColMajor>(16,32));
-  CALL_SUBTEST(test_2D_fft_ifft_invariant<ColMajor>(1024,1024));
+  CALL_SUBTEST(test_2D_fft_ifft_invariant<ColMajor>(4, 4));
+  CALL_SUBTEST(test_2D_fft_ifft_invariant<ColMajor>(8, 16));
+  CALL_SUBTEST(test_2D_fft_ifft_invariant<ColMajor>(16, 32));
+  CALL_SUBTEST(test_2D_fft_ifft_invariant<ColMajor>(1024, 1024));
 
-  CALL_SUBTEST(test_3D_fft_ifft_invariant<ColMajor>(4,4,4));
-  CALL_SUBTEST(test_3D_fft_ifft_invariant<ColMajor>(8,16,32));
-  CALL_SUBTEST(test_3D_fft_ifft_invariant<ColMajor>(16,4,8));
-  CALL_SUBTEST(test_3D_fft_ifft_invariant<ColMajor>(256,256,256));
+  CALL_SUBTEST(test_3D_fft_ifft_invariant<ColMajor>(4, 4, 4));
+  CALL_SUBTEST(test_3D_fft_ifft_invariant<ColMajor>(8, 16, 32));
+  CALL_SUBTEST(test_3D_fft_ifft_invariant<ColMajor>(16, 4, 8));
+  CALL_SUBTEST(test_3D_fft_ifft_invariant<ColMajor>(256, 256, 256));
 
-  CALL_SUBTEST(test_sub_fft_ifft_invariant<ColMajor>(4,4,4,4));
-  CALL_SUBTEST(test_sub_fft_ifft_invariant<ColMajor>(8,16,32,64));
-  CALL_SUBTEST(test_sub_fft_ifft_invariant<ColMajor>(16,4,8,12));
-  CALL_SUBTEST(test_sub_fft_ifft_invariant<ColMajor>(64,64,64,64));
+  CALL_SUBTEST(test_sub_fft_ifft_invariant<ColMajor>(4, 4, 4, 4));
+  CALL_SUBTEST(test_sub_fft_ifft_invariant<ColMajor>(8, 16, 32, 64));
+  CALL_SUBTEST(test_sub_fft_ifft_invariant<ColMajor>(16, 4, 8, 12));
+  CALL_SUBTEST(test_sub_fft_ifft_invariant<ColMajor>(64, 64, 64, 64));
 }

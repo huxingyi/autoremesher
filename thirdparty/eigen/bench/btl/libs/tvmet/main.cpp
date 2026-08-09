@@ -27,14 +27,11 @@
 
 BTL_MAIN;
 
-int main()
-{
-  bench_static<Action_axpy,tvmet_interface>();
-  bench_static<Action_matrix_matrix_product,tvmet_interface>();
-  bench_static<Action_matrix_vector_product,tvmet_interface>();
-  bench_static<Action_atv_product,tvmet_interface>();
+int main() {
+  bench_static<Action_axpy, tvmet_interface>();
+  bench_static<Action_matrix_matrix_product, tvmet_interface>();
+  bench_static<Action_matrix_vector_product, tvmet_interface>();
+  bench_static<Action_atv_product, tvmet_interface>();
 
   return 0;
 }
-
-
