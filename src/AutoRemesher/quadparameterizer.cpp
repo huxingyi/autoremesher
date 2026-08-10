@@ -73,28 +73,6 @@ namespace {
         return best;
     }
 
-    void rotateCoordinate(int r, double x, double y, double* rx, double* ry)
-    {
-        switch ((r % 4 + 4) % 4) {
-        case 0:
-            *rx = x;
-            *ry = y;
-            break;
-        case 1:
-            *rx = y;
-            *ry = -x;
-            break;
-        case 2:
-            *rx = -x;
-            *ry = -y;
-            break;
-        default:
-            *rx = -y;
-            *ry = x;
-            break;
-        }
-    }
-
     enum EdgeConstraint { ConstraintNone = 0,
         ConstraintU = 1,
         ConstraintV = 2 };
@@ -112,127 +90,6 @@ namespace {
         if (alongB == alongBr)
             return ConstraintNone;
         return alongB ? ConstraintV : ConstraintU;
-    }
-
-    size_t repairFoldedUv(const SurfaceMesh& mesh, const std::vector<int>& rotation,
-        const std::vector<char>& singular, const std::vector<char>& constrained,
-        std::vector<double>* uv, size_t* before)
-    {
-        const size_t faces = mesh.faceCount();
-        auto area = [&](size_t f) { const size_t c=3*f;
-        return .5*(((*uv)[2*(c+1)]-(*uv)[2*c])*((*uv)[2*(c+2)+1]-(*uv)[2*c+1])-((*uv)[2*(c+1)+1]-(*uv)[2*c+1])*((*uv)[2*(c+2)]-(*uv)[2*c])); };
-        size_t positive = 0, negative = 0;
-        for (size_t f = 0; f < faces; ++f) {
-            const double a = area(f);
-            if (a > 0)
-                ++positive;
-            else if (a < 0)
-                ++negative;
-        }
-        const double sign = positive >= negative ? 1.0 : -1.0;
-        struct Fan {
-            size_t corner;
-            int turn;
-        };
-        std::vector<std::vector<Fan>> fans(mesh.vertexCount());
-        for (size_t v = 0; v < mesh.vertexCount(); ++v) {
-            const auto& incident = mesh.cornersAroundVertex(v);
-            if (incident.empty() || singular[v])
-                continue;
-            bool hard = false;
-            for (size_t c : incident)
-                if (constrained[c]) {
-                    hard = true;
-                    break;
-                }
-            if (hard)
-                continue;
-            std::vector<Fan> fan;
-            size_t start = incident.front(), c = start;
-            int turn = 0;
-            for (size_t step = 0; step <= incident.size(); ++step) {
-                fan.push_back({ c, turn });
-                const size_t opposite = mesh.oppositeCorner(c);
-                if (opposite == SurfaceMesh::npos) {
-                    fan.clear();
-                    break;
-                }
-                turn = (turn + rotation[c]) % 4;
-                c = mesh.nextCorner(opposite);
-                if (c == start)
-                    break;
-            }
-            if (!fan.empty() && c == start && turn == 0 && fan.size() == incident.size())
-                fans[v] = std::move(fan);
-        }
-        auto tangle = [&](size_t v) { double value=0; for(size_t c:mesh.cornersAroundVertex(v))value+=std::max(0.0,-area(c/3)*sign);return value; };
-        auto worst = [&](size_t v) { double value=std::numeric_limits<double>::max();for(size_t c:mesh.cornersAroundVertex(v))value=std::min(value,area(c/3)*sign);return value; };
-        size_t folded = 0;
-        for (size_t sweep = 0; sweep < 256; ++sweep) {
-            std::vector<size_t> foldedFaces;
-            for (size_t f = 0; f < faces; ++f)
-                if (area(f) * sign <= 0)
-                    foldedFaces.push_back(f);
-            folded = foldedFaces.size();
-            if (sweep == 0 && before)
-                *before = folded;
-            if (foldedFaces.empty())
-                break;
-            std::vector<char> candidate(mesh.vertexCount(), 0);
-            for (size_t f : foldedFaces)
-                for (size_t l = 0; l < 3; ++l) {
-                    const size_t v = mesh.cornerVertex(3 * f + l);
-                    candidate[v] = 1;
-                    for (size_t c : mesh.cornersAroundVertex(v))
-                        for (size_t j = 0; j < 3; ++j)
-                            candidate[mesh.cornerVertex(3 * (c / 3) + j)] = 1;
-                }
-            bool improved = false;
-            for (size_t v = 0; v < mesh.vertexCount(); ++v)
-                if (candidate[v] && !fans[v].empty()) {
-                    const double oldTangle = tangle(v), oldWorst = worst(v);
-                    double sx = 0, sy = 0;
-                    size_t count = 0;
-                    for (size_t c : mesh.cornersAroundVertex(v))
-                        for (size_t j = 0; j < 3; ++j)
-                            if (3 * (c / 3) + j != c) {
-                                const size_t q = 3 * (c / 3) + j;
-                                sx += (*uv)[2 * q];
-                                sy += (*uv)[2 * q + 1];
-                                ++count;
-                            }
-                    if (!count)
-                        continue;
-                    const size_t reference = fans[v].front().corner;
-                    const double dx = sx / count - (*uv)[2 * reference], dy = sy / count - (*uv)[2 * reference];
-                    std::vector<std::pair<double, double>> saved;
-                    for (const Fan& e : fans[v])
-                        saved.push_back({ (*uv)[2 * e.corner], (*uv)[2 * e.corner + 1] });
-                    for (double alpha : { 1.0, .5, .25, .1 }) {
-                        for (size_t i = 0; i < fans[v].size(); ++i) {
-                            double rx, ry;
-                            rotateCoordinate(4 - fans[v][i].turn, alpha * dx, alpha * dy, &rx, &ry);
-                            const size_t q = fans[v][i].corner;
-                            (*uv)[2 * q] = saved[i].first + rx;
-                            (*uv)[2 * q + 1] = saved[i].second + ry;
-                        }
-                        const double newTangle = tangle(v);
-                        if ((newTangle < oldTangle || (newTangle <= oldTangle && worst(v) > oldWorst))) {
-                            improved = true;
-                            break;
-                        }
-                        for (size_t i = 0; i < fans[v].size(); ++i) {
-                            const size_t q = fans[v][i].corner;
-                            (*uv)[2 * q] = saved[i].first;
-                            (*uv)[2 * q + 1] = saved[i].second;
-                        }
-                    }
-                }
-            if (!improved) {
-                break;
-            }
-        }
-        return folded;
     }
 
     struct CoverContext {
@@ -620,10 +477,9 @@ namespace {
     }
 
     void buildResultUv(const SurfaceMesh& mesh, const std::vector<int>& rotation,
-        const std::vector<signed char>& cornerConstraints, const std::vector<double>& allValues,
+        const std::vector<double>& allValues,
         size_t uvVariables, QuadParameterizer::Result* result)
     {
-        const size_t corners = mesh.cornerCount();
         std::vector<double> uv(allValues.begin(), allValues.begin() + uvVariables);
         for (double& coordinate : uv) {
             const double integer = std::round(coordinate);
@@ -631,7 +487,6 @@ namespace {
                 coordinate = integer;
         }
         result->singularVertices.clear();
-        std::vector<char> singular(mesh.vertexCount(), 0), constrained(corners, 0);
         for (size_t vertex = 0; vertex < mesh.vertexCount(); ++vertex) {
             const auto& fan = mesh.cornersAroundVertex(vertex);
             int sum = 0;
@@ -641,18 +496,9 @@ namespace {
                 if (mesh.oppositeCorner(c) == SurfaceMesh::npos)
                     boundary = true;
             }
-            if (!boundary && sum != 0) {
-                singular[vertex] = 1;
+            if (!boundary && sum != 0)
                 result->singularVertices.push_back(vertex);
-            }
         }
-        for (size_t c = 0; c < corners; ++c) {
-            const size_t n = mesh.nextCorner(c);
-            if (cornerConstraints[c] != ConstraintNone)
-                constrained[c] = constrained[n] = 1;
-        }
-        size_t repairedBefore = 0;
-        repairFoldedUv(mesh, rotation, singular, constrained, &uv, &repairedBefore);
         result->triangleUvs.assign(mesh.faceCount(), std::vector<Vector2>(3));
         for (size_t f = 0; f < mesh.faceCount(); ++f)
             for (size_t l = 0; l < 3; ++l) {
@@ -712,7 +558,7 @@ bool QuadParameterizer::parameterize(const std::vector<Vector3>& vertices,
     if (!solveQuadCover(ctx, &allValues))
         return false;
 
-    buildResultUv(mesh, rotation, cornerConstraints, allValues, uvVariables, result);
+    buildResultUv(mesh, rotation, allValues, uvVariables, result);
     return true;
 }
 }
