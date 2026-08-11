@@ -198,6 +198,62 @@ std::vector<size_t> SingularitySimplifier::facetsAroundVertex(size_t vertex) con
     return result;
 }
 
+size_t SingularitySimplifier::cornerAlongEdge(size_t from, size_t to) const
+{
+    for (const size_t c : m_mesh.cornersAroundVertex(from)) {
+        if (m_mesh.cornerVertex(m_mesh.nextCorner(c)) == to && m_mesh.oppositeCorner(c) != SurfaceMesh::npos)
+            return c;
+    }
+    return SurfaceMesh::npos;
+}
+
+std::vector<size_t> SingularitySimplifier::pathBetween(size_t first, size_t second,
+    const std::vector<char>& inRegion, const std::vector<size_t>& freeFaces) const
+{
+    std::vector<char> isFree(m_mesh.faceCount(), 0);
+    for (const size_t f : freeFaces)
+        isFree[f] = 1;
+    const auto usable = [&](size_t vertex) {
+        const std::vector<size_t> fan = facetsAroundVertex(vertex);
+        if (fan.empty())
+            return false;
+        for (const size_t f : fan)
+            if (!inRegion[f])
+                return false;
+        return true;
+    };
+    const auto crossable = [&](size_t corner) {
+        const size_t other = m_mesh.oppositeCorner(corner);
+        return other != SurfaceMesh::npos && isFree[m_mesh.cornerFace(corner)] && isFree[m_mesh.cornerFace(other)];
+    };
+    std::vector<size_t> previous(m_mesh.vertexCount(), SurfaceMesh::npos);
+    std::deque<size_t> queue;
+    previous[first] = first;
+    queue.push_back(first);
+    while (!queue.empty()) {
+        const size_t v = queue.front();
+        queue.pop_front();
+        if (v == second) {
+            std::vector<size_t> path;
+            for (size_t at = second; at != first; at = previous[at])
+                path.push_back(at);
+            path.push_back(first);
+            std::reverse(path.begin(), path.end());
+            return path;
+        }
+        for (const size_t c : m_mesh.cornersAroundVertex(v)) {
+            const size_t next = m_mesh.cornerVertex(m_mesh.nextCorner(c));
+            if (previous[next] != SurfaceMesh::npos || !crossable(c))
+                continue;
+            if (next != second && !usable(next))
+                continue;
+            previous[next] = v;
+            queue.push_back(next);
+        }
+    }
+    return {};
+}
+
 bool SingularitySimplifier::cancelPair(size_t first, size_t second, size_t hops)
 {
     const size_t radius = hops + m_regionMargin;
@@ -259,9 +315,13 @@ bool SingularitySimplifier::cancelPair(size_t first, size_t second, size_t hops)
     }
     for (size_t v : { first, second })
         for (size_t f : facetsAroundVertex(v))
-            if (std::find(freeFaces.begin(), freeFaces.end(), f) == freeFaces.end()) {
+            if (!inRegion[f]) {
                 return false;
             }
+    const std::vector<size_t> path = pathBetween(first, second, inRegion, freeFaces);
+    if (path.size() < 2) {
+        return false;
+    }
     std::vector<char> affected(m_mesh.vertexCount(), 0);
     for (size_t f : region)
         for (size_t c = 3 * f; c < 3 * f + 3; ++c)
@@ -272,39 +332,48 @@ bool SingularitySimplifier::cancelPair(size_t first, size_t second, size_t hops)
     saved.reserve(freeFaces.size());
     for (size_t f : freeFaces)
         saved.push_back(m_angles[f]);
-    m_representationX.assign(m_mesh.faceCount(), 0.0);
-    m_representationY.assign(m_mesh.faceCount(), 0.0);
-    for (size_t f : region) {
-        m_representationX[f] = std::cos(4 * m_angles[f]);
-        m_representationY[f] = std::sin(4 * m_angles[f]);
+
+    std::vector<int> jump(m_mesh.cornerCount(), 0);
+    for (const size_t f : region)
+        for (size_t c = 3 * f; c < 3 * f + 3; ++c) {
+            const size_t other = m_mesh.oppositeCorner(c);
+            if (other == SurfaceMesh::npos)
+                continue;
+            jump[c] = static_cast<int>(std::lround((m_angles[m_mesh.cornerFace(other)] - m_angles[f] - m_connection[c]) / (M_PI / 2.0)));
+        }
+    const int carried = (((vertexCharges()[first] + 1) % 4) + 4) % 4 - 1;
+    for (size_t i = 0; i + 1 < path.size(); ++i) {
+        const size_t corner = cornerAlongEdge(path[i], path[i + 1]);
+        if (corner == SurfaceMesh::npos) {
+            return false;
+        }
+        const size_t other = m_mesh.oppositeCorner(corner);
+        jump[corner] -= carried;
+        jump[other] += carried;
     }
+
     for (size_t iteration = 0; iteration < std::max<size_t>(256, 40 * radius * radius); ++iteration) {
         double maxChange = 0;
         for (size_t f : freeFaces) {
-            double sx = 0, sy = 0, sw = 0;
+            double sum = 0, sw = 0;
             for (size_t c = 3 * f; c < 3 * f + 3; ++c) {
                 const size_t other = m_mesh.oppositeCorner(c);
                 if (other == SurfaceMesh::npos)
                     continue;
                 const size_t g = m_mesh.cornerFace(other);
-                const double r = 4 * m_connection[other], co = std::cos(r), si = std::sin(r), w = m_mesh.edgeVector(c).length();
-                sx += w * (co * m_representationX[g] - si * m_representationY[g]);
-                sy += w * (si * m_representationX[g] + co * m_representationY[g]);
+                const double w = m_mesh.edgeVector(c).length();
+                sum += w * (m_angles[g] - m_connection[c] - jump[c] * (M_PI / 2.0));
                 sw += w;
             }
             if (sw > 0) {
-                const double x = sx / sw, y = sy / sw;
-                maxChange = std::max(maxChange, std::max(std::fabs(x - m_representationX[f]), std::fabs(y - m_representationY[f])));
-                m_representationX[f] = x;
-                m_representationY[f] = y;
+                const double value = sum / sw;
+                maxChange = std::max(maxChange, std::fabs(value - m_angles[f]));
+                m_angles[f] = value;
             }
         }
         if (maxChange < 1e-10)
             break;
     }
-    for (size_t f : freeFaces)
-        if (m_representationX[f] != 0 || m_representationY[f] != 0)
-            m_angles[f] = std::atan2(m_representationY[f], m_representationX[f]) / 4;
     updateMismatches(region);
     const size_t after = countAffected();
     const auto charges = vertexCharges();

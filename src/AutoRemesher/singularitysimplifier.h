@@ -47,13 +47,16 @@ private:
     size_t m_maximumPairDistance = 6, m_maximumRounds = 4, m_regionMargin = 6;
     double m_sharpEdgeDegrees = 90.0;
     size_t m_singularityCountBefore = 0, m_singularityCountAfter = 0, m_cancelledPairCount = 0;
-    std::vector<double> m_angles, m_connection, m_representationX, m_representationY;
+    std::vector<double> m_angles, m_connection;
     std::vector<int> m_mismatch;
     std::vector<bool> m_sharpCorner;
     std::vector<Vector3> m_frameU, m_frameV;
     void buildFramesAndConnection();
     void updateMismatches(const std::vector<size_t>& faces);
     std::vector<size_t> facetsAroundVertex(size_t vertex) const;
+    size_t cornerAlongEdge(size_t from, size_t to) const;
+    std::vector<size_t> pathBetween(size_t first, size_t second,
+        const std::vector<char>& inRegion, const std::vector<size_t>& freeFaces) const;
     bool cancelPair(size_t first, size_t second, size_t hops);
 };
 
