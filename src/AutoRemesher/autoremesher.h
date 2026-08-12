@@ -173,7 +173,7 @@ private:
 
     static double calculateAverageEdgeLength(const std::vector<Vector3>& vertices,
         const std::vector<std::vector<size_t>>& faces);
-    void initializeVoxelSize();
+    bool initializeVoxelSize();
     static void resample(std::vector<Vector3>& vertices,
         std::vector<std::vector<size_t>>& triangles,
         double voxelSize,
