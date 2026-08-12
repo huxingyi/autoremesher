@@ -131,6 +131,7 @@ private:
         const std::vector<size_t>& testPoints);
     bool removeIsolatedFaces();
     void smoothAndProject(size_t iterations);
+    void splitSixEdgeFaces();
     bool removeNonManifoldFaces();
     void rebuildHalfEdges();
     void fixHoles();
