@@ -22,6 +22,8 @@
 #include <AutoRemesher/PositionKey>
 #include <AutoRemesher/QuadExtractor>
 #include <algorithm>
+#include <axisalignedboundingbox.h>
+#include <axisalignedboundingboxtree.h>
 #include <limits>
 #include <map>
 #include <queue>
@@ -197,6 +199,10 @@ bool QuadExtractor::extract()
             m_remeshedVertices = std::move(compactedVertices);
         }
     }
+
+    std::cerr << "Smooth and project..." << std::endl;
+    smoothAndProject(5);
+    std::cerr << "Smooth and project done" << std::endl;
 
 #if AUTO_REMESHER_DEV
     {
@@ -1579,6 +1585,177 @@ bool QuadExtractor::removeNonManifoldFaces()
     }
     m_remeshedPolygons = manifoldFaces;
     return changed;
+}
+
+namespace {
+
+    Vector3 closestPointOnTriangle(const Vector3& p,
+        const Vector3& a, const Vector3& b, const Vector3& c)
+    {
+        const auto ab = b - a;
+        const auto ac = c - a;
+        const auto ap = p - a;
+        double d1 = Vector3::dotProduct(ab, ap);
+        double d2 = Vector3::dotProduct(ac, ap);
+        if (d1 <= 0.0 && d2 <= 0.0)
+            return a;
+
+        const auto bp = p - b;
+        double d3 = Vector3::dotProduct(ab, bp);
+        double d4 = Vector3::dotProduct(ac, bp);
+        if (d3 >= 0.0 && d4 <= d3)
+            return b;
+
+        double vc = d1 * d4 - d3 * d2;
+        if (vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0) {
+            double denom = d1 - d3;
+            double v = 0.0 != denom ? d1 / denom : 0.0;
+            return a + v * ab;
+        }
+
+        const auto cp = p - c;
+        double d5 = Vector3::dotProduct(ab, cp);
+        double d6 = Vector3::dotProduct(ac, cp);
+        if (d6 >= 0.0 && d5 <= d6)
+            return c;
+
+        double vb = d5 * d2 - d1 * d6;
+        if (vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0) {
+            double denom = d2 - d6;
+            double w = 0.0 != denom ? d2 / denom : 0.0;
+            return a + w * ac;
+        }
+
+        double va = d3 * d6 - d5 * d4;
+        if (va <= 0.0 && (d4 - d3) >= 0.0 && (d5 - d6) >= 0.0) {
+            double denom = (d4 - d3) + (d5 - d6);
+            double w = 0.0 != denom ? (d4 - d3) / denom : 0.0;
+            return b + w * (c - b);
+        }
+
+        double denom = va + vb + vc;
+        if (0.0 == denom)
+            return a;
+        double v = vb / denom;
+        double w = vc / denom;
+        return a + ab * v + ac * w;
+    }
+
+}
+
+void QuadExtractor::smoothAndProject(size_t iterations)
+{
+    if (0 == iterations
+        || m_remeshedVertices.empty()
+        || m_remeshedPolygons.empty()
+        || nullptr == m_vertices
+        || nullptr == m_triangles
+        || m_triangles->empty())
+        return;
+
+    std::vector<std::unordered_set<size_t>> neighbors(m_remeshedVertices.size());
+    std::map<std::pair<size_t, size_t>, size_t> edgeUseCount;
+    for (const auto& face : m_remeshedPolygons) {
+        for (size_t i = 0; i < face.size(); ++i) {
+            size_t j = (i + 1) % face.size();
+            if (face[i] >= neighbors.size() || face[j] >= neighbors.size())
+                continue;
+            neighbors[face[i]].insert(face[j]);
+            neighbors[face[j]].insert(face[i]);
+            ++edgeUseCount[std::make_pair(std::min(face[i], face[j]),
+                std::max(face[i], face[j]))];
+        }
+    }
+    std::vector<bool> locked(m_remeshedVertices.size(), false);
+    for (const auto& it : edgeUseCount) {
+        if (1 == it.second) {
+            locked[it.first.first] = true;
+            locked[it.first.second] = true;
+        }
+    }
+
+    std::vector<::Vector3> targetVertices;
+    targetVertices.reserve(m_vertices->size());
+    for (const auto& it : *m_vertices)
+        targetVertices.push_back(::Vector3(it.x(), it.y(), it.z()));
+
+    std::vector<AxisAlignedBoudingBox> triangleBoxes(m_triangles->size());
+    std::vector<size_t> triangleIndices(m_triangles->size());
+    AxisAlignedBoudingBox groupBox;
+    for (size_t i = 0; i < m_triangles->size(); ++i) {
+        const auto& triangle = (*m_triangles)[i];
+        for (size_t k = 0; k < 3; ++k) {
+            triangleBoxes[i].update(targetVertices[triangle[k]]);
+            groupBox.update(targetVertices[triangle[k]]);
+        }
+        triangleBoxes[i].updateCenter();
+        triangleIndices[i] = i;
+    }
+    groupBox.updateCenter();
+    AxisAlignedBoudingBoxTree tree(&triangleBoxes, triangleIndices, groupBox);
+
+    // Average quad edge length drives the initial search radius
+    double totalEdgeLength = 0.0;
+    size_t edgeNum = 0;
+    for (const auto& it : edgeUseCount) {
+        totalEdgeLength += (m_remeshedVertices[it.first.first] - m_remeshedVertices[it.first.second]).length();
+        ++edgeNum;
+    }
+    if (0 == edgeNum)
+        return;
+    const double averageEdgeLength = totalEdgeLength / edgeNum;
+    if (averageEdgeLength <= 0.0)
+        return;
+
+    auto projectToTargetMesh = [&](const Vector3& position, Vector3* projected) {
+        for (double radius = averageEdgeLength; radius <= averageEdgeLength * 8.0; radius *= 2.0) {
+            std::vector<AxisAlignedBoudingBox> queryBoxes(1);
+            queryBoxes[0].update(::Vector3(position.x() - radius, position.y() - radius, position.z() - radius));
+            queryBoxes[0].update(::Vector3(position.x() + radius, position.y() + radius, position.z() + radius));
+            queryBoxes[0].updateCenter();
+            AxisAlignedBoudingBoxTree queryTree(&queryBoxes, { 0 }, queryBoxes[0]);
+            std::vector<std::pair<size_t, size_t>> pairs;
+            tree.test(tree.root(), queryTree.root(), &queryBoxes, &pairs);
+            double minDistance2 = std::numeric_limits<double>::max();
+            for (const auto& it : pairs) {
+                const auto& triangle = (*m_triangles)[it.first];
+                const auto candidate = closestPointOnTriangle(position,
+                    (*m_vertices)[triangle[0]],
+                    (*m_vertices)[triangle[1]],
+                    (*m_vertices)[triangle[2]]);
+                double distance2 = (candidate - position).lengthSquared();
+                if (distance2 < minDistance2) {
+                    minDistance2 = distance2;
+                    *projected = candidate;
+                }
+            }
+            if (minDistance2 < std::numeric_limits<double>::max())
+                return true;
+        }
+        return false;
+    };
+
+    const double smoothFactor = 0.5;
+    for (size_t iteration = 0; iteration < iterations; ++iteration) {
+        std::vector<Vector3> smoothedVertices(m_remeshedVertices);
+        for (size_t i = 0; i < m_remeshedVertices.size(); ++i) {
+            if (locked[i] || neighbors[i].empty())
+                continue;
+            Vector3 center;
+            for (const auto& neighbor : neighbors[i])
+                center += m_remeshedVertices[neighbor];
+            center /= (double)neighbors[i].size();
+            smoothedVertices[i] = m_remeshedVertices[i] + smoothFactor * (center - m_remeshedVertices[i]);
+        }
+        for (size_t i = 0; i < smoothedVertices.size(); ++i) {
+            if (locked[i] || neighbors[i].empty())
+                continue;
+            Vector3 projected;
+            if (projectToTargetMesh(smoothedVertices[i], &projected))
+                smoothedVertices[i] = projected;
+        }
+        m_remeshedVertices = std::move(smoothedVertices);
+    }
 }
 
 }

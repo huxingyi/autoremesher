@@ -130,6 +130,7 @@ private:
         const std::vector<size_t>& triangle,
         const std::vector<size_t>& testPoints);
     bool removeIsolatedFaces();
+    void smoothAndProject(size_t iterations);
     bool removeNonManifoldFaces();
     void rebuildHalfEdges();
     void fixHoles();
