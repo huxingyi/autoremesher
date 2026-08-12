@@ -1,3 +1,21 @@
+1.1.0
+- Replace Geogram with a native quad parameterizer
+- Add anisotropic quad sizing and the `--anisotropy` CLI option
+- Improve UV parameterization and quad extraction
+- Smooth and project extracted quads onto the input mesh
+- Split six-edge faces during quad extraction
+- Add source, isotropic, parameterization, and remeshed-model previews
+- Show singular vertices and extracted connections in previews
+- Fix remeshing of non-manifold meshes
+- Fix a resampling data race
+- Print headless progress as a percentage
+- Add headless remeshing reports
+- Enable high-DPI support with Qt 5
+- Use Accelerate/BLAS on macOS
+- Support Linux CPUs without AVX2
+- Update Windows CI and build instructions
+- Add a Contributors dialog
+
 1.0.0
 - Relicense from GPLv3 to MIT (reimplemented MIT-incompatible dependencies)
 - Improve parameterizer, isotropic remesher, and quad extraction algorithms
