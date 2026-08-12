@@ -132,6 +132,7 @@ private:
     bool removeIsolatedFaces();
     void smoothAndProject(size_t iterations);
     void splitSixEdgeFaces();
+    void splitSevenEdgeFaces();
     bool removeNonManifoldFaces();
     void rebuildHalfEdges();
     void fixHoles();

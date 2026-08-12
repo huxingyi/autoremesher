@@ -204,6 +204,7 @@ bool QuadExtractor::extract()
     smoothAndProject(5);
     std::cerr << "Smooth and project done" << std::endl;
 
+    splitSevenEdgeFaces();
     splitSixEdgeFaces();
 
 #if AUTO_REMESHER_DEV
@@ -1863,6 +1864,113 @@ void QuadExtractor::splitSixEdgeFaces()
         return;
 
     std::cerr << "Split six edge faces:" << splitNum << std::endl;
+    m_remeshedPolygons = std::move(polygons);
+    rebuildHalfEdges();
+}
+
+void QuadExtractor::splitSevenEdgeFaces()
+{
+    if (m_remeshedVertices.empty() || m_remeshedPolygons.empty())
+        return;
+
+    std::unordered_map<size_t, std::unordered_set<size_t>> vertexNeighbors;
+    for (const auto& face : m_remeshedPolygons) {
+        for (size_t i = 0; i < face.size(); ++i) {
+            size_t j = (i + 1) % face.size();
+            vertexNeighbors[face[i]].insert(face[j]);
+            vertexNeighbors[face[j]].insert(face[i]);
+        }
+    }
+
+    auto flowScoreAt = [&](size_t vertex, const Vector3& direction,
+                           const std::unordered_set<size_t>& faceNeighbors) {
+        double best = -1.0;
+        const auto& findNeighbors = vertexNeighbors.find(vertex);
+        if (vertexNeighbors.end() == findNeighbors)
+            return 0.0;
+        bool found = false;
+        for (const auto& neighbor : findNeighbors->second) {
+            if (faceNeighbors.end() != faceNeighbors.find(neighbor))
+                continue;
+            auto incoming = (m_remeshedVertices[vertex] - m_remeshedVertices[neighbor]).normalized();
+            double score = Vector3::dotProduct(incoming, direction);
+            if (score > best)
+                best = score;
+            found = true;
+        }
+        return found ? best : 0.0;
+    };
+
+    auto cornerScore = [&](const std::vector<size_t>& polygon) {
+        double total = 0.0;
+        for (size_t i = 0; i < polygon.size(); ++i) {
+            size_t h = (i + polygon.size() - 1) % polygon.size();
+            size_t j = (i + 1) % polygon.size();
+            auto left = (m_remeshedVertices[polygon[h]] - m_remeshedVertices[polygon[i]]).normalized();
+            auto right = (m_remeshedVertices[polygon[j]] - m_remeshedVertices[polygon[i]]).normalized();
+            total += std::abs(Vector3::dotProduct(left, right));
+        }
+        return -total / polygon.size();
+    };
+
+    size_t splitNum = 0;
+    std::vector<std::vector<size_t>> polygons;
+    polygons.reserve(m_remeshedPolygons.size());
+    for (const auto& face : m_remeshedPolygons) {
+        if (7 != face.size()) {
+            polygons.push_back(face);
+            continue;
+        }
+        std::unordered_set<size_t> uniqueVertices(face.begin(), face.end());
+        if (7 != uniqueVertices.size()) {
+            polygons.push_back(face);
+            continue;
+        }
+
+        int bestCorner = -1;
+        double bestScore = 0.0;
+        for (size_t i = 0; i < 7; ++i) {
+            size_t a = face[i];
+            size_t b = face[(i + 3) % 7];
+            const auto& findNeighbors = vertexNeighbors.find(a);
+            if (vertexNeighbors.end() != findNeighbors
+                && findNeighbors->second.end() != findNeighbors->second.find(b)) {
+                continue;
+            }
+            auto direction = (m_remeshedVertices[b] - m_remeshedVertices[a]).normalized();
+            std::unordered_set<size_t> aFaceNeighbors = {
+                face[(i + 6) % 7], face[(i + 1) % 7], b
+            };
+            std::unordered_set<size_t> bFaceNeighbors = {
+                face[(i + 2) % 7], face[(i + 4) % 7], a
+            };
+            double score = flowScoreAt(a, direction, aFaceNeighbors)
+                + flowScoreAt(b, -direction, bFaceNeighbors);
+            score += cornerScore({ face[i], face[(i + 1) % 7], face[(i + 2) % 7], face[(i + 3) % 7] });
+            score += cornerScore({ face[(i + 3) % 7], face[(i + 4) % 7], face[(i + 5) % 7], face[(i + 6) % 7], face[i] });
+            if (-1 == bestCorner || score > bestScore) {
+                bestCorner = (int)i;
+                bestScore = score;
+            }
+        }
+        if (-1 == bestCorner) {
+            std::cerr << "Seven edge face kept, no diagonal available" << std::endl;
+            polygons.push_back(face);
+            continue;
+        }
+
+        size_t i = (size_t)bestCorner;
+        polygons.push_back({ face[i], face[(i + 1) % 7], face[(i + 2) % 7], face[(i + 3) % 7] });
+        polygons.push_back({ face[(i + 3) % 7], face[(i + 4) % 7], face[(i + 5) % 7], face[(i + 6) % 7], face[i] });
+        ++splitNum;
+        vertexNeighbors[face[i]].insert(face[(i + 3) % 7]);
+        vertexNeighbors[face[(i + 3) % 7]].insert(face[i]);
+    }
+
+    if (0 == splitNum)
+        return;
+
+    std::cerr << "Split seven edge faces:" << splitNum << std::endl;
     m_remeshedPolygons = std::move(polygons);
     rebuildHalfEdges();
 }
