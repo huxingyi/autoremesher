@@ -599,7 +599,7 @@ namespace {
         std::vector<double> uv(allValues.begin(), allValues.begin() + uvVariables);
         for (double& coordinate : uv) {
             const double integer = std::round(coordinate);
-            if (std::fabs(coordinate - integer) < 0.05)
+            if (std::fabs(coordinate - integer) < 0.01)
                 coordinate = integer;
         }
         result->singularVertices.clear();
