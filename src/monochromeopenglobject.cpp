@@ -1,8 +1,10 @@
 #include "monochromeopenglobject.h"
+#include "openglbufferutil.h"
 #include <QOpenGLContext>
 #include <QOpenGLFunctions>
 
-void MonochromeOpenGLObject::update(const MonochromeOpenGLVertex* vertices, int vertexCount)
+void MonochromeOpenGLObject::update(const MonochromeOpenGLVertex* vertices, int vertexCount,
+    const uint32_t* indices, int indexCount)
 {
     QMutexLocker lock(&m_meshMutex);
     if (vertexCount > 0 && nullptr != vertices) {
@@ -10,8 +12,17 @@ void MonochromeOpenGLObject::update(const MonochromeOpenGLVertex* vertices, int 
         memcpy(m_vertices.get(), vertices, vertexCount * sizeof(MonochromeOpenGLVertex));
     } else {
         m_vertices = nullptr;
+        vertexCount = 0;
+    }
+    if (indexCount > 0 && nullptr != indices && vertexCount > 0) {
+        m_indices = std::make_unique<uint32_t[]>(indexCount);
+        memcpy(m_indices.get(), indices, indexCount * sizeof(uint32_t));
+    } else {
+        m_indices = nullptr;
+        indexCount = 0;
     }
     m_meshVertexCount = vertexCount;
+    m_meshIndexCount = indexCount;
     m_meshIsDirty = true;
 }
 
@@ -22,7 +33,10 @@ void MonochromeOpenGLObject::draw()
         return;
     QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
     QOpenGLVertexArrayObject::Binder binder(&m_vertexArrayObject);
-    f->glDrawArrays(GL_LINES, 0, m_meshVertexCount);
+    if (m_meshIndexCount > 0)
+        f->glDrawElements(GL_LINES, m_meshIndexCount, GL_UNSIGNED_INT, nullptr);
+    else
+        f->glDrawArrays(GL_LINES, 0, m_meshVertexCount);
 }
 
 void MonochromeOpenGLObject::copyMeshToOpenGL()
@@ -36,7 +50,12 @@ void MonochromeOpenGLObject::copyMeshToOpenGL()
             m_buffer.destroy();
         m_buffer.create();
         m_buffer.bind();
-        m_buffer.allocate(m_vertices.get(), m_meshVertexCount * sizeof(MonochromeOpenGLVertex));
+        if (!allocateOpenGLBuffer(m_buffer, m_vertices.get(),
+                (size_t)m_meshVertexCount * sizeof(MonochromeOpenGLVertex))) {
+            m_meshVertexCount = 0;
+            m_meshIndexCount = 0;
+            return;
+        }
         QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
         f->glEnableVertexAttribArray(0);
         f->glEnableVertexAttribArray(1);
@@ -47,6 +66,19 @@ void MonochromeOpenGLObject::copyMeshToOpenGL()
         f->glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(MonochromeOpenGLVertex),
             reinterpret_cast<void*>(6 * sizeof(GLfloat)));
         m_buffer.release();
+        if (m_meshIndexCount > 0 && m_indices) {
+            if (m_indexBuffer.isCreated())
+                m_indexBuffer.destroy();
+            m_indexBuffer.create();
+            m_indexBuffer.bind();
+            if (!allocateOpenGLBuffer(m_indexBuffer, m_indices.get(),
+                    (size_t)m_meshIndexCount * sizeof(uint32_t))) {
+                m_meshVertexCount = 0;
+                m_meshIndexCount = 0;
+            }
+            // The element array binding belongs to the vertex array object, so
+            // leave it bound and let the binder take it down with the object
+        }
     }
 }
 
@@ -54,8 +86,12 @@ void MonochromeOpenGLObject::cleanup()
 {
     QMutexLocker lock(&m_meshMutex);
     m_vertices = nullptr;
+    m_indices = nullptr;
     m_meshVertexCount = 0;
+    m_meshIndexCount = 0;
     m_meshIsDirty = false;
     if (m_buffer.isCreated())
         m_buffer.destroy();
+    if (m_indexBuffer.isCreated())
+        m_indexBuffer.destroy();
 }

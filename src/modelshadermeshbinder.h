@@ -51,6 +51,7 @@ private:
     ModelShaderMesh* m_mesh = nullptr;
     ModelShaderMesh* m_newMesh = nullptr;
     int m_renderTriangleVertexCount = 0;
+    int m_renderTriangleIndexCount = 0;
     int m_renderToolVertexCount = 0;
     bool m_newMeshComing = false;
     bool m_showWireframe = false;
@@ -74,6 +75,7 @@ private:
 private:
     QOpenGLVertexArrayObject m_vaoTriangle;
     QOpenGLBuffer m_vboTriangle;
+    QOpenGLBuffer m_iboTriangle { QOpenGLBuffer::IndexBuffer };
     MonochromeOpenGLObject m_wireframeObject;
     MonochromeOpenGLObject m_connectionWireframeObject;
     QOpenGLVertexArrayObject m_vaoTool;

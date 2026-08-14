@@ -125,9 +125,7 @@ static ModelShaderMesh* buildRenderMeshFromTriangles(
         }
     }
 
-    std::vector<AutoRemesher::Vector3>* vertsCopy = new std::vector<AutoRemesher::Vector3>(normalizedVerts);
-    std::vector<std::vector<size_t>>* facesCopy = new std::vector<std::vector<size_t>>(triangles);
-    return new ModelShaderMesh(vertData, vertexCount, edgeData, ei, vertsCopy, facesCopy);
+    return new ModelShaderMesh(vertData, vertexCount, edgeData, ei, &normalizedVerts, &triangles);
 }
 
 static ModelShaderMesh* buildUvRenderMesh(
@@ -238,9 +236,7 @@ static ModelShaderMesh* buildUvRenderMesh(
         }
     }
 
-    std::vector<AutoRemesher::Vector3>* vertsCopy = new std::vector<AutoRemesher::Vector3>(normalizedVerts);
-    std::vector<std::vector<size_t>>* facesCopy = new std::vector<std::vector<size_t>>(triangles);
-    ModelShaderMesh* mesh = new ModelShaderMesh(vertData, vertexCount, edgeData, ei, vertsCopy, facesCopy);
+    ModelShaderMesh* mesh = new ModelShaderMesh(vertData, vertexCount, edgeData, ei, &normalizedVerts, &triangles);
 
     QImage* textureImage = new QImage(":/resources/crossuv.png");
     mesh->setTextureImage(textureImage);

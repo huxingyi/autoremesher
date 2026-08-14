@@ -27,6 +27,7 @@
 #include <QImage>
 #include <QObject>
 #include <QTextStream>
+#include <cstdint>
 #include <vector>
 
 class ModelShaderMesh {
@@ -34,8 +35,10 @@ public:
     ModelShaderMesh(const std::vector<AutoRemesher::Vector3>& vertices, const std::vector<std::vector<size_t>>& triangles,
         const std::vector<std::vector<AutoRemesher::Vector3>>& triangleVertexNormals,
         const QColor& color = Qt::white);
+    // Takes over triangleVertices and edgeVertices, which it frees on destruction.
+    // vertices and faces are only copied, so the caller keeps ownership of those.
     ModelShaderMesh(ModelShaderVertex* triangleVertices, int vertexNum, ModelShaderVertex* edgeVertices = nullptr, int edgeVertexCount = 0,
-        std::vector<AutoRemesher::Vector3>* vertices = nullptr, std::vector<std::vector<size_t>>* faces = nullptr);
+        const std::vector<AutoRemesher::Vector3>* vertices = nullptr, const std::vector<std::vector<size_t>>* faces = nullptr);
     ModelShaderMesh(const ModelShaderMesh& mesh);
     ModelShaderMesh();
     ~ModelShaderMesh();
@@ -43,6 +46,14 @@ public:
     int triangleVertexCount();
     ModelShaderVertex* edgeVertices();
     int edgeVertexCount();
+    // Optional 32 bit index buffers. A mesh whose triangleIndexCount() is greater
+    // than zero shares one vertex per source vertex and must be drawn with
+    // glDrawElements. Such a mesh carries no separate edge vertices: its edge
+    // indices reference the triangle vertex array as well.
+    const uint32_t* triangleIndices();
+    int triangleIndexCount();
+    const uint32_t* edgeIndices();
+    int edgeIndexCount();
     ModelShaderVertex* connectionEdgeVertices();
     int connectionEdgeVertexCount();
     ModelShaderVertex* toolVertices();
@@ -65,6 +76,8 @@ public:
     static float m_defaultRoughness;
     void updateTool(ModelShaderVertex* toolVertices, int vertexNum);
     void updateEdges(ModelShaderVertex* edgeVertices, int edgeVertexCount);
+    void updateTriangleIndices(uint32_t* triangleIndices, int triangleIndexCount);
+    void updateEdgeIndices(uint32_t* edgeIndices, int edgeIndexCount);
     void updateConnectionEdges(ModelShaderVertex* edgeVertices, int edgeVertexCount);
     void updateTriangleVertices(ModelShaderVertex* triangleVertices, int triangleVertexCount);
     quint64 meshId() const;
@@ -76,6 +89,10 @@ private:
     int m_triangleVertexCount = 0;
     ModelShaderVertex* m_edgeVertices = nullptr;
     int m_edgeVertexCount = 0;
+    uint32_t* m_triangleIndices = nullptr;
+    int m_triangleIndexCount = 0;
+    uint32_t* m_edgeIndices = nullptr;
+    int m_edgeIndexCount = 0;
     ModelShaderVertex* m_connectionEdgeVertices = nullptr;
     int m_connectionEdgeVertexCount = 0;
     ModelShaderVertex* m_toolVertices = nullptr;

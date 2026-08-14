@@ -20,6 +20,7 @@
  *  SOFTWARE.
  */
 #include "modelshadermeshbinder.h"
+#include "openglbufferutil.h"
 #include <QDebug>
 #include <QDir>
 #include <QFile>
@@ -152,8 +153,12 @@ void ModelShaderMeshBinder::paint(ModelShaderProgram* program)
                         m_vboTriangle.destroy();
                     m_vboTriangle.create();
                     m_vboTriangle.bind();
-                    m_vboTriangle.allocate(m_mesh->triangleVertices(), m_mesh->triangleVertexCount() * sizeof(ModelShaderVertex));
                     m_renderTriangleVertexCount = m_mesh->triangleVertexCount();
+                    m_renderTriangleIndexCount = 0;
+                    if (!allocateOpenGLBuffer(m_vboTriangle, m_mesh->triangleVertices(),
+                            (size_t)m_mesh->triangleVertexCount() * sizeof(ModelShaderVertex))) {
+                        m_renderTriangleVertexCount = 0;
+                    }
                     QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
                     f->glEnableVertexAttribArray(0);
                     f->glEnableVertexAttribArray(1);
@@ -172,6 +177,20 @@ void ModelShaderMeshBinder::paint(ModelShaderProgram* program)
                     f->glVertexAttribPointer(6, 3, GL_FLOAT, GL_FALSE, sizeof(ModelShaderVertex), reinterpret_cast<void*>(13 * sizeof(GLfloat)));
                     f->glVertexAttribPointer(7, 1, GL_FLOAT, GL_FALSE, sizeof(ModelShaderVertex), reinterpret_cast<void*>(16 * sizeof(GLfloat)));
                     m_vboTriangle.release();
+                    if (m_renderTriangleVertexCount > 0 && m_mesh->triangleIndexCount() > 0) {
+                        if (m_iboTriangle.isCreated())
+                            m_iboTriangle.destroy();
+                        m_iboTriangle.create();
+                        m_iboTriangle.bind();
+                        if (allocateOpenGLBuffer(m_iboTriangle, m_mesh->triangleIndices(),
+                                (size_t)m_mesh->triangleIndexCount() * sizeof(uint32_t))) {
+                            m_renderTriangleIndexCount = m_mesh->triangleIndexCount();
+                        } else {
+                            m_renderTriangleVertexCount = 0;
+                        }
+                        // The element array binding belongs to the vertex array
+                        // object, so leave it bound until the binder unbinds it
+                    }
                 }
                 {
                     int connectionEdgeCount = m_mesh->connectionEdgeVertexCount();
@@ -193,10 +212,15 @@ void ModelShaderMeshBinder::paint(ModelShaderProgram* program)
                     }
                 }
                 {
-                    // Convert edge vertices from ModelShaderVertex to MonochromeOpenGLVertex
-                    int edgeCount = m_mesh->edgeVertexCount();
-                    if (edgeCount > 0) {
-                        const ModelShaderVertex* src = m_mesh->edgeVertices();
+                    // Convert edge vertices from ModelShaderVertex to MonochromeOpenGLVertex.
+                    // An indexed mesh shares a single vertex array between the shaded
+                    // triangles and the wireframe, so its edge indices address the
+                    // triangle vertices and there are no separate edge vertices.
+                    const int edgeIndexCount = m_mesh->edgeIndexCount();
+                    const bool indexed = edgeIndexCount > 0 && m_mesh->triangleIndexCount() > 0;
+                    const ModelShaderVertex* src = indexed ? m_mesh->triangleVertices() : m_mesh->edgeVertices();
+                    const int edgeCount = indexed ? m_mesh->triangleVertexCount() : m_mesh->edgeVertexCount();
+                    if (edgeCount > 0 && nullptr != src) {
                         std::vector<MonochromeOpenGLVertex> monochromeVertices(edgeCount);
                         for (int i = 0; i < edgeCount; ++i) {
                             monochromeVertices[i].posX = src[i].posX;
@@ -207,7 +231,9 @@ void ModelShaderMeshBinder::paint(ModelShaderProgram* program)
                             monochromeVertices[i].colorB = 0.0667f;
                             monochromeVertices[i].alpha = 0.9f;
                         }
-                        m_wireframeObject.update(monochromeVertices.data(), edgeCount);
+                        m_wireframeObject.update(monochromeVertices.data(), edgeCount,
+                            indexed ? m_mesh->edgeIndices() : nullptr,
+                            indexed ? edgeIndexCount : 0);
                     } else {
                         m_wireframeObject.update(nullptr, 0);
                     }
@@ -218,8 +244,11 @@ void ModelShaderMeshBinder::paint(ModelShaderProgram* program)
                         m_vboTool.destroy();
                     m_vboTool.create();
                     m_vboTool.bind();
-                    m_vboTool.allocate(m_mesh->toolVertices(), m_mesh->toolVertexCount() * sizeof(ModelShaderVertex));
                     m_renderToolVertexCount = m_mesh->toolVertexCount();
+                    if (!allocateOpenGLBuffer(m_vboTool, m_mesh->toolVertices(),
+                            (size_t)m_mesh->toolVertexCount() * sizeof(ModelShaderVertex))) {
+                        m_renderToolVertexCount = 0;
+                    }
                     QOpenGLFunctions* f = QOpenGLContext::currentContext()->functions();
                     f->glEnableVertexAttribArray(0);
                     f->glEnableVertexAttribArray(1);
@@ -243,6 +272,7 @@ void ModelShaderMeshBinder::paint(ModelShaderProgram* program)
                 }
             } else {
                 m_renderTriangleVertexCount = 0;
+                m_renderTriangleIndexCount = 0;
                 m_renderToolVertexCount = 0;
             }
         }
@@ -274,7 +304,10 @@ void ModelShaderMeshBinder::paint(ModelShaderProgram* program)
         program->setMetalnessMapEnabledValue(m_hasMetalnessMap ? 1 : 0);
         program->setRoughnessMapEnabledValue(m_hasRoughnessMap ? 1 : 0);
         program->setAoMapEnabledValue(m_hasAmbientOcclusionMap ? 1 : 0);
-        f->glDrawArrays(GL_TRIANGLES, 0, m_renderTriangleVertexCount);
+        if (m_renderTriangleIndexCount > 0)
+            f->glDrawElements(GL_TRIANGLES, m_renderTriangleIndexCount, GL_UNSIGNED_INT, nullptr);
+        else
+            f->glDrawArrays(GL_TRIANGLES, 0, m_renderTriangleVertexCount);
     }
     if (m_toolEnabled) {
         if (m_renderToolVertexCount > 0) {
@@ -325,6 +358,8 @@ void ModelShaderMeshBinder::cleanup()
 {
     if (m_vboTriangle.isCreated())
         m_vboTriangle.destroy();
+    if (m_iboTriangle.isCreated())
+        m_iboTriangle.destroy();
     m_wireframeObject.cleanup();
     m_connectionWireframeObject.cleanup();
     if (m_toolEnabled) {

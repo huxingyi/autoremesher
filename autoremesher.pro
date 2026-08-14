@@ -175,6 +175,8 @@ HEADERS += src/monochromeopenglprogram.h
 SOURCES += src/monochromeopenglobject.cpp
 HEADERS += src/monochromeopenglobject.h
 
+HEADERS += src/openglbufferutil.h
+
 HEADERS += src/monochromeopenglvertex.h
 
 SOURCES += src/modelshaderwidget.cpp
