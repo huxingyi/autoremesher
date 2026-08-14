@@ -207,6 +207,7 @@ bool QuadExtractor::extract()
 
     splitSevenEdgeFaces();
     splitSixEdgeFaces();
+    mergeSharedFiveEdgeFaces();
     cleanupTriangles();
 
 #if AUTO_REMESHER_DEV
@@ -1648,7 +1649,8 @@ namespace {
 
 }
 
-void QuadExtractor::smoothAndProject(size_t iterations)
+void QuadExtractor::smoothAndProject(size_t iterations,
+    const std::unordered_set<size_t>* movableVertices)
 {
     if (0 == iterations
         || m_remeshedVertices.empty()
@@ -1672,6 +1674,10 @@ void QuadExtractor::smoothAndProject(size_t iterations)
         }
     }
     std::vector<bool> locked(m_remeshedVertices.size(), false);
+    if (nullptr != movableVertices) {
+        for (size_t i = 0; i < locked.size(); ++i)
+            locked[i] = movableVertices->end() == movableVertices->find(i);
+    }
     for (const auto& it : edgeUseCount) {
         if (1 == it.second) {
             locked[it.first.first] = true;
@@ -2186,6 +2192,252 @@ void QuadExtractor::splitSevenEdgeFaces()
     std::cerr << "Split seven edge faces:" << splitNum << std::endl;
     m_remeshedPolygons = std::move(polygons);
     rebuildHalfEdges();
+}
+
+void QuadExtractor::mergeSharedFiveEdgeFaces()
+{
+    if (m_remeshedVertices.empty() || m_remeshedPolygons.empty())
+        return;
+
+    using Edge = std::pair<size_t, size_t>;
+    const auto edgeOf = [](size_t a, size_t b) {
+        return std::make_pair(std::min(a, b), std::max(a, b));
+    };
+    const auto faceHasRepeatedVertex = [](const std::vector<size_t>& face) {
+        std::set<size_t> vertices(face.begin(), face.end());
+        return vertices.size() != face.size();
+    };
+    const auto canonicalFace = [](const std::vector<size_t>& face) {
+        std::vector<size_t> best;
+        std::vector<size_t> reversed(face.rbegin(), face.rend());
+        for (const std::vector<size_t>* winding : {
+                 &face, static_cast<const std::vector<size_t>*>(&reversed) }) {
+            for (size_t start = 0; start < winding->size(); ++start) {
+                std::vector<size_t> candidate;
+                candidate.reserve(winding->size());
+                for (size_t i = 0; i < winding->size(); ++i)
+                    candidate.push_back((*winding)[(start + i) % winding->size()]);
+                if (best.empty() || candidate < best)
+                    best = std::move(candidate);
+            }
+        }
+        return best;
+    };
+    const auto positionOf = [&](size_t vertex, size_t movedVertex, const Vector3& movedPosition) {
+        return vertex == movedVertex ? movedPosition : m_remeshedVertices[vertex];
+    };
+    const auto faceNormal = [&](const std::vector<size_t>& face, size_t movedVertex,
+                                const Vector3& movedPosition) {
+        Vector3 normal;
+        const auto origin = positionOf(face[0], movedVertex, movedPosition);
+        for (size_t i = 1; i + 1 < face.size(); ++i) {
+            normal += Vector3::crossProduct(
+                positionOf(face[i], movedVertex, movedPosition) - origin,
+                positionOf(face[i + 1], movedVertex, movedPosition) - origin);
+        }
+        return normal;
+    };
+
+    std::set<Edge> rejectedEdges;
+    std::unordered_set<size_t> mergedVertices;
+    size_t mergeCount = 0;
+    for (;;) {
+        std::map<Edge, std::vector<size_t>> edgeFaces;
+        for (size_t faceIndex = 0; faceIndex < m_remeshedPolygons.size(); ++faceIndex) {
+            const auto& face = m_remeshedPolygons[faceIndex];
+            for (size_t i = 0; i < face.size(); ++i)
+                edgeFaces[edgeOf(face[i], face[(i + 1) % face.size()])].push_back(faceIndex);
+        }
+
+        Edge sharedEdge { 0, 0 };
+        bool foundShared = false;
+        for (const auto& it : edgeFaces) {
+            if (2 != it.second.size())
+                continue;
+            if (rejectedEdges.end() != rejectedEdges.find(it.first))
+                continue;
+            bool bothFiveEdges = true;
+            for (const auto& faceIndex : it.second) {
+                const auto& face = m_remeshedPolygons[faceIndex];
+                std::unordered_set<size_t> uniqueVertices(face.begin(), face.end());
+                if (5 != face.size() || 5 != uniqueVertices.size()) {
+                    bothFiveEdges = false;
+                    break;
+                }
+            }
+            if (!bothFiveEdges)
+                continue;
+            sharedEdge = it.first;
+            foundShared = true;
+            break;
+        }
+        if (!foundShared)
+            break;
+
+        const size_t keep = sharedEdge.first;
+        const size_t remove = sharedEdge.second;
+        const size_t unmovedVertex = m_remeshedVertices.size();
+        const Vector3 keepPosition = (m_remeshedVertices[keep]
+                                         + m_remeshedVertices[remove])
+            * 0.5;
+        std::vector<std::vector<size_t>> rewritten;
+        std::vector<bool> affected;
+        rewritten.reserve(m_remeshedPolygons.size());
+        affected.reserve(m_remeshedPolygons.size());
+        bool valid = true;
+        for (const auto& face : m_remeshedPolygons) {
+            bool faceAffected = false;
+            for (const auto vertex : face) {
+                if (keep == vertex || remove == vertex) {
+                    faceAffected = true;
+                    break;
+                }
+            }
+            std::vector<size_t> candidate;
+            candidate.reserve(face.size());
+            for (const auto vertex : face) {
+                const size_t rewrittenVertex = vertex == remove ? keep : vertex;
+                if (candidate.empty() || candidate.back() != rewrittenVertex)
+                    candidate.push_back(rewrittenVertex);
+            }
+            if (candidate.size() > 1 && candidate.front() == candidate.back())
+                candidate.pop_back();
+            if (faceAffected) {
+                // The two five edge faces become quads, no other face is allowed to
+                // degrade, otherwise the merge is trading one defect for another
+                if (candidate.size() < 3
+                    || (face.size() >= 4 && candidate.size() < 4)) {
+                    valid = false;
+                    break;
+                }
+                if (faceHasRepeatedVertex(candidate)) {
+                    valid = false;
+                    break;
+                }
+                const auto oldNormal = faceNormal(face, unmovedVertex, Vector3());
+                const auto newNormal = faceNormal(candidate, keep, keepPosition);
+                if (Vector3::dotProduct(oldNormal, newNormal) <= 0.0) {
+                    valid = false;
+                    break;
+                }
+            }
+            rewritten.push_back(std::move(candidate));
+            affected.push_back(faceAffected);
+        }
+
+        if (valid) {
+            std::set<std::vector<size_t>> uniqueFaces;
+            for (size_t faceIndex = 0; faceIndex < rewritten.size(); ++faceIndex) {
+                if (!affected[faceIndex])
+                    uniqueFaces.insert(canonicalFace(rewritten[faceIndex]));
+            }
+            std::map<Edge, size_t> keepEdgeCounts;
+            for (size_t faceIndex = 0; faceIndex < rewritten.size() && valid; ++faceIndex) {
+                const auto& face = rewritten[faceIndex];
+                if (affected[faceIndex]
+                    && !uniqueFaces.insert(canonicalFace(face)).second) {
+                    valid = false;
+                    break;
+                }
+                for (size_t i = 0; i < face.size(); ++i) {
+                    const Edge edge = edgeOf(face[i], face[(i + 1) % face.size()]);
+                    if (keep != edge.first && keep != edge.second)
+                        continue;
+                    if (++keepEdgeCounts[edge] > 2) {
+                        valid = false;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!valid) {
+            rejectedEdges.insert(sharedEdge);
+            continue;
+        }
+
+        m_remeshedVertices[keep] = keepPosition;
+        m_remeshedPolygons = std::move(rewritten);
+        mergedVertices.insert(keep);
+        ++mergeCount;
+    }
+
+    if (0 == mergeCount)
+        return;
+
+    std::unordered_map<size_t, std::vector<size_t>> vertexFaces;
+    for (size_t faceIndex = 0; faceIndex < m_remeshedPolygons.size(); ++faceIndex) {
+        for (const auto& vertex : m_remeshedPolygons[faceIndex])
+            vertexFaces[vertex].push_back(faceIndex);
+    }
+
+    // Three rings of faces grown from the merged points, the vertices sitting on the
+    // outer border of the patch anchor the smoothing
+    std::unordered_set<size_t> patchFaces;
+    std::unordered_set<size_t> frontier;
+    for (const auto& vertex : mergedVertices) {
+        if (vertexFaces.end() == vertexFaces.find(vertex))
+            continue;
+        frontier.insert(vertex);
+    }
+    for (size_t ring = 0; ring < 3 && !frontier.empty(); ++ring) {
+        std::unordered_set<size_t> nextFrontier;
+        for (const auto& vertex : frontier) {
+            for (const auto& faceIndex : vertexFaces[vertex]) {
+                if (!patchFaces.insert(faceIndex).second)
+                    continue;
+                for (const auto& neighborVertex : m_remeshedPolygons[faceIndex])
+                    nextFrontier.insert(neighborVertex);
+            }
+        }
+        frontier = std::move(nextFrontier);
+    }
+
+    std::unordered_set<size_t> movableVertices;
+    for (const auto& faceIndex : patchFaces) {
+        for (const auto& vertex : m_remeshedPolygons[faceIndex])
+            movableVertices.insert(vertex);
+    }
+    for (auto it = movableVertices.begin(); it != movableVertices.end();) {
+        bool onPatchBorder = false;
+        for (const auto& faceIndex : vertexFaces[*it]) {
+            if (patchFaces.end() == patchFaces.find(faceIndex)) {
+                onPatchBorder = true;
+                break;
+            }
+        }
+        if (onPatchBorder)
+            it = movableVertices.erase(it);
+        else
+            ++it;
+    }
+
+    {
+        std::map<size_t, size_t> oldToNew;
+        std::vector<Vector3> compactedVertices;
+        for (const auto& face : m_remeshedPolygons) {
+            for (const auto vertex : face) {
+                if (oldToNew.end() != oldToNew.find(vertex))
+                    continue;
+                oldToNew[vertex] = compactedVertices.size();
+                compactedVertices.push_back(m_remeshedVertices[vertex]);
+            }
+        }
+        for (auto& face : m_remeshedPolygons) {
+            for (auto& vertex : face)
+                vertex = oldToNew.at(vertex);
+        }
+        m_remeshedVertices = std::move(compactedVertices);
+        std::unordered_set<size_t> compactedMovableVertices;
+        for (const auto& vertex : movableVertices)
+            compactedMovableVertices.insert(oldToNew.at(vertex));
+        movableVertices = std::move(compactedMovableVertices);
+    }
+
+    std::cerr << "Merge shared five edge faces:" << mergeCount << std::endl;
+    rebuildHalfEdges();
+
+    if (!movableVertices.empty())
+        smoothAndProject(5, &movableVertices);
 }
 
 }

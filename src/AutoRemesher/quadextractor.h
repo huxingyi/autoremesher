@@ -130,10 +130,12 @@ private:
         const std::vector<size_t>& triangle,
         const std::vector<size_t>& testPoints);
     bool removeIsolatedFaces();
-    void smoothAndProject(size_t iterations);
+    void smoothAndProject(size_t iterations,
+        const std::unordered_set<size_t>* movableVertices = nullptr);
     void splitSixEdgeFaces();
     void cleanupTriangles();
     void splitSevenEdgeFaces();
+    void mergeSharedFiveEdgeFaces();
     bool removeNonManifoldFaces();
     void rebuildHalfEdges();
     void fixHoles();
