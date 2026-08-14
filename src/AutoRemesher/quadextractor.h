@@ -132,6 +132,8 @@ private:
     bool removeIsolatedFaces();
     void smoothAndProject(size_t iterations,
         const std::unordered_set<size_t>* movableVertices = nullptr);
+    void smoothAroundVertices(const std::unordered_set<size_t>& seedVertices,
+        size_t rings, size_t iterations);
     void splitSixEdgeFaces();
     void cleanupTriangles();
     void splitSevenEdgeFaces();
