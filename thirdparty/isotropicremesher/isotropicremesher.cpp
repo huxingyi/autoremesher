@@ -513,6 +513,11 @@ void IsotropicRemesher::projectVertices()
         auto boundingBoxSize = box.upperBound() - box.lowerBound();
         Vector3 segment = vertex->_normal * (boundingBoxSize[0] + boundingBoxSize[1] + boundingBoxSize[2]);
         for (const auto &it: pairs) {
+            // The segment runs both ways along the normal and reaches well
+            // past the one ring, so on thin parts it also hits the surface
+            // facing the other way. Landing there tears the neighborhood open.
+            if (Vector3::dotProduct((*projNormals)[it.first], vertex->_normal) <= 0)
+                continue;
             const auto &triangle = (*projTriangles)[it.first];
             std::vector<Vector3> trianglePositions = {
                 (*projVertices)[triangle[0]],

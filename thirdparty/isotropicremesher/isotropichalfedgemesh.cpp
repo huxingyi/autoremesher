@@ -23,6 +23,22 @@
 #include <algorithm>
 #include "isotropichalfedgemesh.h"
 
+namespace {
+
+// A triangle is treated as degenerate when its area is negligible compared to
+// the square of its longest edge, which is scale independent unlike an
+// absolute epsilon.
+inline bool isTriangleDegenerate(const Vector3 &a, const Vector3 &b, const Vector3 &c)
+{
+    const double longestEdgeSquared = std::max(std::max((b - a).lengthSquared(),
+        (c - b).lengthSquared()), (a - c).lengthSquared());
+    if (longestEdgeSquared <= 0.0)
+        return true;
+    return Vector3::area(a, b, c) <= 1e-6 * longestEdgeSquared;
+}
+
+}
+
 IsotropicHalfedgeMesh::~IsotropicHalfedgeMesh()
 {
     while (nullptr != m_vertexAllocLink) {
@@ -152,9 +168,10 @@ double IsotropicHalfedgeMesh::averageEdgeLength()
         const auto &startHalfedge = face->halfedge;
         Halfedge *halfedge = startHalfedge;
         do {
-            const auto &nextHalfedge = halfedge->nextHalfedge;
+            Halfedge *nextHalfedge = halfedge->nextHalfedge;
             totalLength += (halfedge->startVertex->position - nextHalfedge->startVertex->position).length();
             ++halfedgeCount;
+            halfedge = nextHalfedge;
         } while (halfedge != startHalfedge);
     }
     if (0 == halfedgeCount)
@@ -423,6 +440,64 @@ void IsotropicHalfedgeMesh::pointerVertexToNewVertex(Vertex *vertex, Vertex *rep
     });
 }
 
+bool IsotropicHalfedgeMesh::testCollapseWouldFoldOrDegenerate(Vertex *vertex,
+    Vertex *otherVertex,
+    const Vector3 &collapseTo,
+    Face *removedFaceOne,
+    Face *removedFaceTwo)
+{
+    bool rejected = false;
+    iterateVertexHalfedges(vertex, [&](Halfedge *halfedge) {
+        Face *face = halfedge->leftFace;
+        if (face == removedFaceOne || face == removedFaceTwo)
+            return true;
+
+        Vertex *cornerVertices[3] = {
+            halfedge->previousHalfedge->startVertex,
+            halfedge->startVertex,
+            halfedge->nextHalfedge->startVertex
+        };
+        Vector3 oldPositions[3];
+        Vector3 newPositions[3];
+        for (size_t i = 0; i < 3; ++i) {
+            oldPositions[i] = cornerVertices[i]->position;
+            newPositions[i] = (cornerVertices[i] == vertex || cornerVertices[i] == otherVertex) ?
+                collapseTo : cornerVertices[i]->position;
+        }
+
+        if (isTriangleDegenerate(newPositions[0], newPositions[1], newPositions[2])) {
+            rejected = true;
+            return false;
+        }
+
+        const Vector3 oldNormal = Vector3::normal(oldPositions[0], oldPositions[1], oldPositions[2]);
+        const Vector3 newNormal = Vector3::normal(newPositions[0], newPositions[1], newPositions[2]);
+        if (oldNormal.isZero())
+            return true;
+        if (Vector3::dotProduct(oldNormal, newNormal) <= 0) {
+            rejected = true;
+            return false;
+        }
+        return true;
+    });
+    return rejected;
+}
+
+bool IsotropicHalfedgeMesh::testMoveWouldDegenerate(Vertex *vertex, const Vector3 &target)
+{
+    bool degenerated = false;
+    iterateVertexHalfedges(vertex, [&](Halfedge *halfedge) {
+        if (isTriangleDegenerate(halfedge->previousHalfedge->startVertex->position,
+                target,
+                halfedge->nextHalfedge->startVertex->position)) {
+            degenerated = true;
+            return false;
+        }
+        return true;
+    });
+    return degenerated;
+}
+
 void IsotropicHalfedgeMesh::relaxVertex(Vertex *vertex)
 {
     if (vertex->_isBoundary || vertex->_valence <= 0)
@@ -440,14 +515,36 @@ void IsotropicHalfedgeMesh::relaxVertex(Vertex *vertex)
         return;
 
     position /= count;
-    
+
     Vector3 projectedPosition = Vector3::projectPointOnLine(vertex->position, position, position + vertex->_normal);
     if (projectedPosition.containsNan() || projectedPosition.containsInf()) {
-        vertex->position = position;
+        // Averaging the one ring of a vertex whose triangles already lie on a
+        // line squashes them completely, so leave such a vertex alone.
+        if (!testMoveWouldDegenerate(vertex, position))
+            vertex->position = position;
         return;
     }
-    
+
+    if (testMoveWouldDegenerate(vertex, projectedPosition))
+        return;
+
     vertex->position = projectedPosition;
+}
+
+bool IsotropicHalfedgeMesh::isVertexPairConnected(Vertex *first, Vertex *second)
+{
+    bool connected = false;
+    iterateVertexHalfedges(first, [&](Halfedge *halfedge) {
+        // Both other corners of every incident face are visited, so boundary
+        // vertices report their last neighbor too.
+        if (halfedge->nextHalfedge->startVertex == second ||
+                halfedge->previousHalfedge->startVertex == second) {
+            connected = true;
+            return false;
+        }
+        return true;
+    });
+    return connected;
 }
 
 bool IsotropicHalfedgeMesh::flipEdge(Halfedge *halfedge)
@@ -493,6 +590,35 @@ bool IsotropicHalfedgeMesh::flipEdge(Halfedge *halfedge)
     if (newDeviation >= oldDeviation)
         return false;
     
+    // The flipped edge connects the two apexes. When they are already
+    // connected, the flip would create a second edge between the same pair of
+    // vertices, which makes the mesh non-manifold.
+    if (isVertexPairConnected(topVertex, bottomVertex))
+        return false;
+
+    // Reject flips which fold the two triangles over each other or collapse
+    // one of them onto a line, both of which the valence criterion above is
+    // blind to.
+    const Vector3 &topPosition = topVertex->position;
+    const Vector3 &bottomPosition = bottomVertex->position;
+    const Vector3 &leftPosition = leftVertex->position;
+    const Vector3 &rightPosition = rightVertex->position;
+
+    if (isTriangleDegenerate(topPosition, leftPosition, bottomPosition) ||
+            isTriangleDegenerate(bottomPosition, rightPosition, topPosition))
+        return false;
+
+    const Vector3 oldTopNormal = Vector3::normal(topPosition, leftPosition, rightPosition);
+    const Vector3 oldBottomNormal = Vector3::normal(bottomPosition, rightPosition, leftPosition);
+    const Vector3 newTopNormal = Vector3::normal(topPosition, leftPosition, bottomPosition);
+    const Vector3 newBottomNormal = Vector3::normal(bottomPosition, rightPosition, topPosition);
+
+    if (Vector3::dotProduct(newTopNormal, oldTopNormal) <= 0 ||
+            Vector3::dotProduct(newTopNormal, oldBottomNormal) <= 0 ||
+            Vector3::dotProduct(newBottomNormal, oldTopNormal) <= 0 ||
+            Vector3::dotProduct(newBottomNormal, oldBottomNormal) <= 0)
+        return false;
+
     Halfedge *opposite = halfedge->oppositeHalfedge;
     
     Face *topFace = halfedge->leftFace;
@@ -532,6 +658,11 @@ bool IsotropicHalfedgeMesh::flipEdge(Halfedge *halfedge)
 
 bool IsotropicHalfedgeMesh::collapseEdge(Halfedge *halfedge, double maxEdgeLengthSquared)
 {   
+    // Collapsing a boundary edge would need the face on the other side, which
+    // a boundary edge does not have.
+    if (nullptr == halfedge->oppositeHalfedge)
+        return false;
+
     Halfedge *opposite = halfedge->oppositeHalfedge;
     
     Vertex *topVertex = halfedge->previousHalfedge->startVertex;
@@ -584,6 +715,14 @@ bool IsotropicHalfedgeMesh::collapseEdge(Halfedge *halfedge, double maxEdgeLengt
     Vertex *rightVertex = opposite->startVertex;
     Face *topFace = halfedge->leftFace;
     Face *bottomFace = opposite->leftFace;
+
+    // Moving both endpoints to the collapse point may turn a surviving
+    // neighbor triangle inside out or squash it onto a line, which leaves a
+    // fold behind that no later stage can undo.
+    if (testCollapseWouldFoldOrDegenerate(leftVertex, rightVertex, collapseTo, topFace, bottomFace))
+        return false;
+    if (testCollapseWouldFoldOrDegenerate(rightVertex, leftVertex, collapseTo, topFace, bottomFace))
+        return false;
 
     pointerVertexToNewVertex(leftVertex, rightVertex);
     
