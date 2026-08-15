@@ -52,6 +52,7 @@ class MainWindow : public QMainWindow {
 public:
     enum PreviewMode {
         PreviewSource = 0,
+        PreviewDecimate,
         PreviewIsotropic,
         PreviewParam,
         PreviewRemesh
@@ -104,6 +105,7 @@ private slots:
     void generatePreviewMeshes();
     void previewMeshesReady();
     void switchToSourceView();
+    void switchToDecimateView();
     void switchToIsotropicView();
     void switchToParamView();
     void switchToRemeshView();
@@ -137,6 +139,7 @@ private:
     QPushButton* m_saveMeshButton = nullptr;
     QPushButton* m_regenerateButton = nullptr;
     QPushButton* m_previewSourceButton = nullptr;
+    QPushButton* m_previewDecimateButton = nullptr;
     QPushButton* m_previewIsotropicButton = nullptr;
     QPushButton* m_previewParamButton = nullptr;
     QPushButton* m_previewRemeshButton = nullptr;
@@ -155,6 +158,8 @@ private:
     QWidget* m_progressContainer = nullptr;
 
     // Intermediate meshes for preview overlays
+    std::vector<AutoRemesher::Vector3> m_decimatedVertices;
+    std::vector<std::vector<size_t>> m_decimatedTriangles;
     std::vector<AutoRemesher::Vector3> m_isotropicVertices;
     std::vector<std::vector<size_t>> m_isotropicTriangles;
     std::vector<std::vector<AutoRemesher::Vector2>> m_isotropicTriangleUvs;
@@ -165,6 +170,7 @@ private:
 
     // Render meshes for each preview mode (owned)
     ModelShaderMesh* m_sourceRenderMesh = nullptr;
+    ModelShaderMesh* m_decimatedRenderMesh = nullptr;
     ModelShaderMesh* m_isotropicRenderMesh = nullptr;
     ModelShaderMesh* m_paramRenderMesh = nullptr;
     ModelShaderMesh* m_remeshRenderMesh = nullptr;

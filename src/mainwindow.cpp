@@ -158,7 +158,7 @@ MainWindow::MainWindow()
     containerWidget->setModelWidget(m_modelRenderWidget);
 
     // ============================================================
-    // PREVIEW BUTTONS — [source] [isotropic] [param] [remesh]
+    // PREVIEW BUTTONS — [source] [decimated] [isotropic] [param] [remesh]
     // (placed in the right sidebar layout below)
     // ============================================================
 
@@ -171,7 +171,7 @@ MainWindow::MainWindow()
             "  background-color: #aaebc4;"
             "  border: 1px solid #2a2a2a;"
             "  border-radius: 3px;"
-            "  padding: 0 10px;"
+            "  padding: 0 6px;"
             "  font-size: 11px;"
             "}"
             "QPushButton:hover {"
@@ -201,16 +201,19 @@ MainWindow::MainWindow()
     };
 
     m_previewSourceButton = makePreviewButton(tr("Source"));
+    m_previewDecimateButton = makePreviewButton(tr("Decimated"));
     m_previewIsotropicButton = makePreviewButton(tr("Isotropic"));
     m_previewParamButton = makePreviewButton(tr("Param"));
     m_previewRemeshButton = makePreviewButton(tr("Remeshed"));
 
     m_previewSourceButton->setEnabled(false);
+    m_previewDecimateButton->setEnabled(false);
     m_previewIsotropicButton->setEnabled(false);
     m_previewParamButton->setEnabled(false);
     m_previewRemeshButton->setEnabled(false);
 
     connect(m_previewSourceButton, &QPushButton::clicked, this, &MainWindow::switchToSourceView);
+    connect(m_previewDecimateButton, &QPushButton::clicked, this, &MainWindow::switchToDecimateView);
     connect(m_previewIsotropicButton, &QPushButton::clicked, this, &MainWindow::switchToIsotropicView);
     connect(m_previewParamButton, &QPushButton::clicked, this, &MainWindow::switchToParamView);
     connect(m_previewRemeshButton, &QPushButton::clicked, this, &MainWindow::switchToRemeshView);
@@ -367,6 +370,7 @@ MainWindow::MainWindow()
     QHBoxLayout* previewButtonsLayout = new QHBoxLayout;
     previewButtonsLayout->setSpacing(4);
     previewButtonsLayout->addWidget(m_previewSourceButton);
+    previewButtonsLayout->addWidget(m_previewDecimateButton);
     previewButtonsLayout->addWidget(m_previewIsotropicButton);
     previewButtonsLayout->addWidget(m_previewParamButton);
     previewButtonsLayout->addWidget(m_previewRemeshButton);
@@ -374,7 +378,7 @@ MainWindow::MainWindow()
 
     QWidget* controlsPanel = new QWidget;
     controlsPanel->setLayout(controlsLayout);
-    controlsPanel->setFixedWidth(300);
+    controlsPanel->setFixedWidth(400);
     controlsPanel->setObjectName("controlsPanel");
     controlsPanel->setStyleSheet(
         "#controlsPanel {"
@@ -466,6 +470,7 @@ void MainWindow::updateButtonStates()
 
     // Update preview button availability
     m_previewSourceButton->setEnabled(m_sourceRenderMesh != nullptr);
+    m_previewDecimateButton->setEnabled(m_decimatedRenderMesh != nullptr);
     m_previewIsotropicButton->setEnabled(m_isotropicRenderMesh != nullptr);
     m_previewParamButton->setEnabled(m_paramRenderMesh != nullptr);
     m_previewRemeshButton->setEnabled(m_remeshRenderMesh != nullptr);
@@ -494,12 +499,16 @@ bool MainWindow::loadObj(const QString& filename)
     // Reset preview state for new model
     delete m_sourceRenderMesh;
     m_sourceRenderMesh = nullptr;
+    delete m_decimatedRenderMesh;
+    m_decimatedRenderMesh = nullptr;
     delete m_isotropicRenderMesh;
     m_isotropicRenderMesh = nullptr;
     delete m_paramRenderMesh;
     m_paramRenderMesh = nullptr;
     delete m_remeshRenderMesh;
     m_remeshRenderMesh = nullptr;
+    m_decimatedVertices.clear();
+    m_decimatedTriangles.clear();
     m_isotropicVertices.clear();
     m_isotropicTriangles.clear();
     m_isotropicTriangleUvs.clear();
@@ -513,6 +522,7 @@ bool MainWindow::loadObj(const QString& filename)
     m_remeshedQuads = nullptr;
     m_previewMode = PreviewSource;
     m_previewSourceButton->setChecked(false);
+    m_previewDecimateButton->setChecked(false);
     m_previewIsotropicButton->setChecked(false);
     m_previewParamButton->setChecked(false);
     m_previewRemeshButton->setChecked(false);
@@ -634,6 +644,7 @@ void MainWindow::switchToSourceView()
 {
     m_previewMode = PreviewSource;
     m_previewSourceButton->setChecked(true);
+    m_previewDecimateButton->setChecked(false);
     m_previewIsotropicButton->setChecked(false);
     m_previewParamButton->setChecked(false);
     m_previewRemeshButton->setChecked(false);
@@ -641,10 +652,23 @@ void MainWindow::switchToSourceView()
         m_modelRenderWidget->updateMesh(new ModelShaderMesh(*m_sourceRenderMesh));
 }
 
+void MainWindow::switchToDecimateView()
+{
+    m_previewMode = PreviewDecimate;
+    m_previewSourceButton->setChecked(false);
+    m_previewDecimateButton->setChecked(true);
+    m_previewIsotropicButton->setChecked(false);
+    m_previewParamButton->setChecked(false);
+    m_previewRemeshButton->setChecked(false);
+    if (m_decimatedRenderMesh)
+        m_modelRenderWidget->updateMesh(new ModelShaderMesh(*m_decimatedRenderMesh));
+}
+
 void MainWindow::switchToIsotropicView()
 {
     m_previewMode = PreviewIsotropic;
     m_previewSourceButton->setChecked(false);
+    m_previewDecimateButton->setChecked(false);
     m_previewIsotropicButton->setChecked(true);
     m_previewParamButton->setChecked(false);
     m_previewRemeshButton->setChecked(false);
@@ -656,6 +680,7 @@ void MainWindow::switchToParamView()
 {
     m_previewMode = PreviewParam;
     m_previewSourceButton->setChecked(false);
+    m_previewDecimateButton->setChecked(false);
     m_previewIsotropicButton->setChecked(false);
     m_previewParamButton->setChecked(true);
     m_previewRemeshButton->setChecked(false);
@@ -667,6 +692,7 @@ void MainWindow::switchToRemeshView()
 {
     m_previewMode = PreviewRemesh;
     m_previewSourceButton->setChecked(false);
+    m_previewDecimateButton->setChecked(false);
     m_previewIsotropicButton->setChecked(false);
     m_previewParamButton->setChecked(false);
     m_previewRemeshButton->setChecked(true);
@@ -691,6 +717,7 @@ MainWindow::~MainWindow()
 {
     g_windows.erase(this);
     delete m_sourceRenderMesh;
+    delete m_decimatedRenderMesh;
     delete m_isotropicRenderMesh;
     delete m_paramRenderMesh;
     delete m_remeshRenderMesh;
@@ -863,6 +890,7 @@ void MainWindow::renderMeshReady()
         m_sourceRenderMesh = new ModelShaderMesh(*renderMesh);
         m_previewMode = PreviewSource;
         m_previewSourceButton->setChecked(true);
+        m_previewDecimateButton->setChecked(false);
         m_previewIsotropicButton->setChecked(false);
         m_previewParamButton->setChecked(false);
         m_previewRemeshButton->setChecked(false);
@@ -889,6 +917,7 @@ void MainWindow::generatePreviewMeshes()
 
     QThread* thread = new QThread;
     m_previewMeshGenerator = new PreviewMeshGenerator(
+        m_decimatedVertices, m_decimatedTriangles,
         m_isotropicVertices, m_isotropicTriangles, m_isotropicTriangleUvs,
         m_isotropicOriginalTriangleUvs,
         m_isotropicSingularVertices, m_isotropicExtractedConnections,
@@ -903,6 +932,9 @@ void MainWindow::generatePreviewMeshes()
 
 void MainWindow::previewMeshesReady()
 {
+    delete m_decimatedRenderMesh;
+    m_decimatedRenderMesh = m_previewMeshGenerator->takeDecimatedMesh();
+
     delete m_isotropicRenderMesh;
     m_isotropicRenderMesh = m_previewMeshGenerator->takeIsotropicMesh();
 
@@ -913,6 +945,7 @@ void MainWindow::previewMeshesReady()
     m_previewMeshGenerator = nullptr;
 
     // Enable preview buttons
+    m_previewDecimateButton->setEnabled(nullptr != m_decimatedRenderMesh);
     m_previewIsotropicButton->setEnabled(true);
     m_previewParamButton->setEnabled(true);
     m_previewRemeshButton->setEnabled(true);
@@ -920,6 +953,7 @@ void MainWindow::previewMeshesReady()
     // Show the remesh result by default (master copy stays in m_remeshRenderMesh)
     m_previewMode = PreviewRemesh;
     m_previewSourceButton->setChecked(false);
+    m_previewDecimateButton->setChecked(false);
     m_previewIsotropicButton->setChecked(false);
     m_previewParamButton->setChecked(false);
     m_previewRemeshButton->setChecked(true);
@@ -1073,6 +1107,8 @@ void MainWindow::quadMeshReady()
     m_inProgress = false;
 
     // Capture intermediate isotropic mesh data for preview overlays
+    m_decimatedVertices = m_quadMeshGenerator->decimatedVertices();
+    m_decimatedTriangles = m_quadMeshGenerator->decimatedTriangles();
     m_isotropicVertices = m_quadMeshGenerator->isotropicVertices();
     m_isotropicTriangles = m_quadMeshGenerator->isotropicTriangles();
     m_isotropicTriangleUvs = m_quadMeshGenerator->isotropicTriangleUvs();

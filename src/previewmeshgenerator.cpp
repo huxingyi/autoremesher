@@ -369,6 +369,11 @@ static ModelShaderMesh* buildUvRenderMesh(
 
 void PreviewMeshGenerator::generate()
 {
+    delete m_decimatedMesh;
+    m_decimatedMesh = nullptr;
+    if (!m_decimatedVertices.empty() && !m_decimatedTriangles.empty())
+        m_decimatedMesh = buildRenderMeshFromTriangles(m_decimatedVertices, m_decimatedTriangles);
+
     delete m_isotropicMesh;
     m_isotropicMesh = buildRenderMeshFromTriangles(m_isotropicVertices, m_isotropicTriangles);
 

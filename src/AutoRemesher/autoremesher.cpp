@@ -290,7 +290,9 @@ void AutoRemesher::resample(std::vector<Vector3>& vertices,
     double sharpEdgeDegrees,
     double smoothNormalDegrees,
     size_t islandIndex,
-    DecimationStats* decimationStats)
+    DecimationStats* decimationStats,
+    std::vector<Vector3>* decimatedVerticesOut,
+    std::vector<std::vector<size_t>>* decimatedTrianglesOut)
 {
     auto t_decimateStart = std::chrono::high_resolution_clock::now();
     decimateIfTooDense(vertices, triangles, voxelSize, sharpEdgeDegrees, islandIndex, decimationStats);
@@ -299,6 +301,11 @@ void AutoRemesher::resample(std::vector<Vector3>& vertices,
             std::chrono::high_resolution_clock::now() - t_decimateStart)
                                        .count();
     }
+
+    if (nullptr != decimatedVerticesOut)
+        *decimatedVerticesOut = vertices;
+    if (nullptr != decimatedTrianglesOut)
+        *decimatedTrianglesOut = triangles;
 
     std::vector<double> vertexTargetLengths;
     if (adaptivity > 0.0 && !vertices.empty()) {
@@ -546,13 +553,17 @@ bool AutoRemesher::remesh()
                 std::atomic<long long>* resampleTime,
                 DecimationStats* decimationStats,
                 std::vector<std::vector<Vector3>>* islandVertices,
-                std::vector<std::vector<std::vector<size_t>>>* islandTriangles)
+                std::vector<std::vector<std::vector<size_t>>>* islandTriangles,
+                std::vector<std::vector<Vector3>>* decimatedIslandVertices,
+                std::vector<std::vector<std::vector<size_t>>>* decimatedIslandTriangles)
                 : m_contexts(contexts)
                 , m_remesher(remesher)
                 , m_resampleTime(resampleTime)
                 , m_decimationStats(decimationStats)
                 , m_islandVertices(islandVertices)
                 , m_islandTriangles(islandTriangles)
+                , m_decimatedIslandVertices(decimatedIslandVertices)
+                , m_decimatedIslandTriangles(decimatedIslandTriangles)
             {
             }
 
@@ -564,7 +575,8 @@ bool AutoRemesher::remesh()
                     m_remesher->updateProgress(i, 0.0f);
 
                     auto t0 = std::chrono::high_resolution_clock::now();
-                    resample(ctx.vertices, ctx.triangles, ctx.voxelSize, ctx.adaptivity, ctx.sharpEdgeDegrees, ctx.smoothNormalDegrees, i, m_decimationStats);
+                    resample(ctx.vertices, ctx.triangles, ctx.voxelSize, ctx.adaptivity, ctx.sharpEdgeDegrees, ctx.smoothNormalDegrees, i, m_decimationStats,
+                        &(*m_decimatedIslandVertices)[i], &(*m_decimatedIslandTriangles)[i]);
                     auto t1 = std::chrono::high_resolution_clock::now();
                     *m_resampleTime += std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
@@ -582,26 +594,46 @@ bool AutoRemesher::remesh()
             DecimationStats* m_decimationStats = nullptr;
             std::vector<std::vector<Vector3>>* m_islandVertices = nullptr;
             std::vector<std::vector<std::vector<size_t>>>* m_islandTriangles = nullptr;
+            std::vector<std::vector<Vector3>>* m_decimatedIslandVertices = nullptr;
+            std::vector<std::vector<std::vector<size_t>>>* m_decimatedIslandTriangles = nullptr;
+        };
+
+        auto mergeIslands = [](const std::vector<std::vector<Vector3>>& islandVertices,
+                                const std::vector<std::vector<std::vector<size_t>>>& islandTriangles,
+                                std::vector<Vector3>& mergedVertices,
+                                std::vector<std::vector<size_t>>& mergedTriangles) {
+            for (size_t i = 0; i < islandVertices.size(); ++i) {
+                const size_t vertexOffset = mergedVertices.size();
+                mergedVertices.insert(mergedVertices.end(),
+                    islandVertices[i].begin(), islandVertices[i].end());
+                for (const auto& triangle : islandTriangles[i]) {
+                    std::vector<size_t> offsetTriangle;
+                    offsetTriangle.reserve(triangle.size());
+                    for (const size_t index : triangle)
+                        offsetTriangle.push_back(index + vertexOffset);
+                    mergedTriangles.push_back(std::move(offsetTriangle));
+                }
+            }
         };
 
         m_isotropicVertices.clear();
         m_isotropicTriangles.clear();
+        m_decimatedVertices.clear();
+        m_decimatedTriangles.clear();
         std::vector<std::vector<Vector3>> isotropicIslandVertices(islandContexes.size());
         std::vector<std::vector<std::vector<size_t>>> isotropicIslandTriangles(islandContexes.size());
+        std::vector<std::vector<Vector3>> decimatedIslandVertices(islandContexes.size());
+        std::vector<std::vector<std::vector<size_t>>> decimatedIslandTriangles(islandContexes.size());
         tbb::parallel_for(tbb::blocked_range<size_t>(0, islandContexes.size()),
             IsotropicPhase(&islandContexes, this, &resampleTime, &decimationStats,
-                &isotropicIslandVertices, &isotropicIslandTriangles));
-        for (size_t i = 0; i < isotropicIslandVertices.size(); ++i) {
-            const size_t vertexOffset = m_isotropicVertices.size();
-            m_isotropicVertices.insert(m_isotropicVertices.end(),
-                isotropicIslandVertices[i].begin(), isotropicIslandVertices[i].end());
-            for (const auto& triangle : isotropicIslandTriangles[i]) {
-                std::vector<size_t> offsetTriangle;
-                offsetTriangle.reserve(triangle.size());
-                for (const size_t index : triangle)
-                    offsetTriangle.push_back(index + vertexOffset);
-                m_isotropicTriangles.push_back(std::move(offsetTriangle));
-            }
+                &isotropicIslandVertices, &isotropicIslandTriangles,
+                &decimatedIslandVertices, &decimatedIslandTriangles));
+        mergeIslands(isotropicIslandVertices, isotropicIslandTriangles,
+            m_isotropicVertices, m_isotropicTriangles);
+        m_decimated = decimationStats.islandsDecimated.load() > 0;
+        if (m_decimated) {
+            mergeIslands(decimatedIslandVertices, decimatedIslandTriangles,
+                m_decimatedVertices, m_decimatedTriangles);
         }
     }
 

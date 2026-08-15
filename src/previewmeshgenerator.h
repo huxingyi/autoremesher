@@ -32,14 +32,18 @@
 class PreviewMeshGenerator : public QObject {
     Q_OBJECT
 public:
-    PreviewMeshGenerator(const std::vector<AutoRemesher::Vector3>& isotropicVertices,
+    PreviewMeshGenerator(const std::vector<AutoRemesher::Vector3>& decimatedVertices,
+        const std::vector<std::vector<size_t>>& decimatedTriangles,
+        const std::vector<AutoRemesher::Vector3>& isotropicVertices,
         const std::vector<std::vector<size_t>>& isotropicTriangles,
         const std::vector<std::vector<AutoRemesher::Vector2>>& isotropicTriangleUvs,
         const std::vector<std::vector<AutoRemesher::Vector2>>& isotropicOriginalTriangleUvs,
         const std::vector<AutoRemesher::Vector3>& isotropicSingularVertices,
         const std::vector<std::pair<AutoRemesher::Vector3, AutoRemesher::Vector3>>& isotropicExtractedConnections,
         const std::vector<uint8_t>& isotropicExtractedConnectionMoved)
-        : m_isotropicVertices(isotropicVertices)
+        : m_decimatedVertices(decimatedVertices)
+        , m_decimatedTriangles(decimatedTriangles)
+        , m_isotropicVertices(isotropicVertices)
         , m_isotropicTriangles(isotropicTriangles)
         , m_isotropicTriangleUvs(isotropicTriangleUvs)
         , m_isotropicOriginalTriangleUvs(isotropicOriginalTriangleUvs)
@@ -51,8 +55,16 @@ public:
 
     ~PreviewMeshGenerator()
     {
+        delete m_decimatedMesh;
         delete m_isotropicMesh;
         delete m_paramMesh;
+    }
+
+    ModelShaderMesh* takeDecimatedMesh()
+    {
+        ModelShaderMesh* mesh = m_decimatedMesh;
+        m_decimatedMesh = nullptr;
+        return mesh;
     }
 
     ModelShaderMesh* takeIsotropicMesh()
@@ -77,6 +89,8 @@ public slots:
     void process();
 
 private:
+    std::vector<AutoRemesher::Vector3> m_decimatedVertices;
+    std::vector<std::vector<size_t>> m_decimatedTriangles;
     std::vector<AutoRemesher::Vector3> m_isotropicVertices;
     std::vector<std::vector<size_t>> m_isotropicTriangles;
     std::vector<std::vector<AutoRemesher::Vector2>> m_isotropicTriangleUvs;
@@ -84,6 +98,7 @@ private:
     std::vector<AutoRemesher::Vector3> m_isotropicSingularVertices;
     std::vector<std::pair<AutoRemesher::Vector3, AutoRemesher::Vector3>> m_isotropicExtractedConnections;
     std::vector<uint8_t> m_isotropicExtractedConnectionMoved;
+    ModelShaderMesh* m_decimatedMesh = nullptr;
     ModelShaderMesh* m_isotropicMesh = nullptr;
     ModelShaderMesh* m_paramMesh = nullptr;
 };

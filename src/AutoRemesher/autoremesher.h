@@ -106,6 +106,21 @@ public:
         return m_remeshedQuads;
     }
 
+    const std::vector<Vector3>& decimatedVertices()
+    {
+        return m_decimatedVertices;
+    }
+
+    const std::vector<std::vector<size_t>>& decimatedTriangles()
+    {
+        return m_decimatedTriangles;
+    }
+
+    bool decimated()
+    {
+        return m_decimated;
+    }
+
     const std::vector<Vector3>& isotropicVertices()
     {
         return m_isotropicVertices;
@@ -165,6 +180,9 @@ private:
     std::vector<std::vector<size_t>> m_triangles;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedQuads;
+    std::vector<Vector3> m_decimatedVertices;
+    std::vector<std::vector<size_t>> m_decimatedTriangles;
+    bool m_decimated = false;
     std::vector<Vector3> m_isotropicVertices;
     std::vector<std::vector<size_t>> m_isotropicTriangles;
     std::vector<std::vector<Vector2>> m_isotropicTriangleUvs;
@@ -203,7 +221,9 @@ private:
         double sharpEdgeDegrees,
         double smoothNormalDegrees,
         size_t islandIndex,
-        DecimationStats* decimationStats);
+        DecimationStats* decimationStats,
+        std::vector<Vector3>* decimatedVerticesOut,
+        std::vector<std::vector<size_t>>* decimatedTrianglesOut);
     static double calculateMeshArea(const std::vector<Vector3>& vertices,
         const std::vector<std::vector<size_t>>& triangles);
 };
