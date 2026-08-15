@@ -32,6 +32,10 @@ void QuadMeshGenerator::process()
     generate();
 
     auto timeUsed = timer.elapsed();
+    if (nullptr != m_autoRemesher) {
+        for (const auto& line : m_autoRemesher->phaseReport())
+            qDebug().noquote() << "  " << QString::fromStdString(line);
+    }
     qDebug() << "Quad mesh generation took" << timeUsed << "milliseconds";
 
     emit finished();

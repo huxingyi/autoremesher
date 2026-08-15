@@ -22,10 +22,12 @@
 #ifndef AUTO_REMESHER_AUTO_REMESHER_H
 #define AUTO_REMESHER_AUTO_REMESHER_H
 #include <AutoRemesher/Vector3>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <map>
 #include <mutex>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -143,7 +145,20 @@ public:
 
     void updateProgress(size_t threadIndex, float progress);
 
+    const std::vector<std::string>& phaseReport()
+    {
+        return m_phaseReport;
+    }
+
     static const double m_defaultSharpEdgeDegrees;
+
+    struct DecimationStats {
+        std::atomic<long long> timeMs { 0 };
+        std::atomic<size_t> islandsDecimated { 0 };
+        std::atomic<size_t> islandsConsidered { 0 };
+        std::atomic<size_t> trianglesBefore { 0 };
+        std::atomic<size_t> trianglesAfter { 0 };
+    };
 
 private:
     std::vector<Vector3> m_vertices;
@@ -159,6 +174,7 @@ private:
     std::vector<std::pair<Vector3, Vector3>> m_isotropicExtractedConnections;
     std::vector<float> m_threadProgress;
     std::vector<float> m_threadProgressWeights;
+    std::vector<std::string> m_phaseReport;
     mutable std::mutex m_progressMutex;
     double m_scaling = 0.0;
     size_t m_targetTriangleCount = 0;
@@ -174,13 +190,20 @@ private:
     static double calculateAverageEdgeLength(const std::vector<Vector3>& vertices,
         const std::vector<std::vector<size_t>>& faces);
     void initializeVoxelSize();
+    static bool decimateIfTooDense(std::vector<Vector3>& vertices,
+        std::vector<std::vector<size_t>>& triangles,
+        double voxelSize,
+        double sharpEdgeDegrees,
+        size_t islandIndex,
+        DecimationStats* stats);
     static void resample(std::vector<Vector3>& vertices,
         std::vector<std::vector<size_t>>& triangles,
         double voxelSize,
         double adaptivity,
         double sharpEdgeDegrees,
         double smoothNormalDegrees,
-        size_t islandIndex);
+        size_t islandIndex,
+        DecimationStats* decimationStats);
     static double calculateMeshArea(const std::vector<Vector3>& vertices,
         const std::vector<std::vector<size_t>>& triangles);
 };

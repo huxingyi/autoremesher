@@ -218,6 +218,11 @@ HEADERS += thirdparty/isotropicremesher/vector3.h
 HEADERS += thirdparty/isotropicremesher/vector2.h
 HEADERS += thirdparty/isotropicremesher/double.h
 
+INCLUDEPATH += thirdparty/meshoptimizer/src
+SOURCES += thirdparty/meshoptimizer/src/simplifier.cpp
+SOURCES += thirdparty/meshoptimizer/src/indexgenerator.cpp
+HEADERS += thirdparty/meshoptimizer/src/meshoptimizer.h
+
 SOURCES += src/AutoRemesher/parameterizer.cpp
 HEADERS += src/AutoRemesher/parameterizer.h
 
