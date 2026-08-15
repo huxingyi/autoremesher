@@ -135,6 +135,7 @@ private:
     void smoothAroundVertices(const std::unordered_set<size_t>& seedVertices,
         size_t rings, size_t iterations);
     void splitSixEdgeFaces();
+    void switchHighValenceEdges();
     void cleanupTriangles();
     void splitSevenEdgeFaces();
     void mergeSharedFiveEdgeFaces();

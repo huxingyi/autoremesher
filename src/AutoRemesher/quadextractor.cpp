@@ -211,6 +211,9 @@ bool QuadExtractor::extract()
     // whatever pentagons are left over
     cleanupTriangles();
     mergeSharedFiveEdgeFaces();
+    // Runs last, it only reconnects quad pairs, so it wants the triangles and
+    // pentagons to have become quads already
+    switchHighValenceEdges();
 
 #if AUTO_REMESHER_DEV
     {
@@ -1876,6 +1879,221 @@ void QuadExtractor::splitSixEdgeFaces()
     std::cerr << "Split six edge faces:" << splitNum << std::endl;
     m_remeshedPolygons = std::move(polygons);
     rebuildHalfEdges();
+}
+
+void QuadExtractor::switchHighValenceEdges()
+{
+    if (m_remeshedVertices.empty() || m_remeshedPolygons.empty())
+        return;
+
+    using Edge = std::pair<size_t, size_t>;
+    const auto edgeOf = [](size_t a, size_t b) {
+        return std::make_pair(std::min(a, b), std::max(a, b));
+    };
+    const auto canonicalFace = [](const std::vector<size_t>& face) {
+        std::vector<size_t> best;
+        std::vector<size_t> reversed(face.rbegin(), face.rend());
+        for (const std::vector<size_t>* winding : {
+                 &face, static_cast<const std::vector<size_t>*>(&reversed) }) {
+            for (size_t start = 0; start < winding->size(); ++start) {
+                std::vector<size_t> candidate;
+                candidate.reserve(winding->size());
+                for (size_t i = 0; i < winding->size(); ++i)
+                    candidate.push_back((*winding)[(start + i) % winding->size()]);
+                if (best.empty() || candidate < best)
+                    best = std::move(candidate);
+            }
+        }
+        return best;
+    };
+    const auto findDirectedEdge = [](const std::vector<size_t>& face, size_t from, size_t to) {
+        for (size_t i = 0; i < face.size(); ++i) {
+            if (from == face[i] && to == face[(i + 1) % face.size()])
+                return i;
+        }
+        return face.size();
+    };
+    const auto faceNormal = [&](const std::vector<size_t>& face) {
+        Vector3 normal;
+        for (size_t i = 1; i + 1 < face.size(); ++i) {
+            normal += Vector3::crossProduct(
+                m_remeshedVertices[face[i]] - m_remeshedVertices[face[0]],
+                m_remeshedVertices[face[i + 1]] - m_remeshedVertices[face[0]]);
+        }
+        return normal;
+    };
+    const auto cornerScore = [&](const std::vector<size_t>& quad) {
+        double total = 0.0;
+        for (size_t i = 0; i < quad.size(); ++i) {
+            size_t h = (i + quad.size() - 1) % quad.size();
+            size_t j = (i + 1) % quad.size();
+            auto left = (m_remeshedVertices[quad[h]] - m_remeshedVertices[quad[i]]).normalized();
+            auto right = (m_remeshedVertices[quad[j]] - m_remeshedVertices[quad[i]]).normalized();
+            total += std::abs(Vector3::dotProduct(left, right));
+        }
+        return -total / quad.size();
+    };
+    // How far a point is from the four neighbors a quad point wants
+    const auto valenceScore = [](size_t valence) {
+        return valence > 4 ? (int)(valence - 4) : (int)(4 - valence);
+    };
+
+    // Two quads sharing an edge make a hexagon with three diagonals, the shared
+    // edge being one of them. Switching to another diagonal takes one neighbor
+    // away from each end of the shared edge and hands one to each end of the new
+    // diagonal, no point is added, removed or moved
+    size_t switchNum = 0;
+    std::unordered_set<size_t> switchedVertices;
+    for (;;) {
+        std::map<Edge, std::vector<size_t>> edgeFaces;
+        std::unordered_map<size_t, std::unordered_set<size_t>> vertexNeighbors;
+        for (size_t faceIndex = 0; faceIndex < m_remeshedPolygons.size(); ++faceIndex) {
+            const auto& face = m_remeshedPolygons[faceIndex];
+            for (size_t i = 0; i < face.size(); ++i) {
+                const size_t j = (i + 1) % face.size();
+                edgeFaces[edgeOf(face[i], face[j])].push_back(faceIndex);
+                vertexNeighbors[face[i]].insert(face[j]);
+                vertexNeighbors[face[j]].insert(face[i]);
+            }
+        }
+
+        // Four neighbors is the wrong target on a border, leave those alone
+        std::unordered_set<size_t> borderVertices;
+        for (const auto& it : edgeFaces) {
+            if (2 == it.second.size())
+                continue;
+            borderVertices.insert(it.first.first);
+            borderVertices.insert(it.first.second);
+        }
+
+        std::set<std::vector<size_t>> existingFaces;
+        for (const auto& face : m_remeshedPolygons)
+            existingFaces.insert(canonicalFace(face));
+
+        // A second switch reaching into the same hexagon would work off the face
+        // indices and the valences the first one left behind
+        std::unordered_set<size_t> touchedVertices;
+        size_t roundSwitchNum = 0;
+        for (const auto& it : edgeFaces) {
+            if (2 != it.second.size())
+                continue;
+
+            const size_t a = it.first.first;
+            const size_t b = it.first.second;
+            const size_t aValence = vertexNeighbors[a].size();
+            const size_t bValence = vertexNeighbors[b].size();
+            if (aValence <= 4 || bValence <= 4)
+                continue;
+            if (borderVertices.end() != borderVertices.find(a)
+                || borderVertices.end() != borderVertices.find(b))
+                continue;
+
+            size_t first = it.second[0];
+            size_t second = it.second[1];
+            if (4 != m_remeshedPolygons[first].size()
+                || 4 != m_remeshedPolygons[second].size())
+                continue;
+            size_t firstEntry = findDirectedEdge(m_remeshedPolygons[first], a, b);
+            if (firstEntry >= m_remeshedPolygons[first].size()) {
+                std::swap(first, second);
+                firstEntry = findDirectedEdge(m_remeshedPolygons[first], a, b);
+            }
+            const size_t secondEntry = findDirectedEdge(m_remeshedPolygons[second], b, a);
+            if (firstEntry >= m_remeshedPolygons[first].size()
+                || secondEntry >= m_remeshedPolygons[second].size())
+                continue;
+
+            // The hexagon runs b, c, d, a, e, f, keeping the winding of both quads
+            const auto& firstFace = m_remeshedPolygons[first];
+            const auto& secondFace = m_remeshedPolygons[second];
+            const size_t c = firstFace[(firstEntry + 2) % 4];
+            const size_t d = firstFace[(firstEntry + 3) % 4];
+            const size_t e = secondFace[(secondEntry + 2) % 4];
+            const size_t f = secondFace[(secondEntry + 3) % 4];
+            const std::unordered_set<size_t> hexagon = { a, b, c, d, e, f };
+            if (6 != hexagon.size())
+                continue;
+            bool touched = false;
+            for (const auto& vertex : hexagon) {
+                if (touchedVertices.end() != touchedVertices.find(vertex)) {
+                    touched = true;
+                    break;
+                }
+            }
+            if (touched)
+                continue;
+
+            const Vector3 oldNormal = faceNormal(firstFace) + faceNormal(secondFace);
+            const int oldValenceScore = valenceScore(aValence) + valenceScore(bValence);
+
+            int bestGain = 0;
+            double bestShape = 0.0;
+            std::vector<size_t> bestFace1;
+            std::vector<size_t> bestFace2;
+            for (size_t candidate = 0; candidate < 2; ++candidate) {
+                const size_t x = 0 == candidate ? c : d;
+                const size_t y = 0 == candidate ? e : f;
+                if (borderVertices.end() != borderVertices.find(x)
+                    || borderVertices.end() != borderVertices.find(y))
+                    continue;
+                // The new diagonal would land on an edge which is already there
+                if (vertexNeighbors[x].end() != vertexNeighbors[x].find(y))
+                    continue;
+                const size_t xValence = vertexNeighbors[x].size();
+                const size_t yValence = vertexNeighbors[y].size();
+                const int gain = oldValenceScore + valenceScore(xValence) + valenceScore(yValence)
+                    - (valenceScore(aValence - 1) + valenceScore(bValence - 1)
+                        + valenceScore(xValence + 1) + valenceScore(yValence + 1));
+                if (gain <= 0)
+                    continue;
+                std::vector<size_t> face1 = 0 == candidate
+                    ? std::vector<size_t> { c, d, a, e }
+                    : std::vector<size_t> { d, a, e, f };
+                std::vector<size_t> face2 = 0 == candidate
+                    ? std::vector<size_t> { e, f, b, c }
+                    : std::vector<size_t> { f, b, c, d };
+                if (Vector3::dotProduct(oldNormal, faceNormal(face1)) <= 0.0
+                    || Vector3::dotProduct(oldNormal, faceNormal(face2)) <= 0.0)
+                    continue;
+                if (existingFaces.end() != existingFaces.find(canonicalFace(face1))
+                    || existingFaces.end() != existingFaces.find(canonicalFace(face2)))
+                    continue;
+                const double shape = cornerScore(face1) + cornerScore(face2);
+                if (gain < bestGain || (gain == bestGain && shape <= bestShape))
+                    continue;
+                bestGain = gain;
+                bestShape = shape;
+                bestFace1 = std::move(face1);
+                bestFace2 = std::move(face2);
+            }
+            if (bestFace1.empty())
+                continue;
+
+            existingFaces.erase(canonicalFace(firstFace));
+            existingFaces.erase(canonicalFace(secondFace));
+            existingFaces.insert(canonicalFace(bestFace1));
+            existingFaces.insert(canonicalFace(bestFace2));
+            m_remeshedPolygons[first] = std::move(bestFace1);
+            m_remeshedPolygons[second] = std::move(bestFace2);
+            touchedVertices.insert(hexagon.begin(), hexagon.end());
+            switchedVertices.insert(hexagon.begin(), hexagon.end());
+            ++roundSwitchNum;
+        }
+
+        if (0 == roundSwitchNum)
+            break;
+        switchNum += roundSwitchNum;
+    }
+
+    if (0 == switchNum)
+        return;
+
+    std::cerr << "Switch high valence edges:" << switchNum << std::endl;
+    rebuildHalfEdges();
+
+    // The switched quads kept their points, pull the reconnected patches back
+    // into shape
+    smoothAroundVertices(switchedVertices, 3, 5);
 }
 
 void QuadExtractor::smoothAroundVertices(const std::unordered_set<size_t>& seedVertices,
