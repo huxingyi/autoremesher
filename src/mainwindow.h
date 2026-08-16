@@ -154,6 +154,7 @@ private:
     QLabel* m_quadCountLabel = nullptr;
     QLabel* m_nonQuadCountLabel = nullptr;
     QLabel* m_vertexCountLabel = nullptr;
+    QLabel* m_progressStatusLabel = nullptr;
     QProgressBar* m_progressBar = nullptr;
     QWidget* m_progressContainer = nullptr;
 

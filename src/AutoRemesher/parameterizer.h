@@ -19,9 +19,11 @@
  */
 #ifndef AUTO_REMESHER_PARAMETERIZER_H
 #define AUTO_REMESHER_PARAMETERIZER_H
+#include <AutoRemesher/Progress>
 #include <AutoRemesher/Vector2>
 #include <AutoRemesher/Vector3>
 #include <map>
+#include <utility>
 #include <vector>
 
 namespace AutoRemesher {
@@ -94,6 +96,11 @@ public:
         m_maximumSingularityPairDistance = faceHops;
     }
 
+    void setProgressHandler(ProgressHandler progressHandler)
+    {
+        m_progressHandler = std::move(progressHandler);
+    }
+
     bool parameterize();
 
 private:
@@ -111,6 +118,7 @@ private:
     double m_maxAspectRatio = 2.3;
     bool m_singularitySimplification = true;
     size_t m_maximumSingularityPairDistance = 6;
+    ProgressHandler m_progressHandler;
 
     std::vector<double> computeFaceScalingField(const std::vector<Vector3>& vertices,
         const std::vector<std::vector<size_t>>& triangles,

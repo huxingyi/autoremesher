@@ -444,7 +444,8 @@ namespace {
         }
     }
 
-    bool solveQuadCover(const CoverContext& ctx, std::vector<double>* values)
+    bool solveQuadCover(const CoverContext& ctx, std::vector<double>* values,
+        const ProgressHandler* progressHandler)
     {
         const SurfaceMesh& mesh = ctx.mesh;
         const std::vector<Vector3>& field = ctx.field;
@@ -459,6 +460,11 @@ namespace {
         const size_t corners = mesh.cornerCount();
         const size_t uvVariables = 2 * corners;
         const size_t variables = 2 * uvVariables;
+        const auto report = [progressHandler](float fraction, const char* name) {
+            if (nullptr != progressHandler && *progressHandler)
+                (*progressHandler)(fraction, name);
+        };
+        report(0.0f, "Building cover system");
         MixedIntegerLeastSquares s(variables);
         for (size_t t = 0; t < 2 * corners; ++t)
             s.setVariablePeriod(uvVariables + t, 2);
@@ -579,13 +585,22 @@ namespace {
                 s.addConstraint(2 * c, 1, 2 * n, -1);
             }
         }
+        report(0.2f, "Eliminating cover constraints");
         s.finalizeConstraints();
-        for (size_t iteration = 0; iteration < 100; ++iteration) {
+        // Rounding usually converges after a couple of passes, well short of the
+        // cap, so spread the fraction over the passes it is expected to take and
+        // clamp instead of pacing it against the cap and barely moving.
+        const size_t maximumIterations = 100;
+        const size_t expectedIterations = 4;
+        for (size_t iteration = 0; iteration < maximumIterations; ++iteration) {
+            report(0.3f + 0.65f * std::min(1.0f, (float)iteration / expectedIterations),
+                "Rounding cover to integers");
             if (!s.solveIteration())
                 return false;
             if (s.converged())
                 break;
         }
+        report(0.98f, "Rounding cover to integers");
         values->resize(variables);
         for (size_t i = 0; i < variables; ++i)
             (*values)[i] = s.value(i);
@@ -631,10 +646,17 @@ bool QuadParameterizer::parameterize(const std::vector<Vector3>& vertices,
     double hardEdgeDegrees, Result* result,
     const std::vector<double>* faceScaling,
     const std::vector<double>* faceScalingU,
-    const std::vector<double>* faceScalingV)
+    const std::vector<double>* faceScalingV,
+    const ProgressHandler* progressHandler)
 {
+    const auto report = [progressHandler](float fraction, const char* name) {
+        if (nullptr != progressHandler && *progressHandler)
+            (*progressHandler)(fraction, name);
+    };
+
     if (vertices.empty() || triangles.empty() || scaling <= 0.0)
         return false;
+    report(0.0f, "Initializing cover field");
     SurfaceMesh mesh(vertices, triangles);
     if (mesh.faceCount() != triangles.size())
         return false;
@@ -654,10 +676,12 @@ bool QuadParameterizer::parameterize(const std::vector<Vector3>& vertices,
         activeScalingV = *faceScalingV;
     }
 
+    report(0.04f, "Smoothing cross field");
     if (!(guidance && guidance->size() == mesh.faceCount()))
         smoothCrossField(mesh, normals, hardEdgeDegrees, &result->field);
     brushFieldAlongSpanningTree(mesh, normals, &result->field);
 
+    report(0.14f, "Computing corner rotations");
     const std::vector<int> rotation = computeCornerRotations(mesh, result->field, normals);
     result->cornerRotations = rotation;
     const std::vector<signed char> cornerConstraints = computeCornerConstraints(mesh, result->field,
@@ -665,6 +689,7 @@ bool QuadParameterizer::parameterize(const std::vector<Vector3>& vertices,
     if (trackDirectionalScale)
         applyDirectionalSwaps(mesh, fieldBeforeBrush, result->field, normals,
             &activeScalingU, &activeScalingV);
+    report(0.20f, "Correcting field curl");
     applyCurlCorrection(mesh, normals, rotation, cornerConstraints,
         faceScaling, scale, 1e-4, &activeScalingU, &activeScalingV, &result->field);
     const std::vector<char> seam = computeSeam(mesh, rotation);
@@ -672,10 +697,19 @@ bool QuadParameterizer::parameterize(const std::vector<Vector3>& vertices,
     const CoverContext ctx { mesh, result->field, normals, rotation, seam, cornerConstraints,
         activeScalingU, activeScalingV, faceScaling, scale };
 
+    // The cover solve reports on its own 0..1, so remap it into the tail of this
+    // function's range and keep the fractions monotonic end to end.
+    ProgressHandler coverProgress;
+    if (nullptr != progressHandler && *progressHandler) {
+        coverProgress = [progressHandler](float fraction, const char* name) {
+            (*progressHandler)(0.35f + 0.63f * fraction, name);
+        };
+    }
     std::vector<double> allValues;
-    if (!solveQuadCover(ctx, &allValues))
+    if (!solveQuadCover(ctx, &allValues, coverProgress ? &coverProgress : nullptr))
         return false;
 
+    report(0.99f, "Building cover uvs");
     buildResultUv(mesh, rotation, allValues, uvVariables, result);
     return true;
 }

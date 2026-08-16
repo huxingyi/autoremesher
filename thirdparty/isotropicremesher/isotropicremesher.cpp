@@ -247,6 +247,12 @@ double IsotropicRemesher::initialAverageEdgeLength()
 
 void IsotropicRemesher::remesh(size_t iteration)
 {
+    const auto report = [this](float fraction, const char *name) {
+        if (m_progressHandler)
+            m_progressHandler(fraction, name);
+    };
+
+    report(0.0f, "Building bounding volume tree");
     delete m_triangleNormals;
     m_triangleNormals = new std::vector<Vector3>;
     m_triangleNormals->reserve(m_triangles->size());
@@ -326,6 +332,7 @@ void IsotropicRemesher::remesh(size_t iteration)
         }
     }
 
+    report(0.15f, "Splitting long edges");
     bool skipSplitOnce = true;
     if (m_sharpEdgeThresholdRadians > 0) {
         splitLongEdges(maxTargetLengthSquared);
@@ -336,8 +343,17 @@ void IsotropicRemesher::remesh(size_t iteration)
         m_halfedgeMesh->featureBoundaries();
     }
     
+    // The five passes below repeat once per iteration, so the remaining 0.25..1
+    // splits evenly across all of them.
+    const size_t passCount = iteration * 5;
+    size_t pass = 0;
+    const auto reportPass = [&](const char *name) {
+        report(0 == passCount ? 1.0f : 0.25f + 0.75f * (float)pass++ / passCount, name);
+    };
+
     for (size_t i = 0; i < iteration; ++i) {
         //std::cout << "iteration:" << i << std::endl;
+        reportPass("Splitting long edges");
         if (skipSplitOnce) {
             skipSplitOnce = false;
         } else {
@@ -345,15 +361,20 @@ void IsotropicRemesher::remesh(size_t iteration)
             splitLongEdges(maxTargetLengthSquared);
         }
         //std::cout << "Collapse short edges" << std::endl;
+        reportPass("Collapsing short edges");
         collapseShortEdges(minTargetLengthSquared, maxTargetLengthSquared);
         //std::cout << "Flip edges" << std::endl;
+        reportPass("Flipping edges");
         flipEdges();
         //std::cout << "Shift vertices" << std::endl;
+        reportPass("Shifting vertices");
         shiftVertices();
         //std::cout << "Project vertices" << std::endl;
+        reportPass("Projecting vertices");
         projectVertices();
-        
+
     }
+    report(1.0f, "");
     
     //std::cout << "Done" << std::endl;
 }

@@ -41,17 +41,31 @@ void QuadMeshGenerator::process()
     emit finished();
 }
 
+void QuadMeshGenerator::printProgress(float progress, const QString& status)
+{
+    // Reprint on a new step as well as a new percent: several steps are shorter
+    // than one percent of the run and would otherwise never be named.
+    const int percent = (int)(progress * 100);
+    if (percent == m_lastPrintedPercent && status == m_lastPrintedStatus)
+        return;
+    m_lastPrintedPercent = percent;
+    m_lastPrintedStatus = status;
+    if (status.isEmpty())
+        fprintf(stdout, "%d%% done.\n", percent);
+    else
+        fprintf(stdout, "%d%% done. %s\n", percent, qPrintable(status));
+    fflush(stdout);
+}
+
 void QuadMeshGenerator::emitProgress(float progress)
 {
-    fprintf(stdout, "%d%% done.\n", (int)(progress * 100));
-    fflush(stdout);
+    printProgress(progress, QString());
     emit reportProgress(progress);
 }
 
 void QuadMeshGenerator::emitProgress(float progress, const QString& status)
 {
-    fprintf(stdout, "%d%% done.\n", (int)(progress * 100));
-    fflush(stdout);
+    printProgress(progress, status);
     emit reportProgressDetailed(progress, status);
     emit reportProgress(progress);
 }

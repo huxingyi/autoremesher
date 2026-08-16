@@ -21,8 +21,10 @@
  */
 #ifndef AUTO_REMESHER_ISOTROPIC_REMESHER_H
 #define AUTO_REMESHER_ISOTROPIC_REMESHER_H
+#include <AutoRemesher/Progress>
 #include <AutoRemesher/Vector3>
 #include <unordered_set>
+#include <utility>
 
 namespace AutoRemesher {
 
@@ -60,6 +62,11 @@ public:
         m_smoothNormalDegrees = degrees;
     }
 
+    void setProgressHandler(ProgressHandler progressHandler)
+    {
+        m_progressHandler = std::move(progressHandler);
+    }
+
     const std::vector<Vector3>& remeshedVertices()
     {
         return m_remeshedVertices;
@@ -83,6 +90,7 @@ private:
     double m_sharpEdgeDegrees = 60;
     double m_smoothNormalDegrees = 0.0;
     int m_remeshIterations = 3;
+    ProgressHandler m_progressHandler;
     std::vector<Vector3> m_remeshedVertices;
     std::vector<std::vector<size_t>> m_remeshedTriangles;
 };

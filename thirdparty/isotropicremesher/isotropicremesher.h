@@ -22,6 +22,8 @@
 #ifndef ISOTROPIC_REMESHER_H
 #define ISOTROPIC_REMESHER_H
 #include <cmath>
+#include <functional>
+#include <utility>
 #include <vector>
 #include "vector3.h"
 #include "axisalignedboundingboxtree.h"
@@ -41,6 +43,12 @@ public:
     void setVertexTargetEdgeLengths(const std::vector<double> *targetLengths);
     void setTargetTriangleCount(size_t triangleCount);
     void setSmoothNormalDegrees(double degrees);
+    // Reports 0..1 across remesh(), which is otherwise a long silent stretch of
+    // the pipeline. `name` labels the pass that is starting.
+    void setProgressHandler(std::function<void(float, const char *)> handler)
+    {
+        m_progressHandler = std::move(handler);
+    }
     void remesh(size_t iteration);
     IsotropicHalfedgeMesh *remeshedHalfedgeMesh();
     
@@ -61,6 +69,7 @@ private:
     std::vector<Vector3> m_smoothVertices;      // Subdivided mesh vertices for AABB tree
     std::vector<std::vector<size_t>> m_smoothTriangles; // Subdivided mesh triangles
     std::vector<Vector3> m_smoothTriangleNormals; // Subdivided mesh normals
+    std::function<void(float, const char *)> m_progressHandler;
 
     void computeSmoothVertexNormals();
     void subdivideMeshWithPNTriangles();

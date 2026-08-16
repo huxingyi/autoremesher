@@ -42,6 +42,8 @@ bool IsotropicRemesher::remesh()
         remesher.setVertexTargetEdgeLengths(m_vertexTargetEdgeLengths);
     remesher.setSharpEdgeIncludedAngle(180.0 - m_sharpEdgeDegrees);
     remesher.setSmoothNormalDegrees(m_smoothNormalDegrees);
+    if (m_progressHandler)
+        remesher.setProgressHandler(m_progressHandler);
     remesher.remesh(m_remeshIterations);
 
     IsotropicHalfedgeMesh* halfedgeMesh = remesher.remeshedHalfedgeMesh();

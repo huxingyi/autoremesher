@@ -124,6 +124,7 @@ public:
     }
 
     void generate();
+    void printProgress(float progress, const QString& status);
     void emitProgress(float progress);
     void emitProgress(float progress, const QString& status);
 
@@ -136,6 +137,10 @@ public slots:
     void process();
 
 private:
+    // The pipeline now reports many times per whole percent, so the console line
+    // is only reprinted when the percentage or the step actually changes.
+    int m_lastPrintedPercent = -1;
+    QString m_lastPrintedStatus;
     std::vector<AutoRemesher::Vector3> m_vertices;
     std::vector<std::vector<size_t>> m_triangles;
     std::vector<AutoRemesher::Vector3>* m_remeshedVertices = nullptr;

@@ -28,6 +28,18 @@
 #include <limits>
 #include <map>
 #include <set>
+#if defined(__has_include)
+#if __has_include(<oneapi/tbb/blocked_range.h>)
+#include <oneapi/tbb/blocked_range.h>
+#include <oneapi/tbb/parallel_for.h>
+#else
+#include <tbb/blocked_range.h>
+#include <tbb/parallel_for.h>
+#endif
+#else
+#include <tbb/blocked_range.h>
+#include <tbb/parallel_for.h>
+#endif
 #include <unordered_map>
 #include <unordered_set>
 
@@ -35,11 +47,21 @@ namespace AutoRemesher {
 
 bool QuadExtractor::extract()
 {
+    // The fractions are the measured share of extraction each step costs.  The
+    // topology cleanup passes at the end are over half of it, so they report
+    // individually instead of as one long silent block.
+    const auto report = [this](float fraction, const char* name) {
+        if (m_progressHandler)
+            m_progressHandler(fraction, name);
+    };
+
+    report(0.0f, "Extracting connections");
     std::cerr << "Extract connections..." << std::endl;
     std::vector<Vector3> crossPoints;
     std::vector<size_t> crossPointSourceTriangles;
     std::set<std::pair<size_t, size_t>> connections;
     extractConnections(&crossPoints, &crossPointSourceTriangles, &connections);
+    report(0.07f, "Holding singular lines");
     holdSingularLines(&crossPoints, &crossPointSourceTriangles, &connections);
     m_extractedConnections.clear();
     m_extractedConnectionMoved.clear();
@@ -92,6 +114,7 @@ bool QuadExtractor::extract()
     }
 #endif
 
+    report(0.21f, "Extracting edges");
     std::cerr << "Extract edges..." << std::endl;
     std::unordered_map<size_t, std::unordered_set<size_t>> edgeConnectMap;
     extractEdges(connections, &edgeConnectMap);
@@ -132,10 +155,12 @@ bool QuadExtractor::extract()
     }
 #endif
 
+    report(0.25f, "Extracting mesh");
     std::cerr << "Extract mesh..." << std::endl;
     extractMesh(crossPoints, crossPointSourceTriangles, edgeConnectMap, &m_remeshedPolygons);
     std::cerr << "Extract mesh done" << std::endl;
 
+    report(0.29f, "Fixing holes");
     fixHoles();
 
 #if AUTO_REMESHER_DEV
@@ -165,6 +190,7 @@ bool QuadExtractor::extract()
     }
 #endif
 
+    report(0.30f, "Removing non-manifold faces");
     bool changed = false;
     if (removeIsolatedFaces())
         changed = true;
@@ -200,22 +226,37 @@ bool QuadExtractor::extract()
         }
     }
 
+    report(0.31f, "Smoothing and projecting");
     std::cerr << "Smooth and project..." << std::endl;
     smoothAndProject(5);
     std::cerr << "Smooth and project done" << std::endl;
 
+    report(0.44f, "Splitting seven edge faces");
     splitSevenEdgeFaces();
+    report(0.45f, "Splitting six edge faces");
     splitSixEdgeFaces();
     // A pentagon is the best place for a triangle to end up, it comes out of the
     // collapse as a quad, so the triangles run first and the merge takes care of
     // whatever pentagons are left over
+    report(0.46f, "Cleaning up triangles");
     cleanupTriangles();
-    mergeSharedFiveEdgeFaces();
+    report(0.53f, "Merging shared five edge faces");
+    ProgressHandler mergeProgress;
+    if (m_progressHandler) {
+        mergeProgress = [this](float fraction, const char* name) {
+            m_progressHandler(0.53f + (0.85f - 0.53f) * fraction, name);
+        };
+    }
+    mergeSharedFiveEdgeFaces(mergeProgress ? &mergeProgress : nullptr);
     // Runs last, it only reconnects quad pairs, so it wants the triangles and
     // pentagons to have become quads already
+    report(0.85f, "Switching high valence edges");
     switchHighValenceEdges();
+    report(0.89f, "Converting triangle and five edge fans");
     convertTriangleAndFiveEdgeFans();
+    report(0.93f, "Collapsing three valence diagonals");
     collapseThreeValenceDiagonals();
+    report(1.0f, "");
 
 #if AUTO_REMESHER_DEV
     {
@@ -1584,25 +1625,34 @@ void QuadExtractor::smoothAndProject(size_t iterations,
         return false;
     };
 
+    // Both passes below already read one buffer and write another, and the
+    // projection only reads the bounding box tree, so each vertex is independent
+    // and the parallel result is the same as the serial one.
     const double smoothFactor = 0.5;
     for (size_t iteration = 0; iteration < iterations; ++iteration) {
         std::vector<Vector3> smoothedVertices(m_remeshedVertices);
-        for (size_t i = 0; i < m_remeshedVertices.size(); ++i) {
-            if (locked[i] || neighbors[i].empty())
-                continue;
-            Vector3 center;
-            for (const auto& neighbor : neighbors[i])
-                center += m_remeshedVertices[neighbor];
-            center /= (double)neighbors[i].size();
-            smoothedVertices[i] = m_remeshedVertices[i] + smoothFactor * (center - m_remeshedVertices[i]);
-        }
-        for (size_t i = 0; i < smoothedVertices.size(); ++i) {
-            if (locked[i] || neighbors[i].empty())
-                continue;
-            Vector3 projected;
-            if (projectToTargetMesh(smoothedVertices[i], &projected))
-                smoothedVertices[i] = projected;
-        }
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, m_remeshedVertices.size()),
+            [&](const tbb::blocked_range<size_t>& range) {
+                for (size_t i = range.begin(); i != range.end(); ++i) {
+                    if (locked[i] || neighbors[i].empty())
+                        continue;
+                    Vector3 center;
+                    for (const auto& neighbor : neighbors[i])
+                        center += m_remeshedVertices[neighbor];
+                    center /= (double)neighbors[i].size();
+                    smoothedVertices[i] = m_remeshedVertices[i] + smoothFactor * (center - m_remeshedVertices[i]);
+                }
+            });
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, smoothedVertices.size()),
+            [&](const tbb::blocked_range<size_t>& range) {
+                for (size_t i = range.begin(); i != range.end(); ++i) {
+                    if (locked[i] || neighbors[i].empty())
+                        continue;
+                    Vector3 projected;
+                    if (projectToTargetMesh(smoothedVertices[i], &projected))
+                        smoothedVertices[i] = projected;
+                }
+            });
         m_remeshedVertices = std::move(smoothedVertices);
     }
 }
@@ -2890,10 +2940,20 @@ void QuadExtractor::splitSevenEdgeFaces()
     rebuildHalfEdges();
 }
 
-void QuadExtractor::mergeSharedFiveEdgeFaces()
+void QuadExtractor::mergeSharedFiveEdgeFaces(const ProgressHandler* progressHandler)
 {
     if (m_remeshedVertices.empty() || m_remeshedPolygons.empty())
         return;
+
+    // Every merge consumes a pair of pentagons, so half the pentagon count is a
+    // real ceiling on how many rounds can succeed and makes an honest
+    // denominator for the fraction reported below.
+    size_t pentagonCount = 0;
+    for (const auto& face : m_remeshedPolygons) {
+        if (5 == face.size())
+            ++pentagonCount;
+    }
+    const size_t mergeCeiling = std::max<size_t>(1, pentagonCount / 2);
 
     using Edge = std::pair<size_t, size_t>;
     const auto edgeOf = [](size_t a, size_t b) {
@@ -2943,6 +3003,10 @@ void QuadExtractor::mergeSharedFiveEdgeFaces()
     std::unordered_set<size_t> mergedVertices;
     size_t mergeCount = 0;
     for (;;) {
+        if (nullptr != progressHandler && *progressHandler) {
+            (*progressHandler)(std::min(0.99f, (float)mergeCount / mergeCeiling),
+                "Merging shared five edge faces");
+        }
         std::map<Edge, std::vector<size_t>> edgeFaces;
         std::unordered_map<size_t, std::unordered_set<size_t>> vertexNeighbors;
         for (size_t faceIndex = 0; faceIndex < m_remeshedPolygons.size(); ++faceIndex) {

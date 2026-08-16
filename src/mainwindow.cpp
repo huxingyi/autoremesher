@@ -344,6 +344,13 @@ MainWindow::MainWindow()
     m_vertexCountLabel->setStyleSheet("color: #ffffff; font-size: 11px; padding: 2px 0;");
     m_vertexCountLabel->hide();
 
+    // The 2px bar alone cannot say which of the twenty odd steps is running, and
+    // the longer ones take seconds, so name the step next to the percentage.
+    m_progressStatusLabel = new QLabel(this);
+    m_progressStatusLabel->setStyleSheet("color: #9a9a9a; font-size: 11px; padding: 2px 0;");
+    m_progressStatusLabel->setWordWrap(true);
+    m_progressStatusLabel->hide();
+
     // Toolbar rows at bottom
     QHBoxLayout* toolbarLayout = new QHBoxLayout;
     toolbarLayout->setSpacing(4);
@@ -360,6 +367,7 @@ MainWindow::MainWindow()
 
     controlsLayout->addStretch();
 
+    controlsLayout->addWidget(m_progressStatusLabel);
     controlsLayout->addWidget(m_quadCountLabel);
     controlsLayout->addWidget(m_nonQuadCountLabel);
     controlsLayout->addWidget(m_vertexCountLabel);
@@ -454,6 +462,7 @@ void MainWindow::updateButtonStates()
             m_regenerateButton->hide();
         }
         m_progressBar->hide();
+        m_progressStatusLabel->hide();
     } else {
         m_loadModelButton->setEnabled(false);
         m_saveMeshButton->hide();
@@ -708,8 +717,13 @@ void MainWindow::updateProgress(float progress)
 
 void MainWindow::updateProgressDetailed(float progress, const QString& status)
 {
-    m_progressBar->setValue((int)(progress * 100));
+    const int percent = (int)(progress * 100);
+    m_progressBar->setValue(percent);
     m_progressBar->show();
+    m_progressStatusLabel->setText(status.isEmpty()
+            ? QString("%1%").arg(percent)
+            : QString("%1%  %2").arg(percent).arg(status));
+    m_progressStatusLabel->show();
 }
 
 MainWindow::~MainWindow()
@@ -1066,6 +1080,8 @@ void MainWindow::generateQuadMesh()
 
     m_progressBar->setValue(0);
     m_progressBar->show();
+    m_progressStatusLabel->setText(tr("0%  Initializing"));
+    m_progressStatusLabel->show();
 
     QThread* thread = new QThread;
 

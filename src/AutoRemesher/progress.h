@@ -19,36 +19,22 @@
  *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  *  SOFTWARE.
  */
-#ifndef AUTO_REMESHER_QUAD_PARAMETERIZER_H
-#define AUTO_REMESHER_QUAD_PARAMETERIZER_H
-
-#include <AutoRemesher/Progress>
-#include <AutoRemesher/Vector2>
-#include <AutoRemesher/Vector3>
-#include <cstddef>
-#include <vector>
+#ifndef AUTO_REMESHER_PROGRESS_H
+#define AUTO_REMESHER_PROGRESS_H
+#include <functional>
 
 namespace AutoRemesher {
 
-class QuadParameterizer {
-public:
-    struct Result {
-        std::vector<std::vector<Vector2>> triangleUvs;
-        std::vector<Vector3> field;
-        std::vector<int> cornerRotations;
-        std::vector<size_t> singularVertices;
-    };
-    static bool parameterize(const std::vector<Vector3>& vertices,
-        const std::vector<std::vector<size_t>>& triangles,
-        const std::vector<Vector3>* guidance, double scaling,
-        double hardEdgeDegrees, Result* result,
-        const std::vector<double>* faceScaling = nullptr,
-        const std::vector<double>* faceScalingU = nullptr,
-        const std::vector<double>* faceScalingV = nullptr,
-        // Reports 0..1 across the quad cover solve, which is the single longest
-        // step of the whole pipeline and would otherwise be one silent block.
-        const ProgressHandler* progressHandler = nullptr);
-};
+// How far a pipeline stage has got: `fraction` runs 0..1 within the stage and
+// `name` labels the step that is starting, for the status line and for the
+// per-step timings in the phase report.  Islands are remeshed on TBB worker
+// threads, so a handler must be safe to call from several threads at once.
+//
+// The fractions are hand-assigned at the call sites from measured step costs;
+// they only have to be monotonic and roughly proportional, and the phase report
+// prints the real per-step times so they can be re-tuned against a run.
+typedef std::function<void(float fraction, const char* name)> ProgressHandler;
 
 }
+
 #endif

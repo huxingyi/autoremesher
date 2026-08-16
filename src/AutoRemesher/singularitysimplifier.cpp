@@ -83,13 +83,19 @@ std::vector<int> SingularitySimplifier::vertexCharges() const
     std::vector<int> result(m_mesh.vertexCount(), 0);
     if (nullptr == m_field || m_field->size() != m_mesh.faceCount())
         return result;
+    // simplify() is an inner loop that calls this several times per cancelled
+    // pair, so only pay for the per-face frames when the cached corner
+    // mismatches are missing and quarterTurn actually needs them.
+    const bool useCachedMismatch = m_mismatch.size() == m_mesh.cornerCount();
     std::vector<Frame> frames;
-    frames.reserve(m_mesh.faceCount());
     std::vector<double> fieldAngles;
-    fieldAngles.reserve(m_mesh.faceCount());
-    for (size_t f = 0; f < m_mesh.faceCount(); ++f) {
-        frames.push_back(frameForFace(m_mesh, f));
-        fieldAngles.push_back(angleInFrame((*m_field)[f], frames.back()));
+    if (!useCachedMismatch) {
+        frames.reserve(m_mesh.faceCount());
+        fieldAngles.reserve(m_mesh.faceCount());
+        for (size_t f = 0; f < m_mesh.faceCount(); ++f) {
+            frames.push_back(frameForFace(m_mesh, f));
+            fieldAngles.push_back(angleInFrame((*m_field)[f], frames.back()));
+        }
     }
     for (size_t v = 0; v < m_mesh.vertexCount(); ++v) {
         const std::vector<size_t>& corners = m_mesh.cornersAroundVertex(v);
@@ -104,7 +110,7 @@ std::vector<int> SingularitySimplifier::vertexCharges() const
                 sum = 0;
                 break;
             }
-            sum += m_mismatch.size() == m_mesh.cornerCount() ? m_mismatch[c] : quarterTurn(m_mesh, c, frames, fieldAngles);
+            sum += useCachedMismatch ? m_mismatch[c] : quarterTurn(m_mesh, c, frames, fieldAngles);
             const size_t opposite = m_mesh.oppositeCorner(c);
             if (opposite == SurfaceMesh::npos) {
                 sum = 0;

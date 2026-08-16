@@ -308,6 +308,15 @@ bool Parameterizer::parameterize()
     }
 #endif
 
+    // The fractions below are the measured share of parameterization each step
+    // costs; "Solving quad cover" dominates, so the bar has to keep moving
+    // through it rather than sitting still until it finishes.
+    const auto report = [this](float fraction, const char* name) {
+        if (m_progressHandler)
+            m_progressHandler(fraction, name);
+    };
+
+    report(0.0f, "Computing vertex normals");
     std::vector<Vector3> vertexNormals(m_vertices->size());
     {
         std::vector<Vector3> faceNormals(m_triangles->size());
@@ -332,6 +341,7 @@ bool Parameterizer::parameterize()
             });
     }
 
+    report(0.01f, "Computing scaling field");
     std::map<size_t, std::vector<size_t>> faceAroundVertexMap;
     for (size_t i = 0; i < m_triangles->size(); ++i) {
         const auto& it = (*m_triangles)[i];
@@ -343,6 +353,7 @@ bool Parameterizer::parameterize()
     std::vector<double> faceScalingField = computeFaceScalingField(*m_vertices,
         *m_triangles, vertexNormals, faceAroundVertexMap);
 
+    report(0.02f, "Building surface topology");
     // The parameterization pipeline uses the triangle/corner mesh;
     // no attribute-backed interchange mesh is constructed.
     SurfaceMesh topology(*m_vertices, *m_triangles);
@@ -351,6 +362,7 @@ bool Parameterizer::parameterize()
         return false;
     }
 
+    report(0.03f, "Solving frame field");
     // Topology, field, and quad cover form the complete active path.
     std::vector<Vector3> field;
     if (nullptr != m_triangleFieldVectors) {
@@ -367,6 +379,7 @@ bool Parameterizer::parameterize()
 
     SingularitySimplifier simplifier(topology, &field);
     if (m_singularitySimplification) {
+        report(0.17f, "Simplifying singularities");
         simplifier.setSharpEdgeDegrees(m_sharpEdgeDegrees);
         simplifier.setMaximumPairDistance(m_maximumSingularityPairDistance);
         simplifier.simplify();
@@ -378,16 +391,27 @@ bool Parameterizer::parameterize()
     std::vector<double> faceScalingU(m_triangles->size(), 1.0);
     std::vector<double> faceScalingV(m_triangles->size(), 1.0);
     if (m_anisotropy > 0.0) {
+        report(0.26f, "Computing anisotropy field");
         computeFaceAnisotropyField(topology, field,
             m_anisotropy, m_maxAspectRatio, &faceScalingU, &faceScalingV);
+    }
+    // The cover solve is the longest single step here, so it reports its own
+    // sub-steps from 0.28 onwards rather than going quiet until it finishes.
+    ProgressHandler coverProgress;
+    if (m_progressHandler) {
+        coverProgress = [this](float fraction, const char* name) {
+            m_progressHandler(0.28f + (0.99f - 0.28f) * fraction, name);
+        };
     }
     QuadParameterizer::Result cover;
     if (!QuadParameterizer::parameterize(*m_vertices, *m_triangles,
             &field, m_scaling, m_sharpEdgeDegrees, &cover,
-            &faceScalingField, &faceScalingU, &faceScalingV)) {
+            &faceScalingField, &faceScalingU, &faceScalingV,
+            coverProgress ? &coverProgress : nullptr)) {
         std::cerr << "Quad cover solve failed" << std::endl;
         return false;
     }
+    report(0.99f, "Collecting singularities");
     m_originalTriangleUvs = cover.triangleUvs;
     delete m_triangleUvs;
     m_triangleUvs = new std::vector<std::vector<Vector2>>(cover.triangleUvs);
@@ -406,6 +430,7 @@ bool Parameterizer::parameterize()
                   << simplifier.cancelledPairCount() << " pair(s) cancelled)"
                   << std::endl;
     }
+    report(1.0f, "");
     return true;
 }
 
