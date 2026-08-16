@@ -15,6 +15,11 @@
 - Support Linux CPUs without AVX2
 - Update Windows CI and build instructions
 - Add a Contributors dialog
+- Improve quad extraction and remeshing robustness
+- Fix a crash when previewing very large input meshes
+- Add mesh simplification and decimated mesh preview
+- Allow direct numerical input for remeshing parameters
+- Improve progress reporting
 
 1.0.0
 - Relicense from GPLv3 to MIT (reimplemented MIT-incompatible dependencies)
