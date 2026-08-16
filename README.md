@@ -94,7 +94,8 @@ AutoRemesher has a CLI mode for headless processing. Try it with one of the [com
     --edge-scaling 1.0 \
     --sharp-edge 90.0 \
     --smooth-normal 0.0 \
-    --adaptivity 1.0
+    --adaptivity 1.0 \
+    --anisotropy 1.0
 ```
 
 ### Quick Start
