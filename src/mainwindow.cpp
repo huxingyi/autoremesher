@@ -280,7 +280,6 @@ MainWindow::MainWindow()
     m_targetQuadCountWidget->setItemName(tr("Target Quads"));
     m_targetQuadCountWidget->setRange(1000, 1000000);
     m_targetQuadCountWidget->setValue(m_targetQuadCount);
-    m_targetQuadCountWidget->setSuffix(tr(" quads"));
     connect(m_targetQuadCountWidget, &IntNumberWidget::valueChanged, [=](int value) {
         m_targetQuadCount = value;
     });

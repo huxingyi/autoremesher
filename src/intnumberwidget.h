@@ -25,6 +25,7 @@
 
 QT_FORWARD_DECLARE_CLASS(QLabel)
 QT_FORWARD_DECLARE_CLASS(QSlider)
+QT_FORWARD_DECLARE_CLASS(QSpinBox)
 
 class IntNumberWidget : public QWidget {
     Q_OBJECT
@@ -33,7 +34,6 @@ public:
     void setRange(int min, int max);
     int value() const;
     void setItemName(const QString& name);
-    void setSuffix(const QString& suffix);
 
 public slots:
     void setValue(int value);
@@ -42,13 +42,14 @@ signals:
     void valueChanged(int value);
 
 private:
-    void updateValueLabel(int value);
+    void syncSpinBoxFromSlider();
 
 private:
     QLabel* m_label = nullptr;
     QSlider* m_slider = nullptr;
+    QSpinBox* m_spinBox = nullptr;
     QString m_itemName;
-    QString m_suffix;
+    bool m_syncing = false;
 };
 
 #endif

@@ -25,6 +25,7 @@
 
 QT_FORWARD_DECLARE_CLASS(QLabel)
 QT_FORWARD_DECLARE_CLASS(QSlider)
+QT_FORWARD_DECLARE_CLASS(QDoubleSpinBox)
 
 class FloatNumberWidget : public QWidget {
     Q_OBJECT
@@ -43,12 +44,14 @@ signals:
     void valueChanged(float value);
 
 private:
-    void updateValueLabel(float value);
+    void syncSpinBoxFromSlider();
 
 private:
     QLabel* m_label = nullptr;
     QSlider* m_slider = nullptr;
+    QDoubleSpinBox* m_spinBox = nullptr;
     QString m_itemName;
+    bool m_syncing = false;
 };
 
 #endif

@@ -20,6 +20,7 @@
  *  SOFTWARE.
  */
 #include "intnumberwidget.h"
+#include "theme.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QtWidgets>
@@ -30,12 +31,27 @@ IntNumberWidget::IntNumberWidget(QWidget* parent, bool singleLine)
     m_slider = new QSlider(Qt::Horizontal, this);
     m_slider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
+    m_spinBox = new QSpinBox(this);
+    m_spinBox->setRange(m_slider->minimum(), m_slider->maximum());
+    Theme::initNumberInput(m_spinBox);
+
     m_label = new QLabel(this);
     m_label->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     m_label->setAlignment(Qt::AlignLeft);
 
     connect(m_slider, &QAbstractSlider::valueChanged, [=](int value) {
-        updateValueLabel(value);
+        if (m_syncing)
+            return;
+        syncSpinBoxFromSlider();
+        emit valueChanged(value);
+    });
+
+    connect(m_spinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), [=](int value) {
+        if (m_syncing)
+            return;
+        m_syncing = true;
+        m_slider->setValue(value);
+        m_syncing = false;
         emit valueChanged(value);
     });
 
@@ -45,42 +61,40 @@ IntNumberWidget::IntNumberWidget(QWidget* parent, bool singleLine)
         layout->setContentsMargins(0, 0, 0, 0);
         layout->addWidget(m_label);
         layout->addWidget(m_slider);
+        layout->addWidget(m_spinBox);
     } else {
+        QHBoxLayout* inputLayout = new QHBoxLayout;
+        inputLayout->setContentsMargins(0, 0, 0, 0);
+        inputLayout->addWidget(m_slider);
+        inputLayout->addWidget(m_spinBox);
+
         layout = new QVBoxLayout(this);
         layout->setContentsMargins(0, 0, 0, 0);
         layout->addWidget(m_label);
-        layout->addWidget(m_slider);
+        layout->addLayout(inputLayout);
     }
 
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 }
 
-void IntNumberWidget::updateValueLabel(int value)
+void IntNumberWidget::syncSpinBoxFromSlider()
 {
-    QString valueString = QString::number(value);
-    if (!m_suffix.isEmpty())
-        valueString += m_suffix;
-    if (m_itemName.isEmpty())
-        m_label->setText(valueString);
-    else
-        m_label->setText(m_itemName + ": " + valueString);
+    m_syncing = true;
+    m_spinBox->setValue(value());
+    m_syncing = false;
 }
 
 void IntNumberWidget::setItemName(const QString& name)
 {
     m_itemName = name;
-    updateValueLabel(value());
-}
-
-void IntNumberWidget::setSuffix(const QString& suffix)
-{
-    m_suffix = suffix;
-    updateValueLabel(value());
+    m_label->setText(m_itemName);
 }
 
 void IntNumberWidget::setRange(int min, int max)
 {
     m_slider->setRange(min, max);
+    m_spinBox->setRange(min, max);
+    syncSpinBoxFromSlider();
 }
 
 int IntNumberWidget::value() const
@@ -91,4 +105,5 @@ int IntNumberWidget::value() const
 void IntNumberWidget::setValue(int value)
 {
     m_slider->setValue(value);
+    syncSpinBoxFromSlider();
 }

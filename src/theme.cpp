@@ -63,6 +63,7 @@ int Theme::posePreviewImageSize = 0;
 int Theme::motionPreviewImageSize = 0;
 int Theme::sidebarPreferredWidth = 0;
 int Theme::normalButtonSize = 0;
+int Theme::numberInputWidth = 86;
 
 void Theme::initAwsomeBaseSizes()
 {
@@ -207,6 +208,48 @@ void Theme::initCheckbox(QCheckBox* checkbox)
     checkbox->setPalette(palette);
 }
 
+namespace {
+
+class NumberInputArrowFilter : public QObject {
+public:
+    using QObject::QObject;
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        QAbstractSpinBox* spinBox = qobject_cast<QAbstractSpinBox*>(watched);
+        if (nullptr != spinBox) {
+            switch (event->type()) {
+            case QEvent::Enter:
+            case QEvent::FocusIn:
+                spinBox->setButtonSymbols(QAbstractSpinBox::UpDownArrows);
+                break;
+            case QEvent::Leave:
+            case QEvent::FocusOut:
+                if (!spinBox->hasFocus() && !spinBox->underMouse())
+                    spinBox->setButtonSymbols(QAbstractSpinBox::NoButtons);
+                break;
+            default:
+                break;
+            }
+        }
+        return QObject::eventFilter(watched, event);
+    }
+};
+
+}
+
+void Theme::initNumberInput(QAbstractSpinBox* spinBox)
+{
+    spinBox->setFixedWidth(Theme::numberInputWidth);
+    spinBox->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    spinBox->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    spinBox->setKeyboardTracking(false);
+    spinBox->setButtonSymbols(QAbstractSpinBox::NoButtons);
+    spinBox->setAttribute(Qt::WA_Hover);
+    spinBox->installEventFilter(new NumberInputArrowFilter(spinBox));
+}
+
 QString Theme::compactStylesheet()
 {
     const QString trackBg = "#4A4A4A";
@@ -265,6 +308,25 @@ QString Theme::compactStylesheet()
         "  selection-color: #191919;"
         "  outline: none;"
         "  font-size: 11px;"
+        "}"
+
+        // === NUMBER INPUTS — compact ===
+        "QAbstractSpinBox {"
+        "  background-color: %4;"
+        "  border: 1px solid %5;"
+        "  border-radius: 6px;"
+        "  padding: 0px 4px 0px 8px;"
+        "  min-height: 20px;"
+        "  font-size: 11px;"
+        "  color: %2;"
+        "  selection-background-color: %3;"
+        "  selection-color: #191919;"
+        "}"
+        "QAbstractSpinBox:hover {"
+        "  border-color: #5c6c75;"
+        "}"
+        "QAbstractSpinBox:focus {"
+        "  border-color: %3;"
         "}"
 
         // === CHECKBOX — compact indicator ===

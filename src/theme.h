@@ -22,6 +22,7 @@
 #ifndef AUTO_REMESHER_THEME_H
 #define AUTO_REMESHER_THEME_H
 #include "QtAwesome.h"
+#include <QAbstractSpinBox>
 #include <QCheckBox>
 #include <QColor>
 #include <QLabel>
@@ -64,6 +65,7 @@ public:
     static int miniIconSize;
     static int sidebarPreferredWidth;
     static int normalButtonSize;
+    static int numberInputWidth;
 
 public:
     static void initAwesomeButton(QPushButton* button);
@@ -76,6 +78,7 @@ public:
     static void initAwsomeBaseSizes();
     static void initToolButton(QPushButton* button);
     static void initCheckbox(QCheckBox* checkbox);
+    static void initNumberInput(QAbstractSpinBox* spinBox);
     static QString compactStylesheet();
 };
 
