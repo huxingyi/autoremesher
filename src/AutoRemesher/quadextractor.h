@@ -134,6 +134,7 @@ private:
         size_t rings, size_t iterations);
     void splitSixEdgeFaces();
     void switchHighValenceEdges();
+    void convertTriangleAndFiveEdgeFans();
     void cleanupTriangles();
     void splitSevenEdgeFaces();
     void mergeSharedFiveEdgeFaces();
