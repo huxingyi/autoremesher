@@ -215,6 +215,7 @@ bool QuadExtractor::extract()
     // pentagons to have become quads already
     switchHighValenceEdges();
     convertTriangleAndFiveEdgeFans();
+    collapseThreeValenceDiagonals();
 
 #if AUTO_REMESHER_DEV
     {
@@ -1971,6 +1972,273 @@ void QuadExtractor::convertTriangleAndFiveEdgeFans()
 
     smoothAroundVertices(convertedVertices, 3, 5);
 }
+
+void QuadExtractor::collapseThreeValenceDiagonals()
+{
+    if (m_remeshedVertices.empty() || m_remeshedPolygons.empty())
+        return;
+
+    using Edge = std::pair<size_t, size_t>;
+    const auto edgeOf = [](size_t a, size_t b) {
+        return std::make_pair(std::min(a, b), std::max(a, b));
+    };
+    const auto hasRepeatedVertex = [](const std::vector<size_t>& face) {
+        std::unordered_set<size_t> vertices(face.begin(), face.end());
+        return vertices.size() != face.size();
+    };
+    const auto canonicalFace = [](const std::vector<size_t>& face) {
+        std::vector<size_t> best;
+        std::vector<size_t> reversed(face.rbegin(), face.rend());
+        for (const std::vector<size_t>* winding : {
+                 &face, static_cast<const std::vector<size_t>*>(&reversed) }) {
+            for (size_t start = 0; start < winding->size(); ++start) {
+                std::vector<size_t> candidate;
+                candidate.reserve(winding->size());
+                for (size_t i = 0; i < winding->size(); ++i)
+                    candidate.push_back((*winding)[(start + i) % winding->size()]);
+                if (best.empty() || candidate < best)
+                    best = std::move(candidate);
+            }
+        }
+        return best;
+    };
+    const size_t noVertex = std::numeric_limits<size_t>::max();
+    const size_t noFace = std::numeric_limits<size_t>::max();
+    Vector3 addedPosition;
+    size_t addedVertex = noVertex;
+    const auto positionOf = [&](size_t vertex) {
+        return vertex == addedVertex ? addedPosition : m_remeshedVertices[vertex];
+    };
+    const auto faceNormal = [&](const std::vector<size_t>& face) {
+        Vector3 normal;
+        const auto origin = positionOf(face[0]);
+        for (size_t i = 1; i + 1 < face.size(); ++i) {
+            normal += Vector3::crossProduct(positionOf(face[i]) - origin,
+                positionOf(face[i + 1]) - origin);
+        }
+        return normal;
+    };
+    // The quad closes up along the diagonal, so the two corners left standing each
+    // hand one neighbor over to the point in the middle. Three neighbors is as low
+    // as a corner may go before it turns into a doublet, so the sides need four
+    const size_t minSideValence = 4;
+
+    // Two three valence points facing each other across a quad are the two halves of
+    // a single point which the extraction split apart, the quad between them is the
+    // gap. Collapsing the diagonal puts a point back in the middle carrying the four
+    // neighbors the pair had between them, and takes the quad away along with both
+    // singularities, the sides paying for it with one neighbor each
+    std::set<Edge> rejectedDiagonals;
+    std::unordered_set<size_t> collapsedVertices;
+    size_t collapseCount = 0;
+    for (;;) {
+        std::map<Edge, std::vector<size_t>> edgeFaces;
+        std::unordered_map<size_t, std::unordered_set<size_t>> vertexNeighbors;
+        std::unordered_map<size_t, size_t> vertexFaceCounts;
+        for (size_t faceIndex = 0; faceIndex < m_remeshedPolygons.size(); ++faceIndex) {
+            const auto& face = m_remeshedPolygons[faceIndex];
+            for (size_t i = 0; i < face.size(); ++i) {
+                const size_t j = (i + 1) % face.size();
+                edgeFaces[edgeOf(face[i], face[j])].push_back(faceIndex);
+                vertexNeighbors[face[i]].insert(face[j]);
+                vertexNeighbors[face[j]].insert(face[i]);
+            }
+            for (const auto& vertex : face)
+                ++vertexFaceCounts[vertex];
+        }
+
+        // A three valence point on a border is what a border looks like, not a defect
+        std::unordered_set<size_t> borderVertices;
+        for (const auto& it : edgeFaces) {
+            if (2 == it.second.size())
+                continue;
+            borderVertices.insert(it.first.first);
+            borderVertices.insert(it.first.second);
+        }
+
+        size_t collapsingFace = noFace;
+        size_t first = noVertex;
+        size_t second = noVertex;
+        size_t left = noVertex;
+        size_t right = noVertex;
+        for (size_t faceIndex = 0; faceIndex < m_remeshedPolygons.size()
+            && noFace == collapsingFace;
+            ++faceIndex) {
+            const auto& face = m_remeshedPolygons[faceIndex];
+            if (4 != face.size() || hasRepeatedVertex(face))
+                continue;
+            bool onBorder = false;
+            for (const auto& vertex : face) {
+                if (borderVertices.end() != borderVertices.find(vertex)) {
+                    onBorder = true;
+                    break;
+                }
+            }
+            if (onBorder)
+                continue;
+            for (size_t i = 0; i < 2; ++i) {
+                const size_t diagonalFirst = face[i];
+                const size_t diagonalSecond = face[i + 2];
+                if (rejectedDiagonals.end() != rejectedDiagonals.find(edgeOf(diagonalFirst, diagonalSecond)))
+                    continue;
+                if (3 != vertexNeighbors[diagonalFirst].size()
+                    || 3 != vertexNeighbors[diagonalSecond].size())
+                    continue;
+                // A closed fan of three faces is the only shape a three valence point
+                // may have here, anything else is not the pair this is looking for
+                if (3 != vertexFaceCounts[diagonalFirst] || 3 != vertexFaceCounts[diagonalSecond])
+                    continue;
+                const size_t diagonalLeft = face[(i + 1) % 4];
+                const size_t diagonalRight = face[(i + 3) % 4];
+                if (vertexNeighbors[diagonalLeft].size() < minSideValence
+                    || vertexNeighbors[diagonalRight].size() < minSideValence)
+                    continue;
+                // The two fans are only allowed to meet at the sides of the quad, any
+                // other point shared between them, an edge included, would fold the
+                // faces of the merged point over each other
+                if (vertexNeighbors[diagonalFirst].end() != vertexNeighbors[diagonalFirst].find(diagonalSecond))
+                    continue;
+                size_t sharedNum = 0;
+                for (const auto& neighbor : vertexNeighbors[diagonalFirst]) {
+                    if (vertexNeighbors[diagonalSecond].end() != vertexNeighbors[diagonalSecond].find(neighbor))
+                        ++sharedNum;
+                }
+                if (2 != sharedNum)
+                    continue;
+                collapsingFace = faceIndex;
+                first = diagonalFirst;
+                second = diagonalSecond;
+                left = diagonalLeft;
+                right = diagonalRight;
+                break;
+            }
+        }
+        if (noFace == collapsingFace)
+            break;
+
+        addedVertex = m_remeshedVertices.size();
+        addedPosition = (m_remeshedVertices[first] + m_remeshedVertices[second]) * 0.5;
+
+        std::vector<std::vector<size_t>> rewritten;
+        std::vector<bool> affected;
+        rewritten.reserve(m_remeshedPolygons.size());
+        affected.reserve(m_remeshedPolygons.size());
+        bool valid = true;
+        for (size_t faceIndex = 0; faceIndex < m_remeshedPolygons.size() && valid; ++faceIndex) {
+            if (collapsingFace == faceIndex)
+                continue;
+            const auto& face = m_remeshedPolygons[faceIndex];
+            bool faceAffected = false;
+            for (const auto& vertex : face) {
+                if (first == vertex || second == vertex) {
+                    faceAffected = true;
+                    break;
+                }
+            }
+            if (!faceAffected) {
+                rewritten.push_back(face);
+                affected.push_back(false);
+                continue;
+            }
+            std::vector<size_t> candidate;
+            candidate.reserve(face.size());
+            for (const auto& vertex : face) {
+                const size_t rewrittenVertex = first == vertex || second == vertex
+                    ? addedVertex
+                    : vertex;
+                if (candidate.empty() || candidate.back() != rewrittenVertex)
+                    candidate.push_back(rewrittenVertex);
+            }
+            if (candidate.size() > 1 && candidate.front() == candidate.back())
+                candidate.pop_back();
+            // The quad is the only face allowed to disappear, the fans around the pair
+            // keep every side they came in with
+            if (candidate.size() != face.size() || hasRepeatedVertex(candidate)) {
+                valid = false;
+                break;
+            }
+            if (Vector3::dotProduct(faceNormal(face), faceNormal(candidate)) <= 0.0) {
+                valid = false;
+                break;
+            }
+            rewritten.push_back(std::move(candidate));
+            affected.push_back(true);
+        }
+
+        if (valid) {
+            std::set<std::vector<size_t>> uniqueFaces;
+            for (size_t faceIndex = 0; faceIndex < rewritten.size(); ++faceIndex) {
+                if (!affected[faceIndex])
+                    uniqueFaces.insert(canonicalFace(rewritten[faceIndex]));
+            }
+            std::map<Edge, size_t> addedEdgeCounts;
+            for (size_t faceIndex = 0; faceIndex < rewritten.size() && valid; ++faceIndex) {
+                const auto& face = rewritten[faceIndex];
+                if (affected[faceIndex]
+                    && !uniqueFaces.insert(canonicalFace(face)).second) {
+                    valid = false;
+                    break;
+                }
+                for (size_t i = 0; i < face.size(); ++i) {
+                    const Edge edge = edgeOf(face[i], face[(i + 1) % face.size()]);
+                    if (addedVertex != edge.first && addedVertex != edge.second)
+                        continue;
+                    if (++addedEdgeCounts[edge] > 2) {
+                        valid = false;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!valid) {
+            rejectedDiagonals.insert(edgeOf(first, second));
+            addedVertex = noVertex;
+            continue;
+        }
+
+        m_remeshedVertices.push_back(addedPosition);
+        m_remeshedPolygons = std::move(rewritten);
+        collapsedVertices.insert(addedVertex);
+        collapsedVertices.insert(left);
+        collapsedVertices.insert(right);
+        addedVertex = noVertex;
+        ++collapseCount;
+    }
+
+    if (0 == collapseCount)
+        return;
+
+    // The two collapsed points are left with no face of their own
+    std::map<size_t, size_t> oldToNew;
+    std::vector<Vector3> compactedVertices;
+    for (const auto& face : m_remeshedPolygons) {
+        for (const auto vertex : face) {
+            if (oldToNew.end() != oldToNew.find(vertex))
+                continue;
+            oldToNew[vertex] = compactedVertices.size();
+            compactedVertices.push_back(m_remeshedVertices[vertex]);
+        }
+    }
+    for (auto& face : m_remeshedPolygons) {
+        for (auto& vertex : face)
+            vertex = oldToNew.at(vertex);
+    }
+    m_remeshedVertices = std::move(compactedVertices);
+    std::unordered_set<size_t> compactedCollapsedVertices;
+    for (const auto& vertex : collapsedVertices) {
+        const auto& findNew = oldToNew.find(vertex);
+        if (oldToNew.end() != findNew)
+            compactedCollapsedVertices.insert(findNew->second);
+    }
+
+    std::cerr << "Collapse three valence diagonals:" << collapseCount << std::endl;
+    rebuildHalfEdges();
+
+    // The point in the middle came from the diagonal, not from the source mesh, pull
+    // the patch which closed up around it back onto the surface
+    smoothAroundVertices(compactedCollapsedVertices, 3, 5);
+}
+
 void QuadExtractor::switchHighValenceEdges()
 {
     if (m_remeshedVertices.empty() || m_remeshedPolygons.empty())
