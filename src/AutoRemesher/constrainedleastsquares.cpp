@@ -35,7 +35,27 @@
 namespace AutoRemesher {
 namespace {
     const size_t noIndex = std::numeric_limits<size_t>::max();
-    const double ridge = 1e-10;
+
+    // The regularizer nudges a rank-deficient normal matrix back to something
+    // factorizable, so it only has meaning relative to that matrix.  Callers
+    // weight their energies in whatever units they measure -- the quad cover
+    // weights each corner equation by the area of one quad, for instance -- so
+    // an absolute ridge is negligible on one model and dominant on another that
+    // is a hundred times smaller in world units.  It is applied as a fraction of
+    // the mean diagonal instead, which keeps a solve's outcome independent of
+    // the units the input mesh happens to be modelled in.
+    const double relativeRidge = 1e-10;
+
+    double ridgeFor(const Eigen::SparseMatrix<double>& normalMatrix)
+    {
+        const Eigen::Index size = normalMatrix.rows();
+        if (0 == size)
+            return relativeRidge;
+        const double mean = normalMatrix.diagonal().sum() / (double)size;
+        // An all-zero diagonal leaves nothing to be relative to; any positive
+        // ridge does the same job there.
+        return mean > 0.0 ? relativeRidge * mean : relativeRidge;
+    }
 }
 
 struct ConstrainedLeastSquares::Cache {
@@ -255,7 +275,7 @@ bool ConstrainedLeastSquares::buildReducedSystem()
     cache.normalMatrix = (cache.scaledMatrix.transpose() * cache.scaledMatrix).pruned();
     Eigen::SparseMatrix<double> regularizer(columnCount, columnCount);
     regularizer.setIdentity();
-    cache.normalMatrix += ridge * regularizer;
+    cache.normalMatrix += ridgeFor(cache.normalMatrix) * regularizer;
     cache.normalMatrix.makeCompressed();
     return true;
 }
@@ -350,6 +370,7 @@ bool ConstrainedLeastSquares::solveWithLagrangeMultipliers(std::vector<double>* 
     Eigen::SparseMatrix<double> normal(variableCount + independentConstraintCount, variableCount + independentConstraintCount);
     std::vector<Eigen::Triplet<double>> entries;
     Eigen::VectorXd rightHandSide = Eigen::VectorXd::Zero(variableCount + independentConstraintCount);
+    double diagonalSum = 0.0;
     for (const LinearEquation& equation : m_energyEquations) {
         for (const auto& coefficient : equation.coefficients) {
             if (coefficient.first >= m_variableCount)
@@ -358,8 +379,11 @@ bool ConstrainedLeastSquares::solveWithLagrangeMultipliers(std::vector<double>* 
             for (const auto& otherCoefficient : equation.coefficients) {
                 if (otherCoefficient.first >= m_variableCount)
                     return false;
+                const double entry = equation.weight * coefficient.second * otherCoefficient.second;
+                if (coefficient.first == otherCoefficient.first)
+                    diagonalSum += entry;
                 entries.emplace_back(static_cast<Eigen::Index>(coefficient.first), static_cast<Eigen::Index>(otherCoefficient.first),
-                    equation.weight * coefficient.second * otherCoefficient.second);
+                    entry);
             }
         }
     }
@@ -371,6 +395,8 @@ bool ConstrainedLeastSquares::solveWithLagrangeMultipliers(std::vector<double>* 
             entries.emplace_back(variableCount + constraintIndex, static_cast<Eigen::Index>(coefficient.first), coefficient.second);
         }
     }
+    const double meanDiagonal = variableCount > 0 ? diagonalSum / (double)variableCount : 0.0;
+    const double ridge = meanDiagonal > 0.0 ? relativeRidge * meanDiagonal : relativeRidge;
     for (Eigen::Index i = 0; i < variableCount; ++i)
         entries.emplace_back(i, i, ridge);
     normal.setFromTriplets(entries.begin(), entries.end());

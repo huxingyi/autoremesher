@@ -33,10 +33,10 @@ macx {
 }
 
 isEmpty(HUMAN_VERSION) {
-	HUMAN_VERSION = "1.1.0"
+	HUMAN_VERSION = "1.1.1"
 }
 isEmpty(VERSION) {
-	VERSION = 1.1.0.0
+	VERSION = 1.1.1.0
 }
 
 HOMEPAGE_URL = "https://autoremesher.dust3d.org/"
