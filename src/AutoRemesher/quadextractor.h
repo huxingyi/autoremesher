@@ -97,8 +97,6 @@ private:
     const std::vector<size_t>* m_singularVertices = nullptr;
     std::map<std::pair<size_t, size_t>, ConnectionInfo> m_connectionInfos;
     std::set<std::pair<size_t, size_t>> m_addedConnections;
-    // Points simplifyGraph() must leave alone, see holdSingularLines()
-    std::unordered_set<size_t> m_pinnedPoints;
     std::set<std::pair<size_t, size_t>> m_halfEdges;
 
     void extractConnections(std::vector<Vector3>* crossPoints,
