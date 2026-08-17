@@ -404,7 +404,7 @@ jobs:
       - name: Upload Windows zip artifact
         uses: actions/upload-artifact@v4
         with:
-          name: autoremesher-${{ github.ref_name }}-win32-x86_64.zip
+          name: autoremesher-${{ github.ref_name }}
           path: autoremesher-${{ github.ref_name }}-win32-x86_64.zip
 
   macos-upload:
