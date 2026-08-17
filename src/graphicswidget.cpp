@@ -21,6 +21,7 @@
  */
 #include "graphicswidget.h"
 #include "theme.h"
+#include <QNativeGestureEvent>
 
 GraphicsWidget::GraphicsWidget()
 {
@@ -59,6 +60,22 @@ void GraphicsWidget::wheelEvent(QWheelEvent* event)
 {
     if (m_modelWidget && m_modelWidget->inputWheelEventFromOtherWidget(event))
         return;
+}
+
+bool GraphicsWidget::inputNativeGestureEventFromOtherWidget(QNativeGestureEvent* event)
+{
+    if (m_modelWidget && m_modelWidget->inputNativeGestureEventFromOtherWidget(event))
+        return true;
+    return false;
+}
+
+bool GraphicsWidget::viewportEvent(QEvent* event)
+{
+    if (QEvent::NativeGesture == event->type()) {
+        if (inputNativeGestureEventFromOtherWidget(static_cast<QNativeGestureEvent*>(event)))
+            return true;
+    }
+    return QGraphicsView::viewportEvent(event);
 }
 
 void GraphicsWidget::mouseReleaseEvent(QMouseEvent* event)

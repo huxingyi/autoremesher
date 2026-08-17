@@ -32,10 +32,12 @@ public:
     ~GraphicsWidget();
     void setModelWidget(ModelShaderWidget* modelWidget);
     bool inputWheelEventFromOtherWidget(QWheelEvent* event);
+    bool inputNativeGestureEventFromOtherWidget(QNativeGestureEvent* event);
 
 protected:
     void mouseMoveEvent(QMouseEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
+    bool viewportEvent(QEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
 

@@ -34,6 +34,8 @@
 #include <QTimer>
 #include <QVector2D>
 
+QT_FORWARD_DECLARE_CLASS(QNativeGestureEvent)
+
 class ModelShaderWidget : public QOpenGLWidget, protected QOpenGLFunctions {
     Q_OBJECT
 signals:
@@ -73,6 +75,7 @@ public:
     bool inputMousePressEventFromOtherWidget(QMouseEvent* event);
     bool inputMouseMoveEventFromOtherWidget(QMouseEvent* event);
     bool inputWheelEventFromOtherWidget(QWheelEvent* event);
+    bool inputNativeGestureEventFromOtherWidget(QNativeGestureEvent* event);
     bool inputMouseReleaseEventFromOtherWidget(QMouseEvent* event);
     QPoint convertInputPosFromOtherWidget(QMouseEvent* event);
     void fetchCurrentToonNormalAndDepthMaps(QImage* normalMap, QImage* depthMap);
@@ -92,6 +95,7 @@ public slots:
     void setEyePosition(const QVector3D& eyePosition);
     void cleanup();
     void zoom(float delta);
+    void zoomBySteps(float steps);
     void setMousePickTargetPositionInModelSpace(QVector3D position);
     void setMousePickRadius(float radius);
     void reRender();
@@ -105,6 +109,7 @@ protected:
     void mouseMoveEvent(QMouseEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
+    bool event(QEvent* event) override;
 
 private:
     int m_xRotation = m_defaultXRotation;
@@ -127,6 +132,8 @@ private:
     static bool m_transparent;
     static float m_minZoomRatio;
     static float m_maxZoomRatio;
+    static float m_zoomStepFactor;
+    static float m_zoomStepsPerMagnification;
     QPoint m_moveStartPos;
     QRect m_moveStartGeometry;
     int m_modelInitialHeight = 0;
@@ -138,6 +145,7 @@ private:
     bool m_enableCullFace = true;
     void updateProjectionMatrix();
     void normalizeAngle(int& angle);
+    float zoomStepInPixels();
 
 public:
     static int m_defaultXRotation;

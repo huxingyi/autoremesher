@@ -20,6 +20,7 @@
  *  SOFTWARE.
  */
 #include "graphicscontainerwidget.h"
+#include <QNativeGestureEvent>
 
 GraphicsContainerWidget::GraphicsContainerWidget()
 {
@@ -59,6 +60,21 @@ void GraphicsContainerWidget::wheelEvent(QWheelEvent* event)
 
     if (m_modelWidget)
         m_modelWidget->inputWheelEventFromOtherWidget(event);
+}
+
+bool GraphicsContainerWidget::event(QEvent* event)
+{
+    if (QEvent::NativeGesture == event->type()) {
+        QNativeGestureEvent* gestureEvent = static_cast<QNativeGestureEvent*>(event);
+        if (m_graphicsWidget) {
+            if (m_graphicsWidget->inputNativeGestureEventFromOtherWidget(gestureEvent))
+                return true;
+        } else if (m_modelWidget) {
+            if (m_modelWidget->inputNativeGestureEventFromOtherWidget(gestureEvent))
+                return true;
+        }
+    }
+    return QWidget::event(event);
 }
 
 void GraphicsContainerWidget::setGraphicsWidget(GraphicsWidget* graphicsWidget)

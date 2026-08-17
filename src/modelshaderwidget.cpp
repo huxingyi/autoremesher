@@ -40,9 +40,24 @@ static inline QPoint mouseEventGlobalPos(QMouseEvent* event)
 #endif
 }
 
+static float wheelEventZoomSteps(QWheelEvent* event)
+{
+    const QPoint pixels = event->pixelDelta();
+    const QPoint angles = event->angleDelta();
+    float steps = 0.0f;
+    if (!pixels.isNull()) {
+        steps = pixels.y() / 50.0f;
+    } else if (!angles.isNull()) {
+        steps = angles.y() / 120.0f;
+    }
+    return std::max(-3.0f, std::min(3.0f, steps));
+}
+
 bool ModelShaderWidget::m_transparent = true;
 float ModelShaderWidget::m_minZoomRatio = 5.0;
 float ModelShaderWidget::m_maxZoomRatio = 80.0;
+float ModelShaderWidget::m_zoomStepFactor = 0.9;
+float ModelShaderWidget::m_zoomStepsPerMagnification = 10.0;
 
 int ModelShaderWidget::m_defaultXRotation = 30 * 16;
 int ModelShaderWidget::m_defaultYRotation = -45 * 16;
@@ -433,12 +448,11 @@ bool ModelShaderWidget::inputWheelEventFromOtherWidget(QWheelEvent* event)
     if (m_moveStarted)
         return true;
 
+    float steps = wheelEventZoomSteps(event);
+
     if (m_mousePickingEnabled) {
         if (QGuiApplication::queryKeyboardModifiers().testFlag(Qt::ShiftModifier)) {
-            if (event->angleDelta().y() > 0)
-                emit addMouseRadius(0.001f);
-            else if (event->angleDelta().y() < 0)
-                emit addMouseRadius(-0.001f);
+            emit addMouseRadius(0.001f * steps);
             return true;
         }
     }
@@ -446,11 +460,22 @@ bool ModelShaderWidget::inputWheelEventFromOtherWidget(QWheelEvent* event)
     if (!m_zoomEnabled)
         return false;
 
-    qreal delta = geometry().height() * 0.1f;
-    if (event->angleDelta().y() < 0)
-        delta = -delta;
-    zoom(delta);
+    zoomBySteps(steps);
 
+    return true;
+}
+
+bool ModelShaderWidget::inputNativeGestureEventFromOtherWidget(QNativeGestureEvent* event)
+{
+    if (Qt::ZoomNativeGesture != event->gestureType())
+        return false;
+
+    if (m_moveStarted || !m_zoomEnabled)
+        return false;
+
+    zoomBySteps((float)event->value() * m_zoomStepsPerMagnification);
+
+    event->accept();
     return true;
 }
 
@@ -475,15 +500,36 @@ void ModelShaderWidget::zoom(float delta)
         update();
         return;
     } else {
-        m_eyePosition += QVector3D(0, 0, m_eyePosition.z() * (delta > 0 ? -0.1 : 0.1));
-        if (m_eyePosition.z() < -15)
-            m_eyePosition.setZ(-15);
-        else if (m_eyePosition.z() > -0.1)
-            m_eyePosition.setZ(-0.1f);
-        emit eyePositionChanged(m_eyePosition);
-        emit renderParametersChanged();
-        update();
+        zoomBySteps(delta / zoomStepInPixels());
     }
+}
+
+void ModelShaderWidget::zoomBySteps(float steps)
+{
+    if (qFuzzyIsNull(steps))
+        return;
+
+    if (m_moveAndZoomByWindow) {
+        zoom(steps * zoomStepInPixels());
+        return;
+    }
+
+    float z = m_eyePosition.z() * std::pow(m_zoomStepFactor, steps);
+    if (z < -15)
+        z = -15;
+    else if (z > -0.1f)
+        z = -0.1f;
+    if (qFuzzyCompare(z, m_eyePosition.z()))
+        return;
+    m_eyePosition.setZ(z);
+    emit eyePositionChanged(m_eyePosition);
+    emit renderParametersChanged();
+    update();
+}
+
+float ModelShaderWidget::zoomStepInPixels()
+{
+    return std::max(1.0f, (float)geometry().height() * 0.1f);
 }
 
 void ModelShaderWidget::setMousePickTargetPositionInModelSpace(QVector3D position)
@@ -559,6 +605,15 @@ void ModelShaderWidget::mouseMoveEvent(QMouseEvent* event)
 void ModelShaderWidget::wheelEvent(QWheelEvent* event)
 {
     inputWheelEventFromOtherWidget(event);
+}
+
+bool ModelShaderWidget::event(QEvent* event)
+{
+    if (QEvent::NativeGesture == event->type()) {
+        if (inputNativeGestureEventFromOtherWidget(static_cast<QNativeGestureEvent*>(event)))
+            return true;
+    }
+    return QOpenGLWidget::event(event);
 }
 
 void ModelShaderWidget::mouseReleaseEvent(QMouseEvent* event)
