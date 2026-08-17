@@ -256,6 +256,8 @@ bool QuadExtractor::extract()
     convertTriangleAndFiveEdgeFans();
     report(0.93f, "Collapsing three valence diagonals");
     collapseThreeValenceDiagonals();
+    report(0.97f, "Merging double shared edge quads");
+    mergeDoubleSharedEdgeQuads();
     report(1.0f, "");
 
 #if AUTO_REMESHER_DEV
@@ -2287,6 +2289,186 @@ void QuadExtractor::collapseThreeValenceDiagonals()
     // The point in the middle came from the diagonal, not from the source mesh, pull
     // the patch which closed up around it back onto the surface
     smoothAroundVertices(compactedCollapsedVertices, 3, 5);
+}
+
+void QuadExtractor::mergeDoubleSharedEdgeQuads()
+{
+    if (m_remeshedVertices.empty() || m_remeshedPolygons.empty())
+        return;
+
+    const auto hasRepeatedVertex = [](const std::vector<size_t>& face) {
+        std::unordered_set<size_t> vertices(face.begin(), face.end());
+        return vertices.size() != face.size();
+    };
+    const auto canonicalFace = [](const std::vector<size_t>& face) {
+        std::vector<size_t> best;
+        std::vector<size_t> reversed(face.rbegin(), face.rend());
+        for (const std::vector<size_t>* winding : {
+                 &face, static_cast<const std::vector<size_t>*>(&reversed) }) {
+            for (size_t start = 0; start < winding->size(); ++start) {
+                std::vector<size_t> candidate;
+                candidate.reserve(winding->size());
+                for (size_t i = 0; i < winding->size(); ++i)
+                    candidate.push_back((*winding)[(start + i) % winding->size()]);
+                if (best.empty() || candidate < best)
+                    best = std::move(candidate);
+            }
+        }
+        return best;
+    };
+    const auto indexOfVertex = [](const std::vector<size_t>& face, size_t vertex) {
+        for (size_t i = 0; i < face.size(); ++i) {
+            if (vertex == face[i])
+                return i;
+        }
+        return face.size();
+    };
+    const auto faceNormal = [&](const std::vector<size_t>& face) {
+        Vector3 normal;
+        for (size_t i = 1; i + 1 < face.size(); ++i) {
+            normal += Vector3::crossProduct(
+                m_remeshedVertices[face[i]] - m_remeshedVertices[face[0]],
+                m_remeshedVertices[face[i + 1]] - m_remeshedVertices[face[0]]);
+        }
+        return normal;
+    };
+
+    size_t mergeNum = 0;
+    std::unordered_set<size_t> mergedVertices;
+    for (;;) {
+        std::unordered_map<size_t, std::unordered_set<size_t>> vertexNeighbors;
+        std::unordered_map<size_t, std::vector<size_t>> vertexFaces;
+        for (size_t faceIndex = 0; faceIndex < m_remeshedPolygons.size(); ++faceIndex) {
+            const auto& face = m_remeshedPolygons[faceIndex];
+            for (size_t i = 0; i < face.size(); ++i) {
+                const size_t j = (i + 1) % face.size();
+                vertexNeighbors[face[i]].insert(face[j]);
+                vertexNeighbors[face[j]].insert(face[i]);
+            }
+            for (const auto& vertex : face)
+                vertexFaces[vertex].push_back(faceIndex);
+        }
+
+        std::set<size_t> middleVertices;
+        for (const auto& it : vertexNeighbors) {
+            if (2 != it.second.size())
+                continue;
+            const auto& findFaces = vertexFaces.find(it.first);
+            if (vertexFaces.end() == findFaces || 2 != findFaces->second.size())
+                continue;
+            middleVertices.insert(it.first);
+        }
+
+        std::set<std::vector<size_t>> existingFaces;
+        for (const auto& face : m_remeshedPolygons)
+            existingFaces.insert(canonicalFace(face));
+
+        std::unordered_set<size_t> touchedVertices;
+        std::unordered_map<size_t, std::vector<size_t>> replacedFaces;
+        std::unordered_set<size_t> removedFaces;
+        size_t roundMergeNum = 0;
+        for (const auto& middle : middleVertices) {
+            const auto& faces = vertexFaces[middle];
+            const size_t firstFaceIndex = faces[0];
+            const size_t secondFaceIndex = faces[1];
+            if (firstFaceIndex == secondFaceIndex)
+                continue;
+            const auto& firstFace = m_remeshedPolygons[firstFaceIndex];
+            const auto& secondFace = m_remeshedPolygons[secondFaceIndex];
+            if (4 != firstFace.size() || 4 != secondFace.size())
+                continue;
+            if (hasRepeatedVertex(firstFace) || hasRepeatedVertex(secondFace))
+                continue;
+            const size_t firstAt = indexOfVertex(firstFace, middle);
+            const size_t secondAt = indexOfVertex(secondFace, middle);
+            if (firstAt >= firstFace.size() || secondAt >= secondFace.size())
+                continue;
+            const size_t previous = firstFace[(firstAt + 3) % 4];
+            const size_t next = firstFace[(firstAt + 1) % 4];
+            if (previous != secondFace[(secondAt + 1) % 4]
+                || next != secondFace[(secondAt + 3) % 4])
+                continue;
+            const size_t firstApex = firstFace[(firstAt + 2) % 4];
+            const size_t secondApex = secondFace[(secondAt + 2) % 4];
+            if (firstApex == secondApex)
+                continue;
+            bool touched = false;
+            for (const auto& vertex : { middle, previous, next, firstApex, secondApex }) {
+                if (touchedVertices.end() != touchedVertices.find(vertex)) {
+                    touched = true;
+                    break;
+                }
+            }
+            if (touched)
+                continue;
+
+            std::vector<size_t> merged { firstApex, previous, secondApex, next };
+            if (hasRepeatedVertex(merged))
+                continue;
+            if (existingFaces.end() != existingFaces.find(canonicalFace(merged)))
+                continue;
+            if (Vector3::dotProduct(faceNormal(firstFace) + faceNormal(secondFace),
+                    faceNormal(merged))
+                <= 0.0)
+                continue;
+
+            existingFaces.insert(canonicalFace(merged));
+            replacedFaces.insert({ firstFaceIndex, merged });
+            removedFaces.insert(secondFaceIndex);
+            touchedVertices.insert(merged.begin(), merged.end());
+            touchedVertices.insert(middle);
+            mergedVertices.insert(merged.begin(), merged.end());
+            ++roundMergeNum;
+        }
+
+        if (0 == roundMergeNum)
+            break;
+
+        std::vector<std::vector<size_t>> rewritten;
+        rewritten.reserve(m_remeshedPolygons.size() - roundMergeNum);
+        for (size_t faceIndex = 0; faceIndex < m_remeshedPolygons.size(); ++faceIndex) {
+            if (removedFaces.end() != removedFaces.find(faceIndex))
+                continue;
+            const auto& findReplaced = replacedFaces.find(faceIndex);
+            if (replacedFaces.end() != findReplaced) {
+                rewritten.push_back(findReplaced->second);
+                continue;
+            }
+            rewritten.push_back(m_remeshedPolygons[faceIndex]);
+        }
+        m_remeshedPolygons = std::move(rewritten);
+        mergeNum += roundMergeNum;
+    }
+
+    if (0 == mergeNum)
+        return;
+
+    std::map<size_t, size_t> oldToNew;
+    std::vector<Vector3> compactedVertices;
+    for (const auto& face : m_remeshedPolygons) {
+        for (const auto vertex : face) {
+            if (oldToNew.end() != oldToNew.find(vertex))
+                continue;
+            oldToNew[vertex] = compactedVertices.size();
+            compactedVertices.push_back(m_remeshedVertices[vertex]);
+        }
+    }
+    for (auto& face : m_remeshedPolygons) {
+        for (auto& vertex : face)
+            vertex = oldToNew.at(vertex);
+    }
+    m_remeshedVertices = std::move(compactedVertices);
+    std::unordered_set<size_t> compactedMergedVertices;
+    for (const auto& vertex : mergedVertices) {
+        const auto& findNew = oldToNew.find(vertex);
+        if (oldToNew.end() != findNew)
+            compactedMergedVertices.insert(findNew->second);
+    }
+
+    std::cerr << "Merge double shared edge quads:" << mergeNum << std::endl;
+    rebuildHalfEdges();
+
+    smoothAroundVertices(compactedMergedVertices, 3, 5);
 }
 
 void QuadExtractor::switchHighValenceEdges()
