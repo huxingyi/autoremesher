@@ -1,3 +1,9 @@
+1.2.0
+- Reduce triangles and irregular vertices in quad extraction
+- Support touch pad pinch and scroll zooming
+- Fix parameterization for tiny size model
+- Fix repeated file name in the Windows release zip
+
 1.1.0
 - Replace Geogram with a native quad parameterizer
 - Add anisotropic quad sizing and the `--anisotropy` CLI option
