@@ -256,14 +256,16 @@ bool QuadExtractor::extract()
     convertTriangleAndFiveEdgeFans();
     report(0.93f, "Collapsing three valence diagonals");
     collapseThreeValenceDiagonals();
-    report(0.96f, "Merging double shared edge quads");
+    report(0.95f, "Merging double shared edge quads");
     mergeDoubleSharedEdgeQuads();
-    report(0.97f, "Merging three and five valence triangles");
+    report(0.96f, "Merging three and five valence triangles");
     mergeThreeAndFiveValenceTriangles();
-    report(0.98f, "Collapsing three valence corners");
+    report(0.97f, "Collapsing three valence corners");
     collapseThreeValenceCorners();
-    report(0.99f, "Splitting high valence triangle fans");
+    report(0.98f, "Splitting high valence triangle fans");
     splitHighValenceTriangleFans();
+    report(0.99f, "Collapsing three valence edge pairs");
+    collapseThreeValenceEdgePairs();
     report(1.0f, "");
 
 #if AUTO_REMESHER_DEV
@@ -3364,6 +3366,302 @@ void QuadExtractor::splitHighValenceTriangleFans()
     rebuildHalfEdges();
 
     smoothAroundVertices(splitVertices, 3, 5);
+}
+
+void QuadExtractor::collapseThreeValenceEdgePairs()
+{
+    if (m_remeshedVertices.empty() || m_remeshedPolygons.empty())
+        return;
+
+    using Edge = std::pair<size_t, size_t>;
+    const auto edgeOf = [](size_t a, size_t b) {
+        return std::make_pair(std::min(a, b), std::max(a, b));
+    };
+    const auto hasRepeatedVertex = [](const std::vector<size_t>& face) {
+        std::unordered_set<size_t> vertices(face.begin(), face.end());
+        return vertices.size() != face.size();
+    };
+    const auto faceNormal = [this](const std::vector<size_t>& face) {
+        Vector3 normal;
+        const auto origin = m_remeshedVertices[face[0]];
+        for (size_t i = 1; i + 1 < face.size(); ++i) {
+            normal += Vector3::crossProduct(m_remeshedVertices[face[i]] - origin,
+                m_remeshedVertices[face[i + 1]] - origin);
+        }
+        return normal;
+    };
+    const auto valenceScore = [](size_t valence) {
+        return valence > 4 ? (int)(valence - 4) : (int)(4 - valence);
+    };
+    const auto cornerScore = [this](const std::vector<size_t>& quad) {
+        double total = 0.0;
+        for (size_t i = 0; i < quad.size(); ++i) {
+            const size_t h = (i + quad.size() - 1) % quad.size();
+            const size_t j = (i + 1) % quad.size();
+            const auto left = (m_remeshedVertices[quad[h]] - m_remeshedVertices[quad[i]]).normalized();
+            const auto right = (m_remeshedVertices[quad[j]] - m_remeshedVertices[quad[i]]).normalized();
+            total += std::abs(Vector3::dotProduct(left, right));
+        }
+        return -total / quad.size();
+    };
+    const size_t minValence = 3;
+    const size_t hexagonSize = 6;
+    const size_t patchFaceNum = 4;
+    const size_t patchBuriedEdgeNum = 5;
+
+    size_t collapseCount = 0;
+    std::unordered_set<size_t> collapsedVertices;
+    for (;;) {
+        std::map<Edge, std::vector<size_t>> edgeFaces;
+        std::unordered_map<size_t, std::unordered_set<size_t>> vertexNeighbors;
+        std::unordered_map<size_t, std::vector<size_t>> vertexFaces;
+        for (size_t faceIndex = 0; faceIndex < m_remeshedPolygons.size(); ++faceIndex) {
+            const auto& face = m_remeshedPolygons[faceIndex];
+            for (size_t i = 0; i < face.size(); ++i) {
+                const size_t j = (i + 1) % face.size();
+                edgeFaces[edgeOf(face[i], face[j])].push_back(faceIndex);
+                vertexNeighbors[face[i]].insert(face[j]);
+                vertexNeighbors[face[j]].insert(face[i]);
+            }
+            for (const auto& vertex : face)
+                vertexFaces[vertex].push_back(faceIndex);
+        }
+
+        std::unordered_set<size_t> borderVertices;
+        for (const auto& it : edgeFaces) {
+            if (2 == it.second.size())
+                continue;
+            borderVertices.insert(it.first.first);
+            borderVertices.insert(it.first.second);
+        }
+
+        const auto flowScoreAt = [&](size_t vertex, const Vector3& direction,
+                                     const std::unordered_set<size_t>& skipNeighbors) {
+            double best = -1.0;
+            bool found = false;
+            for (const auto& neighbor : vertexNeighbors[vertex]) {
+                if (skipNeighbors.end() != skipNeighbors.find(neighbor))
+                    continue;
+                const auto incoming = (m_remeshedVertices[vertex] - m_remeshedVertices[neighbor]).normalized();
+                const double score = Vector3::dotProduct(incoming, direction);
+                if (score > best)
+                    best = score;
+                found = true;
+            }
+            return found ? best : 0.0;
+        };
+
+        std::unordered_set<size_t> touchedVertices;
+        std::unordered_set<size_t> removedFaces;
+        std::vector<std::vector<size_t>> addedFaces;
+        size_t roundCollapseCount = 0;
+        for (const auto& it : edgeFaces) {
+            if (2 != it.second.size())
+                continue;
+            const size_t first = it.first.first;
+            const size_t second = it.first.second;
+            if (3 != vertexNeighbors[first].size() || 3 != vertexNeighbors[second].size())
+                continue;
+            if (3 != vertexFaces[first].size() || 3 != vertexFaces[second].size())
+                continue;
+
+            std::vector<size_t> patchFaces(vertexFaces[first]);
+            patchFaces.insert(patchFaces.end(),
+                vertexFaces[second].begin(), vertexFaces[second].end());
+            std::sort(patchFaces.begin(), patchFaces.end());
+            patchFaces.erase(std::unique(patchFaces.begin(), patchFaces.end()), patchFaces.end());
+            if (patchFaceNum != patchFaces.size())
+                continue;
+            bool usable = true;
+            for (const auto& faceIndex : patchFaces) {
+                const auto& face = m_remeshedPolygons[faceIndex];
+                if (4 != face.size() || hasRepeatedVertex(face)) {
+                    usable = false;
+                    break;
+                }
+                for (const auto& vertex : face) {
+                    if (borderVertices.end() != borderVertices.find(vertex)
+                        || touchedVertices.end() != touchedVertices.find(vertex)) {
+                        usable = false;
+                        break;
+                    }
+                }
+                if (!usable)
+                    break;
+            }
+            if (!usable)
+                continue;
+
+            std::set<std::pair<size_t, size_t>> directedEdges;
+            for (const auto& faceIndex : patchFaces) {
+                const auto& face = m_remeshedPolygons[faceIndex];
+                for (size_t i = 0; i < face.size(); ++i)
+                    directedEdges.insert({ face[i], face[(i + 1) % face.size()] });
+            }
+            std::map<size_t, size_t> boundaryNext;
+            std::unordered_map<size_t, size_t> buriedCounts;
+            size_t buriedEdgeNum = 0;
+            bool simpleBoundary = true;
+            for (const auto& directedEdge : directedEdges) {
+                if (directedEdges.end() != directedEdges.find({ directedEdge.second, directedEdge.first })) {
+                    if (directedEdge.first < directedEdge.second) {
+                        ++buriedEdgeNum;
+                        ++buriedCounts[directedEdge.first];
+                        ++buriedCounts[directedEdge.second];
+                    }
+                    continue;
+                }
+                if (!boundaryNext.insert({ directedEdge.first, directedEdge.second }).second) {
+                    simpleBoundary = false;
+                    break;
+                }
+            }
+            if (!simpleBoundary || hexagonSize != boundaryNext.size()
+                || patchBuriedEdgeNum != buriedEdgeNum)
+                continue;
+
+            std::vector<size_t> hexagon;
+            hexagon.reserve(hexagonSize);
+            const size_t start = boundaryNext.begin()->first;
+            size_t walk = start;
+            for (size_t i = 0; i < hexagonSize; ++i) {
+                hexagon.push_back(walk);
+                const auto& findNext = boundaryNext.find(walk);
+                if (boundaryNext.end() == findNext)
+                    break;
+                walk = findNext->second;
+            }
+            if (hexagonSize != hexagon.size() || walk != start || hasRepeatedVertex(hexagon))
+                continue;
+
+            int oldScore = valenceScore(vertexNeighbors[first].size())
+                + valenceScore(vertexNeighbors[second].size());
+            for (const auto& corner : hexagon)
+                oldScore += valenceScore(vertexNeighbors[corner].size());
+            Vector3 oldNormal;
+            for (const auto& faceIndex : patchFaces)
+                oldNormal += faceNormal(m_remeshedPolygons[faceIndex]);
+
+            int bestScore = 0;
+            double bestFlow = 0.0;
+            std::vector<std::vector<size_t>> bestQuads;
+            for (size_t i = 0; i < hexagonSize / 2; ++i) {
+                const size_t across = i + hexagonSize / 2;
+                const size_t corner = hexagon[i];
+                const size_t opposite = hexagon[across];
+                if (vertexNeighbors[corner].end() != vertexNeighbors[corner].find(opposite))
+                    continue;
+
+                int newScore = 0;
+                bool lopsided = false;
+                for (size_t j = 0; j < hexagonSize && !lopsided; ++j) {
+                    const size_t valence = vertexNeighbors[hexagon[j]].size()
+                        - buriedCounts[hexagon[j]] + (i == j || across == j ? 1 : 0);
+                    if (valence < minValence)
+                        lopsided = true;
+                    newScore += valenceScore(valence);
+                }
+                if (lopsided || newScore > oldScore)
+                    continue;
+
+                std::vector<std::vector<size_t>> quads = {
+                    { corner, hexagon[(i + 1) % hexagonSize],
+                        hexagon[(i + 2) % hexagonSize], opposite },
+                    { opposite, hexagon[(across + 1) % hexagonSize],
+                        hexagon[(across + 2) % hexagonSize], corner }
+                };
+                bool folded = false;
+                for (const auto& quad : quads) {
+                    if (Vector3::dotProduct(oldNormal, faceNormal(quad)) <= 0.0) {
+                        folded = true;
+                        break;
+                    }
+                }
+                if (folded)
+                    continue;
+
+                const auto span = m_remeshedVertices[opposite] - m_remeshedVertices[corner];
+                const auto direction = span.normalized();
+                const std::unordered_set<size_t> cornerSkip = {
+                    hexagon[(i + 1) % hexagonSize],
+                    hexagon[(i + hexagonSize - 1) % hexagonSize], first, second
+                };
+                const std::unordered_set<size_t> oppositeSkip = {
+                    hexagon[(across + 1) % hexagonSize],
+                    hexagon[(across + hexagonSize - 1) % hexagonSize], first, second
+                };
+                double newFlow = flowScoreAt(corner, direction, cornerSkip)
+                    + flowScoreAt(opposite, -direction, oppositeSkip);
+                for (const auto& quad : quads)
+                    newFlow += cornerScore(quad);
+                if (!bestQuads.empty()
+                    && (newScore > bestScore
+                        || (newScore == bestScore && newFlow <= bestFlow)))
+                    continue;
+
+                bestScore = newScore;
+                bestFlow = newFlow;
+                bestQuads = std::move(quads);
+            }
+            if (bestQuads.empty())
+                continue;
+
+            for (const auto& faceIndex : patchFaces) {
+                removedFaces.insert(faceIndex);
+                for (const auto& vertex : m_remeshedPolygons[faceIndex])
+                    touchedVertices.insert(vertex);
+            }
+            for (auto& quad : bestQuads)
+                addedFaces.push_back(std::move(quad));
+            collapsedVertices.insert(hexagon.begin(), hexagon.end());
+            ++roundCollapseCount;
+        }
+
+        if (0 == roundCollapseCount)
+            break;
+
+        std::vector<std::vector<size_t>> rewritten;
+        rewritten.reserve(m_remeshedPolygons.size() - removedFaces.size() + addedFaces.size());
+        for (size_t faceIndex = 0; faceIndex < m_remeshedPolygons.size(); ++faceIndex) {
+            if (removedFaces.end() != removedFaces.find(faceIndex))
+                continue;
+            rewritten.push_back(m_remeshedPolygons[faceIndex]);
+        }
+        for (auto& face : addedFaces)
+            rewritten.push_back(std::move(face));
+        m_remeshedPolygons = std::move(rewritten);
+        collapseCount += roundCollapseCount;
+    }
+
+    if (0 == collapseCount)
+        return;
+
+    std::map<size_t, size_t> oldToNew;
+    std::vector<Vector3> compactedVertices;
+    for (const auto& face : m_remeshedPolygons) {
+        for (const auto vertex : face) {
+            if (oldToNew.end() != oldToNew.find(vertex))
+                continue;
+            oldToNew[vertex] = compactedVertices.size();
+            compactedVertices.push_back(m_remeshedVertices[vertex]);
+        }
+    }
+    for (auto& face : m_remeshedPolygons) {
+        for (auto& vertex : face)
+            vertex = oldToNew.at(vertex);
+    }
+    m_remeshedVertices = std::move(compactedVertices);
+    std::unordered_set<size_t> compactedCollapsedVertices;
+    for (const auto& vertex : collapsedVertices) {
+        const auto& findNew = oldToNew.find(vertex);
+        if (oldToNew.end() != findNew)
+            compactedCollapsedVertices.insert(findNew->second);
+    }
+
+    std::cerr << "Collapse three valence edge pairs:" << collapseCount << std::endl;
+    rebuildHalfEdges();
+
+    smoothAroundVertices(compactedCollapsedVertices, 3, 5);
 }
 
 void QuadExtractor::switchHighValenceEdges()
