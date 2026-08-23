@@ -256,12 +256,14 @@ bool QuadExtractor::extract()
     convertTriangleAndFiveEdgeFans();
     report(0.93f, "Collapsing three valence diagonals");
     collapseThreeValenceDiagonals();
-    report(0.97f, "Merging double shared edge quads");
+    report(0.96f, "Merging double shared edge quads");
     mergeDoubleSharedEdgeQuads();
-    report(0.98f, "Merging three and five valence triangles");
+    report(0.97f, "Merging three and five valence triangles");
     mergeThreeAndFiveValenceTriangles();
-    report(0.99f, "Collapsing three valence corners");
+    report(0.98f, "Collapsing three valence corners");
     collapseThreeValenceCorners();
+    report(0.99f, "Splitting high valence triangle fans");
+    splitHighValenceTriangleFans();
     report(1.0f, "");
 
 #if AUTO_REMESHER_DEV
@@ -3097,6 +3099,271 @@ void QuadExtractor::collapseThreeValenceCorners()
     rebuildHalfEdges();
 
     smoothAroundVertices(compactedCollapsedVertices, 3, 5);
+}
+
+void QuadExtractor::splitHighValenceTriangleFans()
+{
+    if (m_remeshedVertices.empty() || m_remeshedPolygons.empty())
+        return;
+
+    using Edge = std::pair<size_t, size_t>;
+    const auto edgeOf = [](size_t a, size_t b) {
+        return std::make_pair(std::min(a, b), std::max(a, b));
+    };
+    const auto hasRepeatedVertex = [](const std::vector<size_t>& face) {
+        std::unordered_set<size_t> vertices(face.begin(), face.end());
+        return vertices.size() != face.size();
+    };
+    const size_t noVertex = std::numeric_limits<size_t>::max();
+    Vector3 addedPosition;
+    size_t addedVertex = noVertex;
+    const auto positionOf = [&](size_t vertex) {
+        return vertex == addedVertex ? addedPosition : m_remeshedVertices[vertex];
+    };
+    const auto faceNormal = [&](const std::vector<size_t>& face) {
+        Vector3 normal;
+        const auto origin = positionOf(face[0]);
+        for (size_t i = 1; i + 1 < face.size(); ++i) {
+            normal += Vector3::crossProduct(positionOf(face[i]) - origin,
+                positionOf(face[i + 1]) - origin);
+        }
+        return normal;
+    };
+    const auto valenceScore = [](size_t valence) {
+        return valence > 4 ? (int)(valence - 4) : (int)(4 - valence);
+    };
+    const size_t minValence = 3;
+    const size_t minFanValence = 5;
+    const int trianglePayment = 2;
+
+    size_t splitNum = 0;
+    std::unordered_set<size_t> splitVertices;
+    for (;;) {
+        std::map<Edge, std::vector<size_t>> edgeFaces;
+        std::unordered_map<size_t, std::unordered_set<size_t>> vertexNeighbors;
+        std::unordered_map<size_t, std::vector<size_t>> vertexFaces;
+        for (size_t faceIndex = 0; faceIndex < m_remeshedPolygons.size(); ++faceIndex) {
+            const auto& face = m_remeshedPolygons[faceIndex];
+            for (size_t i = 0; i < face.size(); ++i) {
+                const size_t j = (i + 1) % face.size();
+                edgeFaces[edgeOf(face[i], face[j])].push_back(faceIndex);
+                vertexNeighbors[face[i]].insert(face[j]);
+                vertexNeighbors[face[j]].insert(face[i]);
+            }
+            for (const auto& vertex : face)
+                vertexFaces[vertex].push_back(faceIndex);
+        }
+
+        std::unordered_set<size_t> borderVertices;
+        for (const auto& it : edgeFaces) {
+            if (2 == it.second.size())
+                continue;
+            borderVertices.insert(it.first.first);
+            borderVertices.insert(it.first.second);
+        }
+
+        const auto fanAround = [&](size_t vertex, std::vector<size_t>* fan) {
+            fan->clear();
+            const auto& findFaces = vertexFaces.find(vertex);
+            if (vertexFaces.end() == findFaces || findFaces->second.empty())
+                return false;
+            const size_t startFace = findFaces->second.front();
+            size_t currentFace = startFace;
+            for (;;) {
+                fan->push_back(currentFace);
+                if (fan->size() > findFaces->second.size())
+                    return false;
+                const auto& face = m_remeshedPolygons[currentFace];
+                size_t at = face.size();
+                for (size_t i = 0; i < face.size(); ++i) {
+                    if (vertex == face[i]) {
+                        at = i;
+                        break;
+                    }
+                }
+                if (at >= face.size())
+                    return false;
+                const auto& incident = edgeFaces[edgeOf(vertex, face[(at + 1) % face.size()])];
+                if (2 != incident.size())
+                    return false;
+                currentFace = incident[0] == currentFace ? incident[1] : incident[0];
+                if (currentFace == startFace)
+                    break;
+            }
+            return fan->size() == findFaces->second.size();
+        };
+
+        std::unordered_set<size_t> touchedVertices;
+        size_t roundSplitNum = 0;
+        std::set<size_t> fanVertices;
+        for (const auto& it : vertexNeighbors) {
+            if (it.second.size() >= minFanValence)
+                fanVertices.insert(it.first);
+        }
+        for (const auto& vertex : fanVertices) {
+            if (touchedVertices.end() != touchedVertices.find(vertex)
+                || borderVertices.end() != borderVertices.find(vertex))
+                continue;
+            std::vector<size_t> fan;
+            if (!fanAround(vertex, &fan) || fan.size() != vertexNeighbors[vertex].size())
+                continue;
+
+            int bestScore = 0;
+            std::vector<std::vector<size_t>> bestQuads;
+            std::vector<size_t> bestRun;
+            std::vector<size_t> bestOctagon;
+            Vector3 bestPosition;
+            for (size_t runStart = 0; runStart < fan.size(); ++runStart) {
+                const size_t oddSize = m_remeshedPolygons[fan[runStart]].size();
+                if (3 != oddSize && 4 != oddSize)
+                    continue;
+                const size_t evenSize = 3 == oddSize ? 4 : 3;
+                std::vector<size_t> run;
+                run.reserve(4);
+                for (size_t i = 0; i < 4; ++i) {
+                    const size_t faceIndex = fan[(runStart + i) % fan.size()];
+                    const auto& face = m_remeshedPolygons[faceIndex];
+                    if (face.size() != (0 == i % 2 ? oddSize : evenSize)
+                        || hasRepeatedVertex(face))
+                        break;
+                    run.push_back(faceIndex);
+                }
+                if (4 != run.size())
+                    continue;
+
+                std::set<std::pair<size_t, size_t>> directedEdges;
+                for (const auto& faceIndex : run) {
+                    const auto& face = m_remeshedPolygons[faceIndex];
+                    for (size_t i = 0; i < face.size(); ++i)
+                        directedEdges.insert({ face[i], face[(i + 1) % face.size()] });
+                }
+                std::unordered_map<size_t, size_t> boundaryNext;
+                std::vector<Edge> buriedEdges;
+                bool simpleBoundary = true;
+                for (const auto& directedEdge : directedEdges) {
+                    if (directedEdges.end() != directedEdges.find({ directedEdge.second, directedEdge.first })) {
+                        if (directedEdge.first < directedEdge.second)
+                            buriedEdges.push_back(edgeOf(directedEdge.first, directedEdge.second));
+                        continue;
+                    }
+                    if (!boundaryNext.insert({ directedEdge.first, directedEdge.second }).second) {
+                        simpleBoundary = false;
+                        break;
+                    }
+                }
+                if (!simpleBoundary || 8 != boundaryNext.size() || 3 != buriedEdges.size())
+                    continue;
+                bool buriedAtFanVertex = true;
+                std::unordered_map<size_t, size_t> buriedCounts;
+                for (const auto& buried : buriedEdges) {
+                    if (vertex != buried.first && vertex != buried.second) {
+                        buriedAtFanVertex = false;
+                        break;
+                    }
+                    ++buriedCounts[buried.first];
+                    ++buriedCounts[buried.second];
+                }
+                if (!buriedAtFanVertex)
+                    continue;
+
+                std::vector<size_t> octagon;
+                octagon.reserve(8);
+                size_t walk = vertex;
+                for (size_t i = 0; i < 8; ++i) {
+                    octagon.push_back(walk);
+                    const auto& findNext = boundaryNext.find(walk);
+                    if (boundaryNext.end() == findNext)
+                        break;
+                    walk = findNext->second;
+                }
+                if (8 != octagon.size() || walk != vertex || hasRepeatedVertex(octagon))
+                    continue;
+                const size_t brokenAt = octagon[4];
+                if (buriedEdges.end() == std::find(buriedEdges.begin(), buriedEdges.end(), edgeOf(vertex, brokenAt)))
+                    continue;
+                bool touched = false;
+                for (const auto& corner : octagon) {
+                    if (touchedVertices.end() != touchedVertices.find(corner)) {
+                        touched = true;
+                        break;
+                    }
+                }
+                if (touched)
+                    continue;
+
+                int newScore = 0;
+                bool lopsided = false;
+                for (size_t i = 0; i < 8 && !lopsided; ++i) {
+                    const size_t valence = vertexNeighbors[octagon[i]].size()
+                        - buriedCounts[octagon[i]] + (0 == i % 2 ? 1 : 0);
+                    if (valence < minValence)
+                        lopsided = true;
+                    newScore += valenceScore(valence);
+                }
+                if (lopsided)
+                    continue;
+                int oldScore = trianglePayment;
+                for (const auto& corner : octagon)
+                    oldScore += valenceScore(vertexNeighbors[corner].size());
+                if (newScore > oldScore)
+                    continue;
+                if (!bestQuads.empty() && newScore >= bestScore)
+                    continue;
+
+                addedVertex = m_remeshedVertices.size();
+                addedPosition = (m_remeshedVertices[vertex] + m_remeshedVertices[brokenAt]) * 0.5;
+
+                std::vector<std::vector<size_t>> quads;
+                quads.reserve(4);
+                for (size_t i = 0; i < 8; i += 2) {
+                    quads.push_back({ octagon[i], octagon[(i + 1) % 8],
+                        octagon[(i + 2) % 8], addedVertex });
+                }
+
+                Vector3 oldNormal;
+                for (const auto& faceIndex : run)
+                    oldNormal += faceNormal(m_remeshedPolygons[faceIndex]);
+                bool shaped = true;
+                for (const auto& quad : quads) {
+                    if (Vector3::dotProduct(oldNormal, faceNormal(quad)) <= 0.0) {
+                        shaped = false;
+                        break;
+                    }
+                }
+                addedVertex = noVertex;
+                if (!shaped)
+                    continue;
+
+                bestScore = newScore;
+                bestQuads = std::move(quads);
+                bestRun = std::move(run);
+                bestOctagon = std::move(octagon);
+                bestPosition = addedPosition;
+            }
+            if (bestQuads.empty())
+                continue;
+
+            splitVertices.insert(m_remeshedVertices.size());
+            m_remeshedVertices.push_back(bestPosition);
+            for (size_t i = 0; i < bestRun.size(); ++i)
+                m_remeshedPolygons[bestRun[i]] = bestQuads[i];
+            touchedVertices.insert(bestOctagon.begin(), bestOctagon.end());
+            splitVertices.insert(bestOctagon.begin(), bestOctagon.end());
+            ++roundSplitNum;
+        }
+
+        if (0 == roundSplitNum)
+            break;
+        splitNum += roundSplitNum;
+    }
+
+    if (0 == splitNum)
+        return;
+
+    std::cerr << "Split high valence triangle fans:" << splitNum << std::endl;
+    rebuildHalfEdges();
+
+    smoothAroundVertices(splitVertices, 3, 5);
 }
 
 void QuadExtractor::switchHighValenceEdges()
