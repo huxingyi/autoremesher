@@ -31,7 +31,8 @@ namespace AutoRemesher {
 
 class ConstrainedLeastSquares {
 public:
-    explicit ConstrainedLeastSquares(size_t variableCount);
+    explicit ConstrainedLeastSquares(size_t variableCount,
+        bool useMemoryBoundedSolver = false);
     ~ConstrainedLeastSquares();
 
     size_t addEnergy(const std::vector<std::pair<size_t, double>>& coefficients,
@@ -64,6 +65,7 @@ private:
     bool solveWithLagrangeMultipliers(std::vector<double>* solution) const;
 
     size_t m_variableCount;
+    bool m_useMemoryBoundedSolver;
     std::vector<LinearEquation> m_energyEquations;
     std::vector<LinearEquation> m_constraintEquations;
 

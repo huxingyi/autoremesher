@@ -302,7 +302,7 @@ namespace {
             acrossGradient[1] = -across / sv[face];
         };
 
-        ConstrainedLeastSquares system(3 * faceCount);
+        ConstrainedLeastSquares system(3 * faceCount, true);
         size_t edgeCount = 0;
         for (size_t c = 0; c < mesh.cornerCount(); ++c) {
             const size_t oc = mesh.oppositeCorner(c);

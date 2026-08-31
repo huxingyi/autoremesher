@@ -556,9 +556,11 @@ bool MainWindow::loadObj(const QString& filename)
     qDebug() << "m_originalVertices.size():" << m_originalVertices.size();
     qDebug() << "m_originalTriangles.size():" << m_originalTriangles.size();
 
-    m_renderQueue.push({ m_originalVertices,
-        m_originalTriangles });
-    checkRenderQueue();
+    if (!m_headlessMode) {
+        m_renderQueue.push({ m_originalVertices,
+            m_originalTriangles });
+        checkRenderQueue();
+    }
 
     return true;
 }
