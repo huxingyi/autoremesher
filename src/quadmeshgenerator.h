@@ -25,6 +25,7 @@
 #include <AutoRemesher/Vector2>
 #include <QObject>
 #include <cstdint>
+#include <memory>
 #include <utility>
 
 class QuadMeshGenerator : public QObject {
@@ -47,13 +48,6 @@ public:
     {
     }
 
-    ~QuadMeshGenerator()
-    {
-        delete m_remeshedVertices;
-        delete m_remeshedQuads;
-        delete m_autoRemesher;
-    }
-
     void setParameters(const Parameters& parameters)
     {
         m_parameters = parameters;
@@ -61,16 +55,12 @@ public:
 
     std::vector<AutoRemesher::Vector3>* takeRemeshedVertices()
     {
-        std::vector<AutoRemesher::Vector3>* remeshedVertices = m_remeshedVertices;
-        m_remeshedVertices = nullptr;
-        return remeshedVertices;
+        return m_remeshedVertices.release();
     }
 
     std::vector<std::vector<size_t>>* takeRemeshedQuads()
     {
-        std::vector<std::vector<size_t>>* remeshedQuads = m_remeshedQuads;
-        m_remeshedQuads = nullptr;
-        return remeshedQuads;
+        return m_remeshedQuads.release();
     }
 
     const std::vector<AutoRemesher::Vector3>& decimatedVertices() const
@@ -143,8 +133,8 @@ private:
     QString m_lastPrintedStatus;
     std::vector<AutoRemesher::Vector3> m_vertices;
     std::vector<std::vector<size_t>> m_triangles;
-    std::vector<AutoRemesher::Vector3>* m_remeshedVertices = nullptr;
-    std::vector<std::vector<size_t>>* m_remeshedQuads = nullptr;
+    std::unique_ptr<std::vector<AutoRemesher::Vector3>> m_remeshedVertices;
+    std::unique_ptr<std::vector<std::vector<size_t>>> m_remeshedQuads;
     std::vector<AutoRemesher::Vector3> m_decimatedVertices;
     std::vector<std::vector<size_t>> m_decimatedTriangles;
     bool m_decimated = false;
@@ -155,7 +145,7 @@ private:
     std::vector<uint8_t> m_isotropicExtractedConnectionMoved;
     std::vector<AutoRemesher::Vector3> m_isotropicSingularVertices;
     std::vector<std::pair<AutoRemesher::Vector3, AutoRemesher::Vector3>> m_isotropicExtractedConnections;
-    AutoRemesher::AutoRemesher* m_autoRemesher = nullptr;
+    std::unique_ptr<AutoRemesher::AutoRemesher> m_autoRemesher;
     Parameters m_parameters;
 };
 

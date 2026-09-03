@@ -31,6 +31,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <mutex>
 #include <queue>
 #include <sstream>
@@ -751,16 +752,10 @@ bool AutoRemesher::remesh()
 
     class ParameterizationThread {
     public:
-        ~ParameterizationThread()
-        {
-            delete parameterizer;
-            delete remesher;
-        }
-
         size_t islandIndex = 0;
         IslandContext* island = nullptr;
-        Parameterizer* parameterizer = nullptr;
-        QuadExtractor* remesher = nullptr;
+        std::unique_ptr<Parameterizer> parameterizer;
+        std::unique_ptr<QuadExtractor> remesher;
         AutoRemesher* autoRemesher = nullptr;
         std::vector<std::vector<Vector2>> capturedUvs;
         std::vector<std::vector<Vector2>> capturedOriginalUvs;
@@ -808,7 +803,7 @@ bool AutoRemesher::remesh()
                 }
 
                 thread.autoRemesher->updateProgress(thread.islandIndex, islandResampleEnd);
-                thread.parameterizer = new Parameterizer(&vertices,
+                thread.parameterizer = std::make_unique<Parameterizer>(&vertices,
                     &triangles,
                     nullptr);
                 thread.parameterizer->setProgressHandler(
@@ -840,7 +835,7 @@ bool AutoRemesher::remesh()
 
                 if (parameterizeSucceeded) {
                     thread.autoRemesher->updateProgress(thread.islandIndex, islandParameterizeEnd);
-                    std::vector<std::vector<Vector2>>* uvs = thread.parameterizer->takeTriangleUvs();
+                    std::unique_ptr<std::vector<std::vector<Vector2>>> uvs = thread.parameterizer->takeTriangleUvs();
                     if (uvs) {
                         // Save a copy of UVs for the [param] preview overlay
                         thread.capturedUvs = *uvs;
@@ -849,22 +844,20 @@ bool AutoRemesher::remesh()
                     // Capture singular vertex positions for the [param] preview
                     thread.capturedSingularVertices = thread.parameterizer->singularVertexPositions();
                     thread.capturedSingularVertexIndices = thread.parameterizer->singularVertexIndices();
-                    thread.remesher = new QuadExtractor(&vertices,
+                    thread.remesher = std::make_unique<QuadExtractor>(&vertices,
                         &triangles,
-                        uvs);
+                        uvs.get());
                     thread.remesher->setOriginalTriangleUvs(&thread.capturedOriginalUvs);
                     thread.remesher->setSingularVertices(&thread.capturedSingularVertexIndices);
                     thread.remesher->setProgressHandler(
                         thread.autoRemesher->makeStageProgress(thread.islandIndex,
                             islandParameterizeEnd, 1.0f, 1.0f));
                     if (!thread.remesher->extract()) {
-                        delete thread.remesher;
-                        thread.remesher = nullptr;
+                        thread.remesher.reset();
                     } else {
                         thread.capturedExtractedConnections = thread.remesher->extractedConnections();
                         thread.capturedExtractedConnectionMoved = thread.remesher->extractedConnectionMoved();
                     }
-                    delete uvs;
                 }
                 thread.autoRemesher->updateProgress(thread.islandIndex, 1.0f);
                 auto t2 = std::chrono::high_resolution_clock::now();

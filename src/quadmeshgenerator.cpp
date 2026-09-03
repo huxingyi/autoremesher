@@ -78,8 +78,7 @@ static void reportProgressHandler(void* tag, float progress, const char* status)
 
 void QuadMeshGenerator::generate()
 {
-    delete m_autoRemesher;
-    m_autoRemesher = new AutoRemesher::AutoRemesher(m_vertices, m_triangles);
+    m_autoRemesher = std::make_unique<AutoRemesher::AutoRemesher>(m_vertices, m_triangles);
     if (m_parameters.scaling > 0)
         m_autoRemesher->setScaling(m_parameters.scaling);
     if (m_parameters.targetTriangleCount > 0)
@@ -96,11 +95,9 @@ void QuadMeshGenerator::generate()
         return;
     }
 
-    delete m_remeshedVertices;
-    m_remeshedVertices = new std::vector<AutoRemesher::Vector3>(m_autoRemesher->remeshedVertices());
+    m_remeshedVertices = std::make_unique<std::vector<AutoRemesher::Vector3>>(m_autoRemesher->remeshedVertices());
 
-    delete m_remeshedQuads;
-    m_remeshedQuads = new std::vector<std::vector<size_t>>(m_autoRemesher->remeshedQuads());
+    m_remeshedQuads = std::make_unique<std::vector<std::vector<size_t>>>(m_autoRemesher->remeshedQuads());
 
     // Capture intermediate isotropic mesh data for preview overlays
     m_decimated = m_autoRemesher->decimated();
