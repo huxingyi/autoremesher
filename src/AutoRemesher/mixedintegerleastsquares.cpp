@@ -225,6 +225,21 @@ void MixedIntegerLeastSquares::finalizeConstraints()
 
     buildKernel();
 
+    std::vector<size_t>().swap(m_m0);
+    std::vector<Coeff>().swap(m_m1);
+    SparseMatrix emptyM2;
+    SparseMatrix emptyM2t;
+    m_m2.rows.swap(emptyM2.rows);
+    m_m2t.rows.swap(emptyM2t.rows);
+    std::vector<Coeff>().swap(m_constraintData);
+    std::vector<std::pair<size_t, size_t>>().swap(m_constraintRanges);
+    std::vector<Coeff>().swap(m_constraintScratch);
+    std::vector<size_t>().swap(m_singleTermConstraints);
+    std::vector<size_t>().swap(m_multiTermConstraints);
+    std::vector<Coeff>().swap(m_rowScratch);
+    std::vector<double>().swap(m_scatter);
+    std::vector<size_t>().swap(m_touched);
+
     m_reducedEnergy.clear();
     m_reducedEnergy.reserve(m_energy.size());
     for (const Row& energy : m_energy) {
@@ -469,7 +484,7 @@ bool MixedIntegerLeastSquares::solveIteration()
             }
     }
     if (nullptr == m_system) {
-        m_system.reset(new ConstrainedLeastSquares(m_kernelSize));
+        m_system.reset(new ConstrainedLeastSquares(m_kernelSize, true));
         std::vector<std::pair<size_t, double>> coefficients;
         for (const Row& energy : m_reducedEnergy) {
             coefficients.clear();
@@ -478,6 +493,7 @@ bool MixedIntegerLeastSquares::solveIteration()
                 coefficients.push_back({ coefficient.index, coefficient.a });
             m_system->addEnergy(coefficients, energy.rhs, energy.weight);
         }
+        std::vector<Row>().swap(m_reducedEnergy);
     }
     m_system->clearConstraints();
     for (size_t i = 0; i < m_kernelSize; ++i)
