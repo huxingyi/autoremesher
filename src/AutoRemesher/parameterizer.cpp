@@ -223,7 +223,7 @@ namespace {
 std::vector<double> Parameterizer::computeFaceScalingField(const std::vector<Vector3>& vertices,
     const std::vector<std::vector<size_t>>& triangles,
     const std::vector<Vector3>& vertexNormals,
-    const std::map<size_t, std::vector<size_t>>& faceAroundVertexMap) const
+    const std::vector<std::vector<size_t>>& faceAroundVertexMap) const
 {
     std::vector<double> faceScaling(triangles.size(), 1.0);
     if (m_adaptivity <= 0.0 || vertices.empty())
@@ -233,12 +233,12 @@ std::vector<double> Parameterizer::computeFaceScalingField(const std::vector<Vec
     tbb::parallel_for(tbb::blocked_range<size_t>(0, vertices.size()),
         [&](const tbb::blocked_range<size_t>& range) {
             for (size_t v = range.begin(); v != range.end(); ++v) {
-                auto findFaces = faceAroundVertexMap.find(v);
-                if (findFaces == faceAroundVertexMap.end())
+                const auto& facesAroundVertex = faceAroundVertexMap[v];
+                if (facesAroundVertex.empty())
                     continue;
                 const auto& normalV = vertexNormals[v];
                 double maxCurvature = 0.0;
-                for (const auto& faceIndex : findFaces->second) {
+                for (const auto& faceIndex : facesAroundVertex) {
                     for (const auto& u : triangles[faceIndex]) {
                         if (u == v)
                             continue;
@@ -342,7 +342,7 @@ bool Parameterizer::parameterize()
     }
 
     report(0.01f, "Computing scaling field");
-    std::map<size_t, std::vector<size_t>> faceAroundVertexMap;
+    std::vector<std::vector<size_t>> faceAroundVertexMap(m_vertices->size());
     for (size_t i = 0; i < m_triangles->size(); ++i) {
         const auto& it = (*m_triangles)[i];
         faceAroundVertexMap[it[0]].push_back(i);
