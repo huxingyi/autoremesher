@@ -98,11 +98,19 @@ unix:!macx {
 	QMAKE_LFLAGS_RELEASE += -flto
 }
 
-win32 {
+win32-msvc* {
 	CONFIG(debug, debug|release) QMAKE_CXXFLAGS += /Od
-    CONFIG(release, debug|release) QMAKE_CXXFLAGS += /O2 /GL /Qpar /fp:fast
+	CONFIG(release, debug|release) QMAKE_CXXFLAGS += /O2 /GL /Qpar /fp:fast
 	CONFIG(release, debug|release) QMAKE_LFLAGS += /LTCG
 	QMAKE_CXXFLAGS += /bigobj
+}
+
+win32-g++ {
+	# MinGW GCC does not understand MSVC-style /flags. /bigobj has no MinGW
+	# equivalent flag, but Geogram and Eigen produce very large translation
+	# units that need the big-obj object format, enabled via the assembler.
+	# Optimization (-O2) already comes from the default release CONFIG.
+	QMAKE_CXXFLAGS += -Wa,-mbig-obj
 }
 
 DEFINES += _USE_MATH_DEFINES
@@ -267,14 +275,23 @@ macx {
 unix:!macx {
     LIBS += -ltbb -lz -ldl
 }
-win32 {
+win32-msvc* {
     INCLUDEPATH += thirdparty/tbb/include
     CONFIG(release, debug|release) LIBS += -Lthirdparty/tbb/build2/Release -ltbb
+}
+win32-g++ {
+    # MinGW: link the MSYS2 system oneTBB (pacman -S mingw-w64-x86_64-tbb).
+    # Its import library is libtbb12.dll.a and its headers are already on the
+    # default include path, so no vendored TBB headers or -L path are needed.
+    LIBS += -ltbb12
 }
 
 win32 {
     LIBS += -luser32
 	LIBS += -lopengl32
+	# ole32 + uuid: CoCreateInstance and the ITaskbarList3 CLSID/IID GUIDs used
+	# for Windows taskbar progress on Qt 6 (winextras replacement).
+	LIBS += -lole32 -luuid
 }
 
 target.path = ./

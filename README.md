@@ -64,6 +64,31 @@ nmake -f Makefile.Release
 
 The release binary will be at `release\autoremesher.exe`.
 
+#### Windows (MSYS2 / MinGW-w64)
+
+An alternative to the MSVC toolchain that builds against Qt 6 from MSYS2.
+
+1. Install [MSYS2](https://www.msys2.org/).
+2. From the **MSYS2 MINGW64** shell, install the toolchain and dependencies:
+
+```bash
+pacman -S --needed \
+    mingw-w64-x86_64-gcc \
+    mingw-w64-x86_64-qt6-base \
+    mingw-w64-x86_64-tbb \
+    make
+```
+
+3. Build from the same shell:
+
+```bash
+cd /c/path/to/autoremesher
+qmake
+make -j$(nproc)
+```
+
+The binary will be at `release/autoremesher.exe`. Run it from the MINGW64 shell so the Qt 6 and oneTBB DLLs on `/mingw64/bin` are found, or bundle the dependencies next to the binary with `windeployqt-qt6 release/autoremesher.exe`.
+
 #### macOS
 
 ```bash

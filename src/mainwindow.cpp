@@ -43,9 +43,12 @@
 #include <QVBoxLayout>
 #include <cmath>
 #include <iostream>
-#ifdef Q_OS_WIN32
+#if defined(Q_OS_WIN32) && QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QWinTaskbarButton>
 #include <QWinTaskbarProgress>
+#elif defined(Q_OS_WIN32)
+#include <QWindow>
+#include <shobjidl.h>
 #endif
 #include "aboutwidget.h"
 #include "floatnumberwidget.h"
@@ -90,7 +93,7 @@ MainWindow::MainWindow()
 
     g_windows.insert({ this, QUuid::createUuid() });
 
-#ifdef Q_OS_WIN32
+#if defined(Q_OS_WIN32) && QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     m_taskbarButton = new QWinTaskbarButton(this);
 #endif
 
@@ -710,8 +713,21 @@ void MainWindow::switchToRemeshView()
 
 void MainWindow::updateProgress(float progress)
 {
-#ifdef Q_OS_WIN32
+#if defined(Q_OS_WIN32) && QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     m_taskbarButton->progress()->setValue((int)(progress * 100));
+#elif defined(Q_OS_WIN32)
+    if (nullptr != m_taskbarList) {
+        QWindow* handle = windowHandle();
+        if (nullptr != handle) {
+            HWND hwnd = reinterpret_cast<HWND>(handle->winId());
+            if (progress >= 1.0f) {
+                m_taskbarList->SetProgressState(hwnd, TBPF_NOPROGRESS);
+            } else {
+                m_taskbarList->SetProgressState(hwnd, TBPF_NORMAL);
+                m_taskbarList->SetProgressValue(hwnd, static_cast<ULONGLONG>(progress * 1000), 1000);
+            }
+        }
+    }
 #endif
 }
 
@@ -734,6 +750,12 @@ MainWindow::~MainWindow()
     delete m_isotropicRenderMesh;
     delete m_paramRenderMesh;
     delete m_remeshRenderMesh;
+#if defined(Q_OS_WIN32) && QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    if (nullptr != m_taskbarList) {
+        m_taskbarList->Release();
+        m_taskbarList = nullptr;
+    }
+#endif
 }
 
 ModelShaderWidget* MainWindow::modelRenderWidget() const
@@ -822,9 +844,19 @@ void MainWindow::showAbout()
 
 void MainWindow::showEvent(QShowEvent* event)
 {
-#ifdef Q_OS_WIN32
+#if defined(Q_OS_WIN32) && QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     m_taskbarButton->setWindow(windowHandle());
     m_taskbarButton->progress()->setVisible(true);
+#elif defined(Q_OS_WIN32)
+    if (nullptr == m_taskbarList) {
+        if (SUCCEEDED(CoCreateInstance(CLSID_TaskbarList, nullptr, CLSCTX_INPROC_SERVER,
+                IID_ITaskbarList3, reinterpret_cast<void**>(&m_taskbarList)))) {
+            if (FAILED(m_taskbarList->HrInit())) {
+                m_taskbarList->Release();
+                m_taskbarList = nullptr;
+            }
+        }
+    }
 #endif
 
     event->accept();
