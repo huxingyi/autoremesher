@@ -79,6 +79,8 @@ static void reportProgressHandler(void* tag, float progress, const char* status)
 void QuadMeshGenerator::generate()
 {
     m_autoRemesher = std::make_unique<AutoRemesher::AutoRemesher>(m_vertices, m_triangles);
+    if (m_cancelled.load())
+        m_autoRemesher->cancel();
     if (m_parameters.scaling > 0)
         m_autoRemesher->setScaling(m_parameters.scaling);
     if (m_parameters.targetTriangleCount > 0)
@@ -110,4 +112,5 @@ void QuadMeshGenerator::generate()
     m_isotropicSingularVertices = m_autoRemesher->isotropicSingularVertices();
     m_isotropicExtractedConnections = m_autoRemesher->isotropicExtractedConnections();
     m_isotropicExtractedConnectionMoved = m_autoRemesher->isotropicExtractedConnectionMoved();
+    m_phaseReport = m_autoRemesher->phaseReport();
 }

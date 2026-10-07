@@ -63,35 +63,43 @@
 #include "theme.h"
 #include "util.h"
 #include "version.h"
-#define TINYOBJLOADER_IMPLEMENTATION
-#include "tiny_obj_loader.h"
+#include "meshio.h"
+#include <QPointer>
+#include <QDialog>
+#include <QDialogButtonBox>
 
-LogBrowser* g_logBrowser = nullptr;
-QTextBrowser* g_acknowlegementsWidget = nullptr;
-QTextBrowser* g_supportersWidget = nullptr;
-QTextBrowser* g_contributorsWidget = nullptr;
-AboutWidget* g_aboutWidget = nullptr;
-std::map<MainWindow*, QUuid> g_windows;
+namespace {
+LogBrowser* getLogBrowser()
+{
+    static LogBrowser* s_logBrowser = new LogBrowser;
+    return s_logBrowser;
+}
+QPointer<QTextBrowser> s_acknowledgementsWidget;
+QPointer<QTextBrowser> s_supportersWidget;
+QPointer<QTextBrowser> s_contributorsWidget;
+QPointer<AboutWidget> s_aboutWidget;
+std::map<MainWindow*, QUuid> s_windows;
+}
 
 void outputMessage(QtMsgType type, const QMessageLogContext& context, const QString& msg)
 {
-    if (g_logBrowser)
-        g_logBrowser->outputMessage(type, msg, context.file, context.line);
+    getLogBrowser()->outputMessage(type, msg, context.file, context.line);
 }
 
 size_t MainWindow::total()
 {
-    return g_windows.size();
+    return s_windows.size();
 }
 
 MainWindow::MainWindow()
 {
-    if (!g_logBrowser) {
-        g_logBrowser = new LogBrowser;
+    static bool s_msgHandlerInstalled = false;
+    if (!s_msgHandlerInstalled) {
         qInstallMessageHandler(&outputMessage);
+        s_msgHandlerInstalled = true;
     }
 
-    g_windows.insert({ this, QUuid::createUuid() });
+    s_windows.insert({ this, QUuid::createUuid() });
 
 #if defined(Q_OS_WIN32) && QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     m_taskbarButton = new QWinTaskbarButton(this);
@@ -107,6 +115,10 @@ MainWindow::MainWindow()
     containerLayout->addWidget(graphicsWidget);
     containerWidget->setLayout(containerLayout);
     containerWidget->setMinimumSize(400, 400);
+
+    QMenu* editMenu = menuBar()->addMenu(tr("&Edit"));
+    editMenu->addAction(tr("&Undo"), this, &MainWindow::undo, QKeySequence::Undo);
+    editMenu->addAction(tr("&Redo"), this, &MainWindow::redo, QKeySequence::Redo);
 
     QMenu* helpMenu = menuBar()->addMenu(tr("&Help"));
 
@@ -128,8 +140,12 @@ MainWindow::MainWindow()
     connect(reportIssuesAction, &QAction::triggered, this, &MainWindow::reportIssues);
     helpMenu->addAction(reportIssuesAction);
 
+    QAction* showStatisticsAction = new QAction(tr("Statistics"), this);
+    connect(showStatisticsAction, &QAction::triggered, this, &MainWindow::showStatistics);
+    helpMenu->addAction(showStatisticsAction);
+
     QAction* showDebugDialogAction = new QAction(tr("Debug"), this);
-    connect(showDebugDialogAction, &QAction::triggered, g_logBrowser, &LogBrowser::showDialog);
+    connect(showDebugDialogAction, &QAction::triggered, getLogBrowser(), &LogBrowser::showDialog);
     helpMenu->addAction(showDebugDialogAction);
 
     helpMenu->addSeparator();
@@ -295,13 +311,13 @@ MainWindow::MainWindow()
         m_targetScaling = value;
     });
 
-    //m_modelTypeSelectBox = new QComboBox;
-    //m_modelTypeSelectBox->addItem(tr("Organic"));
-    //m_modelTypeSelectBox->addItem(tr("Hard surface"));
-    //connect(m_modelTypeSelectBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, [&](int index) {
-    //    m_modelType = 1 == index ? AutoRemesher::ModelType::HardSurface : AutoRemesher::ModelType::Organic;
-    //});
-    //m_modelTypeSelectBox->setCurrentIndex(AutoRemesher::ModelType::HardSurface == m_modelType ? 1 : 0);
+    m_modelTypeSelectBox = new QComboBox(this);
+    m_modelTypeSelectBox->addItem(tr("Organic"));
+    m_modelTypeSelectBox->addItem(tr("Hard surface"));
+    connect(m_modelTypeSelectBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, [this](int index) {
+        m_modelType = 1 == index ? AutoRemesher::ModelType::HardSurface : AutoRemesher::ModelType::Organic;
+    });
+    m_modelTypeSelectBox->setCurrentIndex(AutoRemesher::ModelType::HardSurface == m_modelType ? 1 : 0);
 
     // --- Action buttons ---
     QPushButton* loadModelButton = new QPushButton(tr("Open"));
@@ -318,7 +334,13 @@ MainWindow::MainWindow()
     QPushButton* regenerateButton = new QPushButton(tr("Regenerate"));
     regenerateButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     regenerateButton->hide();
-    connect(regenerateButton, &QPushButton::clicked, this, &MainWindow::generateQuadMesh);
+    connect(regenerateButton, &QPushButton::clicked, this, [this]() {
+        if (m_inProgress) {
+            cancelQuadMesh();
+        } else {
+            generateQuadMesh();
+        }
+    });
     m_regenerateButton = regenerateButton;
 
     // --- Controls panel layout ---
@@ -332,7 +354,7 @@ MainWindow::MainWindow()
     controlsLayout->addWidget(m_anisotropyWidget);
     controlsLayout->addWidget(m_targetQuadCountWidget);
     controlsLayout->addWidget(m_targetScalingWidget);
-    //controlsLayout->addWidget(m_modelTypeSelectBox);
+    controlsLayout->addWidget(m_modelTypeSelectBox);
 
     // Result mesh stats (hidden until a mesh is generated)
     m_quadCountLabel = new QLabel(this);
@@ -452,13 +474,15 @@ void MainWindow::updateButtonStates()
         m_smoothNormalDegreesWidget->setEnabled(true);
         m_adaptivityWidget->setEnabled(true);
         m_anisotropyWidget->setEnabled(true);
-        //m_modelTypeSelectBox->setEnabled(true);
+        if (m_modelTypeSelectBox)
+            m_modelTypeSelectBox->setEnabled(true);
         if (nullptr != m_remeshedQuads) {
             m_saveMeshButton->show();
         } else {
             m_saveMeshButton->hide();
         }
         if (!m_originalVertices.empty()) {
+            m_regenerateButton->setText(tr("Regenerate"));
             m_regenerateButton->show();
             m_regenerateButton->setEnabled(true);
         } else {
@@ -469,14 +493,17 @@ void MainWindow::updateButtonStates()
     } else {
         m_loadModelButton->setEnabled(false);
         m_saveMeshButton->hide();
-        m_regenerateButton->setEnabled(false);
+        m_regenerateButton->setText(tr("Cancel"));
+        m_regenerateButton->show();
+        m_regenerateButton->setEnabled(true);
         m_targetScalingWidget->setDisabled(true);
         m_targetQuadCountWidget->setDisabled(true);
         m_sharpEdgeDegreesWidget->setDisabled(true);
         m_smoothNormalDegreesWidget->setDisabled(true);
         m_adaptivityWidget->setDisabled(true);
         m_anisotropyWidget->setDisabled(true);
-        //m_modelTypeSelectBox->setDisabled(true);
+        if (m_modelTypeSelectBox)
+            m_modelTypeSelectBox->setDisabled(true);
     }
 
     // Update preview button availability
@@ -489,21 +516,18 @@ void MainWindow::updateButtonStates()
 
 bool MainWindow::loadObj(const QString& filename)
 {
-    tinyobj::attrib_t attributes;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    std::string warn, err;
+    std::string err;
+    std::vector<AutoRemesher::Vector3> loadedVertices;
+    std::vector<std::vector<size_t>> loadedFaces;
 
-    qDebug() << "loadObj:" << filename;
+    qDebug() << "loadMesh:" << filename;
 
-    bool loadSuccess = tinyobj::LoadObj(&attributes, &shapes, &materials, &warn, &err, filename.toUtf8().constData());
-    if (!warn.empty()) {
-        qDebug() << "WARN:" << warn.c_str();
-    }
+    bool loadSuccess = MeshIO::loadMesh(filename, loadedVertices, loadedFaces, err);
     if (!err.empty()) {
-        qDebug() << err.c_str();
+        qDebug() << "MeshIO notice:" << QString::fromStdString(err);
     }
     if (!loadSuccess) {
+        qWarning() << "Failed to load mesh:" << QString::fromStdString(err);
         return false;
     }
 
@@ -531,6 +555,8 @@ bool MainWindow::loadObj(const QString& filename)
     m_remeshedVertices = nullptr;
     delete m_remeshedQuads;
     m_remeshedQuads = nullptr;
+    m_undoStack.clear();
+    m_redoStack.clear();
     m_previewMode = PreviewSource;
     m_previewSourceButton->setChecked(false);
     m_previewDecimateButton->setChecked(false);
@@ -538,23 +564,8 @@ bool MainWindow::loadObj(const QString& filename)
     m_previewParamButton->setChecked(false);
     m_previewRemeshButton->setChecked(false);
 
-    m_originalVertices.resize(attributes.vertices.size() / 3);
-    for (size_t i = 0, j = 0; i < m_originalVertices.size(); ++i) {
-        auto& dest = m_originalVertices[i];
-        dest.setX(attributes.vertices[j++]);
-        dest.setY(attributes.vertices[j++]);
-        dest.setZ(attributes.vertices[j++]);
-    }
-
-    m_originalTriangles.clear();
-    for (const auto& shape : shapes) {
-        for (size_t i = 0; i < shape.mesh.indices.size(); i += 3) {
-            m_originalTriangles.push_back(std::vector<size_t> {
-                (size_t)shape.mesh.indices[i + 0].vertex_index,
-                (size_t)shape.mesh.indices[i + 1].vertex_index,
-                (size_t)shape.mesh.indices[i + 2].vertex_index });
-        }
-    }
+    m_originalVertices = std::move(loadedVertices);
+    m_originalTriangles = std::move(loadedFaces);
 
     qDebug() << "m_originalVertices.size():" << m_originalVertices.size();
     qDebug() << "m_originalTriangles.size():" << m_originalTriangles.size();
@@ -590,7 +601,7 @@ void MainWindow::loadModel()
     }
 
     QString filename = QFileDialog::getOpenFileName(this, QString(), QString(),
-        tr("Wavefront (*.obj)"));
+        tr("Supported Mesh Files (*.obj *.stl *.ply);;Wavefront OBJ (*.obj);;Stereolithography (*.stl);;Polygon File Format (*.ply);;All Files (*.*)"));
     if (filename.isEmpty())
         return;
 
@@ -618,30 +629,12 @@ void MainWindow::saveMesh()
         return;
 
     QString filename = QFileDialog::getSaveFileName(this, QString(), QString(),
-        tr("Wavefront (*.obj)"));
+        tr("Wavefront OBJ (*.obj);;Stereolithography (*.stl);;Polygon File Format (*.ply)"));
     if (filename.isEmpty()) {
         return;
     }
 
-    if (!filename.endsWith(".obj"))
-        filename += ".obj";
-
-    QFile file(filename);
-    if (file.open(QIODevice::WriteOnly)) {
-        QTextStream stream(&file);
-        stream << "# " << APP_NAME << " " << APP_HUMAN_VER << "\n";
-        stream << "# " << APP_HOMEPAGE_URL << "\n";
-        for (std::vector<AutoRemesher::Vector3>::const_iterator it = m_remeshedVertices->begin(); it != m_remeshedVertices->end(); ++it) {
-            stream << "v " << (*it).x() << " " << (*it).y() << " " << (*it).z() << "\n";
-        }
-        for (std::vector<std::vector<size_t>>::const_iterator it = m_remeshedQuads->begin(); it != m_remeshedQuads->end(); ++it) {
-            stream << "f";
-            for (std::vector<size_t>::const_iterator subIt = (*it).begin(); subIt != (*it).end(); ++subIt) {
-                stream << " " << (1 + *subIt);
-            }
-            stream << "\n";
-        }
-    }
+    saveMeshToFile(filename);
 }
 
 void MainWindow::updateTitle()
@@ -744,7 +737,7 @@ void MainWindow::updateProgressDetailed(float progress, const QString& status)
 
 MainWindow::~MainWindow()
 {
-    g_windows.erase(this);
+    s_windows.erase(this);
     delete m_sourceRenderMesh;
     delete m_decimatedRenderMesh;
     delete m_isotropicRenderMesh;
@@ -765,50 +758,73 @@ ModelShaderWidget* MainWindow::modelRenderWidget() const
 
 void MainWindow::showSupporters()
 {
-    if (!g_supportersWidget) {
-        g_supportersWidget = new QTextBrowser;
-        g_supportersWidget->setWindowTitle(unifiedWindowTitle(tr("Supporters")));
-        g_supportersWidget->setMinimumSize(QSize(320, 280));
+    if (!s_supportersWidget) {
+        s_supportersWidget = new QTextBrowser;
+        s_supportersWidget->setWindowTitle(unifiedWindowTitle(tr("Supporters")));
+        s_supportersWidget->setMinimumSize(QSize(320, 280));
         QFile supporters(":/SUPPORTERS");
         supporters.open(QFile::ReadOnly | QFile::Text);
-        g_supportersWidget->setHtml("<h1>SUPPORTERS</h1><pre>" + supporters.readAll() + "</pre>");
+        s_supportersWidget->setHtml("<h1>SUPPORTERS</h1><pre>" + supporters.readAll() + "</pre>");
     }
-    g_supportersWidget->show();
-    g_supportersWidget->activateWindow();
-    g_supportersWidget->raise();
+    s_supportersWidget->show();
+    s_supportersWidget->activateWindow();
+    s_supportersWidget->raise();
 }
 
 void MainWindow::showContributors()
 {
-    if (!g_contributorsWidget) {
-        g_contributorsWidget = new QTextBrowser;
-        g_contributorsWidget->setWindowTitle(unifiedWindowTitle(tr("Contributors")));
-        g_contributorsWidget->setMinimumSize(QSize(320, 280));
+    if (!s_contributorsWidget) {
+        s_contributorsWidget = new QTextBrowser;
+        s_contributorsWidget->setWindowTitle(unifiedWindowTitle(tr("Contributors")));
+        s_contributorsWidget->setMinimumSize(QSize(320, 280));
         QFile authors(":/AUTHORS");
         authors.open(QFile::ReadOnly | QFile::Text);
         QFile contributors(":/CONTRIBUTORS");
         contributors.open(QFile::ReadOnly | QFile::Text);
-        g_contributorsWidget->setHtml("<h1>AUTHORS</h1><pre>" + authors.readAll() + "</pre><h1>CONTRIBUTORS</h1><pre>" + contributors.readAll() + "</pre>");
+        s_contributorsWidget->setHtml("<h1>AUTHORS</h1><pre>" + authors.readAll() + "</pre><h1>CONTRIBUTORS</h1><pre>" + contributors.readAll() + "</pre>");
     }
-    g_contributorsWidget->show();
-    g_contributorsWidget->activateWindow();
-    g_contributorsWidget->raise();
+    s_contributorsWidget->show();
+    s_contributorsWidget->activateWindow();
+    s_contributorsWidget->raise();
 }
 
 void MainWindow::showAcknowlegements()
 {
-    if (!g_acknowlegementsWidget) {
-        g_acknowlegementsWidget = new QTextBrowser;
-        g_acknowlegementsWidget->setWindowTitle(unifiedWindowTitle(tr("Acknowlegements")));
-        g_acknowlegementsWidget->setMinimumSize(QSize(640, 380));
+    if (!s_acknowledgementsWidget) {
+        s_acknowledgementsWidget = new QTextBrowser;
+        s_acknowledgementsWidget->setWindowTitle(unifiedWindowTitle(tr("Acknowlegements")));
+        s_acknowledgementsWidget->setMinimumSize(QSize(640, 380));
         QFile file(":/ACKNOWLEDGEMENTS.html");
         file.open(QFile::ReadOnly | QFile::Text);
         QTextStream stream(&file);
-        g_acknowlegementsWidget->setHtml(stream.readAll());
+        s_acknowledgementsWidget->setHtml(stream.readAll());
     }
-    g_acknowlegementsWidget->show();
-    g_acknowlegementsWidget->activateWindow();
-    g_acknowlegementsWidget->raise();
+    s_acknowledgementsWidget->show();
+    s_acknowledgementsWidget->activateWindow();
+    s_acknowledgementsWidget->raise();
+}
+
+void MainWindow::showStatistics()
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Remeshing Statistics"));
+    dialog.setMinimumSize(450, 350);
+    QVBoxLayout* layout = new QVBoxLayout(&dialog);
+    QTextBrowser* browser = new QTextBrowser(&dialog);
+    if (m_lastPhaseReport.empty()) {
+        browser->setPlainText(tr("No statistics available yet. Run remeshing first."));
+    } else {
+        QString text;
+        for (const auto& line : m_lastPhaseReport) {
+            text += QString::fromStdString(line) + "\n";
+        }
+        browser->setPlainText(text);
+    }
+    layout->addWidget(browser);
+    QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok, &dialog);
+    connect(box, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    layout->addWidget(box);
+    dialog.exec();
 }
 
 void MainWindow::viewSource()
@@ -834,12 +850,12 @@ void MainWindow::reportIssues()
 
 void MainWindow::showAbout()
 {
-    if (!g_aboutWidget) {
-        g_aboutWidget = new AboutWidget;
+    if (!s_aboutWidget) {
+        s_aboutWidget = new AboutWidget;
     }
-    g_aboutWidget->show();
-    g_aboutWidget->activateWindow();
-    g_aboutWidget->raise();
+    s_aboutWidget->show();
+    s_aboutWidget->activateWindow();
+    s_aboutWidget->raise();
 }
 
 void MainWindow::showEvent(QShowEvent* event)
@@ -1010,7 +1026,8 @@ void MainWindow::setHeadlessParams(const QString& inputPath, const QString& outp
     int targetQuads, double edgeScaling,
     double sharpEdgeDegrees, double smoothNormalDegrees,
     double adaptivity,
-    double anisotropy)
+    double anisotropy,
+    AutoRemesher::ModelType modelType)
 {
     m_headlessMode = true;
     m_headlessOutputPath = outputPath;
@@ -1021,6 +1038,7 @@ void MainWindow::setHeadlessParams(const QString& inputPath, const QString& outp
     m_smoothNormalDegrees = static_cast<float>(smoothNormalDegrees);
     m_adaptivity = static_cast<float>(adaptivity);
     m_anisotropy = static_cast<float>(anisotropy);
+    m_modelType = modelType;
 }
 
 void MainWindow::saveMeshToFile(const QString& filename)
@@ -1028,21 +1046,17 @@ void MainWindow::saveMeshToFile(const QString& filename)
     if (nullptr == m_remeshedVertices || nullptr == m_remeshedQuads)
         return;
 
-    QFile file(filename);
-    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QTextStream stream(&file);
-        stream << "# " << APP_NAME << " " << APP_HUMAN_VER << "\n";
-        stream << "# " << APP_HOMEPAGE_URL << "\n";
-        for (std::vector<AutoRemesher::Vector3>::const_iterator it = m_remeshedVertices->begin(); it != m_remeshedVertices->end(); ++it) {
-            stream << "v " << (*it).x() << " " << (*it).y() << " " << (*it).z() << "\n";
-        }
-        for (std::vector<std::vector<size_t>>::const_iterator it = m_remeshedQuads->begin(); it != m_remeshedQuads->end(); ++it) {
-            stream << "f";
-            for (std::vector<size_t>::const_iterator subIt = (*it).begin(); subIt != (*it).end(); ++subIt) {
-                stream << " " << (1 + *subIt);
-            }
-            stream << "\n";
-        }
+    std::string err;
+    if (!MeshIO::saveMesh(filename, *m_remeshedVertices, *m_remeshedQuads, err)) {
+        qWarning() << "Failed to save mesh:" << QString::fromStdString(err);
+    }
+}
+
+void MainWindow::cancelQuadMesh()
+{
+    if (m_quadMeshGenerator) {
+        m_quadMeshGenerator->cancel();
+        m_progressStatusLabel->setText(tr("Cancelling..."));
     }
 }
 
@@ -1150,6 +1164,13 @@ void MainWindow::quadMeshReady()
     delete m_remeshedQuads;
     m_remeshedQuads = m_quadMeshGenerator->takeRemeshedQuads();
 
+    m_lastPhaseReport = m_quadMeshGenerator->phaseReport();
+    for (const auto& line : m_lastPhaseReport) {
+        qDebug() << QString::fromStdString(line);
+    }
+
+    bool wasCancelled = m_quadMeshGenerator->isCancelled();
+
     m_saved = false;
     m_inProgress = false;
 
@@ -1166,6 +1187,14 @@ void MainWindow::quadMeshReady()
 
     delete m_quadMeshGenerator;
     m_quadMeshGenerator = nullptr;
+
+    if (wasCancelled) {
+        m_progressStatusLabel->setText(tr("Cancelled"));
+        m_progressStatusLabel->show();
+        updateButtonStates();
+        updateTitle();
+        return;
+    }
 
     if (nullptr != m_remeshedVertices && nullptr != m_remeshedQuads) {
         size_t quadCount = 0;
@@ -1193,6 +1222,8 @@ void MainWindow::quadMeshReady()
         m_nonQuadCountLabel->show();
         m_vertexCountLabel->show();
 
+        saveHistoryState();
+
         m_renderQueue.push({ *m_remeshedVertices,
             *m_remeshedQuads });
         checkRenderQueue();
@@ -1212,4 +1243,109 @@ void MainWindow::quadMeshReady()
 
     updateButtonStates();
     updateTitle();
+}
+
+void MainWindow::saveHistoryState()
+{
+    if (!m_remeshedVertices || !m_remeshedQuads)
+        return;
+
+    HistoryItem item;
+    item.targetQuads = m_targetQuadCount;
+    item.scaling = m_targetScaling;
+    item.sharpEdge = m_sharpEdgeDegrees;
+    item.smoothNormal = m_smoothNormalDegrees;
+    item.adaptivity = m_adaptivity;
+    item.anisotropy = m_anisotropy;
+    item.modelType = m_modelType;
+    item.vertices = *m_remeshedVertices;
+    item.quads = *m_remeshedQuads;
+
+    m_undoStack.push_back(std::move(item));
+    m_redoStack.clear();
+
+    if (m_undoStack.size() > 20) {
+        m_undoStack.erase(m_undoStack.begin());
+    }
+}
+
+void MainWindow::undo()
+{
+    if (m_undoStack.size() <= 1)
+        return;
+
+    m_redoStack.push_back(std::move(m_undoStack.back()));
+    m_undoStack.pop_back();
+
+    const auto& prev = m_undoStack.back();
+    m_targetQuadCount = prev.targetQuads;
+    m_targetScaling = prev.scaling;
+    m_sharpEdgeDegrees = prev.sharpEdge;
+    m_smoothNormalDegrees = prev.smoothNormal;
+    m_adaptivity = prev.adaptivity;
+    m_anisotropy = prev.anisotropy;
+    m_modelType = prev.modelType;
+
+    m_targetQuadCountWidget->setValue(m_targetQuadCount);
+    m_targetScalingWidget->setValue(m_targetScaling);
+    m_sharpEdgeDegreesWidget->setValue(m_sharpEdgeDegrees);
+    m_smoothNormalDegreesWidget->setValue(m_smoothNormalDegrees);
+    m_adaptivityWidget->setValue(m_adaptivity);
+    m_anisotropyWidget->setValue(m_anisotropy);
+    if (m_modelTypeSelectBox) {
+        m_modelTypeSelectBox->setCurrentIndex(m_modelType == AutoRemesher::ModelType::HardSurface ? 1 : 0);
+    }
+
+    if (!m_remeshedVertices)
+        m_remeshedVertices = new std::vector<AutoRemesher::Vector3>;
+    if (!m_remeshedQuads)
+        m_remeshedQuads = new std::vector<std::vector<size_t>>;
+
+    *m_remeshedVertices = prev.vertices;
+    *m_remeshedQuads = prev.quads;
+
+    m_renderQueue.push({ *m_remeshedVertices, *m_remeshedQuads });
+    checkRenderQueue();
+    updateButtonStates();
+}
+
+void MainWindow::redo()
+{
+    if (m_redoStack.empty())
+        return;
+
+    auto next = std::move(m_redoStack.back());
+    m_redoStack.pop_back();
+
+    m_targetQuadCount = next.targetQuads;
+    m_targetScaling = next.scaling;
+    m_sharpEdgeDegrees = next.sharpEdge;
+    m_smoothNormalDegrees = next.smoothNormal;
+    m_adaptivity = next.adaptivity;
+    m_anisotropy = next.anisotropy;
+    m_modelType = next.modelType;
+
+    m_targetQuadCountWidget->setValue(m_targetQuadCount);
+    m_targetScalingWidget->setValue(m_targetScaling);
+    m_sharpEdgeDegreesWidget->setValue(m_sharpEdgeDegrees);
+    m_smoothNormalDegreesWidget->setValue(m_smoothNormalDegrees);
+    m_adaptivityWidget->setValue(m_adaptivity);
+    m_anisotropyWidget->setValue(m_anisotropy);
+    if (m_modelTypeSelectBox) {
+        m_modelTypeSelectBox->setCurrentIndex(m_modelType == AutoRemesher::ModelType::HardSurface ? 1 : 0);
+    }
+
+    if (!m_remeshedVertices)
+        m_remeshedVertices = new std::vector<AutoRemesher::Vector3>;
+    if (!m_remeshedQuads)
+        m_remeshedQuads = new std::vector<std::vector<size_t>>;
+
+    *m_remeshedVertices = next.vertices;
+    *m_remeshedQuads = next.quads;
+
+    m_undoStack.push_back(std::move(next));
+
+    m_renderQueue.push({ *m_remeshedVertices, *m_remeshedQuads });
+    checkRenderQueue();
+    updateButtonStates();
 }

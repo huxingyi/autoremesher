@@ -139,6 +139,9 @@ INCLUDEPATH += include
 
 SOURCES += src/main.cpp
 
+SOURCES += src/meshio.cpp
+HEADERS += src/meshio.h
+
 SOURCES += src/logbrowser.cpp
 HEADERS += src/logbrowser.h
 

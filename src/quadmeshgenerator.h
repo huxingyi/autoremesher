@@ -24,6 +24,7 @@
 #include <AutoRemesher/AutoRemesher>
 #include <AutoRemesher/Vector2>
 #include <QObject>
+#include <atomic>
 #include <cstdint>
 #include <memory>
 #include <utility>
@@ -113,6 +114,25 @@ public:
         return m_isotropicExtractedConnections;
     }
 
+    void cancel()
+    {
+        m_cancelled = true;
+        if (m_autoRemesher)
+            m_autoRemesher->cancel();
+    }
+
+    bool isCancelled() const
+    {
+        if (m_cancelled.load())
+            return true;
+        return m_autoRemesher ? m_autoRemesher->isCancelled() : false;
+    }
+
+    const std::vector<std::string>& phaseReport() const
+    {
+        return m_phaseReport;
+    }
+
     void generate();
     void printProgress(float progress, const QString& status);
     void emitProgress(float progress);
@@ -145,6 +165,8 @@ private:
     std::vector<uint8_t> m_isotropicExtractedConnectionMoved;
     std::vector<AutoRemesher::Vector3> m_isotropicSingularVertices;
     std::vector<std::pair<AutoRemesher::Vector3, AutoRemesher::Vector3>> m_isotropicExtractedConnections;
+    std::vector<std::string> m_phaseReport;
+    std::atomic<bool> m_cancelled { false };
     std::unique_ptr<AutoRemesher::AutoRemesher> m_autoRemesher;
     Parameters m_parameters;
 };

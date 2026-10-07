@@ -74,7 +74,8 @@ public:
         int targetQuads, double edgeScaling,
         double sharpEdgeDegrees, double smoothNormalDegrees,
         double adaptivity,
-        double anisotropy);
+        double anisotropy,
+        AutoRemesher::ModelType modelType = AutoRemesher::ModelType::Organic);
     void runHeadless();
     void saveMeshToFile(const QString& filename);
 
@@ -88,6 +89,7 @@ private slots:
     void showSupporters();
     void showContributors();
     void showAcknowlegements();
+    void showStatistics();
     void viewSource();
     void gotoHomepage();
     void reportIssues();
@@ -100,6 +102,7 @@ private slots:
     void checkRenderQueue();
     void renderMeshReady();
     void generateQuadMesh();
+    void cancelQuadMesh();
     void quadMeshReady();
     void updateButtonStates();
     void updateProgress(float progress);
@@ -111,8 +114,26 @@ private slots:
     void switchToIsotropicView();
     void switchToParamView();
     void switchToRemeshView();
+    void undo();
+    void redo();
 
 private:
+    struct HistoryItem {
+        int targetQuads = 50000;
+        float scaling = 1.0f;
+        float sharpEdge = 90.0f;
+        float smoothNormal = 0.0f;
+        float adaptivity = 1.0f;
+        float anisotropy = 1.0f;
+        AutoRemesher::ModelType modelType = AutoRemesher::ModelType::Organic;
+        std::vector<AutoRemesher::Vector3> vertices;
+        std::vector<std::vector<size_t>> quads;
+    };
+    std::vector<HistoryItem> m_undoStack;
+    std::vector<HistoryItem> m_redoStack;
+    void saveHistoryState();
+
+    std::vector<std::string> m_lastPhaseReport;
     ModelShaderWidget* m_modelRenderWidget = nullptr;
     AutoRemesher::AutoRemesher* m_autoRemesher = nullptr;
     bool m_inProgress = false;
@@ -148,7 +169,7 @@ private:
     PreviewMode m_previewMode = PreviewSource;
     IntNumberWidget* m_targetQuadCountWidget = nullptr;
     FloatNumberWidget* m_targetScalingWidget = nullptr;
-    //QComboBox *m_modelTypeSelectBox = nullptr;
+    QComboBox* m_modelTypeSelectBox = nullptr;
     FloatNumberWidget* m_sharpEdgeDegreesWidget = nullptr;
     FloatNumberWidget* m_smoothNormalDegreesWidget = nullptr;
     FloatNumberWidget* m_adaptivityWidget = nullptr;

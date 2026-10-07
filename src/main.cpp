@@ -49,6 +49,7 @@ struct HeadlessParams {
     double smoothNormalDegrees = 0.0;
     double adaptivity = 1.0;
     double anisotropy = 1.0;
+    AutoRemesher::ModelType modelType = AutoRemesher::ModelType::Organic;
 };
 
 static HeadlessParams parseHeadlessArgs(QCommandLineParser& parser)
@@ -70,6 +71,13 @@ static HeadlessParams parseHeadlessArgs(QCommandLineParser& parser)
         params.adaptivity = parser.value("adaptivity").toDouble();
     if (parser.isSet("anisotropy"))
         params.anisotropy = parser.value("anisotropy").toDouble();
+    if (parser.isSet("model-type")) {
+        QString typeStr = parser.value("model-type").toLower();
+        if (typeStr == "hardsurface" || typeStr == "hard-surface")
+            params.modelType = AutoRemesher::ModelType::HardSurface;
+        else
+            params.modelType = AutoRemesher::ModelType::Organic;
+    }
     return params;
 }
 
@@ -92,13 +100,13 @@ int main(int argc, char** argv)
     parser.addVersionOption();
 
     QCommandLineOption inputOption(QStringList { "i", "input" },
-        QCoreApplication::translate("main", "Input .obj file to remesh"),
-        QCoreApplication::translate("main", "file.obj"));
+        QCoreApplication::translate("main", "Input mesh file (.obj, .stl, .ply) to remesh"),
+        QCoreApplication::translate("main", "file"));
     parser.addOption(inputOption);
 
     QCommandLineOption outputOption(QStringList { "o", "output" },
-        QCoreApplication::translate("main", "Output .obj file path for the remeshed result"),
-        QCoreApplication::translate("main", "output.obj"));
+        QCoreApplication::translate("main", "Output mesh file path (.obj, .stl, .ply) for the remeshed result"),
+        QCoreApplication::translate("main", "output"));
     parser.addOption(outputOption);
 
     QCommandLineOption reportOption(QStringList { "report" },
@@ -135,6 +143,11 @@ int main(int argc, char** argv)
         QCoreApplication::translate("main", "Curvature-adaptive quad elongation (default: 1.0, range: 0.0-1.0)"),
         QCoreApplication::translate("main", "value"));
     parser.addOption(anisotropyOption);
+
+    QCommandLineOption modelTypeOption(QStringList { "model-type" },
+        QCoreApplication::translate("main", "Model type: organic or hardsurface (default: organic)"),
+        QCoreApplication::translate("main", "type"));
+    parser.addOption(modelTypeOption);
 
     parser.process(app);
 
@@ -184,6 +197,7 @@ int main(int argc, char** argv)
                 std::cout << "=== AutoRemesher Report ===" << std::endl;
                 std::cout << "Input: " << params.inputPath.toStdString() << std::endl;
                 std::cout << "Output: " << params.outputPath.toStdString() << std::endl;
+                std::cout << "Model type: " << (params.modelType == AutoRemesher::ModelType::HardSurface ? "hardsurface" : "organic") << std::endl;
                 std::cout << "Quads: " << quadCount << std::endl;
                 std::cout << "Non-quads: " << nonQuadCount << std::endl;
                 std::cout << "Vertices: " << vertexCount << std::endl;
@@ -199,6 +213,7 @@ int main(int argc, char** argv)
                         out << "===================\n\n";
                         out << "Input file: " << params.inputPath << "\n";
                         out << "Output file: " << params.outputPath << "\n";
+                        out << "Model type: " << (params.modelType == AutoRemesher::ModelType::HardSurface ? "hardsurface" : "organic") << "\n";
                         out << "Target quads: " << params.targetQuads << "\n";
                         out << "Edge scaling: " << params.edgeScaling << "\n";
                         out << "Sharp edge degrees: " << params.sharpEdgeDegrees << "\n";
@@ -220,7 +235,8 @@ int main(int argc, char** argv)
         mainWindow->setHeadlessParams(params.inputPath, params.outputPath,
             params.targetQuads, params.edgeScaling,
             params.sharpEdgeDegrees, params.smoothNormalDegrees,
-            params.adaptivity, params.anisotropy);
+            params.adaptivity, params.anisotropy,
+            params.modelType);
         mainWindow->runHeadless();
 
         return app.exec();
