@@ -21,6 +21,7 @@
  */
 #include <AutoRemesher/ConstrainedLeastSquares>
 
+#include <Eigen/IterativeLinearSolvers>
 #include <Eigen/Sparse>
 #include <Eigen/SparseCholesky>
 #include <Eigen/SparseLU>
@@ -45,6 +46,9 @@ namespace {
     // the mean diagonal instead, which keeps a solve's outcome independent of
     // the units the input mesh happens to be modelled in.
     const double relativeRidge = 1e-10;
+    const Eigen::Index directSolveVariableLimit = 1000000;
+    const Eigen::Index maximumIterativeIterations = 300;
+    const double iterativeTolerance = 1e-5;
 
     double ridgeFor(const Eigen::SparseMatrix<double>& normalMatrix)
     {
@@ -64,15 +68,23 @@ struct ConstrainedLeastSquares::Cache {
     Eigen::VectorXd rowShift;
     Eigen::VectorXd rowWeightRoot;
     Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
+    Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<double>> iterativeSolver;
 #if AUTO_REMESHER_USE_ACCELERATE
     Eigen::AccelerateLLT<Eigen::SparseMatrix<double>, Eigen::Lower> acceleratedSolver;
     bool useAccelerated = true;
 #endif
+    bool useIterative = false;
     bool patternAnalyzed = false;
     bool factorized = false;
 
     bool factorize()
     {
+        if (useIterative) {
+            iterativeSolver.setMaxIterations(maximumIterativeIterations);
+            iterativeSolver.setTolerance(iterativeTolerance);
+            iterativeSolver.compute(scaledMatrix);
+            return iterativeSolver.info() == Eigen::Success;
+        }
 #if AUTO_REMESHER_USE_ACCELERATE
         if (useAccelerated) {
             if (!patternAnalyzed)
@@ -95,8 +107,20 @@ struct ConstrainedLeastSquares::Cache {
         return true;
     }
 
-    Eigen::VectorXd solve(const Eigen::VectorXd& rightHandSide, bool* succeeded)
+    Eigen::VectorXd solve(const Eigen::VectorXd& scaledRightHandSide,
+        const Eigen::VectorXd& initialGuess, bool* succeeded)
     {
+        if (useIterative) {
+            const Eigen::VectorXd solution = iterativeSolver.solveWithGuess(
+                scaledRightHandSide, initialGuess);
+            const Eigen::ComputationInfo info = iterativeSolver.info();
+            *succeeded = solution.allFinite()
+                && (info == Eigen::Success
+                    || (info == Eigen::NoConvergence
+                        && std::isfinite(iterativeSolver.error())));
+            return solution;
+        }
+        const Eigen::VectorXd rightHandSide = scaledMatrix.transpose() * scaledRightHandSide;
 #if AUTO_REMESHER_USE_ACCELERATE
         if (useAccelerated) {
             const Eigen::VectorXd solution = acceleratedSolver.solve(rightHandSide);
@@ -110,8 +134,10 @@ struct ConstrainedLeastSquares::Cache {
     }
 };
 
-ConstrainedLeastSquares::ConstrainedLeastSquares(size_t variableCount)
+ConstrainedLeastSquares::ConstrainedLeastSquares(size_t variableCount,
+    bool useMemoryBoundedSolver)
     : m_variableCount(variableCount)
+    , m_useMemoryBoundedSolver(useMemoryBoundedSolver)
     , m_cache(new Cache)
 {
 }
@@ -234,19 +260,24 @@ bool ConstrainedLeastSquares::buildSubstitutions()
 
 bool ConstrainedLeastSquares::buildReducedSystem()
 {
-    const Eigen::Index rowCount = static_cast<Eigen::Index>(m_energyEquations.size());
+    const Eigen::Index energyRowCount = static_cast<Eigen::Index>(m_energyEquations.size());
     const Eigen::Index columnCount = static_cast<Eigen::Index>(m_freeCount);
     Cache& cache = *m_cache;
+    cache.useIterative = m_useMemoryBoundedSolver
+        && static_cast<Eigen::Index>(m_variableCount) > directSolveVariableLimit;
+    const Eigen::Index rowCount = energyRowCount
+        + (cache.useIterative ? columnCount : 0);
 
     std::vector<Eigen::Triplet<double>> entries;
     size_t entryCount = 0;
     for (const LinearEquation& equation : m_energyEquations)
         entryCount += equation.coefficients.size();
-    entries.reserve(entryCount);
+    entries.reserve(entryCount + (cache.useIterative ? m_freeCount : 0));
 
-    cache.rowShift = Eigen::VectorXd::Zero(rowCount);
-    cache.rowWeightRoot = Eigen::VectorXd::Zero(rowCount);
-    for (Eigen::Index row = 0; row < rowCount; ++row) {
+    cache.rowShift = Eigen::VectorXd::Zero(energyRowCount);
+    cache.rowWeightRoot = Eigen::VectorXd::Zero(energyRowCount);
+    double squaredMatrixNorm = 0.0;
+    for (Eigen::Index row = 0; row < energyRowCount; ++row) {
         const LinearEquation& equation = m_energyEquations[static_cast<size_t>(row)];
         const double weightRoot = std::sqrt(equation.weight);
         cache.rowWeightRoot[row] = weightRoot;
@@ -263,15 +294,32 @@ bool ConstrainedLeastSquares::buildReducedSystem()
             const size_t column = m_freeIndexOfRoot[substitution.root];
             if (noIndex == column)
                 continue;
-            entries.emplace_back(row, static_cast<Eigen::Index>(column),
-                weightRoot * coefficient.second * substitution.scale);
+            const double value = weightRoot * coefficient.second * substitution.scale;
+            entries.emplace_back(row, static_cast<Eigen::Index>(column), value);
+            squaredMatrixNorm += value * value;
         }
         cache.rowShift[row] = shift;
+    }
+
+    if (cache.useIterative) {
+        const double meanDiagonal = columnCount > 0
+            ? squaredMatrixNorm / (double)columnCount
+            : 0.0;
+        const double ridge = meanDiagonal > 0.0
+            ? relativeRidge * meanDiagonal
+            : relativeRidge;
+        const double ridgeRoot = std::sqrt(ridge);
+        for (Eigen::Index column = 0; column < columnCount; ++column)
+            entries.emplace_back(energyRowCount + column, column, ridgeRoot);
     }
 
     cache.scaledMatrix.resize(rowCount, columnCount);
     cache.scaledMatrix.setFromTriplets(entries.begin(), entries.end());
 
+    if (cache.useIterative) {
+        cache.normalMatrix.resize(0, 0);
+        return true;
+    }
     cache.normalMatrix = (cache.scaledMatrix.transpose() * cache.scaledMatrix).pruned();
     Eigen::SparseMatrix<double> regularizer(columnCount, columnCount);
     regularizer.setIdentity();
@@ -301,14 +349,25 @@ bool ConstrainedLeastSquares::solveReduced(std::vector<double>* solution)
     if (!cache.factorized)
         return false;
 
-    Eigen::VectorXd scaledRightHandSide(static_cast<Eigen::Index>(m_energyEquations.size()));
-    for (Eigen::Index row = 0; row < scaledRightHandSide.size(); ++row) {
+    Eigen::VectorXd scaledRightHandSide = Eigen::VectorXd::Zero(cache.scaledMatrix.rows());
+    for (Eigen::Index row = 0; row < static_cast<Eigen::Index>(m_energyEquations.size()); ++row) {
         scaledRightHandSide[row] = cache.rowWeightRoot[row]
             * (m_energyEquations[static_cast<size_t>(row)].rightHandSide - cache.rowShift[row]);
     }
+    Eigen::VectorXd initialGuess = Eigen::VectorXd::Zero(static_cast<Eigen::Index>(m_freeCount));
+    if (solution->size() == m_variableCount) {
+        for (size_t i = 0; i < m_variableCount; ++i) {
+            const Substitution& substitution = m_substitutions[i];
+            if (substitution.fixed || 0.0 == substitution.scale)
+                continue;
+            const size_t column = m_freeIndexOfRoot[substitution.root];
+            if (noIndex != column)
+                initialGuess[static_cast<Eigen::Index>(column)] = ((*solution)[i] - substitution.offset) / substitution.scale;
+        }
+    }
     bool solveSucceeded = false;
-    const Eigen::VectorXd reducedSolution = cache.solve(cache.scaledMatrix.transpose() * scaledRightHandSide,
-        &solveSucceeded);
+    const Eigen::VectorXd reducedSolution = cache.solve(scaledRightHandSide,
+        initialGuess, &solveSucceeded);
     if (!solveSucceeded)
         return false;
 

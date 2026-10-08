@@ -194,12 +194,10 @@ void RenderMeshGenerator::generate()
     }
 
     delete m_renderMesh;
-    m_renderMesh = new ModelShaderMesh(triangleVertices, (int)sourceVertexCount, nullptr, 0,
-        m_vertices, m_faces);
+    m_renderMesh = new ModelShaderMesh(triangleVertices, (int)sourceVertexCount);
     m_renderMesh->updateTriangleIndices(triangleIndices, (int)triangleIndexOffset);
     m_renderMesh->updateEdgeIndices(edgeIndices, (int)edgeIndexOffset);
 
-    // ModelShaderMesh copies these, so the working copies are ours to release
     delete m_vertices;
     m_vertices = nullptr;
     delete m_faces;
