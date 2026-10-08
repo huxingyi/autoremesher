@@ -27,3 +27,40 @@ jobs:
           if ! git diff --ignore-space-at-eol --exit-code; then
             exit 1
           fi
+
+  linux-build-and-test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          aqtversion: '==3.3.*'
+          version: '5.15.2'
+          host: 'linux'
+          target: 'desktop'
+          archives: 'qttools qtsvg qtimageformats qtbase qtmultimedia icu'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libtbb-dev libgl1-mesa-dev libfuse2 libfontconfig1 xvfb
+      - name: Build application
+        run: |
+          qmake
+          make -j`nproc`
+      - name: Build and run unit tests
+        run: |
+          cd tests
+          qmake
+          make -j`nproc`
+          ./autoremesher_tests
+          cd ..
+      - name: Run headless smoke test (Organic)
+        run: |
+          xvfb-run ./autoremesher --input tests/cube.obj --output /tmp/cube_organic.obj --target-quads 50 --report /tmp/report.txt
+          cat /tmp/report.txt
+          test -s /tmp/cube_organic.obj
+      - name: Run headless smoke test (Hard Surface)
+        run: |
+          xvfb-run ./autoremesher --input tests/cube.obj --output /tmp/cube_hardsurface.obj --target-quads 50 --model-type hardsurface
+          test -s /tmp/cube_hardsurface.obj

@@ -57,15 +57,18 @@
 #if __has_include(<oneapi/tbb/parallel_for.h>)
 #include <oneapi/tbb/parallel_for.h>
 #include <oneapi/tbb/parallel_sort.h>
+#include <oneapi/tbb/parallel_reduce.h>
 #else
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_sort.h>
+#include <tbb/parallel_reduce.h>
 #endif
 #else
 #include <tbb/blocked_range.h>
 #include <tbb/mutex.h>
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_sort.h>
+#include <tbb/parallel_reduce.h>
 #endif
 #include <cfloat>
 #include <meshoptimizer.h>
@@ -156,22 +159,41 @@ double AutoRemesher::calculateAverageEdgeLength(const std::vector<Vector3>& vert
 
 void AutoRemesher::initializeVoxelSize()
 {
-    double area = calculateMeshArea(m_vertices, m_triangles);
-    double triangleArea = area / m_targetTriangleCount;
+    m_meshArea = calculateMeshArea(m_vertices, m_triangles);
+    double triangleArea = m_meshArea / m_targetTriangleCount;
     m_voxelSize = std::sqrt(triangleArea / (0.86602540378 * 0.5));
 #if AUTO_REMESHER_DEBUG
-    std::cerr << "Area: " << area << " voxelSize: " << m_voxelSize << std::endl;
+    std::cerr << "Area: " << m_meshArea << " voxelSize: " << m_voxelSize << std::endl;
 #endif
 }
 
 double AutoRemesher::calculateMeshArea(const std::vector<Vector3>& vertices,
     const std::vector<std::vector<size_t>>& triangles)
 {
-    double area = 0.0;
-    for (const auto& it : triangles) {
-        area += Vector3::area(vertices[it[0]], vertices[it[1]], vertices[it[2]]);
+    if (triangles.empty() || vertices.empty())
+        return 0.0;
+    if (triangles.size() < 1000) {
+        double area = 0.0;
+        for (const auto& it : triangles) {
+            if (it.size() >= 3)
+                area += Vector3::area(vertices[it[0]], vertices[it[1]], vertices[it[2]]);
+        }
+        return area;
     }
-    return area;
+    return tbb::parallel_reduce(
+        tbb::blocked_range<size_t>(0, triangles.size()),
+        0.0,
+        [&](const tbb::blocked_range<size_t>& r, double init) -> double {
+            for (size_t i = r.begin(); i != r.end(); ++i) {
+                const auto& it = triangles[i];
+                if (it.size() >= 3)
+                    init += Vector3::area(vertices[it[0]], vertices[it[1]], vertices[it[2]]);
+            }
+            return init;
+        },
+        [](double a, double b) -> double {
+            return a + b;
+        });
 }
 
 bool AutoRemesher::decimateIfTooDense(std::vector<Vector3>& vertices,
@@ -307,6 +329,7 @@ void AutoRemesher::resample(std::vector<Vector3>& vertices,
     double adaptivity,
     double sharpEdgeDegrees,
     double smoothNormalDegrees,
+    int remeshIterations,
     size_t islandIndex,
     DecimationStats* decimationStats,
     std::atomic<long long>* adaptiveFieldTimeUs,
@@ -466,6 +489,12 @@ void AutoRemesher::resample(std::vector<Vector3>& vertices,
         isotropicRemesher.setVertexTargetEdgeLengths(&vertexTargetLengths);
     isotropicRemesher.setSharpEdgeDegrees(sharpEdgeDegrees);
     isotropicRemesher.setSmoothNormalDegrees(smoothNormalDegrees);
+    if (remeshIterations > 0) {
+        isotropicRemesher.setRemeshIterations(remeshIterations);
+    } else {
+        int autoIterations = (triangles.size() > 100000) ? 3 : 4;
+        isotropicRemesher.setRemeshIterations(autoIterations);
+    }
     isotropicRemesher.remesh();
     vertices = isotropicRemesher.remeshedVertices();
     triangles = isotropicRemesher.remeshedTriangles();
@@ -504,12 +533,17 @@ void AutoRemesher::updateProgress(size_t threadIndex, float progress, const char
 
     // With several islands in flight, the run as a whole is only as far along as
     // its slowest island, so that is the step worth naming.
-    size_t slowest = threadIndex;
-    for (size_t i = 0; i < m_threadProgress.size(); ++i) {
-        if (m_threadProgress[i] < m_threadProgress[slowest])
-            slowest = i;
+    if (m_slowestIsland >= m_threadProgress.size() || threadIndex == m_slowestIsland) {
+        size_t slowest = 0;
+        for (size_t i = 1; i < m_threadProgress.size(); ++i) {
+            if (m_threadProgress[i] < m_threadProgress[slowest])
+                slowest = i;
+        }
+        m_slowestIsland = slowest;
+    } else if (m_threadProgress[threadIndex] < m_threadProgress[m_slowestIsland]) {
+        m_slowestIsland = threadIndex;
     }
-    const char* name = m_threadStatus[slowest];
+    const char* name = m_threadStatus[m_slowestIsland];
     m_progressHandler(m_tag, (float)overall, nullptr != name ? name : "");
 }
 
@@ -536,17 +570,28 @@ void AutoRemesher::accumulateStageTime(const char* name, float order, long long 
     if (nullptr == name || '\0' == name[0])
         return;
     std::lock_guard<std::mutex> lock(m_stageTimingMutex);
-    for (auto& it : m_stageTimes) {
-        if (it.name == name) {
-            it.microseconds += microseconds;
-            return;
-        }
+    auto it = m_stageNameToIndex.find(name);
+    if (it != m_stageNameToIndex.end()) {
+        m_stageTimes[it->second].microseconds += microseconds;
+        return;
     }
+    m_stageNameToIndex[name] = m_stageTimes.size();
     m_stageTimes.push_back({ name, order, microseconds });
 }
 
 bool AutoRemesher::remesh()
 {
+    m_cancelled = false;
+    m_stageTimes.clear();
+    m_stageNameToIndex.clear();
+    m_slowestIsland = 0;
+
+    if (m_modelType == ModelType::HardSurface) {
+        if (m_sharpEdgeDegrees == m_defaultSharpEdgeDegrees)
+            m_sharpEdgeDegrees = 45.0;
+        m_smoothNormalDegrees = 0.0;
+    }
+
     // Validate inputs before any sizing math. In particular a zero target
     // triangle count would divide by zero in initializeVoxelSize().
     const char* invalidInputReason = nullptr;
@@ -677,6 +722,9 @@ bool AutoRemesher::remesh()
             void operator()(const tbb::blocked_range<size_t>& range) const
             {
                 for (size_t i = range.begin(); i != range.end(); ++i) {
+                    if (m_remesher->isCancelled())
+                        return;
+
                     auto& ctx = (*m_contexts)[i];
 
                     m_remesher->updateProgress(i, 0.0f, "Remeshing uniformly");
@@ -684,7 +732,8 @@ bool AutoRemesher::remesh()
                         0.0f, islandResampleEnd, -1.0f);
 
                     auto t0 = std::chrono::high_resolution_clock::now();
-                    resample(ctx.vertices, ctx.triangles, ctx.voxelSize, ctx.adaptivity, ctx.sharpEdgeDegrees, ctx.smoothNormalDegrees, i, m_decimationStats,
+                    resample(ctx.vertices, ctx.triangles, ctx.voxelSize, ctx.adaptivity, ctx.sharpEdgeDegrees, ctx.smoothNormalDegrees,
+                        m_remesher->remeshIterations(), i, m_decimationStats,
                         m_adaptiveFieldTime, &isotropicProgress,
                         &(*m_decimatedIslandVertices)[i], &(*m_decimatedIslandTriangles)[i]);
                     auto t1 = std::chrono::high_resolution_clock::now();
@@ -749,6 +798,8 @@ bool AutoRemesher::remesh()
         }
     }
     auto t_isotropicEnd = std::chrono::high_resolution_clock::now();
+    if (m_cancelled)
+        return false;
 
     class ParameterizationThread {
     public:
@@ -789,6 +840,8 @@ bool AutoRemesher::remesh()
         {
             for (size_t i = range.begin(); i != range.end(); ++i) {
                 auto& thread = (*m_parameterizationThreads)[i];
+                if (thread.autoRemesher->isCancelled())
+                    return;
 
                 auto t0 = std::chrono::high_resolution_clock::now();
 
@@ -878,6 +931,8 @@ bool AutoRemesher::remesh()
             &parameterizeTimeAccumulated,
             &extractTimeAccumulated));
     auto t_parallelEnd = std::chrono::high_resolution_clock::now();
+    if (m_cancelled)
+        return false;
 
     if (nullptr != m_progressHandler)
         m_progressHandler(m_tag, parallelPhaseEnd, "Merging mesh islands");
@@ -911,13 +966,12 @@ bool AutoRemesher::remesh()
     for (const auto& thread : parameterizationThreads) {
         m_isotropicExtractedConnections.insert(m_isotropicExtractedConnections.end(),
             thread.capturedExtractedConnections.begin(), thread.capturedExtractedConnections.end());
-        m_isotropicExtractedConnectionMoved.resize(m_isotropicExtractedConnections.size()
-                - thread.capturedExtractedConnections.size(),
-            0);
         m_isotropicExtractedConnectionMoved.insert(m_isotropicExtractedConnectionMoved.end(),
             thread.capturedExtractedConnectionMoved.begin(),
             thread.capturedExtractedConnectionMoved.end());
-        m_isotropicExtractedConnectionMoved.resize(m_isotropicExtractedConnections.size(), 0);
+        if (m_isotropicExtractedConnectionMoved.size() < m_isotropicExtractedConnections.size()) {
+            m_isotropicExtractedConnectionMoved.resize(m_isotropicExtractedConnections.size(), 0);
+        }
     }
     for (size_t i = 0; i < parameterizationThreads.size(); ++i) {
         auto& thread = parameterizationThreads[i];
@@ -929,9 +983,7 @@ bool AutoRemesher::remesh()
         const auto& vertices = thread.remesher->remeshedVertices();
         size_t vertexStartIndex = m_remeshedVertices.size();
         m_remeshedVertices.reserve(m_remeshedVertices.size() + vertices.size());
-        for (const auto& it : vertices) {
-            m_remeshedVertices.push_back(it);
-        }
+        m_remeshedVertices.insert(m_remeshedVertices.end(), vertices.begin(), vertices.end());
         for (const auto& it : quads) {
             std::vector<size_t> quad;
             quad.reserve(it.size());

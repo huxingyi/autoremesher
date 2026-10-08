@@ -6,6 +6,7 @@
 *.lo
 *.o
 *.obj
+!tests/*.obj
 
 # Precompiled Headers
 *.gch

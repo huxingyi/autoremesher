@@ -183,6 +183,31 @@ public:
         return m_phaseReport;
     }
 
+    void cancel()
+    {
+        m_cancelled = true;
+    }
+
+    bool isCancelled() const
+    {
+        return m_cancelled.load();
+    }
+
+    void setRemeshIterations(int iterations)
+    {
+        m_remeshIterations = iterations;
+    }
+
+    int remeshIterations() const
+    {
+        return m_remeshIterations;
+    }
+
+    double meshArea() const
+    {
+        return m_meshArea;
+    }
+
     static const double m_defaultSharpEdgeDegrees;
 
     // Per-island durations are accumulated in microseconds: a mesh split into
@@ -197,6 +222,11 @@ public:
     };
 
 private:
+    std::atomic<bool> m_cancelled { false };
+    double m_meshArea = 0.0;
+    int m_remeshIterations = 0;
+    size_t m_slowestIsland = 0;
+    std::unordered_map<std::string, size_t> m_stageNameToIndex;
     std::vector<Vector3> m_vertices;
     std::vector<std::vector<size_t>> m_triangles;
     std::vector<Vector3> m_remeshedVertices;
@@ -254,6 +284,7 @@ private:
         double adaptivity,
         double sharpEdgeDegrees,
         double smoothNormalDegrees,
+        int remeshIterations,
         size_t islandIndex,
         DecimationStats* decimationStats,
         std::atomic<long long>* adaptiveFieldTimeUs,

@@ -29,8 +29,18 @@
 #include <cstdlib>
 #include <iostream>
 #include <queue>
+#if defined(__has_include)
+#if __has_include(<oneapi/tbb/blocked_range.h>)
+#include <oneapi/tbb/blocked_range.h>
+#include <oneapi/tbb/parallel_for.h>
+#else
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
+#endif
+#else
+#include <tbb/blocked_range.h>
+#include <tbb/parallel_for.h>
+#endif
 
 namespace AutoRemesher {
 namespace {

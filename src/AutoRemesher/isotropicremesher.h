@@ -67,6 +67,16 @@ public:
         m_progressHandler = std::move(progressHandler);
     }
 
+    void setRemeshIterations(int iterations)
+    {
+        m_remeshIterations = iterations;
+    }
+
+    int remeshIterations() const
+    {
+        return m_remeshIterations;
+    }
+
     const std::vector<Vector3>& remeshedVertices()
     {
         return m_remeshedVertices;
