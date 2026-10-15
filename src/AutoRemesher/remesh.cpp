@@ -112,6 +112,10 @@ namespace {
                 ++report->quadCount;
             else
                 ++report->nonQuadCount;
+            if (0 == size) {
+                ++report->degenerateFaceCount;
+                continue;
+            }
 
             bool repeated = false;
             for (size_t i = 0; i < size; ++i) {
