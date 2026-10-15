@@ -43,6 +43,7 @@ struct HeadlessParams {
     QString inputPath;
     QString outputPath;
     QString reportPath;
+    QString reportJsonPath;
     int targetQuads = 50000;
     double edgeScaling = 1.0;
     double sharpEdgeDegrees = 90.0;
@@ -58,6 +59,8 @@ static HeadlessParams parseHeadlessArgs(QCommandLineParser& parser)
     params.outputPath = parser.value("output");
     if (parser.isSet("report"))
         params.reportPath = parser.value("report");
+    if (parser.isSet("report-json"))
+        params.reportJsonPath = parser.value("report-json");
     if (parser.isSet("target-quads"))
         params.targetQuads = parser.value("target-quads").toInt();
     if (parser.isSet("edge-scaling"))
@@ -105,6 +108,11 @@ int main(int argc, char** argv)
         QCoreApplication::translate("main", "Path to write a report file with stats (quads, non-quads, vertices, time). If omitted, no report file is written."),
         QCoreApplication::translate("main", "report.txt"));
     parser.addOption(reportOption);
+
+    QCommandLineOption reportJsonOption(QStringList { "report-json" },
+        QCoreApplication::translate("main", "Path to write the run's status and quality report as JSON (schema autoremesher.remesh-result), also when remeshing fails."),
+        QCoreApplication::translate("main", "report.json"));
+    parser.addOption(reportJsonOption);
 
     QCommandLineOption targetQuadsOption(QStringList { "target-quads" },
         QCoreApplication::translate("main", "Target quad count (default: 50000)"),
@@ -221,6 +229,7 @@ int main(int argc, char** argv)
             params.targetQuads, params.edgeScaling,
             params.sharpEdgeDegrees, params.smoothNormalDegrees,
             params.adaptivity, params.anisotropy);
+        mainWindow->setHeadlessReportJsonPath(params.reportJsonPath);
         mainWindow->runHeadless();
 
         return app.exec();

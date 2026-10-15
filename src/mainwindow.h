@@ -75,6 +75,7 @@ public:
         double sharpEdgeDegrees, double smoothNormalDegrees,
         double adaptivity,
         double anisotropy);
+    void setHeadlessReportJsonPath(const QString& path);
     void runHeadless();
     void saveMeshToFile(const QString& filename);
 
@@ -118,6 +119,7 @@ private:
     bool m_saved = true;
     bool m_headlessMode = false;
     QString m_headlessOutputPath;
+    QString m_headlessReportJsonPath;
     QElapsedTimer m_headlessTimer;
     int m_targetQuadCount = 50000;
     float m_targetScaling = 1.0;

@@ -1003,6 +1003,11 @@ void MainWindow::setHeadlessParams(const QString& inputPath, const QString& outp
     m_anisotropy = static_cast<float>(anisotropy);
 }
 
+void MainWindow::setHeadlessReportJsonPath(const QString& path)
+{
+    m_headlessReportJsonPath = path;
+}
+
 void MainWindow::saveMeshToFile(const QString& filename)
 {
     if (nullptr == m_remeshedVertices || nullptr == m_remeshedQuads)
@@ -1141,6 +1146,16 @@ void MainWindow::quadMeshReady()
     m_isotropicExtractedConnectionMoved = m_quadMeshGenerator->isotropicExtractedConnectionMoved();
     m_isotropicSingularVertices = m_quadMeshGenerator->isotropicSingularVertices();
     m_isotropicExtractedConnections = m_quadMeshGenerator->isotropicExtractedConnections();
+
+    if (m_headlessMode && !m_headlessReportJsonPath.isEmpty()) {
+        QFile reportFile(m_headlessReportJsonPath);
+        if (reportFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            const std::string& json = m_quadMeshGenerator->reportJson();
+            reportFile.write(json.data(), (qint64)json.size());
+        } else {
+            std::cerr << "Error: Failed to write " << m_headlessReportJsonPath.toStdString() << std::endl;
+        }
+    }
 
     delete m_quadMeshGenerator;
     m_quadMeshGenerator = nullptr;
