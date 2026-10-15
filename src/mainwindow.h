@@ -23,6 +23,7 @@
 #define AUTO_REMESHER_MAIN_WINDOW_H
 #include "modelshaderwidget.h"
 #include <AutoRemesher/AutoRemesher>
+#include <AutoRemesher/Remesh>
 #include <AutoRemesher/Vector2>
 #include <AutoRemesher/Vector3>
 #include <QCloseEvent>
@@ -76,6 +77,7 @@ public:
         double adaptivity,
         double anisotropy);
     void setHeadlessReportJsonPath(const QString& path);
+    void setHeadlessCancelToken(const AutoRemesher::CancelToken* cancelToken);
     void runHeadless();
     void saveMeshToFile(const QString& filename);
 
@@ -120,6 +122,7 @@ private:
     bool m_headlessMode = false;
     QString m_headlessOutputPath;
     QString m_headlessReportJsonPath;
+    const AutoRemesher::CancelToken* m_headlessCancelToken = nullptr;
     QElapsedTimer m_headlessTimer;
     int m_targetQuadCount = 50000;
     float m_targetScaling = 1.0;

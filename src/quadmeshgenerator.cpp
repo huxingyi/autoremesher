@@ -89,6 +89,7 @@ void QuadMeshGenerator::generate()
     callbacks.progress = [this](float progress, const char* step) {
         emitProgress(progress, QString::fromUtf8(step));
     };
+    callbacks.cancel = m_cancelToken;
 
     AutoRemesher::RemeshPreview preview;
     const AutoRemesher::RemeshResult result = AutoRemesher::remeshWithPreview(request, callbacks, &preview);

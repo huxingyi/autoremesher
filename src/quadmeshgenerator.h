@@ -48,6 +48,12 @@ public:
         m_parameters = parameters;
     }
 
+    // Optional; the token must outlive the run.
+    void setCancelToken(const AutoRemesher::CancelToken* cancelToken)
+    {
+        m_cancelToken = cancelToken;
+    }
+
     std::vector<AutoRemesher::Vector3>* takeRemeshedVertices()
     {
         return m_remeshedVertices.release();
@@ -149,6 +155,7 @@ private:
     std::vector<std::string> m_phaseReport;
     std::string m_reportJson;
     Parameters m_parameters;
+    const AutoRemesher::CancelToken* m_cancelToken = nullptr;
 };
 
 #endif

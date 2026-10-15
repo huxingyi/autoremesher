@@ -1008,6 +1008,11 @@ void MainWindow::setHeadlessReportJsonPath(const QString& path)
     m_headlessReportJsonPath = path;
 }
 
+void MainWindow::setHeadlessCancelToken(const AutoRemesher::CancelToken* cancelToken)
+{
+    m_headlessCancelToken = cancelToken;
+}
+
 void MainWindow::saveMeshToFile(const QString& filename)
 {
     if (nullptr == m_remeshedVertices || nullptr == m_remeshedQuads)
@@ -1071,6 +1076,7 @@ void MainWindow::runHeadless()
     connect(m_quadMeshGenerator, &QuadMeshGenerator::reportProgress, this, &MainWindow::updateProgress);
     connect(m_quadMeshGenerator, &QuadMeshGenerator::reportProgressDetailed, this, &MainWindow::updateProgressDetailed);
     m_quadMeshGenerator->setParameters(parameters);
+    m_quadMeshGenerator->setCancelToken(m_headlessCancelToken);
     m_quadMeshGenerator->moveToThread(thread);
     connect(thread, &QThread::started, m_quadMeshGenerator, &QuadMeshGenerator::process);
     connect(m_quadMeshGenerator, &QuadMeshGenerator::finished, this, &MainWindow::quadMeshReady);
