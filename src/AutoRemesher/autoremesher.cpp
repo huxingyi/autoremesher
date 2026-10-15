@@ -88,6 +88,12 @@ namespace {
     const double decimateTriggerRatio = 8.0;
     const double decimateTargetRatio = 4.0;
 
+    // Thrown from a cancellation point and caught in remesh().  Deliberately not
+    // a std::exception, so the per-island error handling doesn't take it for a
+    // failed island.
+    struct RemeshCancelled {
+    };
+
     void markSharpEdgeVertices(const std::vector<Vector3>& vertices,
         const std::vector<unsigned int>& indices,
         double sharpEdgeRadians,
@@ -513,12 +519,22 @@ void AutoRemesher::updateProgress(size_t threadIndex, float progress, const char
     m_progressHandler(m_tag, (float)overall, nullptr != name ? name : "");
 }
 
+void AutoRemesher::throwIfCancelled() const
+{
+    if (m_cancelCheck && m_cancelCheck())
+        throw RemeshCancelled();
+}
+
 ProgressHandler AutoRemesher::makeStageProgress(size_t islandIndex, float begin, float end, float stageOrder)
 {
     return [this, islandIndex, begin, end, stageOrder,
                lastTime = std::chrono::high_resolution_clock::now(),
                lastName = (const char*)nullptr,
                lastOrder = 0.0f](float fraction, const char* name) mutable {
+        // Every stage reports between its steps, so this is where a running
+        // island notices a cancellation.  The stages only hold memory through
+        // RAII here, which the unwinding frees.
+        throwIfCancelled();
         const auto now = std::chrono::high_resolution_clock::now();
         if (nullptr != lastName) {
             accumulateStageTime(lastName, lastOrder,
@@ -547,6 +563,24 @@ void AutoRemesher::accumulateStageTime(const char* name, float order, long long 
 
 bool AutoRemesher::remesh()
 {
+    m_cancelled = false;
+    try {
+        return remeshIslands();
+    } catch (const RemeshCancelled&) {
+        m_cancelled = true;
+    } catch (...) {
+        // TBB without exact exception propagation rethrows a cancellation from
+        // a worker thread as a different type, so go by the check instead.
+        if (!(m_cancelCheck && m_cancelCheck()))
+            throw;
+        m_cancelled = true;
+    }
+    std::cerr << "Remesh cancelled" << std::endl;
+    return false;
+}
+
+bool AutoRemesher::remeshIslands()
+{
     // Validate inputs before any sizing math. In particular a zero target
     // triangle count would divide by zero in initializeVoxelSize().
     const char* invalidInputReason = nullptr;
@@ -562,6 +596,7 @@ bool AutoRemesher::remesh()
             m_progressHandler(m_tag, 1.0, invalidInputReason);
         return false;
     }
+    throwIfCancelled();
     auto t_start = std::chrono::high_resolution_clock::now();
 
     // Each label names the step that is about to run, not the one that just
@@ -635,6 +670,7 @@ bool AutoRemesher::remesh()
             }
         });
     auto t_buildEnd = std::chrono::high_resolution_clock::now();
+    throwIfCancelled();
     if (nullptr != m_progressHandler)
         m_progressHandler(m_tag, parallelPhaseBegin, "Remeshing uniformly");
 
@@ -679,6 +715,7 @@ bool AutoRemesher::remesh()
                 for (size_t i = range.begin(); i != range.end(); ++i) {
                     auto& ctx = (*m_contexts)[i];
 
+                    m_remesher->throwIfCancelled();
                     m_remesher->updateProgress(i, 0.0f, "Remeshing uniformly");
                     const ProgressHandler isotropicProgress = m_remesher->makeStageProgress(i,
                         0.0f, islandResampleEnd, -1.0f);
@@ -749,6 +786,7 @@ bool AutoRemesher::remesh()
         }
     }
     auto t_isotropicEnd = std::chrono::high_resolution_clock::now();
+    throwIfCancelled();
 
     class ParameterizationThread {
     public:
@@ -790,6 +828,7 @@ bool AutoRemesher::remesh()
             for (size_t i = range.begin(); i != range.end(); ++i) {
                 auto& thread = (*m_parameterizationThreads)[i];
 
+                thread.autoRemesher->throwIfCancelled();
                 auto t0 = std::chrono::high_resolution_clock::now();
 
                 const auto& vertices = thread.island->vertices;
@@ -817,6 +856,8 @@ bool AutoRemesher::remesh()
                 bool parameterizeSucceeded = true;
                 try {
                     parameterizeSucceeded = thread.parameterizer->parameterize();
+                } catch (const RemeshCancelled&) {
+                    throw;
                 } catch (const std::exception& e) {
                     // A pathological island must not abort the whole remesh,
                     // so log the parameterizer failure and skip its quads.
@@ -834,6 +875,7 @@ bool AutoRemesher::remesh()
                 *m_parameterizeTime += std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
 
                 if (parameterizeSucceeded) {
+                    thread.autoRemesher->throwIfCancelled();
                     thread.autoRemesher->updateProgress(thread.islandIndex, islandParameterizeEnd);
                     std::unique_ptr<std::vector<std::vector<Vector2>>> uvs = thread.parameterizer->takeTriangleUvs();
                     if (uvs) {
@@ -878,6 +920,13 @@ bool AutoRemesher::remesh()
             &parameterizeTimeAccumulated,
             &extractTimeAccumulated));
     auto t_parallelEnd = std::chrono::high_resolution_clock::now();
+
+    m_islandCount = parameterizationThreads.size();
+    m_islandsWithoutOutput = 0;
+    for (const auto& thread : parameterizationThreads) {
+        if (nullptr == thread.remesher || thread.remesher->remeshedQuads().empty())
+            ++m_islandsWithoutOutput;
+    }
 
     if (nullptr != m_progressHandler)
         m_progressHandler(m_tag, parallelPhaseEnd, "Merging mesh islands");

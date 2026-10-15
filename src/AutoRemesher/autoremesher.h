@@ -27,6 +27,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <mutex>
 #include <string>
@@ -50,6 +51,13 @@ public:
         const std::vector<std::vector<size_t>>& triangles)
         : m_vertices(vertices)
         , m_triangles(triangles)
+    {
+    }
+
+    AutoRemesher(std::vector<Vector3>&& vertices,
+        std::vector<std::vector<size_t>>&& triangles)
+        : m_vertices(std::move(vertices))
+        , m_triangles(std::move(triangles))
     {
     }
 
@@ -96,6 +104,31 @@ public:
     void setSmoothNormalDegrees(double degrees)
     {
         m_smoothNormalDegrees = degrees;
+    }
+
+    // Asked at every progress point and at island and stage boundaries; once it
+    // returns true the run stops and remesh() returns false with cancelled()
+    // set.  Called from the island worker threads, so it must be thread-safe.
+    void setCancelCheck(std::function<bool()> cancelCheck)
+    {
+        m_cancelCheck = std::move(cancelCheck);
+    }
+
+    bool cancelled() const
+    {
+        return m_cancelled;
+    }
+
+    size_t islandCount() const
+    {
+        return m_islandCount;
+    }
+
+    // Islands that went through the pipeline but contributed no faces, either
+    // because a stage failed on them or because extraction found nothing.
+    size_t islandsWithoutOutput() const
+    {
+        return m_islandsWithoutOutput;
     }
 
     const std::vector<Vector3>& remeshedVertices()
@@ -183,6 +216,19 @@ public:
         return m_phaseReport;
     }
 
+    struct StageTime {
+        std::string name;
+        float order = 0.0f;
+        long long microseconds = 0;
+    };
+
+    // Per-step times summed over the islands, in pipeline order; filled by a
+    // completed remesh().
+    const std::vector<StageTime>& stepTimes() const
+    {
+        return m_stageTimes;
+    }
+
     static const double m_defaultSharpEdgeDegrees;
 
     // Per-island durations are accumulated in microseconds: a mesh split into
@@ -222,11 +268,6 @@ private:
     std::vector<std::string> m_phaseReport;
     mutable std::mutex m_progressMutex;
     std::mutex m_stageTimingMutex;
-    struct StageTime {
-        std::string name;
-        float order = 0.0f;
-        long long microseconds = 0;
-    };
     std::vector<StageTime> m_stageTimes;
     double m_scaling = 0.0;
     size_t m_targetTriangleCount = 0;
@@ -238,6 +279,13 @@ private:
     ModelType m_modelType = ModelType::Organic;
     AutoRemesherProgressHandler m_progressHandler = nullptr;
     void* m_tag = nullptr;
+    std::function<bool()> m_cancelCheck;
+    bool m_cancelled = false;
+    size_t m_islandCount = 0;
+    size_t m_islandsWithoutOutput = 0;
+
+    bool remeshIslands();
+    void throwIfCancelled() const;
 
     static double calculateAverageEdgeLength(const std::vector<Vector3>& vertices,
         const std::vector<std::vector<size_t>>& faces);
