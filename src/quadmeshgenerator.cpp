@@ -90,10 +90,11 @@ void QuadMeshGenerator::generate()
     m_autoRemesher->setSmoothNormalDegrees(m_parameters.smoothNormalDegrees);
     m_autoRemesher->setTag(this);
     m_autoRemesher->setProgressHandler(reportProgressHandler);
-    if (!m_autoRemesher->remesh()) {
-        emit finished();
+    // process() emits finished() once generate() returns; emitting it here as
+    // well made MainWindow::quadMeshReady() run twice on a failed run, the
+    // second time on a generator it had already deleted.
+    if (!m_autoRemesher->remesh())
         return;
-    }
 
     m_remeshedVertices = std::make_unique<std::vector<AutoRemesher::Vector3>>(m_autoRemesher->remeshedVertices());
 
