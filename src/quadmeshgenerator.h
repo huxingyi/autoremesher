@@ -21,25 +21,20 @@
  */
 #ifndef AUTO_REMESHER_QUAD_MESH_GENERATOR_H
 #define AUTO_REMESHER_QUAD_MESH_GENERATOR_H
-#include <AutoRemesher/AutoRemesher>
+#include <AutoRemesher/Remesh>
 #include <AutoRemesher/Vector2>
+#include <AutoRemesher/Vector3>
 #include <QObject>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 class QuadMeshGenerator : public QObject {
     Q_OBJECT
 public:
-    struct Parameters {
-        double scaling = 0.0;
-        size_t targetTriangleCount = 0;
-        AutoRemesher::ModelType modelType = AutoRemesher::ModelType::Organic;
-        double adaptivity = 1.0;
-        double anisotropy = 1.0;
-        double sharpEdgeDegrees = 90.0;
-        double smoothNormalDegrees = 0.0;
-    };
+    typedef AutoRemesher::RemeshParameters Parameters;
 
     QuadMeshGenerator(const std::vector<AutoRemesher::Vector3>& vertices,
         const std::vector<std::vector<size_t>>& triangles)
@@ -113,6 +108,12 @@ public:
         return m_isotropicExtractedConnections;
     }
 
+    // The run's status and quality report as JSON, see AutoRemesher::toJson().
+    const std::string& reportJson() const
+    {
+        return m_reportJson;
+    }
+
     void generate();
     void printProgress(float progress, const QString& status);
     void emitProgress(float progress);
@@ -145,7 +146,8 @@ private:
     std::vector<uint8_t> m_isotropicExtractedConnectionMoved;
     std::vector<AutoRemesher::Vector3> m_isotropicSingularVertices;
     std::vector<std::pair<AutoRemesher::Vector3, AutoRemesher::Vector3>> m_isotropicExtractedConnections;
-    std::unique_ptr<AutoRemesher::AutoRemesher> m_autoRemesher;
+    std::vector<std::string> m_phaseReport;
+    std::string m_reportJson;
     Parameters m_parameters;
 };
 

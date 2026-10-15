@@ -125,7 +125,6 @@ private:
     float m_smoothNormalDegrees = 0.0;
     float m_adaptivity = 1.0;
     float m_anisotropy = 1.0;
-    AutoRemesher::ModelType m_modelType = AutoRemesher::ModelType::Organic;
     std::vector<AutoRemesher::Vector3> m_originalVertices;
     std::vector<std::vector<size_t>> m_originalTriangles;
     std::vector<AutoRemesher::Vector3>* m_remeshedVertices = nullptr;

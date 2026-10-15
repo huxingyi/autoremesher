@@ -1055,9 +1055,8 @@ void MainWindow::runHeadless()
 
     QuadMeshGenerator::Parameters parameters;
 
-    parameters.targetTriangleCount = m_targetQuadCount * 2;
-    parameters.scaling = m_targetScaling;
-    parameters.modelType = m_modelType;
+    parameters.targetQuadCount = m_targetQuadCount;
+    parameters.edgeScaling = m_targetScaling;
     parameters.adaptivity = m_adaptivity;
     parameters.anisotropy = m_anisotropy;
     parameters.sharpEdgeDegrees = m_sharpEdgeDegrees;
@@ -1099,9 +1098,8 @@ void MainWindow::generateQuadMesh()
 
     QuadMeshGenerator::Parameters parameters;
 
-    parameters.targetTriangleCount = m_targetQuadCount * 2;
-    parameters.scaling = m_targetScaling;
-    parameters.modelType = m_modelType;
+    parameters.targetQuadCount = m_targetQuadCount;
+    parameters.edgeScaling = m_targetScaling;
     parameters.adaptivity = m_adaptivity;
     parameters.anisotropy = m_anisotropy;
     parameters.sharpEdgeDegrees = m_sharpEdgeDegrees;

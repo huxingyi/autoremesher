@@ -20,6 +20,7 @@
  *  SOFTWARE.
  */
 #include "quadmeshgenerator.h"
+#include <AutoRemesher/RemeshPreview>
 #include <QDebug>
 #include <QElapsedTimer>
 #include <cstdio>
@@ -32,10 +33,8 @@ void QuadMeshGenerator::process()
     generate();
 
     auto timeUsed = timer.elapsed();
-    if (nullptr != m_autoRemesher) {
-        for (const auto& line : m_autoRemesher->phaseReport())
-            qDebug().noquote() << "  " << QString::fromStdString(line);
-    }
+    for (const auto& line : m_phaseReport)
+        qDebug().noquote() << "  " << QString::fromStdString(line);
     qDebug() << "Quad mesh generation took" << timeUsed << "milliseconds";
 
     emit finished();
@@ -70,45 +69,62 @@ void QuadMeshGenerator::emitProgress(float progress, const QString& status)
     emit reportProgress(progress);
 }
 
-static void reportProgressHandler(void* tag, float progress, const char* status)
-{
-    QuadMeshGenerator* generator = (QuadMeshGenerator*)tag;
-    generator->emitProgress(progress, QString::fromUtf8(status));
-}
-
 void QuadMeshGenerator::generate()
 {
-    m_autoRemesher = std::make_unique<AutoRemesher::AutoRemesher>(m_vertices, m_triangles);
-    if (m_parameters.scaling > 0)
-        m_autoRemesher->setScaling(m_parameters.scaling);
-    if (m_parameters.targetTriangleCount > 0)
-        m_autoRemesher->setTargetTriangleCount(m_parameters.targetTriangleCount);
-    m_autoRemesher->setModelType(m_parameters.modelType);
-    m_autoRemesher->setGradientAdaptivity(m_parameters.adaptivity);
-    m_autoRemesher->setAnisotropy(m_parameters.anisotropy);
-    m_autoRemesher->setSharpEdgeDegrees(m_parameters.sharpEdgeDegrees);
-    m_autoRemesher->setSmoothNormalDegrees(m_parameters.smoothNormalDegrees);
-    m_autoRemesher->setTag(this);
-    m_autoRemesher->setProgressHandler(reportProgressHandler);
-    // process() emits finished() once generate() returns; emitting it here as
-    // well made MainWindow::quadMeshReady() run twice on a failed run, the
-    // second time on a generator it had already deleted.
-    if (!m_autoRemesher->remesh())
+    AutoRemesher::RemeshRequest request;
+    request.positions.reserve(m_vertices.size() * 3);
+    for (const auto& vertex : m_vertices) {
+        request.positions.push_back(vertex.x());
+        request.positions.push_back(vertex.y());
+        request.positions.push_back(vertex.z());
+    }
+    request.triangles.reserve(m_triangles.size() * 3);
+    for (const auto& triangle : m_triangles) {
+        for (size_t i = 0; i < 3; ++i)
+            request.triangles.push_back((uint32_t)triangle[i]);
+    }
+    request.parameters = m_parameters;
+
+    AutoRemesher::RemeshCallbacks callbacks;
+    callbacks.progress = [this](float progress, const char* step) {
+        emitProgress(progress, QString::fromUtf8(step));
+    };
+
+    AutoRemesher::RemeshPreview preview;
+    const AutoRemesher::RemeshResult result = AutoRemesher::remeshWithPreview(request, callbacks, &preview);
+    m_reportJson = AutoRemesher::toJson(result);
+    m_phaseReport = std::move(preview.phaseReport);
+    if (AutoRemesher::RemeshStatus::Ok != result.status)
+        qDebug().noquote() << "Remesh" << AutoRemesher::toString(result.status) << QString::fromStdString(result.message);
+    // A run that went through but produced no faces still hands over its
+    // empty mesh and previews, as before; only a rejected or cancelled run
+    // leaves the result unset.
+    if (AutoRemesher::RemeshStatus::InvalidInput == result.status
+        || AutoRemesher::RemeshStatus::Cancelled == result.status)
         return;
 
-    m_remeshedVertices = std::make_unique<std::vector<AutoRemesher::Vector3>>(m_autoRemesher->remeshedVertices());
-
-    m_remeshedQuads = std::make_unique<std::vector<std::vector<size_t>>>(m_autoRemesher->remeshedQuads());
+    const AutoRemesher::RemeshMesh& mesh = result.mesh;
+    m_remeshedVertices = std::make_unique<std::vector<AutoRemesher::Vector3>>();
+    m_remeshedVertices->reserve(mesh.positions.size() / 3);
+    for (size_t i = 0; i < mesh.positions.size(); i += 3)
+        m_remeshedVertices->emplace_back(mesh.positions[i], mesh.positions[i + 1], mesh.positions[i + 2]);
+    m_remeshedQuads = std::make_unique<std::vector<std::vector<size_t>>>();
+    m_remeshedQuads->reserve(mesh.faceSizes.size());
+    size_t offset = 0;
+    for (const uint32_t size : mesh.faceSizes) {
+        m_remeshedQuads->emplace_back(mesh.faceIndices.begin() + offset, mesh.faceIndices.begin() + offset + size);
+        offset += size;
+    }
 
     // Capture intermediate isotropic mesh data for preview overlays
-    m_decimated = m_autoRemesher->decimated();
-    m_decimatedVertices = m_autoRemesher->decimatedVertices();
-    m_decimatedTriangles = m_autoRemesher->decimatedTriangles();
-    m_isotropicVertices = m_autoRemesher->isotropicVertices();
-    m_isotropicTriangles = m_autoRemesher->isotropicTriangles();
-    m_isotropicTriangleUvs = m_autoRemesher->isotropicTriangleUvs();
-    m_isotropicOriginalTriangleUvs = m_autoRemesher->isotropicOriginalTriangleUvs();
-    m_isotropicSingularVertices = m_autoRemesher->isotropicSingularVertices();
-    m_isotropicExtractedConnections = m_autoRemesher->isotropicExtractedConnections();
-    m_isotropicExtractedConnectionMoved = m_autoRemesher->isotropicExtractedConnectionMoved();
+    m_decimated = preview.decimated;
+    m_decimatedVertices = std::move(preview.decimatedVertices);
+    m_decimatedTriangles = std::move(preview.decimatedTriangles);
+    m_isotropicVertices = std::move(preview.isotropicVertices);
+    m_isotropicTriangles = std::move(preview.isotropicTriangles);
+    m_isotropicTriangleUvs = std::move(preview.isotropicTriangleUvs);
+    m_isotropicOriginalTriangleUvs = std::move(preview.isotropicOriginalTriangleUvs);
+    m_isotropicSingularVertices = std::move(preview.isotropicSingularVertices);
+    m_isotropicExtractedConnections = std::move(preview.isotropicExtractedConnections);
+    m_isotropicExtractedConnectionMoved = std::move(preview.isotropicExtractedConnectionMoved);
 }
