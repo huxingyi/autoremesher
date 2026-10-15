@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Blender 4.2+ extension manifest. id and name must match names.py.
+schema_version = "1.0.0"
+
+id = "quadami"
+version = "0.1.0"
+name = "Quadami"
+tagline = "Automatic quad remeshing in a separate process"
+maintainer = "AutoRemesher fork contributors"
+type = "add-on"
+website = "https://github.com/KajetanMuczynski/autoremesher"
+tags = ["Mesh", "Modeling"]
+
+blender_version_min = "4.2.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+
+[permissions]
+files = "Exchanges the mesh with the remesher through a temporary folder"
