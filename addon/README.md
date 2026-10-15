@@ -78,7 +78,10 @@ machine and OS as the Blender that uses it.
 
 1. **Blender.** Any Blender 4.2 or newer from blender.org (the Linux `.tar.xz`,
    extracted anywhere) or the Snap. Not the Flatpak: its sandbox cannot start
-   a program from your home folder.
+   a program from your home folder. On older GPUs (Intel before Kaby Lake,
+   NVIDIA before GeForce 900, e.g. the E7450's HD 5500) use 4.5 LTS: Blender
+   5.0 raised the minimum GPU to those generations
+   (https://www.blender.org/download/requirements/).
 2. **Zip and remesher**, from the repository (this checkout):
 
    ```
