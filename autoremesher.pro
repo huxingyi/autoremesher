@@ -211,6 +211,12 @@ HEADERS += src/intnumberwidget.h
 SOURCES += src/AutoRemesher/autoremesher.cpp
 HEADERS += src/AutoRemesher/autoremesher.h
 
+SOURCES += src/AutoRemesher/remesh.cpp
+HEADERS += src/AutoRemesher/remesh.h
+HEADERS += src/AutoRemesher/remeshpreview.h
+HEADERS += include/AutoRemesher/Remesh
+HEADERS += include/AutoRemesher/RemeshPreview
+
 SOURCES += src/AutoRemesher/isotropicremesher.cpp
 HEADERS += src/AutoRemesher/isotropicremesher.h
 
