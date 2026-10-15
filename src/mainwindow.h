@@ -85,7 +85,6 @@ protected:
     void closeEvent(QCloseEvent* event);
     void showEvent(QShowEvent* event);
 private slots:
-    void showSupporters();
     void showContributors();
     void showAcknowlegements();
     void viewSource();

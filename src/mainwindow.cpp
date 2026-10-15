@@ -68,7 +68,6 @@
 
 LogBrowser* g_logBrowser = nullptr;
 QTextBrowser* g_acknowlegementsWidget = nullptr;
-QTextBrowser* g_supportersWidget = nullptr;
 QTextBrowser* g_contributorsWidget = nullptr;
 AboutWidget* g_aboutWidget = nullptr;
 std::map<MainWindow*, QUuid> g_windows;
@@ -137,10 +136,6 @@ MainWindow::MainWindow()
     QAction* seeContributorsAction = new QAction(tr("Contributors"), this);
     connect(seeContributorsAction, &QAction::triggered, this, &MainWindow::showContributors);
     helpMenu->addAction(seeContributorsAction);
-
-    QAction* seeSupportersAction = new QAction(tr("Supporters"), this);
-    connect(seeSupportersAction, &QAction::triggered, this, &MainWindow::showSupporters);
-    helpMenu->addAction(seeSupportersAction);
 
     QAction* showAcknowlegementsAction = new QAction(tr("Acknowlegements"), this);
     connect(showAcknowlegementsAction, &QAction::triggered, this, &MainWindow::showAcknowlegements);
@@ -761,21 +756,6 @@ MainWindow::~MainWindow()
 ModelShaderWidget* MainWindow::modelRenderWidget() const
 {
     return m_modelRenderWidget;
-}
-
-void MainWindow::showSupporters()
-{
-    if (!g_supportersWidget) {
-        g_supportersWidget = new QTextBrowser;
-        g_supportersWidget->setWindowTitle(unifiedWindowTitle(tr("Supporters")));
-        g_supportersWidget->setMinimumSize(QSize(320, 280));
-        QFile supporters(":/SUPPORTERS");
-        supporters.open(QFile::ReadOnly | QFile::Text);
-        g_supportersWidget->setHtml("<h1>SUPPORTERS</h1><pre>" + supporters.readAll() + "</pre>");
-    }
-    g_supportersWidget->show();
-    g_supportersWidget->activateWindow();
-    g_supportersWidget->raise();
 }
 
 void MainWindow::showContributors()

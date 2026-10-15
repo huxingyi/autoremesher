@@ -39,9 +39,9 @@ isEmpty(VERSION) {
 	VERSION = 1.2.0.0
 }
 
-HOMEPAGE_URL = "https://autoremesher.dust3d.org/"
-REPOSITORY_URL = "https://github.com/huxingyi/autoremesher"
-ISSUES_URL = "https://github.com/huxingyi/autoremesher/issues"
+HOMEPAGE_URL = "https://github.com/KajetanMuczynski/autoremesher"
+REPOSITORY_URL = "https://github.com/KajetanMuczynski/autoremesher"
+ISSUES_URL = "https://github.com/KajetanMuczynski/autoremesher/issues"
 PLATFORM = "Unknown"
 
 PLATFORM = "Unknown"

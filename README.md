@@ -1,8 +1,10 @@
-# AutoRemesher
+# AutoRemesher (fork)
 
-AutoRemesher is a cross-platform automatic quad remeshing tool that converts high-polygon meshes into clean quad-based topology. It is built on top of libraries: [Geogram](https://github.com/BrunoLevy/geogram), [libigl](https://github.com/libigl), [isotropicremesher](https://github.com/huxingyi/isotropicremesher) and [others](https://github.com/huxingyi/autoremesher/blob/master/ACKNOWLEDGEMENTS.html).
+AutoRemesher is a cross-platform automatic quad remeshing tool that converts high-polygon meshes into clean quad-based topology.
 
-Buy me a coffee for staying up late coding :-) [![](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=GHALWLWXYGCU6&item_name=Support+me+coding+in+my+spare+time&currency_code=AUD&source=url)
+This repository is a fork of [AutoRemesher](https://github.com/huxingyi/autoremesher) by Jeremy Hu (huxingyi). The fork works on remeshing quality, speed and Blender integration, and is a work in progress. The original project and its releases live at [huxingyi/autoremesher](https://github.com/huxingyi/autoremesher).
+
+It is built on [Eigen](https://eigen.tuxfamily.org/), [TBB](https://github.com/oneapi-src/oneTBB), [isotropicremesher](https://github.com/huxingyi/isotropicremesher), [meshoptimizer](https://github.com/zeux/meshoptimizer) and [others](ACKNOWLEDGEMENTS.html).
 
 <img width="3644" height="2202" alt="autoremesher-1 0-screenshot" src="https://github.com/user-attachments/assets/47851f1e-127c-49af-81b7-0c8ac06fb3ad" />
 
@@ -23,13 +25,13 @@ These instructions will get you a copy of **AutoRemesher** up and running on you
 
 ```bash
 # Install Qt and build tools
-sudo apt install build-essential qt5-qmake qtbase5-dev qttools5-dev-tools libqt5svg5-dev libqt5multimedia5-dev
+sudo apt install build-essential qt5-qmake qtbase5-dev qttools5-dev-tools libqt5svg5-dev
 
 # Install TBB and OpenGL
 sudo apt install libtbb-dev libgl1-mesa-dev
 
 # Clone and build
-git clone https://github.com/huxingyi/autoremesher.git
+git clone https://github.com/KajetanMuczynski/autoremesher.git
 cd autoremesher
 qmake
 make -j$(nproc)
@@ -100,7 +102,7 @@ brew install qt@5 tbb cmake
 
 # Build
 export PATH="/usr/local/opt/qt@5/bin:$PATH"
-git clone https://github.com/huxingyi/autoremesher.git
+git clone https://github.com/KajetanMuczynski/autoremesher.git
 cd autoremesher
 qmake CONFIG+=sdk_no_version_check
 make -j$(sysctl -n hw.logicalcpu)
@@ -123,46 +125,14 @@ AutoRemesher has a CLI mode for headless processing. Try it with one of the [com
     --anisotropy 1.0
 ```
 
-### Quick Start
+### Prebuilt binaries
 
-#### Windows
-
-Download `autoremesher-<version>-win32-x86_64.zip` from [releases](https://github.com/huxingyi/autoremesher/releases), extract it and run `autoremesher.exe`.
-
-#### macOS
-
-Download `autoremesher-<version>.dmg` from [releases](https://github.com/huxingyi/autoremesher/releases).
-
-*For the first time, Apple will reject to run and popup something like "can't be opened because its integrity cannot be verified". Go to System Preferences > Security & Privacy > General and under "Allow apps downloaded from" click the button to allow it.*
-
-#### Linux
-
-Download `autoremesher-<version>.AppImage` from [releases](https://github.com/huxingyi/autoremesher/releases).
-
-```
-$ chmod a+x ./autoremesher-<version>.AppImage
-$ ./autoremesher-<version>.AppImage
-```
-
-### Links
-
-- [Check out open-source auto-retopology tool AutoRemesher](http://www.cgchannel.com/2020/08/check-out-open-source-auto-retopology-tool-autoremesher/) **cgchannel.com**
-- [A New Open-Source Auto-Retopology Tool](https://80.lv/articles/a-new-open-source-auto-retopology-tool/) **80.lv**
-- [[Non-Blender] Autoremesher auto-retopology tool released](https://www.blendernation.com/2020/08/18/non-blender-autoremesher-auto-retopology-tool-released/) **blendernation.com**
-- [オープンソースの新しいオートリメッシュツール Auto Remesher](https://cginterest.com/2020/08/20/%e3%82%aa%e3%83%bc%e3%83%97%e3%83%b3%e3%82%bd%e3%83%bc%e3%82%b9%e3%81%ae%e6%96%b0%e3%81%97%e3%81%84%e3%82%aa%e3%83%bc%e3%83%88%e3%83%aa%e3%83%a1%e3%83%83%e3%82%b7%e3%83%a5%e3%83%84%e3%83%bc%e3%83%ab-a/) **cginterest.com**
-- [AutoRemesher 1.0.0-alpha - 超高速で高品質のクワッドポリゴン生成！Dust3D開発者によるオープンソースの自動リメッシュツール！](https://3dnchu.com/archives/autoremesher-1-0-0-alpha/) **3dnchu.com**
-- [Open Source AutoRemesher released](https://cgpress.org/archives/open-source-remesher.html) **cgpress.org**
-- [「autoremesher」多角形を自動でリトポしてれる無料トポロジーツール](https://modelinghappy.com/archives/30339) **modelinghappy.com**
-- [Open Source Auto Remesher](https://blender-addons.org/open-source-auto-remesher/) **blender-addons.org**
-- [AutoRemesher | Auto-Retopology-Tool](https://www.digitalproduction.com/2020/08/05/autoremesher-auto-retopology-tool/) **digitalproduction.com**
-- [Autoremesher open source auto-retopology tool](https://blenderartists.org/t/autoremesher-open-source-auto-retopology-tool/1245131/126) **blenderartists.org**
+This fork has no releases yet, so build it from source as above. Prebuilt binaries of the original AutoRemesher are on the [upstream releases page](https://github.com/huxingyi/autoremesher/releases).
 
 ## License
 
-AutoRemesher is licensed under the MIT License - see the [LICENSE](https://github.com/huxingyi/autoremesher/blob/master/LICENSE) file for details.
+GPL-3.0-or-later, see [LICENSE](LICENSE). Portions derived from AutoRemesher by Jeremy Hu (huxingyi), MIT, see [LICENSE-MIT-upstream](LICENSE-MIT-upstream). Libraries under `thirdparty/` keep their own licenses.
 
 ## Acknowledgements
 
-See the full [ACKNOWLEDGEMENTS](https://github.com/huxingyi/autoremesher/blob/master/ACKNOWLEDGEMENTS.html) for a list of libraries and resources used in this project.
-
-<!-- Sponsors begin --><!-- Sponsors end -->
+AutoRemesher was created by Jeremy Hu; see [AUTHORS](AUTHORS) and [CONTRIBUTORS](CONTRIBUTORS) for everyone who worked on the original. See [ACKNOWLEDGEMENTS](ACKNOWLEDGEMENTS.html) for the libraries and resources it uses.
