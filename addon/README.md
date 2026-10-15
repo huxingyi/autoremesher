@@ -70,12 +70,68 @@ the binding removes:
 - The add-on needs the path to a built `autoremesher` (preferences, or
   `$AUTOREMESHER_EXECUTABLE`, or `autoremesher` on `PATH`). Nothing is bundled.
 
-## Install
+## Install (Linux, Blender 4.2 or newer)
 
-Blender 4.2 or newer, as an extension (no legacy `bl_info`, so the name stays
-in one place): zip the `autoremesher_blender` folder, then *Edit > Preferences >
-Get Extensions > Install from Disk*. Then set the executable in the add-on's
-preferences, e.g. `build/app/autoremesher`.
+The add-on is a Blender extension (4.2+ only; there is no legacy `bl_info`, so
+the name stays in one place). The remesher binary has to be built on the same
+machine and OS as the Blender that uses it.
+
+1. **Blender.** Any Blender 4.2 or newer from blender.org (the Linux `.tar.xz`,
+   extracted anywhere) or the Snap. Not the Flatpak: its sandbox cannot start
+   a program from your home folder.
+2. **Zip and remesher**, from the repository (this checkout):
+
+   ```
+   sh addon/package.sh
+   ```
+
+   It prints two paths: the add-on zip (`build/addon/quadami-0.1.0.zip`) and
+   the remesher binary (`build/app/autoremesher`). It builds the binary only
+   if it is missing or too old (no `--stdin-control`), with `nice -n 10 make
+   -j2` and no LTO, and refuses while another build runs. Build dependencies:
+   see CLAUDE.md "Build" (Qt 5 dev packages, `libtbb-dev`).
+3. **Install the zip.** Blender: *Edit > Preferences > Get Extensions*, the
+   small down-arrow at the top right, *Install from Disk...*, pick the zip.
+   (Dragging the zip onto the Blender window works too.)
+4. **Point it at the remesher.** *Edit > Preferences > Add-ons*, expand
+   *Quadami*, set *Remesher executable* to the binary path from step 2. The
+   line below it must say *Using: ...* with a check mark. Alternatively start
+   Blender with `AUTOREMESHER_EXECUTABLE=<path>` set, or put `autoremesher`
+   on `PATH`.
+5. **Open the panel.** In the 3D Viewport press `N`; the sidebar has a
+   *Quadami* tab.
+
+To update after a code change: run step 2 again, then in *Get Extensions*
+remove Quadami and install the new zip (or restart Blender after reinstalling).
+
+## First test in Blender
+
+1. Start Blender from a terminal, so the worker's messages are visible there
+   if something fails.
+2. *Add > Mesh > Monkey*, then add a *Subdivision Surface* modifier at level 2
+   (the add-on remeshes the mesh with modifiers applied). Stay in Object Mode.
+3. In the *Quadami* tab set *Target Quads* to 2000 and press *Remesh*. The
+   status bar shows the percentage and step; orbit the view to check that
+   Blender stays responsive.
+4. When it finishes, `Suzanne_remesh` appears, the source is hidden and the
+   panel shows the report. Expect a status of *Done*, quads near the target,
+   and red rows only for real defects (non-quads, non-manifold edges, winding
+   flips, folded faces, empty islands).
+5. `Ctrl+Z` once should remove the result and show the source again.
+6. **Cancel:** select the source, set *Target Quads* to 50000 and press
+   *Remesh*; after a few seconds press `Esc` (or *Cancel* in the panel). The
+   status bar says *cancelling...*; within 5 s the panel shows *Cancelled* and
+   no new object is added.
+7. Optional, headless (no window):
+
+   ```
+   AUTOREMESHER_EXECUTABLE=build/app/autoremesher <blender> -b --factory-startup --python-exit-code 1 --python addon/tests/blender_smoke.py
+   ```
+
+   It should end with `blender_smoke: OK`.
+
+If a step fails, copy the terminal output (lines after *Quadami worker
+output*) and the panel's status line.
 
 ## Tests
 
@@ -100,7 +156,8 @@ Esc and the progress display can only be checked by hand in the UI.
 - Tested: everything in `test_worker.py`, on Ubuntu 24.04 with Python 3.12 and
   numpy 1.26, against the CLI built from this branch.
 - **Not tested: anything that imports `bpy`.** Blender is not installed on the
-  machine this was written on, so `__init__.py` (operator, panel, preferences,
+  machine this was written on (searched the whole disk: no binary, AppImage,
+  tarball, Snap, Flatpak or `~/.config/blender`), so `__init__.py` (operator, panel, preferences,
   mesh read and import), `blender_smoke.py` and the manifest have only been
   byte-compiled. Windows and macOS are untested (the Windows branch of
   `--stdin-control` has not been compiled).
