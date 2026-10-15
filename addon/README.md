@@ -109,6 +109,8 @@ remove Quadami and install the new zip (or restart Blender after reinstalling).
 
 ## First test in Blender
 
+Never used Blender? Follow [BEGINNERS.md](BEGINNERS.md) instead.
+
 1. Start Blender from a terminal, so the worker's messages are visible there
    if something fails.
 2. *Add > Mesh > Monkey*, then add a *Subdivision Surface* modifier at level 2

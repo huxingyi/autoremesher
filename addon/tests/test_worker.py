@@ -107,6 +107,19 @@ class ReportTest(unittest.TestCase):
         self.assertIn(("Warning", "1 of 3 islands produced no faces", True), rows)
 
 
+class EnvironmentTest(unittest.TestCase):
+    def test_snap_library_paths_dropped(self):
+        env = worker.worker_environment({
+            "SNAP": "/snap/blender/7802", "QT_QPA_PLATFORM": "wayland",
+            "LD_LIBRARY_PATH": "/snap/blender/7802/lib:/opt/x/lib:/snap/blender/7802"})
+        self.assertEqual(env["QT_QPA_PLATFORM"], "offscreen")
+        self.assertEqual(env["LD_LIBRARY_PATH"], "/opt/x/lib")
+        env = worker.worker_environment({"SNAP": "/snap/blender/7802", "LD_LIBRARY_PATH": "/snap/blender/7802/lib"})
+        self.assertNotIn("LD_LIBRARY_PATH", env)
+        env = worker.worker_environment({"LD_LIBRARY_PATH": "/snap/other/lib"})
+        self.assertEqual(env["LD_LIBRARY_PATH"], "/snap/other/lib")
+
+
 class FakeWorkerTest(unittest.TestCase):
     @unittest.skipIf(os.name == "nt", "uses a shell script as the worker")
     def test_crash_without_report(self):

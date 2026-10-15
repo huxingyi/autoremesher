@@ -117,6 +117,26 @@ def find_executable(configured=""):
     return shutil.which("autoremesher")
 
 
+def worker_environment(environ):
+    """The worker's environment: Blender's, minus what would confuse the CLI.
+
+    The CLI is the Qt app, so it always gets the offscreen platform. Inside a
+    Snap (Blender's is one), library paths into the snap are dropped, so the
+    CLI loads the system Qt and TBB it was built against.
+    """
+    env = dict(environ)
+    env["QT_QPA_PLATFORM"] = "offscreen"
+    snap = env.get("SNAP")
+    if snap and "LD_LIBRARY_PATH" in env:
+        kept = [p for p in env["LD_LIBRARY_PATH"].split(os.pathsep)
+                if p and not p.startswith(snap.rstrip("/") + "/") and p != snap]
+        if kept:
+            env["LD_LIBRARY_PATH"] = os.pathsep.join(kept)
+        else:
+            del env["LD_LIBRARY_PATH"]
+    return env
+
+
 class RemeshJob:
     """One remesh in a child process. Not thread-safe: drive it from one thread.
 
@@ -159,8 +179,7 @@ class RemeshJob:
             if name == "target_quads":
                 value = int(value)
             args += [PARAMETER_FLAGS[name], repr(value) if isinstance(value, float) else str(value)]
-        env = dict(os.environ)
-        env.setdefault("QT_QPA_PLATFORM", "offscreen")
+        env = worker_environment(os.environ)
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
         self._process = subprocess.Popen(
             args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
